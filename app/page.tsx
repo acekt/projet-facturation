@@ -7,6 +7,8 @@ import { CommandMenu } from "@/components/layout/command-menu"
 import { Dashboard } from "@/components/pages/dashboard"
 import { InvoicesPage } from "@/components/pages/invoices"
 import { InvoiceEditor } from "@/components/pages/invoice-editor"
+import { QuotesPage } from "@/components/pages/quotes"
+import { QuoteEditor } from "@/components/pages/quote-editor"
 import { ClientsPage } from "@/components/pages/clients"
 import { PaymentsPage } from "@/components/pages/payments"
 import { SettingsPage } from "@/components/pages/settings"
@@ -41,6 +43,10 @@ export default function App() {
     switch (currentPage) {
       case "dashboard":
         return <Dashboard />
+      case "quotes":
+        return <QuotesPage onCreateQuote={() => setCurrentPage("new-quote")} />
+      case "new-quote":
+        return <QuoteEditor onBack={() => setCurrentPage("quotes")} />
       case "invoices":
         return <InvoicesPage onCreateInvoice={() => setCurrentPage("new-invoice")} />
       case "new-invoice":

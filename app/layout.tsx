@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import { Analytics } from '@vercel/analytics/next'
 import { Providers } from '@/components/providers'
+import { DataSync } from '@/components/data-sync'
 import './globals.css'
 
 const geistSans = Geist({ 
@@ -45,6 +46,7 @@ export default function RootLayout({
       </head>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground`}>
         <Providers>
+          <DataSync />
           {children}
         </Providers>
         {process.env.NODE_ENV === 'production' && <Analytics />}
