@@ -42,12 +42,12 @@ export async function POST(request: Request) {
         quote.clientEmail,
         new Date().toISOString().split('T')[0],
         new Date(Date.now() + settings.defaultDueDateDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        quote.subtotal,
-        quote.discount,
-        quote.taxBase,
-        quote.tvaAmount,
-        quote.cssAmount,
-        quote.total,
+        Math.round(quote.subtotal),
+        Math.round(quote.discount),
+        Math.round(quote.taxBase),
+        Math.round(quote.tvaAmount),
+        Math.round(quote.cssAmount),
+        Math.round(quote.total),
         'pending',
         quote.notes
       );
@@ -64,8 +64,8 @@ export async function POST(request: Request) {
           invoiceId,
           item.description,
           item.quantity,
-          item.unitPrice,
-          item.total
+          Math.round(item.unitPrice),
+          Math.round(item.total)
         );
       }
 

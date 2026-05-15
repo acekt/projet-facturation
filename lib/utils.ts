@@ -9,8 +9,8 @@ export function formatCurrency(value: number) {
   return new Intl.NumberFormat("fr-GA", {
     style: "decimal",
     minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(value) + " XAF"
+    maximumFractionDigits: 0,
+  }).format(Math.round(value)) + " XAF"
 }
 
 export function formatShortCurrency(value: number) {

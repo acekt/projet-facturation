@@ -50,6 +50,14 @@ export async function POST(request: Request) {
       const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'quote'").get() as any;
       const number = `${settings.quotePrefix}-${year}-${String(sequence.current_value).padStart(4, '0')}`;
 
+      // Currency Rounding to nearest integer for XAF
+      const roundedSubtotal = Math.round(quoteData.subtotal);
+      const roundedDiscount = Math.round(quoteData.discount);
+      const roundedTaxBase = Math.round(quoteData.taxBase);
+      const roundedTva = Math.round(quoteData.tvaAmount);
+      const roundedCss = Math.round(quoteData.cssAmount);
+      const roundedTotal = Math.round(quoteData.total);
+
       db.prepare(`
         INSERT INTO quotes (
           id, number, clientId, clientName, clientEmail, date, dueDate,
@@ -57,7 +65,7 @@ export async function POST(request: Request) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id, number, quoteData.clientId, quoteData.clientName, quoteData.clientEmail, quoteData.date, quoteData.dueDate,
-        quoteData.subtotal, quoteData.discount, quoteData.taxBase, quoteData.tvaAmount, quoteData.cssAmount, quoteData.total, quoteData.notes, quoteData.status
+        roundedSubtotal, roundedDiscount, roundedTaxBase, roundedTva, roundedCss, roundedTotal, quoteData.notes, quoteData.status
       );
 
       const insertItem = db.prepare(`
@@ -71,8 +79,8 @@ export async function POST(request: Request) {
           id,
           item.description,
           item.quantity,
-          item.unitPrice,
-          item.total
+          Math.round(item.unitPrice),
+          Math.round(item.total)
         );
       }
 
