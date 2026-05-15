@@ -28,23 +28,23 @@ import {
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 
-import { useStore, type InvoiceItem, type Invoice } from "@/lib/store"
+import { useStore, type InvoiceItem, type Quote } from "@/lib/store"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 
-interface InvoiceEditorProps {
+interface QuoteEditorProps {
   onBack: () => void
 }
 
-export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
-  const { clients, settings, setInvoices } = useStore()
+export function QuoteEditor({ onBack }: QuoteEditorProps) {
+  const { clients, settings, setQuotes } = useStore()
   const [selectedClient, setSelectedClient] = React.useState<typeof clients[0] | null>(null)
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false)
   const [clientSearch, setClientSearch] = React.useState("")
   const [items, setItems] = React.useState<InvoiceItem[]>([
     { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
   ])
-  const [invoiceDate, setInvoiceDate] = React.useState(new Date().toISOString().split("T")[0])
+  const [quoteDate, setQuoteDate] = React.useState(new Date().toISOString().split("T")[0])
   const [dueDate, setDueDate] = React.useState(() => {
     const d = new Date()
     d.setDate(d.getDate() + settings.defaultDueDateDays)
@@ -52,6 +52,7 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
   })
   const [discount, setDiscount] = React.useState(0)
   const [notes, setNotes] = React.useState(settings.mentionsLegales || "")
+  const [previewOpen, setPreviewOpen] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
   const TAX_RATE = settings.tvaRate / 100
@@ -97,22 +98,27 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
   const css = taxBase * CSS_RATE
   const total = taxBase + tva + css
 
-  const handleSave = async (status: Invoice['status']) => {
+  const handleSave = async (status: Quote['status']) => {
     if (!selectedClient) {
       toast.error("Veuillez sélectionner un client")
       return
     }
 
+    if (items.some(item => !item.description || item.quantity <= 0)) {
+      toast.error("Veuillez remplir correctement tous les articles")
+      return
+    }
+
     setIsSubmitting(true)
     try {
-      const response = await fetch('/api/invoices', {
+      const response = await fetch('/api/quotes', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientId: selectedClient.id,
           clientName: selectedClient.name,
           clientEmail: selectedClient.email,
-          date: invoiceDate,
+          date: quoteDate,
           dueDate,
           items,
           notes,
@@ -126,15 +132,15 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
         }),
       })
 
-      if (!response.ok) throw new Error('Failed to save invoice')
+      if (!response.ok) throw new Error('Failed to save quote')
 
-      const newInvoices = await fetch('/api/invoices').then(res => res.json())
-      setInvoices(newInvoices)
+      const newQuotes = await fetch('/api/quotes').then(res => res.json())
+      setQuotes(newQuotes)
 
-      toast.success("Facture créée avec succès")
+      toast.success(status === 'draft' ? "Devis enregistré en brouillon" : "Devis créé avec succès")
       onBack()
     } catch (error) {
-      toast.error("Erreur lors de l'enregistrement de la facture")
+      toast.error("Erreur lors de l'enregistrement du devis")
     } finally {
       setIsSubmitting(false)
     }
@@ -158,13 +164,13 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
             Retour
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Nouvelle Facture</h1>
-            <p className="text-muted-foreground mt-1">Créez une facture directe</p>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Nouveau Devis</h1>
+            <p className="text-muted-foreground mt-1">Créez une proposition commerciale professionnelle</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button 
-            variant="outline" 
+          <Button
+            variant="outline"
             className="gap-2"
             onClick={() => handleSave('draft')}
             disabled={isSubmitting}
@@ -172,13 +178,13 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
             <Save className="w-4 h-4" />
             Brouillon
           </Button>
-          <Button 
+          <Button
             className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-            onClick={() => handleSave('pending')}
+            onClick={() => handleSave('sent')}
             disabled={isSubmitting}
           >
             <Send className="w-4 h-4" />
-            Finaliser la facture
+            Finaliser le devis
           </Button>
         </div>
       </div>
@@ -187,21 +193,21 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
         <div className="lg:col-span-2 space-y-6">
           <Card className="bg-card border-border">
             <CardHeader className="pb-4">
-              <CardTitle className="text-foreground font-semibold text-base">Informations de la Facture</CardTitle>
+              <CardTitle className="text-foreground font-semibold text-base">Informations du Devis</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-sm">Date de facturation</Label>
+                  <Label className="text-muted-foreground text-sm">Date d'émission</Label>
                   <Input
                     type="date"
-                    value={invoiceDate}
-                    onChange={(e) => setInvoiceDate(e.target.value)}
+                    value={quoteDate}
+                    onChange={(e) => setQuoteDate(e.target.value)}
                     className="bg-secondary border-border text-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-sm">Date d'échéance</Label>
+                  <Label className="text-muted-foreground text-sm">Date de validité</Label>
                   <Input
                     type="date"
                     value={dueDate}
@@ -250,7 +256,7 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
                         </div>
                         <div>
                           <p className="text-muted-foreground font-medium group-hover:text-foreground">Sélectionner un client</p>
-                          <p className="text-muted-foreground/60 text-sm">Rechercher dans votre base</p>
+                          <p className="text-muted-foreground/60 text-sm">Cliquez pour rechercher dans votre base</p>
                         </div>
                       </div>
                     </button>
@@ -323,11 +329,11 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
                   <div className="col-span-2 text-right">Total HT</div>
                 </div>
 
-                {items.map((item) => (
+                {items.map((item, index) => (
                   <div key={item.id} className="grid grid-cols-12 gap-2 md:gap-4 items-start p-3 rounded-xl bg-muted/30">
                     <div className="col-span-12 md:col-span-6">
                       <Input
-                        placeholder="Libellé..."
+                        placeholder="Libellé de la prestation..."
                         value={item.description}
                         onChange={(e) => updateItem(item.id, "description", e.target.value)}
                         className="bg-transparent border-0 md:border md:bg-secondary focus-visible:ring-1"
@@ -382,47 +388,50 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
                   <span className="text-foreground font-medium">{formatCurrency(subtotal)}</span>
                 </div>
 
-                <div className="flex justify-between text-sm items-center">
-                  <span className="text-muted-foreground">Remise</span>
-                  <Input
-                    type="number"
-                    className="w-24 h-7 text-right text-sm"
-                    value={discount}
-                    onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                  />
+                <div className="space-y-1.5">
+                  <div className="flex justify-between text-sm items-center">
+                    <span className="text-muted-foreground">Remise Commerciale</span>
+                    <Input
+                      type="number"
+                      className="w-24 h-7 text-right text-sm"
+                      value={discount}
+                      onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                    />
+                  </div>
                 </div>
 
                 <div className="pt-2 border-t border-border/50">
                   <div className="flex justify-between text-sm font-semibold">
-                    <span>Base Imposable</span>
+                    <span>Base Imposable (HT Net)</span>
                     <span>{formatCurrency(taxBase)}</span>
                   </div>
                 </div>
 
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">TVA ({settings.tvaRate}%)</span>
-                  <span>{formatCurrency(tva)}</span>
+                  <span className="text-foreground">{formatCurrency(tva)}</span>
                 </div>
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">CSS ({settings.cssRate}%)</span>
-                  <span>{formatCurrency(css)}</span>
+                  <span className="text-foreground">{formatCurrency(css)}</span>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-border">
                 <div className="flex justify-between items-center">
-                  <span className="text-foreground font-bold">TOTAL TTC</span>
+                  <span className="text-foreground font-bold">TOTAL TTC (XAF)</span>
                   <span className="text-2xl font-bold text-primary">{formatCurrency(total)}</span>
                 </div>
               </div>
 
               <div className="pt-4">
-                <Button 
-                  onClick={() => handleSave('pending')}
-                  className="w-full h-12"
+                <Button
+                  onClick={() => handleSave('sent')}
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12"
                   disabled={isSubmitting}
                 >
-                  Générer la Facture
+                  <Calculator className="w-4 h-4 mr-2" />
+                  Générer le Devis
                 </Button>
               </div>
             </CardContent>

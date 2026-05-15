@@ -36,6 +36,7 @@ interface SidebarProps {
 
 const navItems = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
+  { id: "quotes", label: "Devis", icon: FileText },
   { id: "invoices", label: "Factures", icon: FileText },
   { id: "clients", label: "Clients", icon: Users },
   { id: "payments", label: "Paiements", icon: CreditCard },
@@ -79,7 +80,23 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
         </div>
 
         {/* Quick Actions */}
-        <div className="p-3">
+        <div className="p-3 space-y-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "w-full border-primary/20 hover:bg-primary/5 text-primary transition-all",
+                  collapsed ? "justify-center px-2" : "justify-start gap-2"
+                )}
+                onClick={() => onPageChange("new-quote")}
+              >
+                <Plus className="w-4 h-4" />
+                {!collapsed && <span className="text-sm font-medium">Nouveau devis</span>}
+              </Button>
+            </TooltipTrigger>
+            {collapsed && <TooltipContent side="right">Nouveau devis</TooltipContent>}
+          </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
