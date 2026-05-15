@@ -4,6 +4,9 @@ import path from 'path';
 const dbPath = path.join(process.cwd(), 'database.sqlite');
 const db = new Database(dbPath);
 
+// Enable foreign keys
+db.pragma('foreign_keys = ON');
+
 // Initialize database
 db.exec(`
   CREATE TABLE IF NOT EXISTS settings (

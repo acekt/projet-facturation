@@ -50,6 +50,14 @@ export async function POST(request: Request) {
       const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'invoice'").get() as any;
       const number = `${settings.invoicePrefix}-${year}-${String(sequence.current_value).padStart(4, '0')}`;
 
+      // Currency Rounding to nearest integer for XAF
+      const roundedSubtotal = Math.round(invData.subtotal);
+      const roundedDiscount = Math.round(invData.discount);
+      const roundedTaxBase = Math.round(invData.taxBase);
+      const roundedTva = Math.round(invData.tvaAmount);
+      const roundedCss = Math.round(invData.cssAmount);
+      const roundedTotal = Math.round(invData.total);
+
       db.prepare(`
         INSERT INTO invoices (
           id, number, quoteId, clientId, clientName, clientEmail, date, dueDate,
@@ -57,7 +65,7 @@ export async function POST(request: Request) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id, number, invData.quoteId || null, invData.clientId, invData.clientName, invData.clientEmail, invData.date, invData.dueDate,
-        invData.subtotal, invData.discount, invData.taxBase, invData.tvaAmount, invData.cssAmount, invData.total, invData.notes, invData.status
+        roundedSubtotal, roundedDiscount, roundedTaxBase, roundedTva, roundedCss, roundedTotal, invData.notes, invData.status
       );
 
       const insertItem = db.prepare(`
@@ -71,8 +79,8 @@ export async function POST(request: Request) {
           id,
           item.description,
           item.quantity,
-          item.unitPrice,
-          item.total
+          Math.round(item.unitPrice),
+          Math.round(item.total)
         );
       }
 
