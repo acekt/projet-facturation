@@ -28,14 +28,35 @@ import { Badge } from "@/components/ui/badge"
 import { useStore, type Invoice } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
+import { PrintableDocument } from "@/components/printable-document"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
 }
 
 export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
-  const { invoices } = useStore()
+  const { invoices, setInvoices } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
+
+  const handleUpdateStatus = async (invoiceId: string, status: string) => {
+    try {
+      const response = await fetch('/api/invoices/status', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invoiceId, status }),
+      })
+
+      if (!response.ok) throw new Error('Failed to update status')
+
+      toast.success("Statut mis à jour")
+      const updatedInvoices = await fetch('/api/invoices').then(res => res.json())
+      setInvoices(updatedInvoices)
+    } catch (error) {
+      toast.error("Erreur lors de la mise à jour")
+    }
+  }
 
   const filteredInvoices = invoices.filter(
     (invoice) =>
@@ -126,15 +147,17 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2">
                             <Download className="w-4 h-4" /> PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
-                            <CheckCircle2 className="w-4 h-4" /> Marquer comme payée
-                          </DropdownMenuItem>
+                          {invoice.status !== 'paid' && (
+                            <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => handleUpdateStatus(invoice.id, 'paid')}>
+                              <CheckCircle2 className="w-4 h-4" /> Marquer comme payée
+                            </DropdownMenuItem>
+                          )}
                           <div className="h-px bg-border my-1" />
                           <DropdownMenuItem className="gap-2 text-destructive">
                             <Trash2 className="w-4 h-4" /> Supprimer
@@ -154,6 +177,18 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
           </div>
         )}
       </div>
+
+      <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
+        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
+          <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
+            <h2 className="font-bold">Aperçu avant impression</h2>
+            <Button onClick={() => window.print()} className="gap-2">
+              <Printer className="w-4 h-4" /> Imprimer
+            </Button>
+          </div>
+          {selectedInvoice && <PrintableDocument document={selectedInvoice} type="facture" />}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

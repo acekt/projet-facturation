@@ -118,13 +118,13 @@ function StatCard({ title, value, trend, trendUp, icon: Icon, iconBg, iconColor,
 }
 
 export function Dashboard() {
-  const { invoices, clients } = useStore()
+  const { invoices, clients, quotes } = useStore()
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
 
-  const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((acc, i) => acc + i.amount, 0)
-  const pendingRevenue = invoices.filter(i => i.status === 'pending').reduce((acc, i) => acc + i.amount, 0)
-  const overdueRevenue = invoices.filter(i => i.status === 'overdue').reduce((acc, i) => acc + i.amount, 0)
+  const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((acc, i) => acc + i.total, 0)
+  const pendingRevenue = invoices.filter(i => i.status === 'pending').reduce((acc, i) => acc + i.total, 0)
+  const overdueRevenue = invoices.filter(i => i.status === 'overdue').reduce((acc, i) => acc + i.total, 0)
   const paidCount = invoices.filter(i => i.status === 'paid').length
 
   const revenueData = [
@@ -149,12 +149,21 @@ export function Dashboard() {
   ]
 
   const activityTimeline = [
-    { id: 1, action: "Devis ouvert", client: "Societe Gabon Mining", time: "Il y a 5 min", type: "view" },
-    { id: 2, action: "Facture payee", client: "Total Gabon", time: "Il y a 1h", type: "payment" },
-    { id: 3, action: "Nouveau client", client: "Air Gabon", time: "Il y a 3h", type: "new" },
-    { id: 4, action: "Devis envoye", client: "Banque BGFI", time: "Il y a 5h", type: "send" },
-    { id: 5, action: "Paiement recu", client: "Comilog", time: "Hier", type: "payment" },
-  ]
+    ...quotes.slice(0, 3).map(q => ({
+      id: q.id,
+      action: q.status === 'invoiced' ? "Devis converti" : "Nouveau devis",
+      client: q.clientName,
+      time: q.date,
+      type: "send"
+    })),
+    ...invoices.slice(0, 3).map(i => ({
+      id: i.id,
+      action: i.status === 'paid' ? "Facture payée" : "Facture émise",
+      client: i.clientName,
+      time: i.date,
+      type: "payment"
+    }))
+  ].sort((a, b) => b.time.localeCompare(a.time)).slice(0, 5)
 
   React.useEffect(() => {
     setMounted(true)
@@ -419,7 +428,7 @@ export function Dashboard() {
                       </div>
                     </div>
                     <div className="flex items-center gap-4">
-                      <p className="text-foreground font-semibold">{formatCurrency(invoice.amount)}</p>
+                      <p className="text-foreground font-semibold">{formatCurrency(invoice.total)}</p>
                       {getStatusBadge(invoice.status)}
                       <Button
                         variant="ghost"
