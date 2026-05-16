@@ -33,6 +33,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
+    // Validation
     const validation = invoiceSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json({ error: validation.error.format() }, { status: 400 });
@@ -44,9 +45,18 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
 
     const insertInvoice = db.transaction((invData) => {
+      // Increment sequence
       db.prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = 'invoice'").run();
       const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'invoice'").get() as any;
       const number = `${settings.invoicePrefix}-${year}-${String(sequence.current_value).padStart(4, '0')}`;
+
+      // Currency Rounding to nearest integer for XAF
+      const roundedSubtotal = Math.round(invData.subtotal);
+      const roundedDiscount = Math.round(invData.discount);
+      const roundedTaxBase = Math.round(invData.taxBase);
+      const roundedTva = Math.round(invData.tvaAmount);
+      const roundedCss = Math.round(invData.cssAmount);
+      const roundedTotal = Math.round(invData.total);
 
       db.prepare(`
         INSERT INTO invoices (
@@ -55,8 +65,7 @@ export async function POST(request: Request) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id, number, invData.quoteId || null, invData.clientId, invData.clientName, invData.clientEmail, invData.date, invData.dueDate,
-        Math.round(invData.subtotal), Math.round(invData.discount), Math.round(invData.taxBase),
-        Math.round(invData.tvaAmount), Math.round(invData.cssAmount), Math.round(invData.total), invData.notes, invData.status
+        roundedSubtotal, roundedDiscount, roundedTaxBase, roundedTva, roundedCss, roundedTotal, invData.notes, invData.status
       );
 
       const insertItem = db.prepare(`

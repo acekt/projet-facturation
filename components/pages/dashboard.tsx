@@ -122,10 +122,29 @@ export function Dashboard() {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
 
-  const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((acc, i) => acc + i.total, 0)
-  const pendingRevenue = invoices.filter(i => i.status === 'pending').reduce((acc, i) => acc + i.total, 0)
-  const overdueRevenue = invoices.filter(i => i.status === 'overdue').reduce((acc, i) => acc + i.total, 0)
-  const paidCount = invoices.filter(i => i.status === 'paid').length
+  const now = new Date();
+  const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+  const lastMonth = String(now.getMonth() || 12).padStart(2, '0');
+  const currentYear = now.getFullYear().toString();
+
+  const paidInvoices = invoices.filter(i => i.status === 'paid');
+  const totalRevenue = paidInvoices.reduce((acc, i) => acc + (Number(i.total) || 0), 0);
+
+  const revenueCurrentMonth = paidInvoices
+    .filter(i => i.date?.startsWith(currentYear) && i.date?.split('-')[1] === currentMonth)
+    .reduce((acc, i) => acc + (Number(i.total) || 0), 0);
+
+  const revenueLastMonth = paidInvoices
+    .filter(i => i.date?.startsWith(currentYear) && i.date?.split('-')[1] === lastMonth)
+    .reduce((acc, i) => acc + (Number(i.total) || 0), 0);
+
+  const revenueGrowth = revenueLastMonth > 0
+    ? ((revenueCurrentMonth - revenueLastMonth) / revenueLastMonth * 100).toFixed(1)
+    : (revenueCurrentMonth > 0 ? "100" : "0");
+
+  const pendingRevenue = invoices.filter(i => i.status === 'pending').reduce((acc, i) => acc + (Number(i.total) || 0), 0)
+  const overdueRevenue = invoices.filter(i => i.status === 'overdue').reduce((acc, i) => acc + (Number(i.total) || 0), 0)
+  const paidCount = paidInvoices.length
 
   const revenueData = [
     { month: "Jan", revenue: 4500000 },
@@ -213,17 +232,17 @@ export function Dashboard() {
         <StatCard
           title="Chiffre d'affaires"
           value={formatShortCurrency(totalRevenue) + " XAF"}
-          trend="+12.5%"
-          trendUp={true}
+          trend={`${revenueGrowth}% ce mois`}
+          trendUp={Number(revenueGrowth) >= 0}
           icon={DollarSign}
           iconBg="bg-primary/10"
           iconColor="text-primary"
           delay={0}
         />
         <StatCard
-          title="Factures payees"
+          title="Factures payées"
           value={paidCount.toString()}
-          trend="+8.2%"
+          trend={`${Math.round((paidCount / (invoices.length || 1)) * 100)}% du volume`}
           trendUp={true}
           icon={CheckCircle}
           iconBg="bg-emerald-500/10"
@@ -233,7 +252,7 @@ export function Dashboard() {
         <StatCard
           title="En attente"
           value={formatShortCurrency(pendingRevenue) + " XAF"}
-          trend={`${invoices.filter(i => i.status === 'pending').length} factures`}
+          trend={`${invoices.filter(i => i.status === 'pending').length} document(s)`}
           trendUp={false}
           icon={Clock}
           iconBg="bg-amber-500/10"
@@ -243,8 +262,8 @@ export function Dashboard() {
         <StatCard
           title="En retard"
           value={formatShortCurrency(overdueRevenue) + " XAF"}
-          trend="-2 ce mois"
-          trendUp={true}
+          trend={`${invoices.filter(i => i.status === 'overdue').length} impayé(s)`}
+          trendUp={false}
           icon={AlertCircle}
           iconBg="bg-red-500/10"
           iconColor="text-red-500"

@@ -1,3 +1,5 @@
+"use client"
+
 import { create } from 'zustand';
 
 export interface Client {
@@ -56,6 +58,14 @@ export interface Invoice {
   notes?: string;
 }
 
+export interface Service {
+  id: string;
+  name: string;
+  description: string;
+  category: string;
+  unitPrice: number;
+}
+
 export interface Settings {
   companyName: string;
   nif: string;
@@ -77,10 +87,12 @@ interface AppState {
   clients: Client[];
   quotes: Quote[];
   invoices: Invoice[];
+  services: Service[];
   settings: Settings;
   setClients: (clients: Client[]) => void;
   setQuotes: (quotes: Quote[]) => void;
   setInvoices: (invoices: Invoice[]) => void;
+  setServices: (services: Service[]) => void;
   setSettings: (settings: Settings) => void;
 }
 
@@ -104,10 +116,12 @@ export const useStore = create<AppState>()((set) => ({
   clients: [],
   quotes: [],
   invoices: [],
+  services: [],
   settings: DEFAULT_SETTINGS,
 
   setClients: (clients) => set({ clients }),
   setQuotes: (quotes) => set({ quotes }),
   setInvoices: (invoices) => set({ invoices }),
+  setServices: (services) => set({ services }),
   setSettings: (settings) => set({ settings }),
 }));

@@ -64,4 +64,12 @@ export const settingsSchema = z.object({
   defaultDueDateDays: z.number().min(0),
   invoicePrefix: z.string().min(1),
   quotePrefix: z.string().min(1),
+  mentionsLegales: z.string().optional(),
+});
+
+export const serviceSchema = z.object({
+  name: z.string().min(1, "Le nom est requis"),
+  description: z.string().optional(),
+  category: z.string().optional(),
+  unitPrice: z.number().min(0, "Le prix ne peut pas être négatif"),
 });

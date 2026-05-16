@@ -106,6 +106,15 @@ db.exec(`
 
   INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('quote', 0);
   INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('invoice', 0);
+
+  CREATE TABLE IF NOT EXISTS services (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    category TEXT,
+    unitPrice REAL DEFAULT 0,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // Insert default settings if not exists

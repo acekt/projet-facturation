@@ -29,23 +29,30 @@ import { useStore, type Invoice } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { PrintableDocument } from "@/components/printable-document"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { DownloadCloud } from "lucide-react"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
 }
 
 export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
-  const { invoices, setInvoices } = useStore()
+  const invoices = useStore((state) => state.invoices)
+  const setInvoices = useStore((state) => state.setInvoices)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
+  const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false)
+  const [paymentInvoiceId, setPaymentInvoiceId] = React.useState<string | null>(null)
+  const [paymentMethod, setPaymentMethod] = React.useState("cash")
 
-  const handleUpdateStatus = async (invoiceId: string, status: string) => {
+  const handleUpdateStatus = async (invoiceId: string, status: string, paymentMethod?: string) => {
     try {
       const response = await fetch('/api/invoices/status', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId, status }),
+        body: JSON.stringify({ invoiceId, status, paymentMethod }),
       })
 
       if (!response.ok) throw new Error('Failed to update status')
@@ -63,6 +70,19 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
       invoice.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
       invoice.clientName.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const markAsPaid = (invoiceId: string) => {
+      setPaymentInvoiceId(invoiceId);
+      setPaymentDialogOpen(true);
+  }
+
+  const confirmPayment = async () => {
+      if (paymentInvoiceId) {
+          await handleUpdateStatus(paymentInvoiceId, 'paid', paymentMethod);
+          setPaymentDialogOpen(false);
+          setPaymentInvoiceId(null);
+      }
+  }
 
   const getStatusBadge = (status: Invoice['status']) => {
     switch (status) {
@@ -86,13 +106,34 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Factures</h1>
           <p className="text-muted-foreground mt-1">Gérez vos factures et suivez vos paiements</p>
         </div>
-        <Button
-          onClick={onCreateInvoice}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-        >
-          <Plus className="w-4 h-4" />
-          Nouvelle facture
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const headers = ["Numero", "Client", "Date", "Echeance", "Total", "Statut"];
+              const rows = invoices.map(i => [i.number, i.clientName, i.date, i.dueDate, i.total, i.status]);
+              const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+              const link = document.createElement("a");
+              link.href = URL.createObjectURL(blob);
+              link.setAttribute("download", `factures_${new Date().toISOString().split('T')[0]}.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="gap-2 hidden sm:flex"
+          >
+            <DownloadCloud className="w-4 h-4" />
+            Export CSV
+          </Button>
+          <Button
+            onClick={onCreateInvoice}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
+          >
+            <Plus className="w-4 h-4" />
+            Nouvelle facture
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border">
@@ -154,7 +195,7 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
                             <Download className="w-4 h-4" /> PDF
                           </DropdownMenuItem>
                           {invoice.status !== 'paid' && (
-                            <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => handleUpdateStatus(invoice.id, 'paid')}>
+                            <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice.id)}>
                               <CheckCircle2 className="w-4 h-4" /> Marquer comme payée
                             </DropdownMenuItem>
                           )}
@@ -187,6 +228,33 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
             </Button>
           </div>
           {selectedInvoice && <PrintableDocument document={selectedInvoice} type="facture" />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="bg-card border-border max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Confirmer le paiement</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-muted-foreground">Mode de paiement</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="bg-secondary border-border text-foreground">
+                  <SelectValue placeholder="Sélectionner..." />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="airtel">Airtel Money</SelectItem>
+                  <SelectItem value="moov">Moov Africa</SelectItem>
+                  <SelectItem value="virement">Virement Bancaire</SelectItem>
+                  <SelectItem value="cash">Espèces / Cash</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={confirmPayment} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11">
+              Valider l'encaissement
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

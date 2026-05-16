@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
+import { DownloadCloud } from "lucide-react"
 
 export function ClientsPage() {
   const { clients, setClients } = useStore()
@@ -70,13 +71,33 @@ export function ClientsPage() {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Clients</h1>
           <p className="text-muted-foreground mt-1">Gérez votre base de clients et leurs coordonnées</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-          <DialogTrigger asChild>
-            <Button className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20">
-              <Plus className="w-4 h-4" />
-              Nouveau client
-            </Button>
-          </DialogTrigger>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const headers = ["Nom", "Email", "Telephone", "Adresse"];
+              const rows = clients.map(c => [c.name, c.email, c.phone, c.address]);
+              const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+              const link = document.createElement("a");
+              link.href = URL.createObjectURL(blob);
+              link.setAttribute("download", `clients_${new Date().toISOString().split('T')[0]}.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="gap-2 hidden sm:flex"
+          >
+            <DownloadCloud className="w-4 h-4" />
+            Export CSV
+          </Button>
+          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20">
+                <Plus className="w-4 h-4" />
+                Nouveau client
+              </Button>
+            </DialogTrigger>
           <DialogContent className="bg-card border-border">
             <DialogHeader>
               <DialogTitle className="text-foreground">Ajouter un nouveau client</DialogTitle>
@@ -129,8 +150,9 @@ export function ClientsPage() {
                 Enregistrer le client
               </Button>
             </form>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
@@ -196,7 +218,12 @@ export function ClientsPage() {
                 </div>
                 <div className="bg-secondary/30 p-4 border-t border-border flex items-center justify-between">
                   <div className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">CA Total</div>
-                  <div className="font-bold text-foreground">0 XAF</div>
+                  <div className="font-bold text-foreground">
+                    {useStore.getState().invoices
+                      ?.filter(inv => inv.clientId === client.id && inv.status === 'paid')
+                      .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0)
+                      .toLocaleString('fr-GA')} XAF
+                  </div>
                 </div>
               </CardContent>
             </Card>

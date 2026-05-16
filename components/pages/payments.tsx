@@ -9,16 +9,12 @@ import {
   ArrowDownLeft,
   CheckCircle,
   Clock,
-  AlertCircle,
   Smartphone,
   Building,
   CreditCard,
   TrendingUp,
-  TrendingDown,
   RefreshCw,
-  Filter,
   Wallet,
-  ArrowRight,
   Activity,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -36,164 +32,52 @@ import {
 } from "recharts"
 
 import { useStore } from "@/lib/store"
-
-const cashflowData = [
-  { date: "01/01", entrees: 4500000, sorties: 2100000 },
-  { date: "05/01", entrees: 3200000, sorties: 1800000 },
-  { date: "10/01", entrees: 5800000, sorties: 2400000 },
-  { date: "15/01", entrees: 4100000, sorties: 1900000 },
-  { date: "20/01", entrees: 6200000, sorties: 2800000 },
-  { date: "25/01", entrees: 5500000, sorties: 2200000 },
-  { date: "30/01", entrees: 7100000, sorties: 3100000 },
-]
-
-const transactions = [
-  {
-    id: "TRX-001",
-    type: "income",
-    method: "airtel",
-    client: "Societe Gabon Mining",
-    amount: 2450000,
-    status: "completed",
-    date: "2024-01-15 14:32",
-    reference: "AIRTEL-87654321",
-  },
-  {
-    id: "TRX-002",
-    type: "income",
-    method: "moov",
-    client: "Banque BGFI",
-    amount: 1850000,
-    status: "pending",
-    date: "2024-01-15 12:15",
-    reference: "MOOV-12345678",
-  },
-  {
-    id: "TRX-003",
-    type: "income",
-    method: "virement",
-    client: "Total Gabon",
-    amount: 3200000,
-    status: "completed",
-    date: "2024-01-14 16:45",
-    reference: "VIR-98765432",
-  },
-  {
-    id: "TRX-004",
-    type: "income",
-    method: "airtel",
-    client: "Comilog",
-    amount: 890000,
-    status: "failed",
-    date: "2024-01-14 10:20",
-    reference: "AIRTEL-11223344",
-  },
-  {
-    id: "TRX-005",
-    type: "income",
-    method: "moov",
-    client: "Olam Gabon",
-    amount: 1560000,
-    status: "completed",
-    date: "2024-01-13 09:10",
-    reference: "MOOV-55667788",
-  },
-]
-
-const formatCurrency = (value: number) => {
-  return new Intl.NumberFormat("fr-GA", {
-    style: "decimal",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value) + " XAF"
-}
-
-const formatShortCurrency = (value: number) => {
-  if (value >= 1000000) {
-    return (value / 1000000).toFixed(1) + "M"
-  }
-  if (value >= 1000) {
-    return (value / 1000).toFixed(0) + "K"
-  }
-  return value.toString()
-}
-
-const getMethodIcon = (method: string) => {
-  switch (method) {
-    case "airtel":
-    case "moov":
-      return <Smartphone className="w-4 h-4" />
-    case "virement":
-      return <Building className="w-4 h-4" />
-    default:
-      return <CreditCard className="w-4 h-4" />
-  }
-}
-
-const getMethodColor = (method: string) => {
-  switch (method) {
-    case "airtel":
-      return "text-red-600 dark:text-red-400 bg-red-500/10 border-red-500/20"
-    case "moov":
-      return "text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20"
-    case "virement":
-      return "text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-    default:
-      return "text-muted-foreground bg-secondary border-border"
-  }
-}
-
-const getStatusBadge = (status: string) => {
-  switch (status) {
-    case "completed":
-      return (
-        <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20">
-          <CheckCircle className="w-3 h-3 mr-1" />
-          Complete
-        </Badge>
-      )
-    case "pending":
-      return (
-        <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20">
-          <Clock className="w-3 h-3 mr-1" />
-          En cours
-        </Badge>
-      )
-    case "failed":
-      return (
-        <Badge className="bg-red-500/10 text-red-600 dark:text-red-400 border-red-500/20">
-          <AlertCircle className="w-3 h-3 mr-1" />
-          Echoue
-        </Badge>
-      )
-    default:
-      return null
-  }
-}
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.08,
-    },
-  },
-}
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0 },
-}
+import { formatCurrency, formatShortCurrency } from "@/lib/utils"
 
 export function PaymentsPage() {
-  const { invoices } = useStore()
+  const invoices = useStore((state) => state.invoices)
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
 
-  const incomeThisMonth = invoices.filter(i => i.status === 'paid').reduce((acc, i) => acc + i.amount, 0)
-  const pendingPayments = invoices.filter(i => i.status === 'pending').reduce((acc, i) => acc + i.amount, 0)
+  const paidInvoices = React.useMemo(() =>
+    invoices.filter(i => i.status === 'paid').sort((a, b) => b.date.localeCompare(a.date)),
+  [invoices])
+
+  const now = new Date();
+  const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+  const currentYear = now.getFullYear().toString();
+
+  const incomeThisMonth = paidInvoices
+    .filter(i => i.date?.startsWith(currentYear) && i.date?.split('-')[1] === currentMonth)
+    .reduce((acc, i) => acc + (Number(i.total) || 0), 0)
+
+  const pendingPayments = invoices
+    .filter(i => i.status === 'pending')
+    .reduce((acc, i) => acc + (Number(i.total) || 0), 0)
+
+  const cashflowData = React.useMemo(() => {
+    const dailyTotals: Record<string, number> = {};
+    // Get last 15 days of paid invoices for the chart
+    paidInvoices.forEach(inv => {
+        if (inv.date) {
+            const dateKey = inv.date.split('-').slice(1).reverse().join('/');
+            dailyTotals[dateKey] = (dailyTotals[dateKey] || 0) + (Number(inv.total) || 0);
+        }
+    });
+
+    const data = Object.entries(dailyTotals).map(([date, total]) => ({
+        date,
+        entrees: total,
+        sorties: 0
+    })).sort((a, b) => {
+        const [da, ma] = a.date.split('/').map(Number);
+        const [db, mb] = b.date.split('/').map(Number);
+        return ma !== mb ? ma - mb : da - db;
+    }).slice(-10);
+
+    return data.length > 0 ? data : [{date: "Aucune donnée", entrees: 0, sorties: 0}];
+  }, [paidInvoices])
 
   React.useEffect(() => {
     setMounted(true)
@@ -210,11 +94,27 @@ export function PaymentsPage() {
     tooltipText: isDark ? "#ffffff" : "#0a0a0a",
   }
 
-  const filteredTransactions = transactions.filter(
+  const filteredTransactions = paidInvoices.filter(
     (trx) =>
-      trx.client.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trx.reference.toLowerCase().includes(searchQuery.toLowerCase())
+      trx.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      trx.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      trx.paymentMethod?.toLowerCase().includes(searchQuery.toLowerCase())
   )
+
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.08,
+      },
+    },
+  }
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: { opacity: 1, y: 0 },
+  }
 
   return (
     <motion.div
@@ -227,14 +127,11 @@ export function PaymentsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Paiements</h1>
-          <p className="text-muted-foreground mt-1">Suivez vos transactions et flux de tresorerie</p>
+          <p className="text-muted-foreground mt-1">Suivez vos encaissements et flux de trésorerie réels</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Button variant="outline" className="border-border gap-2">
-            <RefreshCw className="w-4 h-4" />
-            Actualiser
-          </Button>
-        </div>
+        <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="gap-2">
+          <RefreshCw className="w-4 h-4" /> Actualiser
+        </Button>
       </div>
 
       {/* Stats */}
@@ -246,13 +143,7 @@ export function PaymentsPage() {
                 <ArrowDownLeft className="w-5 h-5 text-emerald-500" />
               </div>
               <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-muted-foreground text-sm">Entrees ce mois</p>
-                  <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-medium">
-                    <TrendingUp className="w-3 h-3" />
-                    +18.2%
-                  </div>
-                </div>
+                <p className="text-muted-foreground text-sm">Entrées ce mois</p>
                 <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
                   {formatShortCurrency(incomeThisMonth)} XAF
                 </p>
@@ -267,14 +158,8 @@ export function PaymentsPage() {
                 <ArrowUpRight className="w-5 h-5 text-red-500" />
               </div>
               <div className="flex-1">
-                <div className="flex items-center justify-between">
-                  <p className="text-muted-foreground text-sm">Sorties ce mois</p>
-                  <div className="flex items-center gap-1 text-amber-600 dark:text-amber-400 text-xs font-medium">
-                    <TrendingDown className="w-3 h-3" />
-                    +5.4%
-                  </div>
-                </div>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">16.3M XAF</p>
+                <p className="text-muted-foreground text-sm">Sorties (Dépenses)</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">0 XAF</p>
               </div>
             </div>
           </CardContent>
@@ -286,8 +171,12 @@ export function PaymentsPage() {
                 <Wallet className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-muted-foreground text-sm">Solde net</p>
-                <p className="text-2xl font-bold text-foreground">{formatShortCurrency(incomeThisMonth)} XAF</p>
+                <p className="text-muted-foreground text-sm">CA Annuel (Encaissé)</p>
+                <p className="text-2xl font-bold text-foreground">
+                    {formatShortCurrency(paidInvoices
+                        .filter(i => i.date?.startsWith(currentYear))
+                        .reduce((sum, i) => sum + (Number(i.total) || 0), 0))} XAF
+                </p>
               </div>
             </div>
           </CardContent>
@@ -309,67 +198,6 @@ export function PaymentsPage() {
         </Card>
       </motion.div>
 
-      {/* Mobile Money Actions */}
-      <motion.div variants={itemVariants} className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="bg-card border-border overflow-hidden group hover:border-red-500/30 hover:shadow-lg transition-all">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 flex items-center justify-center shadow-lg shadow-red-500/20">
-                  <Smartphone className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-foreground font-semibold text-lg">Airtel Money</h3>
-                  <p className="text-muted-foreground text-sm">Gerez vos transactions Airtel</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10"
-                >
-                  <ArrowDownLeft className="w-4 h-4 mr-2" />
-                  Retrait
-                </Button>
-                <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-                  Statut
-                  <ArrowRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border overflow-hidden group hover:border-blue-500/30 hover:shadow-lg transition-all">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                  <Smartphone className="w-7 h-7 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-foreground font-semibold text-lg">Moov Africa</h3>
-                  <p className="text-muted-foreground text-sm">Gerez vos transactions Moov</p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  className="border-blue-500/30 text-blue-600 dark:text-blue-400 hover:bg-blue-500/10"
-                >
-                  <ArrowDownLeft className="w-4 h-4 mr-2" />
-                  Retrait
-                </Button>
-                <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-                  Statut
-                  <ArrowRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
       {/* Cashflow Chart */}
       <motion.div variants={itemVariants}>
         <Card className="bg-card border-border">
@@ -380,18 +208,8 @@ export function PaymentsPage() {
                   <Activity className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <CardTitle className="text-foreground font-semibold">Flux de tresorerie</CardTitle>
-                  <p className="text-sm text-muted-foreground">Evolution mensuelle</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-4 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-emerald-500" />
-                  <span className="text-muted-foreground">Entrees</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full bg-red-500" />
-                  <span className="text-muted-foreground">Sorties</span>
+                  <CardTitle className="text-foreground font-semibold">Flux de trésorerie</CardTitle>
+                  <p className="text-sm text-muted-foreground">Encaissements récents par jour</p>
                 </div>
               </div>
             </div>
@@ -404,10 +222,6 @@ export function PaymentsPage() {
                     <linearGradient id="colorEntrees" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
                       <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorSorties" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#ef4444" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={chartColors.grid} />
@@ -431,9 +245,8 @@ export function PaymentsPage() {
                       border: `1px solid ${chartColors.tooltipBorder}`,
                       borderRadius: "12px",
                       color: chartColors.tooltipText,
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.1)',
                     }}
-                    formatter={(value: number) => [formatCurrency(value), ""]}
+                    formatter={(value: number) => [formatCurrency(value), "Encaissement"]}
                   />
                   <Area
                     type="monotone"
@@ -442,14 +255,6 @@ export function PaymentsPage() {
                     strokeWidth={2.5}
                     fillOpacity={1}
                     fill="url(#colorEntrees)"
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="sorties"
-                    stroke="#ef4444"
-                    strokeWidth={2.5}
-                    fillOpacity={1}
-                    fill="url(#colorSorties)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -468,68 +273,57 @@ export function PaymentsPage() {
                   <CreditCard className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <div>
-                  <CardTitle className="text-foreground font-semibold">Transactions recentes</CardTitle>
-                  <p className="text-sm text-muted-foreground">Historique des paiements</p>
+                  <CardTitle className="text-foreground font-semibold">Historique des encaissements</CardTitle>
+                  <p className="text-sm text-muted-foreground">Transactions validées</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <div className="relative flex-1 sm:w-64">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Rechercher..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10 bg-secondary border-border text-foreground placeholder:text-muted-foreground"
-                  />
-                </div>
-                <Button variant="outline" className="border-border">
-                  <Filter className="w-4 h-4 mr-2" />
-                  Filtrer
-                </Button>
+              <div className="relative w-full sm:w-64">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Rechercher..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-10 bg-secondary border-border text-foreground"
+                />
               </div>
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {filteredTransactions.map((transaction, index) => (
-                <motion.div
-                  key={transaction.id}
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.05 }}
-                  className="flex items-center justify-between p-4 rounded-xl hover:bg-muted/30 transition-all group"
-                >
-                  <div className="flex items-center gap-4">
-                    <div
-                      className={`w-10 h-10 rounded-xl flex items-center justify-center border ${getMethodColor(
-                        transaction.method
-                      )}`}
-                    >
-                      {getMethodIcon(transaction.method)}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="text-foreground font-medium">{transaction.client}</p>
-                        <span className="text-muted-foreground text-xs font-mono">{transaction.reference}</span>
+              {filteredTransactions.length > 0 ? (
+                filteredTransactions.map((trx, index) => (
+                  <motion.div
+                    key={trx.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-transparent hover:border-border transition-all"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
+                        <CheckCircle className="w-5 h-5" />
                       </div>
-                      <p className="text-muted-foreground text-sm">{transaction.date}</p>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <p className="text-foreground font-medium">{trx.clientName}</p>
+                          <span className="text-muted-foreground text-[10px] font-mono uppercase bg-secondary px-1.5 py-0.5 rounded">
+                            {trx.paymentMethod || 'Cash'}
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground text-xs">Facture {trx.number} • {trx.date}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p
-                        className={`font-bold ${
-                          transaction.type === "income" ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400"
-                        }`}
-                      >
-                        {transaction.type === "income" ? "+" : "-"}
-                        {formatCurrency(transaction.amount)}
-                      </p>
+                      <p className="font-bold text-emerald-600 dark:text-emerald-400">+{formatCurrency(trx.total)}</p>
+                      <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-600 border-emerald-600/20">Complété</Badge>
                     </div>
-                    {getStatusBadge(transaction.status)}
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                ))
+              ) : (
+                <div className="text-center py-12 text-muted-foreground border border-dashed rounded-xl">
+                  Aucun encaissement trouvé.
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
