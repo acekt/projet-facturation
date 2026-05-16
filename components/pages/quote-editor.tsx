@@ -31,6 +31,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useStore, type InvoiceItem, type Quote } from "@/lib/store"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
+import { DocumentPreview } from "@/components/document-preview"
 
 interface QuoteEditorProps {
   onBack: () => void
@@ -70,6 +71,7 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
         if (item.id === id) {
           const updated = { ...item, [field]: value }
           if (field === "quantity" || field === "unitPrice") {
+            if (Number(updated.unitPrice) < 0) updated.unitPrice = 0
             updated.total = (Number(updated.quantity) || 0) * (Number(updated.unitPrice) || 0)
           }
           return updated
@@ -104,7 +106,7 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
       return
     }
 
-    if (items.some(item => !item.description || item.quantity <= 0)) {
+    if (items.some(item => !item.description || item.quantity <= 0 || item.unitPrice < 0)) {
       toast.error("Veuillez remplir correctement tous les articles")
       return
     }
@@ -169,6 +171,15 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            className="gap-2 bg-secondary"
+            onClick={() => setPreviewOpen(true)}
+            disabled={isSubmitting || !selectedClient}
+          >
+            <Eye className="w-4 h-4" />
+            Aperçu
+          </Button>
           <Button
             variant="outline"
             className="gap-2"
@@ -438,6 +449,28 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
           </Card>
         </div>
       </div>
+
+      {previewOpen && selectedClient && (
+        <DocumentPreview
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          type="Quote"
+          data={{
+            clientName: selectedClient.name,
+            clientEmail: selectedClient.email,
+            date: quoteDate,
+            dueDate: dueDate,
+            items: items,
+            subtotal: subtotal,
+            discount: discount,
+            taxBase: taxBase,
+            tvaAmount: tva,
+            cssAmount: css,
+            total: total,
+            notes: notes
+          }}
+        />
+      )}
     </motion.div>
   )
 }

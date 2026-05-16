@@ -23,9 +23,10 @@ import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
+import { formatCurrency } from "@/lib/utils"
 
 export function ClientsPage() {
-  const { clients, setClients } = useStore()
+  const { clients, setClients, invoices } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false)
   const [newClient, setNewClient] = React.useState({
@@ -60,6 +61,23 @@ export function ClientsPage() {
       toast.success("Client ajouté avec succès")
     } catch (error) {
       toast.error("Erreur lors de l'ajout du client")
+    }
+  }
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`/api/clients/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) throw new Error('Failed to delete client')
+
+      toast.success("Client supprimé avec succès")
+      
+      const newClients = await fetch('/api/clients').then(res => res.json())
+      setClients(newClients)
+    } catch (error) {
+      toast.error("Erreur lors de la suppression")
     }
   }
 
@@ -172,7 +190,10 @@ export function ClientsPage() {
                         <DropdownMenuItem className="gap-2">
                           <Edit2 className="w-4 h-4" /> Modifier
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-destructive">
+                        <DropdownMenuItem 
+                          className="gap-2 text-destructive focus:text-destructive"
+                          onClick={() => handleDelete(client.id)}
+                        >
                           <Trash2 className="w-4 h-4" /> Supprimer
                         </DropdownMenuItem>
                       </DropdownMenuContent>
@@ -196,7 +217,13 @@ export function ClientsPage() {
                 </div>
                 <div className="bg-secondary/30 p-4 border-t border-border flex items-center justify-between">
                   <div className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">CA Total</div>
-                  <div className="font-bold text-foreground">0 XAF</div>
+                  <div className="font-bold text-foreground">
+                    {formatCurrency(
+                      invoices
+                        .filter(i => i.clientId === client.id && i.status === 'paid')
+                        .reduce((acc, i) => acc + i.total, 0)
+                    )}
+                  </div>
                 </div>
               </CardContent>
             </Card>

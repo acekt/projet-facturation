@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { invoiceSchema } from '@/lib/validations';
-import { crypto } from 'crypto';
+import crypto from 'crypto';
 
 export async function GET() {
   try {
@@ -65,7 +65,11 @@ export async function POST(request: Request) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id, number, invData.quoteId || null, invData.clientId, invData.clientName, invData.clientEmail, invData.date, invData.dueDate,
+<<<<<<< Updated upstream
         roundedSubtotal, roundedDiscount, roundedTaxBase, roundedTva, roundedCss, roundedTotal, invData.notes, invData.status
+=======
+        invData.subtotal, invData.discount, invData.taxBase, invData.tvaAmount, invData.cssAmount, invData.total, invData.notes || null, invData.status
+>>>>>>> Stashed changes
       );
 
       const insertItem = db.prepare(`

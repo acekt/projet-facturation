@@ -14,6 +14,7 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  Eye,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -28,8 +29,12 @@ import { Badge } from "@/components/ui/badge"
 import { useStore, type Invoice } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
+<<<<<<< Updated upstream
 import { PrintableDocument } from "@/components/printable-document"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+=======
+import { DocumentPreview } from "@/components/document-preview"
+>>>>>>> Stashed changes
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
@@ -38,6 +43,7 @@ interface InvoicesPageProps {
 export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
   const { invoices, setInvoices } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
+<<<<<<< Updated upstream
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
 
   const handleUpdateStatus = async (invoiceId: string, status: string) => {
@@ -55,6 +61,24 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
       setInvoices(updatedInvoices)
     } catch (error) {
       toast.error("Erreur lors de la mise à jour")
+=======
+  const [previewInvoice, setPreviewInvoice] = React.useState<Invoice | null>(null)
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`/api/invoices/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) throw new Error('Failed to delete invoice')
+
+      toast.success("Facture supprimée avec succès")
+      
+      const newInvoices = await fetch('/api/invoices').then(res => res.json())
+      setInvoices(newInvoices)
+    } catch (error) {
+      toast.error("Erreur lors de la suppression")
+>>>>>>> Stashed changes
     }
   }
 
@@ -86,13 +110,6 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Factures</h1>
           <p className="text-muted-foreground mt-1">Gérez vos factures et suivez vos paiements</p>
         </div>
-        <Button
-          onClick={onCreateInvoice}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-        >
-          <Plus className="w-4 h-4" />
-          Nouvelle facture
-        </Button>
       </div>
 
       <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border">
@@ -147,7 +164,14 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+<<<<<<< Updated upstream
                           <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
+=======
+                          <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
+                            <Eye className="w-4 h-4" /> Aperçu
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2">
+>>>>>>> Stashed changes
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2">
@@ -159,7 +183,10 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
                             </DropdownMenuItem>
                           )}
                           <div className="h-px bg-border my-1" />
-                          <DropdownMenuItem className="gap-2 text-destructive">
+                          <DropdownMenuItem 
+                            className="gap-2 text-destructive focus:text-destructive"
+                            onClick={() => handleDelete(invoice.id)}
+                          >
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -173,11 +200,12 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
         ) : (
           <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border">
             <h3 className="text-lg font-semibold text-foreground">Aucune facture trouvée</h3>
-            <p className="text-muted-foreground mt-1">Créez votre première facture pour commencer.</p>
+            <p className="text-muted-foreground mt-1">Les factures sont générées automatiquement lors de la confirmation d'un devis.</p>
           </div>
         )}
       </div>
 
+<<<<<<< Updated upstream
       <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
         <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
@@ -189,6 +217,16 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
           {selectedInvoice && <PrintableDocument document={selectedInvoice} type="facture" />}
         </DialogContent>
       </Dialog>
+=======
+      {previewInvoice && (
+        <DocumentPreview
+          open={!!previewInvoice}
+          onOpenChange={(open) => !open && setPreviewInvoice(null)}
+          type="Invoice"
+          data={previewInvoice}
+        />
+      )}
+>>>>>>> Stashed changes
     </div>
   )
 }

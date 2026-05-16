@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export interface Client {
   id: string;
@@ -100,14 +101,22 @@ const DEFAULT_SETTINGS: Settings = {
   quotePrefix: "DEV",
 };
 
-export const useStore = create<AppState>()((set) => ({
-  clients: [],
-  quotes: [],
-  invoices: [],
-  settings: DEFAULT_SETTINGS,
+export const useStore = create<AppState>()(
+  persist(
+    (set) => ({
+      clients: [],
+      quotes: [],
+      invoices: [],
+      settings: DEFAULT_SETTINGS,
 
-  setClients: (clients) => set({ clients }),
-  setQuotes: (quotes) => set({ quotes }),
-  setInvoices: (invoices) => set({ invoices }),
-  setSettings: (settings) => set({ settings }),
-}));
+      setClients: (clients) => set({ clients }),
+      setQuotes: (quotes) => set({ quotes }),
+      setInvoices: (invoices) => set({ invoices }),
+      setSettings: (settings) => set({ settings }),
+    }),
+    {
+      name: 'fintech-invoicing-storage',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);

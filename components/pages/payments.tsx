@@ -192,8 +192,8 @@ export function PaymentsPage() {
   const [mounted, setMounted] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
 
-  const incomeThisMonth = invoices.filter(i => i.status === 'paid').reduce((acc, i) => acc + i.amount, 0)
-  const pendingPayments = invoices.filter(i => i.status === 'pending').reduce((acc, i) => acc + i.amount, 0)
+  const incomeThisMonth = invoices.filter(i => i.status === 'paid').reduce((acc, i) => acc + i.total, 0)
+  const pendingPayments = invoices.filter(i => i.status === 'pending').reduce((acc, i) => acc + i.total, 0)
 
   React.useEffect(() => {
     setMounted(true)

@@ -3,8 +3,8 @@ import * as z from "zod";
 export const clientSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
   email: z.string().email("Adresse email invalide"),
-  phone: z.string().min(6, "Numéro de téléphone invalide"),
-  address: z.string().min(5, "L'adresse doit contenir au moins 5 caractères"),
+  phone: z.string().optional().refine(val => !val || val.length >= 6, "Numéro de téléphone invalide"),
+  address: z.string().optional().refine(val => !val || val.length >= 5, "L'adresse doit contenir au moins 5 caractères"),
 });
 
 export const invoiceItemSchema = z.object({

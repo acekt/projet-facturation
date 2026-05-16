@@ -15,6 +15,7 @@ import {
   CheckCircle2,
   AlertCircle,
   XCircle,
+  Eye,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -29,8 +30,12 @@ import { Badge } from "@/components/ui/badge"
 import { useStore, type Quote } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
+<<<<<<< Updated upstream
 import { PrintableDocument } from "@/components/printable-document"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+=======
+import { DocumentPreview } from "@/components/document-preview"
+>>>>>>> Stashed changes
 
 interface QuotesPageProps {
   onCreateQuote: () => void
@@ -39,7 +44,11 @@ interface QuotesPageProps {
 export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   const { quotes, setQuotes } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
+<<<<<<< Updated upstream
   const [selectedQuote, setSelectedQuote] = React.useState<Quote | null>(null)
+=======
+  const [previewQuote, setPreviewQuote] = React.useState<Quote | null>(null)
+>>>>>>> Stashed changes
 
   const filteredQuotes = quotes.filter(
     (quote) =>
@@ -76,7 +85,20 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   }
 
   const handleDelete = async (id: string) => {
-    toast.info("Fonctionnalité de suppression en cours de développement")
+    try {
+      const response = await fetch(`/api/quotes/${id}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) throw new Error('Failed to delete quote')
+
+      toast.success("Devis supprimé avec succès")
+      
+      const newQuotes = await fetch('/api/quotes').then(res => res.json())
+      setQuotes(newQuotes)
+    } catch (error) {
+      toast.error("Erreur lors de la suppression")
+    }
   }
 
   const handleConvertToInvoice = async (quoteId: string) => {
@@ -177,7 +199,14 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+<<<<<<< Updated upstream
                           <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
+=======
+                          <DropdownMenuItem className="gap-2" onClick={() => setPreviewQuote(quote)}>
+                            <Eye className="w-4 h-4" /> Aperçu
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2">
+>>>>>>> Stashed changes
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2">
@@ -228,6 +257,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
         )}
       </div>
 
+<<<<<<< Updated upstream
       <Dialog open={!!selectedQuote} onOpenChange={() => setSelectedQuote(null)}>
         <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
@@ -239,6 +269,16 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
           {selectedQuote && <PrintableDocument document={selectedQuote} type="devis" />}
         </DialogContent>
       </Dialog>
+=======
+      {previewQuote && (
+        <DocumentPreview
+          open={!!previewQuote}
+          onOpenChange={(open) => !open && setPreviewQuote(null)}
+          type="Quote"
+          data={previewQuote}
+        />
+      )}
+>>>>>>> Stashed changes
     </div>
   )
 }

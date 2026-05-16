@@ -6,7 +6,6 @@ import { Sidebar, TopBar } from "@/components/layout/navigation"
 import { CommandMenu } from "@/components/layout/command-menu"
 import { Dashboard } from "@/components/pages/dashboard"
 import { InvoicesPage } from "@/components/pages/invoices"
-import { InvoiceEditor } from "@/components/pages/invoice-editor"
 import { QuotesPage } from "@/components/pages/quotes"
 import { QuoteEditor } from "@/components/pages/quote-editor"
 import { ClientsPage } from "@/components/pages/clients"
@@ -48,9 +47,7 @@ export default function App() {
       case "new-quote":
         return <QuoteEditor onBack={() => setCurrentPage("quotes")} />
       case "invoices":
-        return <InvoicesPage onCreateInvoice={() => setCurrentPage("new-invoice")} />
-      case "new-invoice":
-        return <InvoiceEditor onBack={() => setCurrentPage("invoices")} />
+        return <InvoicesPage onCreateInvoice={() => {}} />
       case "clients":
         return <ClientsPage />
       case "payments":

@@ -127,20 +127,21 @@ export function Dashboard() {
   const overdueRevenue = invoices.filter(i => i.status === 'overdue').reduce((acc, i) => acc + i.total, 0)
   const paidCount = invoices.filter(i => i.status === 'paid').length
 
-  const revenueData = [
-    { month: "Jan", revenue: 4500000 },
-    { month: "Fev", revenue: 5200000 },
-    { month: "Mar", revenue: 4800000 },
-    { month: "Avr", revenue: 6100000 },
-    { month: "Mai", revenue: 5500000 },
-    { month: "Jun", revenue: 7200000 },
-    { month: "Jul", revenue: 6800000 },
-    { month: "Aou", revenue: 7500000 },
-    { month: "Sep", revenue: 8200000 },
-    { month: "Oct", revenue: 7900000 },
-    { month: "Nov", revenue: 9100000 },
-    { month: "Dec", revenue: 8500000 },
-  ]
+  // Generate dynamic revenue data for the last 12 months
+  const revenueData = React.useMemo(() => {
+    const months = ["Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec"];
+    const currentYear = new Date().getFullYear();
+    
+    return months.map((month, index) => {
+      const monthRevenue = invoices
+        .filter(i => {
+          const d = new Date(i.date);
+          return d.getMonth() === index && d.getFullYear() === currentYear && i.status === 'paid';
+        })
+        .reduce((acc, i) => acc + i.total, 0);
+      return { month, revenue: monthRevenue };
+    });
+  }, [invoices]);
 
   const paymentMethodData = [
     { name: "Airtel Money", value: 45, color: "#ef4444" },
@@ -148,6 +149,7 @@ export function Dashboard() {
     { name: "Virement", value: 25, color: "#10b981" },
   ]
 
+<<<<<<< Updated upstream
   const activityTimeline = [
     ...quotes.slice(0, 3).map(q => ({
       id: q.id,
@@ -164,6 +166,23 @@ export function Dashboard() {
       type: "payment"
     }))
   ].sort((a, b) => b.time.localeCompare(a.time)).slice(0, 5)
+=======
+  const activityTimeline = React.useMemo(() => {
+    const activities: any[] = [];
+    
+    invoices.slice(0, 3).forEach(inv => {
+      activities.push({
+        id: `inv-${inv.id}`,
+        action: inv.status === 'paid' ? "Facture payee" : "Nouvelle facture",
+        client: inv.clientName,
+        time: inv.date,
+        type: inv.status === 'paid' ? "payment" : "new"
+      });
+    });
+
+    return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+  }, [invoices]);
+>>>>>>> Stashed changes
 
   React.useEffect(() => {
     setMounted(true)
@@ -212,7 +231,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Chiffre d'affaires"
-          value={formatShortCurrency(totalRevenue) + " XAF"}
+          value={formatShortCurrency(totalRevenue)}
           trend="+12.5%"
           trendUp={true}
           icon={DollarSign}
@@ -232,7 +251,7 @@ export function Dashboard() {
         />
         <StatCard
           title="En attente"
-          value={formatShortCurrency(pendingRevenue) + " XAF"}
+          value={formatShortCurrency(pendingRevenue)}
           trend={`${invoices.filter(i => i.status === 'pending').length} factures`}
           trendUp={false}
           icon={Clock}
@@ -242,7 +261,7 @@ export function Dashboard() {
         />
         <StatCard
           title="En retard"
-          value={formatShortCurrency(overdueRevenue) + " XAF"}
+          value={formatShortCurrency(overdueRevenue)}
           trend="-2 ce mois"
           trendUp={true}
           icon={AlertCircle}
