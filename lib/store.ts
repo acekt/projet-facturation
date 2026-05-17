@@ -53,9 +53,19 @@ export interface Invoice {
   tvaAmount: number;
   cssAmount: number;
   total: number;
-  status: 'paid' | 'pending' | 'overdue' | 'draft' | 'cancelled';
+  status: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'overdue' | 'draft' | 'cancelled';
   items: InvoiceItem[];
+  payments?: Payment[];
   notes?: string;
+}
+
+export interface Payment {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  paymentMethod: string;
+  date: string;
+  reference?: string;
 }
 
 export interface Service {
@@ -88,11 +98,13 @@ interface AppState {
   quotes: Quote[];
   invoices: Invoice[];
   services: Service[];
+  payments: Payment[];
   settings: Settings;
   setClients: (clients: Client[]) => void;
   setQuotes: (quotes: Quote[]) => void;
   setInvoices: (invoices: Invoice[]) => void;
   setServices: (services: Service[]) => void;
+  setPayments: (payments: Payment[]) => void;
   setSettings: (settings: Settings) => void;
 }
 
@@ -117,11 +129,13 @@ export const useStore = create<AppState>()((set) => ({
   quotes: [],
   invoices: [],
   services: [],
+  payments: [],
   settings: DEFAULT_SETTINGS,
 
   setClients: (clients) => set({ clients }),
   setQuotes: (quotes) => set({ quotes }),
   setInvoices: (invoices) => set({ invoices }),
   setServices: (services) => set({ services }),
+  setPayments: (payments) => set({ payments }),
   setSettings: (settings) => set({ settings }),
 }));

@@ -99,6 +99,17 @@ db.exec(`
     FOREIGN KEY (invoiceId) REFERENCES invoices(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS payments (
+    id TEXT PRIMARY KEY,
+    invoiceId TEXT NOT NULL,
+    amount REAL NOT NULL,
+    paymentMethod TEXT NOT NULL, -- airtel, moov, virement, cash
+    date TEXT NOT NULL,
+    reference TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (invoiceId) REFERENCES invoices(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS sequences (
     name TEXT PRIMARY KEY,
     current_value INTEGER DEFAULT 0

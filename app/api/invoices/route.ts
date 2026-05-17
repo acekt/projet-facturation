@@ -56,7 +56,8 @@ export async function POST(request: Request) {
       `).run(
         id, number, invData.quoteId || null, invData.clientId, invData.clientName, invData.clientEmail, invData.date, invData.dueDate,
         Math.round(invData.subtotal), Math.round(invData.discount), Math.round(invData.taxBase),
-        Math.round(invData.tvaAmount), Math.round(invData.cssAmount), Math.round(invData.total), invData.notes, invData.status
+        Math.round(invData.tvaAmount), Math.round(invData.cssAmount), Math.round(invData.total), invData.notes,
+        invData.status === 'pending' ? 'UNPAID' : invData.status
       );
 
       const insertItem = db.prepare(`

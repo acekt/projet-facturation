@@ -48,7 +48,7 @@ export async function POST(request: Request) {
         Math.round(quote.tvaAmount),
         Math.round(quote.cssAmount),
         Math.round(quote.total),
-        'pending',
+        'UNPAID',
         quote.notes
       );
 

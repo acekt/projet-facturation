@@ -36,33 +36,40 @@ import { formatCurrency, formatShortCurrency } from "@/lib/utils"
 
 export function PaymentsPage() {
   const invoices = useStore((state) => state.invoices)
+  const payments = useStore((state) => state.payments)
+  const setPayments = useStore((state) => state.setPayments)
+  const setInvoices = useStore((state) => state.setInvoices)
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
 
-  const paidInvoices = React.useMemo(() =>
-    invoices.filter(i => i.status === 'paid').sort((a, b) => b.date.localeCompare(a.date)),
-  [invoices])
+  const sortedPayments = React.useMemo(() =>
+    [...payments].sort((a, b) => b.date.localeCompare(a.date)),
+  [payments])
 
   const now = new Date();
   const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
   const currentYear = now.getFullYear().toString();
 
-  const incomeThisMonth = paidInvoices
-    .filter(i => i.date?.startsWith(currentYear) && i.date?.split('-')[1] === currentMonth)
-    .reduce((acc, i) => acc + (Number(i.total) || 0), 0)
+  const incomeThisMonth = payments
+    .filter(p => p.date?.startsWith(currentYear) && p.date?.split('-')[1] === currentMonth)
+    .reduce((acc, p) => acc + (Number(p.amount) || 0), 0)
 
   const pendingPayments = invoices
-    .filter(i => i.status === 'pending')
-    .reduce((acc, i) => acc + (Number(i.total) || 0), 0)
+    .filter(i => i.status === 'UNPAID' || i.status === 'PARTIALLY_PAID')
+    .reduce((acc, i) => {
+        const paidForThisInvoice = payments
+            .filter(p => p.invoiceId === i.id)
+            .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        return acc + (Number(i.total) || 0) - paidForThisInvoice;
+    }, 0);
 
   const cashflowData = React.useMemo(() => {
     const dailyTotals: Record<string, number> = {};
-    // Get last 15 days of paid invoices for the chart
-    paidInvoices.forEach(inv => {
-        if (inv.date) {
-            const dateKey = inv.date.split('-').slice(1).reverse().join('/');
-            dailyTotals[dateKey] = (dailyTotals[dateKey] || 0) + (Number(inv.total) || 0);
+    payments.forEach(p => {
+        if (p.date) {
+            const dateKey = p.date.split('-').slice(1).reverse().join('/');
+            dailyTotals[dateKey] = (dailyTotals[dateKey] || 0) + (Number(p.amount) || 0);
         }
     });
 
@@ -76,8 +83,8 @@ export function PaymentsPage() {
         return ma !== mb ? ma - mb : da - db;
     }).slice(-10);
 
-    return data.length > 0 ? data : [{date: "Aucune donnée", entrees: 0, sorties: 0}];
-  }, [paidInvoices])
+    return data.length > 0 ? data : [{date: "N/A", entrees: 0, sorties: 0}];
+  }, [payments])
 
   React.useEffect(() => {
     setMounted(true)
@@ -94,12 +101,34 @@ export function PaymentsPage() {
     tooltipText: isDark ? "#ffffff" : "#0a0a0a",
   }
 
-  const filteredTransactions = paidInvoices.filter(
-    (trx) =>
-      trx.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trx.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      trx.paymentMethod?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredTransactions = sortedPayments.filter(
+    (p) => {
+      const invoice = invoices.find(i => i.id === p.invoiceId);
+      return (
+        invoice?.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        invoice?.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        p.paymentMethod?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+    }
   )
+
+  const handleDeletePayment = async (id: string) => {
+      if (!confirm("Supprimer ce règlement ? Le statut de la facture sera recalculé.")) return;
+      try {
+          const response = await fetch(`/api/payments/${id}`, { method: 'DELETE' });
+          if (!response.ok) throw new Error('Delete failed');
+
+          toast.success("Règlement supprimé");
+          const [updatedInvoices, updatedPayments] = await Promise.all([
+              fetch('/api/invoices').then(res => res.json()),
+              fetch('/api/payments').then(res => res.json())
+          ]);
+          setInvoices(updatedInvoices);
+          setPayments(updatedPayments);
+      } catch (error) {
+          toast.error("Erreur lors de la suppression");
+      }
+  }
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -291,13 +320,15 @@ export function PaymentsPage() {
           <CardContent>
             <div className="space-y-2">
               {filteredTransactions.length > 0 ? (
-                filteredTransactions.map((trx, index) => (
+              filteredTransactions.map((p, index) => {
+                const invoice = invoices.find(i => i.id === p.invoiceId);
+                return (
                   <motion.div
-                    key={trx.id}
+                    key={p.id}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
-                    className="flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-transparent hover:border-border transition-all"
+                    className="group flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-transparent hover:border-border transition-all"
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
@@ -305,20 +336,31 @@ export function PaymentsPage() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="text-foreground font-medium">{trx.clientName}</p>
+                          <p className="text-foreground font-medium">{invoice?.clientName || 'Client inconnu'}</p>
                           <span className="text-muted-foreground text-[10px] font-mono uppercase bg-secondary px-1.5 py-0.5 rounded">
-                            {trx.paymentMethod || 'Cash'}
+                            {p.paymentMethod || 'Cash'}
                           </span>
                         </div>
-                        <p className="text-muted-foreground text-xs">Facture {trx.number} • {trx.date}</p>
+                        <p className="text-muted-foreground text-xs">Facture {invoice?.number || 'N/A'} • {p.date}</p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-bold text-emerald-600 dark:text-emerald-400">+{formatCurrency(trx.total)}</p>
-                      <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-600 border-emerald-600/20">Complété</Badge>
-                    </div>
+                      </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className="font-bold text-emerald-600 dark:text-emerald-400">+{formatCurrency(p.amount)}</p>
+                        <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-600 border-emerald-600/20">Encaissé</Badge>
+                        </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                        onClick={() => handleDeletePayment(p.id)}
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                      </div>
                   </motion.div>
-                ))
+                );
+              })
               ) : (
                 <div className="text-center py-12 text-muted-foreground border border-dashed rounded-xl">
                   Aucun encaissement trouvé.

@@ -14,6 +14,8 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
+  DownloadCloud,
+  Edit2,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -25,44 +27,81 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { useStore, type Invoice } from "@/lib/store"
+import { useStore, type Invoice, type Payment } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { PrintableDocument } from "@/components/printable-document"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { DownloadCloud } from "lucide-react"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
+  onEditInvoice: (id: string) => void
 }
 
-export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
+export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPageProps) {
   const invoices = useStore((state) => state.invoices)
   const setInvoices = useStore((state) => state.setInvoices)
+  const setPayments = useStore((state) => state.setPayments)
+
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false)
-  const [paymentInvoiceId, setPaymentInvoiceId] = React.useState<string | null>(null)
+  const [paymentInvoice, setPaymentInvoice] = React.useState<Invoice | null>(null)
   const [paymentMethod, setPaymentMethod] = React.useState("cash")
+  const [paymentAmount, setPaymentAmount] = React.useState("")
 
-  const handleUpdateStatus = async (invoiceId: string, status: string, paymentMethod?: string) => {
+  const handleDelete = async (id: string) => {
+    if (!confirm("Voulez-vous vraiment supprimer cette facture ?")) return
     try {
-      const response = await fetch('/api/invoices/status', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId, status, paymentMethod }),
-      })
-
-      if (!response.ok) throw new Error('Failed to update status')
-
-      toast.success("Statut mis à jour")
+      const response = await fetch(`/api/invoices/${id}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error('Delete failed')
+      toast.success("Facture supprimée")
       const updatedInvoices = await fetch('/api/invoices').then(res => res.json())
       setInvoices(updatedInvoices)
     } catch (error) {
-      toast.error("Erreur lors de la mise à jour")
+      toast.error("Erreur lors de la suppression")
     }
+  }
+
+  const markAsPaid = (invoice: Invoice) => {
+      setPaymentInvoice(invoice);
+      setPaymentAmount(invoice.total.toString());
+      setPaymentDialogOpen(true);
+  }
+
+  const confirmPayment = async () => {
+      if (paymentInvoice) {
+          try {
+            const response = await fetch('/api/payments', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  invoiceId: paymentInvoice.id,
+                  amount: parseFloat(paymentAmount),
+                  paymentMethod,
+                  date: new Date().toISOString().split('T')[0]
+              }),
+            })
+
+            if (!response.ok) throw new Error('Failed to record payment')
+
+            toast.success("Paiement enregistré")
+
+            const [updatedInvoices, updatedPayments] = await Promise.all([
+                fetch('/api/invoices').then(res => res.json()),
+                fetch('/api/payments').then(res => res.json())
+            ]);
+
+            setInvoices(updatedInvoices);
+            setPayments(updatedPayments);
+            setPaymentDialogOpen(false);
+            setPaymentInvoice(null);
+          } catch (error) {
+              toast.error("Erreur lors de l'enregistrement")
+          }
+      }
   }
 
   const filteredInvoices = invoices.filter(
@@ -71,25 +110,14 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
       invoice.clientName.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const markAsPaid = (invoiceId: string) => {
-      setPaymentInvoiceId(invoiceId);
-      setPaymentDialogOpen(true);
-  }
-
-  const confirmPayment = async () => {
-      if (paymentInvoiceId) {
-          await handleUpdateStatus(paymentInvoiceId, 'paid', paymentMethod);
-          setPaymentDialogOpen(false);
-          setPaymentInvoiceId(null);
-      }
-  }
-
   const getStatusBadge = (status: Invoice['status']) => {
     switch (status) {
-      case "paid":
+      case "PAID":
         return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">Payée</Badge>
-      case "pending":
-        return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200">En attente</Badge>
+      case "PARTIALLY_PAID":
+        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200">Acompte</Badge>
+      case "UNPAID":
+        return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200">Impayée</Badge>
       case "overdue":
         return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">En retard</Badge>
       case "draft":
@@ -191,16 +219,19 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
                           <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => onEditInvoice(invoice.id)}>
+                            <Edit2 className="w-4 h-4" /> Modifier
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2">
                             <Download className="w-4 h-4" /> PDF
                           </DropdownMenuItem>
-                          {invoice.status !== 'paid' && (
-                            <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice.id)}>
-                              <CheckCircle2 className="w-4 h-4" /> Marquer comme payée
+                          {invoice.status !== 'PAID' && (
+                            <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
+                              <CheckCircle2 className="w-4 h-4" /> Enregistrer un paiement
                             </DropdownMenuItem>
                           )}
                           <div className="h-px bg-border my-1" />
-                          <DropdownMenuItem className="gap-2 text-destructive">
+                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -238,9 +269,18 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label className="text-muted-foreground">Mode de paiement</Label>
+              <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Montant versé (XAF)</Label>
+              <Input
+                type="number"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                className="bg-secondary border-border h-11 font-bold text-lg"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Mode de règlement</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="bg-secondary border-border text-foreground">
+                <SelectTrigger className="bg-secondary border-border text-foreground h-11">
                   <SelectValue placeholder="Sélectionner..." />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
