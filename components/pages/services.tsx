@@ -182,8 +182,9 @@ export function ServicesPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label className="text-muted-foreground">Nom du service</Label>
+              <Label htmlFor="service-name" className="text-muted-foreground">Nom du service</Label>
               <Input
+                id="service-name"
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Ex: Audit de sécurité réseau"
@@ -193,8 +194,9 @@ export function ServicesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Catégorie</Label>
+                <Label htmlFor="service-category" className="text-muted-foreground">Catégorie</Label>
                 <Input
+                  id="service-category"
                   value={formData.category}
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   placeholder="Ex: Conseil"
@@ -202,8 +204,9 @@ export function ServicesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Prix Unitaire (XAF)</Label>
+                <Label htmlFor="service-price" className="text-muted-foreground">Prix Unitaire (XAF)</Label>
                 <Input
+                  id="service-price"
                   type="number"
                   value={formData.unitPrice}
                   onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
@@ -213,8 +216,9 @@ export function ServicesPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label className="text-muted-foreground">Description</Label>
+              <Label htmlFor="service-description" className="text-muted-foreground">Description</Label>
               <Input
+                id="service-description"
                 value={formData.description}
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Détails du service..."

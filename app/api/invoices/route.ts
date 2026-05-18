@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { invoiceSchema } from '@/lib/validations';
-import { crypto } from 'crypto';
+import crypto from 'crypto';
 
 export async function GET() {
   try {

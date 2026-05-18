@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
-import { crypto } from 'crypto';
+import crypto from 'crypto';
 
 function updateInvoiceStatus(invoiceId: string) {
     const invoice = db.prepare('SELECT total FROM invoices WHERE id = ?').get(invoiceId) as any;

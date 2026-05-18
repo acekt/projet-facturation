@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
-import { crypto } from 'crypto';
+import crypto from 'crypto';
 
 export async function POST(request: Request) {
   try {
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
     }
 
-    const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all() as any[];
+    const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(quoteId) as any[];
 
     const settings = db.prepare('SELECT quotePrefix FROM settings WHERE id = 1').get() as any;
     const year = new Date().getFullYear();

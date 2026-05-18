@@ -1,25 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
-function updateInvoiceStatus(invoiceId: string) {
-    const invoice = db.prepare('SELECT total FROM invoices WHERE id = ?').get(invoiceId) as any;
-    const payments = db.prepare('SELECT SUM(amount) as totalPaid FROM payments WHERE invoiceId = ?').get(invoiceId) as any;
-
-    const totalTTC = Math.round(invoice.total);
-    const totalPaid = Math.round(payments.totalPaid || 0);
-
-    let newStatus = 'UNPAID';
-    if (totalPaid === 0) {
-        newStatus = 'UNPAID';
-    } else if (totalPaid < totalTTC) {
-        newStatus = 'PARTIALLY_PAID';
-    } else {
-        newStatus = 'PAID';
-    }
-
-    db.prepare('UPDATE invoices SET status = ? WHERE id = ?').run(newStatus, invoiceId);
-}
-
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
@@ -27,17 +8,29 @@ export async function DELETE(
   try {
     const { id } = await params;
 
+    // Get invoiceId before deleting to update status later
     const payment = db.prepare('SELECT invoiceId FROM payments WHERE id = ?').get(id) as any;
-    if (!payment) return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+    if (!payment) {
+      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
+    }
 
-    const invoiceId = payment.invoiceId;
+    const deleteResult = db.transaction(() => {
+      db.prepare('DELETE FROM payments WHERE id = ?').run(id);
 
-    db.transaction(() => {
-        db.prepare('DELETE FROM payments WHERE id = ?').run(id);
-        updateInvoiceStatus(invoiceId);
+      const invoice = db.prepare('SELECT total FROM invoices WHERE id = ?').get(payment.invoiceId) as any;
+      const { totalPaid } = db.prepare('SELECT SUM(amount) as totalPaid FROM payments WHERE invoiceId = ?')
+        .get(payment.invoiceId) as any;
+
+      const actualPaid = totalPaid || 0;
+      let newStatus = 'UNPAID';
+      if (actualPaid >= invoice.total) newStatus = 'PAID';
+      else if (actualPaid > 0) newStatus = 'PARTIALLY_PAID';
+
+      db.prepare('UPDATE invoices SET status = ? WHERE id = ?').run(newStatus, payment.invoiceId);
+      return true;
     })();
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: deleteResult });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete payment' }, { status: 500 });
   }

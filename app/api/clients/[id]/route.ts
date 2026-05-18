@@ -1,37 +1,64 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { clientSchema } from '@/lib/validations';
-import { crypto } from 'crypto';
 
-export async function GET() {
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const clients = db.prepare('SELECT * FROM clients ORDER BY name ASC').all();
-    return NextResponse.json(clients);
+    const { id } = await params;
+    const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
+    if (!client) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+    return NextResponse.json(client);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch clients' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch client' }, { status: 500 });
   }
 }
 
-export async function POST(request: Request) {
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
+    const { id } = await params;
     const body = await request.json();
-
-    // Validation
     const validation = clientSchema.safeParse(body);
+
     if (!validation.success) {
       return NextResponse.json({ error: validation.error.format() }, { status: 400 });
     }
 
     const { name, email, phone, address } = validation.data;
-    const id = crypto.randomUUID();
 
-    db.prepare('INSERT INTO clients (id, name, email, phone, address) VALUES (?, ?, ?, ?, ?)')
-      .run(id, name, email, phone, address);
+    const result = db.prepare('UPDATE clients SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?')
+      .run(name, email, phone, address, id);
+
+    if (result.changes === 0) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
 
     const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
     return NextResponse.json(client);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to create client' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to update client' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  try {
+    const { id } = await params;
+    const result = db.prepare('DELETE FROM clients WHERE id = ?').run(id);
+    if (result.changes === 0) {
+      return NextResponse.json({ error: 'Client not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ error: 'Failed to delete client' }, { status: 500 });
   }
 }

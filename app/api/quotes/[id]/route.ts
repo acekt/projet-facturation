@@ -1,96 +1,40 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
-import { quoteSchema } from '@/lib/validations';
-import { crypto } from 'crypto';
 
-export async function GET() {
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const quotes = db.prepare(`
-      SELECT q.*,
-             (SELECT json_group_array(json_object(
-               'id', id,
-               'description', description,
-               'quantity', quantity,
-               'unitPrice', unitPrice,
-               'total', total
-             )) FROM quote_items WHERE quoteId = q.id) as items
-      FROM quotes q
-      ORDER BY createdAt DESC
-    `).all();
+    const { id } = await params;
+    const quote = db.prepare('SELECT * FROM quotes WHERE id = ?').get(id);
+    if (!quote) return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
 
-    const formattedQuotes = quotes.map((q: any) => ({
-      ...q,
-      items: JSON.parse(q.items)
-    }));
-
-    return NextResponse.json(formattedQuotes);
+    const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(id);
+    return NextResponse.json({ ...quote, items });
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch quotes' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to fetch quote' }, { status: 500 });
   }
 }
 
-export async function POST(request: Request) {
+export async function DELETE(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const body = await request.json();
+    const { id } = await params;
 
-    // Validation
-    const validation = quoteSchema.safeParse(body);
-    if (!validation.success) {
-      return NextResponse.json({ error: validation.error.format() }, { status: 400 });
+    const quote = db.prepare('SELECT status FROM quotes WHERE id = ?').get(id) as any;
+    if (quote?.status === 'invoiced') {
+        return NextResponse.json({ error: 'Cannot delete an invoiced quote' }, { status: 400 });
     }
 
-    const data = validation.data;
-    const settings = db.prepare('SELECT quotePrefix FROM settings WHERE id = 1').get() as any;
-    const year = new Date().getFullYear();
-    const id = crypto.randomUUID();
-
-    const insertQuote = db.transaction((quoteData) => {
-      // Get and increment sequence
-      db.prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = 'quote'").run();
-      const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'quote'").get() as any;
-      const number = `${settings.quotePrefix}-${year}-${String(sequence.current_value).padStart(4, '0')}`;
-
-      // Currency Rounding to nearest integer for XAF
-      const roundedSubtotal = Math.round(quoteData.subtotal);
-      const roundedDiscount = Math.round(quoteData.discount);
-      const roundedTaxBase = Math.round(quoteData.taxBase);
-      const roundedTva = Math.round(quoteData.tvaAmount);
-      const roundedCss = Math.round(quoteData.cssAmount);
-      const roundedTotal = Math.round(quoteData.total);
-
-      db.prepare(`
-        INSERT INTO quotes (
-          id, number, clientId, clientName, clientEmail, date, dueDate,
-          subtotal, discount, taxBase, tvaAmount, cssAmount, total, notes, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        id, number, quoteData.clientId, quoteData.clientName, quoteData.clientEmail, quoteData.date, quoteData.dueDate,
-        roundedSubtotal, roundedDiscount, roundedTaxBase, roundedTva, roundedCss, roundedTotal, quoteData.notes, quoteData.status
-      );
-
-      const insertItem = db.prepare(`
-        INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-
-      for (const item of quoteData.items) {
-        insertItem.run(
-          crypto.randomUUID(),
-          id,
-          item.description,
-          item.quantity,
-          Math.round(item.unitPrice),
-          Math.round(item.total)
-        );
-      }
-
-      return { id, number };
-    });
-
-    const result = insertQuote(data);
-    return NextResponse.json(result);
+    const result = db.prepare('DELETE FROM quotes WHERE id = ?').run(id);
+    if (result.changes === 0) {
+      return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
+    }
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to create quote' }, { status: 500 });
+    return NextResponse.json({ error: 'Failed to delete quote' }, { status: 500 });
   }
 }
