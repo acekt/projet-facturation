@@ -10,7 +10,7 @@ export async function PATCH(
     const { name, description, category, unitPrice } = await request.json();
 
     db.prepare('UPDATE services SET name = ?, description = ?, category = ?, unitPrice = ? WHERE id = ?')
-      .run(name, description, category, unitPrice, id);
+      .run(name, description, category, Math.round(unitPrice), id);
 
     return NextResponse.json({ success: true });
   } catch (error) {
