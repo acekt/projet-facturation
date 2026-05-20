@@ -65,6 +65,7 @@ export const settingsSchema = z.object({
   invoicePrefix: z.string().min(1),
   quotePrefix: z.string().min(1),
   mentionsLegales: z.string().optional(),
+  logo: z.string().optional(),
 });
 
 export const serviceSchema = z.object({

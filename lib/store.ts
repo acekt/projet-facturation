@@ -91,6 +91,7 @@ export interface Settings {
   invoicePrefix: string;
   quotePrefix: string;
   mentionsLegales?: string;
+  logo?: string;
 }
 
 interface AppState {

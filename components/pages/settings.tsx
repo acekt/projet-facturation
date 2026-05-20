@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
-import { Save, Building2, FileText, Percent, Mail, Phone, MapPin, Landmark } from "lucide-react"
+import { Save, Building2, FileText, Percent, Mail, Phone, MapPin, Landmark, Upload, X } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,6 +19,21 @@ export function SettingsPage() {
   React.useEffect(() => {
     setFormData(settings)
   }, [settings])
+
+  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) {
+      if (file.size > 1024 * 1024) { // 1MB limit
+          toast.error("Le logo est trop lourd (max 1Mo)");
+          return;
+      }
+      const reader = new FileReader()
+      reader.onloadend = () => {
+        setFormData({ ...formData, logo: reader.result as string })
+      }
+      reader.readAsDataURL(file)
+    }
+  }
 
   const handleSave = async () => {
     setIsSaving(true)
@@ -59,10 +74,51 @@ export function SettingsPage() {
             <CardDescription>Ces informations apparaîtront sur vos documents</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="flex flex-col md:flex-row gap-6 items-start mb-4">
+              <div className="space-y-2">
+                <Label>Logo de l'entreprise</Label>
+                <div className="flex items-center gap-4">
+                  <div className="w-24 h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-secondary/30 overflow-hidden relative group">
+                    {formData.logo ? (
+                      <>
+                        <img src={formData.logo} alt="Logo" className="w-full h-full object-contain p-2" />
+                        <button
+                          onClick={() => setFormData({ ...formData, logo: "" })}
+                          className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+                        >
+                          <X className="w-6 h-6" />
+                        </button>
+                      </>
+                    ) : (
+                      <Upload className="w-8 h-8 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                      id="logo-upload"
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={() => document.getElementById('logo-upload')?.click()}
+                      className="text-xs"
+                    >
+                      {formData.logo ? "Changer le logo" : "Choisir une image"}
+                    </Button>
+                    <p className="text-[10px] text-muted-foreground italic">PNG, JPG ou SVG (Max 1Mo)</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Nom de l'entreprise</Label>
+                <Label htmlFor="company-name">Nom de l'entreprise</Label>
                 <Input
+                  id="company-name"
                   value={formData.companyName}
                   onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                   className="bg-secondary/50 border-border"
@@ -93,13 +149,24 @@ export function SettingsPage() {
                 />
               </div>
               <div className="col-span-2 space-y-2">
-                <Label>Adresse siège social</Label>
+                <Label htmlFor="company-address">Adresse siège social</Label>
                 <Input
+                  id="company-address"
                   value={formData.address}
                   onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                   className="bg-secondary/50 border-border"
                 />
               </div>
+            </div>
+            <div className="space-y-2 pt-2">
+              <Label htmlFor="mentions-legales">Mentions Légales / Notes par défaut</Label>
+              <Textarea
+                id="mentions-legales"
+                value={formData.mentionsLegales || ""}
+                onChange={(e) => setFormData({ ...formData, mentionsLegales: e.target.value })}
+                placeholder="Ex: Merci de votre confiance. Conditions de paiement..."
+                className="bg-secondary/50 border-border min-h-[100px]"
+              />
             </div>
           </CardContent>
         </Card>

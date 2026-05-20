@@ -24,7 +24,8 @@ db.exec(`
     defaultDueDateDays INTEGER,
     invoicePrefix TEXT,
     quotePrefix TEXT,
-    mentionsLegales TEXT
+    mentionsLegales TEXT,
+    logo TEXT
   );
 
   CREATE TABLE IF NOT EXISTS clients (
@@ -133,10 +134,10 @@ const row = db.prepare('SELECT COUNT(*) as count FROM settings').get() as { coun
 if (row.count === 0) {
   db.prepare(`
     INSERT INTO settings (
-      id, companyName, nif, rccm, address, email, phone, bankName, iban,
+      id, companyName, nif, rccm, address, email, phone, mentionsLegales, bankName, iban,
       tvaRate, cssRate, defaultDueDateDays, invoicePrefix, quotePrefix
     ) VALUES (
-      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `).run(
     "L'Etoile SARL",
@@ -145,6 +146,7 @@ if (row.count === 0) {
     "123 Boulevard Triomphal, Libreville, Gabon",
     "facturation@letoile.ga",
     "+241 01 76 XX XX",
+    "Merci de votre confiance.",
     "BGFI Bank",
     "GAXX XXXX XXXX XXXX XXXX",
     18,
