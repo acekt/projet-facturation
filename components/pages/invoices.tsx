@@ -216,7 +216,10 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
+                          <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
+                            <Eye className="w-4 h-4" /> Aperçu
+                          </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2">
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2" onClick={() => onEditInvoice(invoice.id)}>
@@ -245,7 +248,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         ) : (
           <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border">
             <h3 className="text-lg font-semibold text-foreground">Aucune facture trouvée</h3>
-            <p className="text-muted-foreground mt-1">Créez votre première facture pour commencer.</p>
+            <p className="text-muted-foreground mt-1">Les factures sont générées automatiquement lors de la confirmation d'un devis.</p>
           </div>
         )}
       </div>
