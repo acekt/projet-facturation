@@ -46,7 +46,12 @@ export function DocumentPreview({ open, onOpenChange, type, data }: DocumentPrev
               </h1>
               {data.number && <p className="text-gray-500 mt-1 font-medium">{data.number}</p>}
             </div>
-            <div className="text-right">
+            <div className="text-right flex flex-col items-end">
+              {settings.logo && (
+                <div className="w-16 h-16 overflow-hidden bg-white mb-2 flex items-center justify-center border border-gray-100 rounded-lg p-1">
+                  <img src={settings.logo} alt="Logo" className="max-w-full max-h-full object-contain" />
+                </div>
+              )}
               <h2 className="text-xl font-bold">{settings.companyName}</h2>
               <p className="text-sm text-gray-500 mt-1">{settings.address}</p>
               <p className="text-sm text-gray-500">{settings.email} • {settings.phone}</p>

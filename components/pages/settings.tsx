@@ -133,6 +133,14 @@ export function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
+                <Label>Téléphone</Label>
+                <Input
+                  value={formData.phone || ""}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="bg-secondary/50 border-border"
+                />
+              </div>
+              <div className="space-y-2">
                 <Label>NIF (Numéro d'Identification Fiscale)</Label>
                 <Input
                   value={formData.nif}

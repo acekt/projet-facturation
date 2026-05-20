@@ -15,6 +15,7 @@ export async function GET() {
                'total', total
              )) FROM quote_items WHERE quoteId = q.id) as items
       FROM quotes q
+      WHERE q.deletedAt IS NULL
       ORDER BY createdAt DESC
     `).all();
 

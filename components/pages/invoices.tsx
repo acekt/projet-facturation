@@ -31,6 +31,7 @@ import { useStore, type Invoice, type Payment } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { PrintableDocument } from "@/components/printable-document"
+import { DocumentPreview } from "@/components/document-preview"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -47,6 +48,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
 
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
+  const [previewInvoice, setPreviewInvoice] = React.useState<Invoice | null>(null)
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false)
   const [paymentInvoice, setPaymentInvoice] = React.useState<Invoice | null>(null)
   const [paymentMethod, setPaymentMethod] = React.useState("cash")
@@ -155,7 +157,12 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
             Export CSV
           </Button>
           <Button
-            onClick={onCreateInvoice}
+            onClick={() => {
+              toast.info(
+                "Conformément aux normes comptables gabonaises (DGI), une facture commerciale doit obligatoirement être issue de la mutation d'un devis/proforma validé. Veuillez convertir un devis dans l'onglet 'Devis'.",
+                { duration: 6000 }
+              );
+            }}
             className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
           >
             <Plus className="w-4 h-4" />
@@ -219,14 +226,11 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
                             <Eye className="w-4 h-4" /> Aperçu
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={() => onEditInvoice(invoice.id)}>
-                            <Edit2 className="w-4 h-4" /> Modifier
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
-                            <Download className="w-4 h-4" /> PDF
+                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
+                            <Download className="w-4 h-4" /> Télécharger PDF
                           </DropdownMenuItem>
                           {invoice.status !== 'PAID' && (
                             <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
@@ -300,6 +304,15 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           </div>
         </DialogContent>
       </Dialog>
+
+      {previewInvoice && (
+        <DocumentPreview
+          open={!!previewInvoice}
+          onOpenChange={(open) => !open && setPreviewInvoice(null)}
+          type="Invoice"
+          data={previewInvoice}
+        />
+      )}
     </div>
   )
 }

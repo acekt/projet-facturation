@@ -31,6 +31,8 @@ import { useStore, type Quote } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { DocumentPreview } from "@/components/document-preview"
+import { PrintableDocument } from "@/components/printable-document"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 
 interface QuotesPageProps {
   onCreateQuote: () => void
@@ -40,6 +42,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   const { quotes, setQuotes } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [previewQuote, setPreviewQuote] = React.useState<Quote | null>(null)
+  const [selectedQuote, setSelectedQuote] = React.useState<Quote | null>(null)
 
   const filteredQuotes = quotes.filter(
     (quote) =>
@@ -76,19 +79,23 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   }
 
   const handleDelete = async (id: string) => {
+    if (!confirm("Voulez-vous vraiment supprimer ce devis ?")) return
     try {
       const response = await fetch(`/api/quotes/${id}`, {
         method: 'DELETE',
       })
 
-      if (!response.ok) throw new Error('Failed to delete quote')
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Failed to delete quote');
+      }
 
       toast.success("Devis supprimé avec succès")
       
       const newQuotes = await fetch('/api/quotes').then(res => res.json())
       setQuotes(newQuotes)
-    } catch (error) {
-      toast.error("Erreur lors de la suppression")
+    } catch (error: any) {
+      toast.error(error.message || "Erreur lors de la suppression")
     }
   }
 
@@ -193,13 +200,15 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           <DropdownMenuItem className="gap-2" onClick={() => setPreviewQuote(quote)}>
                             <Eye className="w-4 h-4" /> Aperçu
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
                             <Download className="w-4 h-4" /> Télécharger PDF
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => {
+                            toast.info("Fonctionnalité de duplication : Pour modifier ou dupliquer un devis, veuillez créer un nouveau devis.");
+                          }}>
                             <Copy className="w-4 h-4" /> Dupliquer
                           </DropdownMenuItem>
                           {quote.status !== 'invoiced' && (
@@ -252,6 +261,18 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
           data={previewQuote}
         />
       )}
+
+      <Dialog open={!!selectedQuote} onOpenChange={() => setSelectedQuote(null)}>
+        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
+          <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
+            <h2 className="font-bold text-black">Aperçu avant impression</h2>
+            <Button onClick={() => window.print()} className="gap-2">
+              <Printer className="w-4 h-4" /> Imprimer
+            </Button>
+          </div>
+          {selectedQuote && <PrintableDocument document={selectedQuote} type="devis" />}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -125,94 +125,50 @@ function StatCard({ title, value, trend, trendUp, icon: Icon, iconBg, iconColor,
 }
 
 export function Dashboard() {
-  const { invoices, clients, quotes } = useStore()
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
+  const [dashboardData, setDashboardData] = React.useState<any>(null)
+  const [isLoading, setIsLoading] = React.useState(true)
 
-  const now = new Date();
-  const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
-  const lastMonth = String(now.getMonth() || 12).padStart(2, '0');
-  const currentYear = now.getFullYear().toString();
-
-  const payments = useStore((state) => state.payments)
-  const totalRevenue = payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
-
-  const revenueCurrentMonth = payments
-    .filter(p => p.date?.startsWith(currentYear) && p.date?.split('-')[1] === currentMonth)
-    .reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
-
-  const revenueLastMonth = payments
-    .filter(p => p.date?.startsWith(currentYear) && p.date?.split('-')[1] === lastMonth)
-    .reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
-
-  const revenueGrowth = revenueLastMonth > 0
-    ? ((revenueCurrentMonth - revenueLastMonth) / revenueLastMonth * 100).toFixed(1)
-    : (revenueCurrentMonth > 0 ? "100" : "0");
-
-  const pendingRevenue = invoices
-    .filter(i => i.status === 'UNPAID' || i.status === 'PARTIALLY_PAID')
-    .reduce((acc, i) => {
-        const paidForThisInvoice = payments
-            .filter(p => p.invoiceId === i.id)
-            .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-        return acc + (Number(i.total) || 0) - paidForThisInvoice;
-    }, 0);
-
-  const overdueRevenue = invoices.filter(i => i.status === 'overdue').reduce((acc, i) => acc + (Number(i.total) || 0), 0)
-  const paidCount = invoices.filter(i => i.status === 'PAID').length
-
-  const revenueData = React.useMemo(() => {
-    const months = ["Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec"];
-    return months.map((m, i) => {
-      const monthStr = String(i + 1).padStart(2, '0');
-      const monthRevenue = payments
-        .filter(p =>
-          p.date && p.date.startsWith(currentYear) &&
-          p.date.split('-')[1] === monthStr
-        )
-        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
-
-      return { month: m, revenue: monthRevenue };
-    });
-  }, [payments, currentYear]);
-
-  const paymentMethodData = React.useMemo(() => {
-    const methods = [
-      { name: "Airtel Money", key: "airtel", color: "#ef4444" },
-      { name: "Moov Money", key: "moov", color: "#3b82f6" },
-      { name: "Virement", key: "virement", color: "#10b981" },
-      { name: "Autre/Cash", key: "cash", color: "#64748b" },
-    ];
-
-    const totalPaidCount = payments.length || 1;
-
-    return methods.map(m => ({
-      name: m.name,
-      value: Math.round((payments.filter(p => p.paymentMethod === m.key).length / totalPaidCount) * 100),
-      color: m.color
-    })).filter(m => m.value > 0);
-  }, [payments]);
-
-  const activityTimeline = [
-    ...quotes.slice(0, 3).map(q => ({
-      id: q.id,
-      action: q.status === 'invoiced' ? "Devis converti" : "Nouveau devis",
-      client: q.clientName,
-      time: q.date,
-      type: "send"
-    })),
-    ...invoices.slice(0, 3).map(i => ({
-      id: i.id,
-      action: i.status === 'PAID' ? "Facture payée" : i.status === 'PARTIALLY_PAID' ? "Acompte reçu" : "Facture émise",
-      client: i.clientName,
-      time: i.date,
-      type: "payment"
-    }))
-  ].sort((a, b) => b.time.localeCompare(a.time)).slice(0, 5)
+  const fetchMetrics = React.useCallback(async () => {
+    try {
+      const res = await fetch('/api/dashboard/metrics')
+      if (res.ok) {
+        const data = await res.json()
+        setDashboardData(data)
+      }
+    } catch (err) {
+      console.error("Error fetching dashboard metrics:", err)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [])
 
   React.useEffect(() => {
     setMounted(true)
-  }, [])
+    fetchMetrics()
+  }, [fetchMetrics])
+
+  const metrics = dashboardData?.metrics || {
+    totalRevenue: 0,
+    growth: 0,
+    pendingRevenue: 0,
+    overdueRevenue: 0,
+    paidCount: 0,
+    totalInvoicesCount: 0
+  }
+  const revenueData = dashboardData?.revenueData || []
+  const paymentMethodData = dashboardData?.paymentMethodData || []
+  const recentInvoices = dashboardData?.recentInvoices || []
+  const activityTimeline = dashboardData?.activityTimeline || []
+
+  const totalRevenue = metrics.totalRevenue
+  const revenueGrowth = metrics.growth
+  const pendingRevenue = metrics.pendingRevenue
+  const overdueRevenue = metrics.overdueRevenue
+  const paidCount = metrics.paidCount
+  const totalInvoicesCount = metrics.totalInvoicesCount
+
 
   const isDark = mounted && resolvedTheme === "dark"
 
@@ -268,7 +224,7 @@ export function Dashboard() {
         <StatCard
           title="Factures payées"
           value={paidCount.toString()}
-          trend={`${Math.round((paidCount / (invoices.length || 1)) * 100)}% du volume`}
+          trend={`${Math.round((paidCount / (totalInvoicesCount || 1)) * 100)}% du volume`}
           trendUp={true}
           icon={CheckCircle}
           iconBg="bg-emerald-500/10"
@@ -278,7 +234,7 @@ export function Dashboard() {
         <StatCard
           title="En attente"
           value={formatShortCurrency(pendingRevenue) + " XAF"}
-          trend={`${invoices.filter(i => i.status === 'pending').length} document(s)`}
+          trend={`${totalInvoicesCount - paidCount} document(s)`}
           trendUp={false}
           icon={Clock}
           iconBg="bg-amber-500/10"
@@ -288,7 +244,7 @@ export function Dashboard() {
         <StatCard
           title="En retard"
           value={formatShortCurrency(overdueRevenue) + " XAF"}
-          trend={`${invoices.filter(i => i.status === 'overdue').length} impayé(s)`}
+          trend="Suivi en temps réel"
           trendUp={false}
           icon={AlertCircle}
           iconBg="bg-red-500/10"
@@ -455,7 +411,7 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-1">
-                {invoices.slice(0, 5).map((invoice, index) => (
+                {recentInvoices.map((invoice: any, index: number) => (
                   <motion.div
                     key={invoice.id}
                     initial={{ opacity: 0, x: -20 }}
@@ -468,7 +424,7 @@ export function Dashboard() {
                         <FileText className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
                       </div>
                       <div>
-                        <p className="text-foreground font-medium text-sm">{invoice.id}</p>
+                        <p className="text-foreground font-medium text-sm">{invoice.number}</p>
                         <p className="text-muted-foreground text-xs">{invoice.clientName}</p>
                       </div>
                     </div>
