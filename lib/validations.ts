@@ -25,7 +25,7 @@ export const invoiceSchema = z.object({
   tvaAmount: z.number().min(0),
   cssAmount: z.number().min(0),
   total: z.number().min(0),
-  status: z.enum(['paid', 'pending', 'overdue', 'draft', 'cancelled']),
+  status: z.enum(['PAID', 'PARTIALLY_PAID', 'UNPAID', 'overdue', 'draft', 'cancelled', 'pending']),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide"),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date d'échéance invalide"),
   items: z.array(invoiceItemSchema).min(1, "Au moins un article est requis"),
@@ -64,4 +64,13 @@ export const settingsSchema = z.object({
   defaultDueDateDays: z.number().min(0),
   invoicePrefix: z.string().min(1),
   quotePrefix: z.string().min(1),
+  mentionsLegales: z.string().optional(),
+  logo: z.string().optional(),
+});
+
+export const serviceSchema = z.object({
+  name: z.string().min(1, "Le nom est requis"),
+  description: z.string().optional(),
+  category: z.string().optional(),
+  unitPrice: z.number().min(0, "Le prix ne peut pas être négatif"),
 });

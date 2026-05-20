@@ -24,7 +24,8 @@ db.exec(`
     defaultDueDateDays INTEGER,
     invoicePrefix TEXT,
     quotePrefix TEXT,
-    mentionsLegales TEXT
+    mentionsLegales TEXT,
+    logo TEXT
   );
 
   CREATE TABLE IF NOT EXISTS clients (
@@ -99,6 +100,17 @@ db.exec(`
     FOREIGN KEY (invoiceId) REFERENCES invoices(id) ON DELETE CASCADE
   );
 
+  CREATE TABLE IF NOT EXISTS payments (
+    id TEXT PRIMARY KEY,
+    invoiceId TEXT NOT NULL,
+    amount REAL NOT NULL,
+    paymentMethod TEXT NOT NULL, -- airtel, moov, virement, cash
+    date TEXT NOT NULL,
+    reference TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (invoiceId) REFERENCES invoices(id) ON DELETE CASCADE
+  );
+
   CREATE TABLE IF NOT EXISTS sequences (
     name TEXT PRIMARY KEY,
     current_value INTEGER DEFAULT 0
@@ -106,6 +118,15 @@ db.exec(`
 
   INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('quote', 0);
   INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('invoice', 0);
+
+  CREATE TABLE IF NOT EXISTS services (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT,
+    category TEXT,
+    unitPrice REAL DEFAULT 0,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // Insert default settings if not exists
@@ -113,10 +134,10 @@ const row = db.prepare('SELECT COUNT(*) as count FROM settings').get() as { coun
 if (row.count === 0) {
   db.prepare(`
     INSERT INTO settings (
-      id, companyName, nif, rccm, address, email, phone, bankName, iban,
+      id, companyName, nif, rccm, address, email, phone, mentionsLegales, bankName, iban,
       tvaRate, cssRate, defaultDueDateDays, invoicePrefix, quotePrefix
     ) VALUES (
-      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `).run(
     "L'Etoile SARL",
@@ -125,6 +146,7 @@ if (row.count === 0) {
     "123 Boulevard Triomphal, Libreville, Gabon",
     "facturation@letoile.ga",
     "+241 01 76 XX XX",
+    "Merci de votre confiance.",
     "BGFI Bank",
     "GAXX XXXX XXXX XXXX XXXX",
     18,

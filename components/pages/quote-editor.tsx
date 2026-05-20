@@ -38,7 +38,10 @@ interface QuoteEditorProps {
 }
 
 export function QuoteEditor({ onBack }: QuoteEditorProps) {
-  const { clients, settings, setQuotes } = useStore()
+  const clients = useStore((state) => state.clients)
+  const settings = useStore((state) => state.settings)
+  const setQuotes = useStore((state) => state.setQuotes)
+  const services = useStore((state) => state.services)
   const [selectedClient, setSelectedClient] = React.useState<typeof clients[0] | null>(null)
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false)
   const [clientSearch, setClientSearch] = React.useState("")
@@ -65,15 +68,25 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
       client.email.toLowerCase().includes(clientSearch.toLowerCase())
   )
 
-  const updateItem = (id: string, field: keyof InvoiceItem, value: string | number) => {
+  const updateItem = (itemId: string, field: keyof InvoiceItem, value: string | number) => {
     setItems((prev) =>
       prev.map((item) => {
-        if (item.id === id) {
+        if (item.id === itemId) {
           const updated = { ...item, [field]: value }
           if (field === "quantity" || field === "unitPrice") {
             if (Number(updated.unitPrice) < 0) updated.unitPrice = 0
             updated.total = (Number(updated.quantity) || 0) * (Number(updated.unitPrice) || 0)
           }
+
+          // Auto-population from catalog
+          if (field === "description" && typeof value === 'string') {
+            const matchedService = services.find(s => s.name.toLowerCase() === value.toLowerCase());
+            if (matchedService) {
+                updated.unitPrice = matchedService.unitPrice;
+                updated.total = (Number(updated.quantity) || 0) * updated.unitPrice;
+            }
+          }
+
           return updated
         }
         return item
@@ -348,7 +361,13 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
                         value={item.description}
                         onChange={(e) => updateItem(item.id, "description", e.target.value)}
                         className="bg-transparent border-0 md:border md:bg-secondary focus-visible:ring-1"
+                        list={`services-list-${item.id}`}
                       />
+                      <datalist id={`services-list-${item.id}`}>
+                        {services.map(s => (
+                          <option key={s.id} value={s.name}>{s.category} - {formatCurrency(s.unitPrice)}</option>
+                        ))}
+                      </datalist>
                     </div>
                     <div className="col-span-4 md:col-span-2">
                       <Input

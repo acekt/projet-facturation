@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   FileText,
   Users,
+  Briefcase,
   CreditCard,
   Settings,
   ChevronLeft,
@@ -39,6 +40,7 @@ const navItems = [
   { id: "quotes", label: "Devis", icon: FileText },
   { id: "invoices", label: "Factures", icon: FileText },
   { id: "clients", label: "Clients", icon: Users },
+  { id: "services", label: "Services", icon: Briefcase },
   { id: "payments", label: "Paiements", icon: CreditCard },
   { id: "settings", label: "Parametres", icon: Settings },
 ]
@@ -168,15 +170,14 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
             collapsed && "justify-center"
           )}>
             <Avatar className="w-9 h-9 ring-2 ring-border">
-              <AvatarImage src="/placeholder-user.jpg" />
               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs font-medium">
-                JD
+                ADM
               </AvatarFallback>
             </Avatar>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">Jean Dupont</p>
-                <p className="text-xs text-muted-foreground truncate">Administrateur</p>
+                <p className="text-sm font-medium text-foreground truncate">Administrateur</p>
+                <p className="text-xs text-muted-foreground truncate">Session Locale</p>
               </div>
             )}
           </div>

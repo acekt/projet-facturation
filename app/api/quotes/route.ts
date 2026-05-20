@@ -33,7 +33,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Validation
     const validation = quoteSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json({ error: validation.error.format() }, { status: 400 });
@@ -45,18 +44,9 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
 
     const insertQuote = db.transaction((quoteData) => {
-      // Get and increment sequence
       db.prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = 'quote'").run();
       const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'quote'").get() as any;
       const number = `${settings.quotePrefix}-${year}-${String(sequence.current_value).padStart(4, '0')}`;
-
-      // Currency Rounding to nearest integer for XAF
-      const roundedSubtotal = Math.round(quoteData.subtotal);
-      const roundedDiscount = Math.round(quoteData.discount);
-      const roundedTaxBase = Math.round(quoteData.taxBase);
-      const roundedTva = Math.round(quoteData.tvaAmount);
-      const roundedCss = Math.round(quoteData.cssAmount);
-      const roundedTotal = Math.round(quoteData.total);
 
       db.prepare(`
         INSERT INTO quotes (
@@ -65,7 +55,9 @@ export async function POST(request: Request) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id, number, quoteData.clientId, quoteData.clientName, quoteData.clientEmail, quoteData.date, quoteData.dueDate,
-        roundedSubtotal, roundedDiscount, roundedTaxBase, roundedTva, roundedCss, roundedTotal, quoteData.notes || null, quoteData.status
+        Math.round(quoteData.subtotal), Math.round(quoteData.discount), Math.round(quoteData.taxBase),
+        Math.round(quoteData.tvaAmount), Math.round(quoteData.cssAmount), Math.round(quoteData.total),
+        quoteData.notes, quoteData.status
       );
 
       const insertItem = db.prepare(`

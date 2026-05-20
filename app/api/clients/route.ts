@@ -16,7 +16,6 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
 
-    // Validation
     const validation = clientSchema.safeParse(body);
     if (!validation.success) {
       return NextResponse.json({ error: validation.error.format() }, { status: 400 });

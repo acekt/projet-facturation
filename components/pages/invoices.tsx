@@ -14,7 +14,8 @@ import {
   Clock,
   CheckCircle2,
   AlertCircle,
-  Eye,
+  DownloadCloud,
+  Edit2,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -26,53 +27,81 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
-import { useStore, type Invoice } from "@/lib/store"
+import { useStore, type Invoice, type Payment } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
-import { DocumentPreview } from "@/components/document-preview"
+import { PrintableDocument } from "@/components/printable-document"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
+  onEditInvoice: (id: string) => void
 }
 
-export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
-  const { invoices, setInvoices } = useStore()
+export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPageProps) {
+  const invoices = useStore((state) => state.invoices)
+  const setInvoices = useStore((state) => state.setInvoices)
+  const setPayments = useStore((state) => state.setPayments)
+
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [previewInvoice, setPreviewInvoice] = React.useState<Invoice | null>(null)
+  const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
+  const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false)
+  const [paymentInvoice, setPaymentInvoice] = React.useState<Invoice | null>(null)
+  const [paymentMethod, setPaymentMethod] = React.useState("cash")
+  const [paymentAmount, setPaymentAmount] = React.useState("")
 
-  const handleUpdateStatus = async (invoiceId: string, status: string) => {
+  const handleDelete = async (id: string) => {
+    if (!confirm("Voulez-vous vraiment supprimer cette facture ?")) return
     try {
-      const response = await fetch('/api/invoices/status', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ invoiceId, status }),
-      })
-
-      if (!response.ok) throw new Error('Failed to update status')
-
-      toast.success("Statut mis à jour")
+      const response = await fetch(`/api/invoices/${id}`, { method: 'DELETE' })
+      if (!response.ok) throw new Error('Delete failed')
+      toast.success("Facture supprimée")
       const updatedInvoices = await fetch('/api/invoices').then(res => res.json())
       setInvoices(updatedInvoices)
     } catch (error) {
-      toast.error("Erreur lors de la mise à jour")
+      toast.error("Erreur lors de la suppression")
     }
   }
 
-  const handleDelete = async (id: string) => {
-    try {
-      const response = await fetch(`/api/invoices/${id}`, {
-        method: 'DELETE',
-      })
+  const markAsPaid = (invoice: Invoice) => {
+      setPaymentInvoice(invoice);
+      setPaymentAmount(invoice.total.toString());
+      setPaymentDialogOpen(true);
+  }
 
-      if (!response.ok) throw new Error('Failed to delete invoice')
+  const confirmPayment = async () => {
+      if (paymentInvoice) {
+          try {
+            const response = await fetch('/api/payments', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                  invoiceId: paymentInvoice.id,
+                  amount: parseFloat(paymentAmount),
+                  paymentMethod,
+                  date: new Date().toISOString().split('T')[0]
+              }),
+            })
 
-      toast.success("Facture supprimée avec succès")
-      
-      const newInvoices = await fetch('/api/invoices').then(res => res.json())
-      setInvoices(newInvoices)
-    } catch (error) {
-      toast.error("Erreur lors de la suppression")
-    }
+            if (!response.ok) throw new Error('Failed to record payment')
+
+            toast.success("Paiement enregistré")
+
+            const [updatedInvoices, updatedPayments] = await Promise.all([
+                fetch('/api/invoices').then(res => res.json()),
+                fetch('/api/payments').then(res => res.json())
+            ]);
+
+            setInvoices(updatedInvoices);
+            setPayments(updatedPayments);
+            setPaymentDialogOpen(false);
+            setPaymentInvoice(null);
+          } catch (error) {
+              toast.error("Erreur lors de l'enregistrement")
+          }
+      }
   }
 
   const filteredInvoices = invoices.filter(
@@ -83,10 +112,12 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
 
   const getStatusBadge = (status: Invoice['status']) => {
     switch (status) {
-      case "paid":
+      case "PAID":
         return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">Payée</Badge>
-      case "pending":
-        return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200">En attente</Badge>
+      case "PARTIALLY_PAID":
+        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200">Acompte</Badge>
+      case "UNPAID":
+        return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200">Impayée</Badge>
       case "overdue":
         return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">En retard</Badge>
       case "draft":
@@ -102,6 +133,34 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Factures</h1>
           <p className="text-muted-foreground mt-1">Gérez vos factures et suivez vos paiements</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const headers = ["Numero", "Client", "Date", "Echeance", "Total", "Statut"];
+              const rows = invoices.map(i => [i.number, i.clientName, i.date, i.dueDate, i.total, i.status]);
+              const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+              const link = document.createElement("a");
+              link.href = URL.createObjectURL(blob);
+              link.setAttribute("download", `factures_${new Date().toISOString().split('T')[0]}.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="gap-2 hidden sm:flex"
+          >
+            <DownloadCloud className="w-4 h-4" />
+            Export CSV
+          </Button>
+          <Button
+            onClick={onCreateInvoice}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
+          >
+            <Plus className="w-4 h-4" />
+            Nouvelle facture
+          </Button>
         </div>
       </div>
 
@@ -163,19 +222,19 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
                           <DropdownMenuItem className="gap-2">
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
+                          <DropdownMenuItem className="gap-2" onClick={() => onEditInvoice(invoice.id)}>
+                            <Edit2 className="w-4 h-4" /> Modifier
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2">
                             <Download className="w-4 h-4" /> PDF
                           </DropdownMenuItem>
-                          {invoice.status !== 'paid' && (
-                            <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => handleUpdateStatus(invoice.id, 'paid')}>
-                              <CheckCircle2 className="w-4 h-4" /> Marquer comme payée
+                          {invoice.status !== 'PAID' && (
+                            <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
+                              <CheckCircle2 className="w-4 h-4" /> Enregistrer un paiement
                             </DropdownMenuItem>
                           )}
                           <div className="h-px bg-border my-1" />
-                          <DropdownMenuItem 
-                            className="gap-2 text-destructive focus:text-destructive"
-                            onClick={() => handleDelete(invoice.id)}
-                          >
+                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>
                         </DropdownMenuContent>
@@ -194,14 +253,53 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
         )}
       </div>
 
-      {previewInvoice && (
-        <DocumentPreview
-          open={!!previewInvoice}
-          onOpenChange={(open) => !open && setPreviewInvoice(null)}
-          type="Invoice"
-          data={previewInvoice}
-        />
-      )}
+      <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
+        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
+          <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
+            <h2 className="font-bold">Aperçu avant impression</h2>
+            <Button onClick={() => window.print()} className="gap-2">
+              <Printer className="w-4 h-4" /> Imprimer
+            </Button>
+          </div>
+          {selectedInvoice && <PrintableDocument document={selectedInvoice} type="facture" />}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+        <DialogContent className="bg-card border-border max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-foreground">Confirmer le paiement</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Montant versé (XAF)</Label>
+              <Input
+                type="number"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+                className="bg-secondary border-border h-11 font-bold text-lg"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Mode de règlement</Label>
+              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                <SelectTrigger className="bg-secondary border-border text-foreground h-11">
+                  <SelectValue placeholder="Sélectionner..." />
+                </SelectTrigger>
+                <SelectContent className="bg-card border-border">
+                  <SelectItem value="airtel">Airtel Money</SelectItem>
+                  <SelectItem value="moov">Moov Africa</SelectItem>
+                  <SelectItem value="virement">Virement Bancaire</SelectItem>
+                  <SelectItem value="cash">Espèces / Cash</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <Button onClick={confirmPayment} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11">
+              Valider l'encaissement
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

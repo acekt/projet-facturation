@@ -16,12 +16,19 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
     <div className="printable-document p-8 bg-white text-black font-sans min-h-[297mm] w-[210mm] mx-auto text-[12pt] leading-normal">
       {/* Header */}
       <div className="flex justify-between items-start mb-12 border-b-2 border-primary pb-6">
-        <div>
-          <h1 className="text-3xl font-bold uppercase text-primary mb-1">{settings.companyName}</h1>
-          <div className="text-sm space-y-0.5">
-            <p>{settings.address}</p>
-            <p>Email: {settings.email}</p>
-            <p>Tél: {settings.phone}</p>
+        <div className="flex items-center gap-4">
+          {settings.logo && (
+            <div className="w-20 h-20 overflow-hidden bg-white">
+              <img src={settings.logo} alt="Logo" className="w-full h-full object-contain" />
+            </div>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold uppercase text-primary mb-1">{settings.companyName}</h1>
+            <div className="text-sm space-y-0.5">
+              <p>{settings.address}</p>
+              <p>Email: {settings.email}</p>
+              <p>Tél: {settings.phone}</p>
+            </div>
           </div>
         </div>
         <div className="text-right">

@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Quote already invoiced' }, { status: 400 });
     }
 
-    const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all() as any[];
+    const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(quoteId) as any[];
 
     const settings = db.prepare('SELECT invoicePrefix, defaultDueDateDays FROM settings WHERE id = 1').get() as any;
     const year = new Date().getFullYear();
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
         Math.round(quote.tvaAmount),
         Math.round(quote.cssAmount),
         Math.round(quote.total),
-        'pending',
+        'UNPAID',
         quote.notes
       );
 

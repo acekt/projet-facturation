@@ -39,18 +39,25 @@ import { formatCurrency, formatShortCurrency } from "@/lib/utils"
 
 const getStatusBadge = (status: string) => {
   switch (status) {
-    case "paid":
+    case "PAID":
       return (
         <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20">
           <CheckCircle className="w-3 h-3 mr-1" />
-          Paye
+          Payée
         </Badge>
       )
-    case "pending":
+    case "PARTIALLY_PAID":
+      return (
+        <Badge className="bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20 hover:bg-blue-500/20">
+          <Clock className="w-3 h-3 mr-1" />
+          Acompte
+        </Badge>
+      )
+    case "UNPAID":
       return (
         <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20">
           <Clock className="w-3 h-3 mr-1" />
-          En attente
+          Impayée
         </Badge>
       )
     case "overdue":
@@ -122,52 +129,86 @@ export function Dashboard() {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
 
-  const totalRevenue = invoices.filter(i => i.status === 'paid').reduce((acc, i) => acc + i.total, 0)
-  const pendingRevenue = invoices.filter(i => i.status === 'pending').reduce((acc, i) => acc + i.total, 0)
-  const overdueRevenue = invoices.filter(i => i.status === 'overdue').reduce((acc, i) => acc + i.total, 0)
-  const paidCount = invoices.filter(i => i.status === 'paid').length
+  const now = new Date();
+  const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
+  const lastMonth = String(now.getMonth() || 12).padStart(2, '0');
+  const currentYear = now.getFullYear().toString();
 
-  // Generate dynamic revenue data for the last 12 months
+  const payments = useStore((state) => state.payments)
+  const totalRevenue = payments.reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+
+  const revenueCurrentMonth = payments
+    .filter(p => p.date?.startsWith(currentYear) && p.date?.split('-')[1] === currentMonth)
+    .reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+
+  const revenueLastMonth = payments
+    .filter(p => p.date?.startsWith(currentYear) && p.date?.split('-')[1] === lastMonth)
+    .reduce((acc, p) => acc + (Number(p.amount) || 0), 0);
+
+  const revenueGrowth = revenueLastMonth > 0
+    ? ((revenueCurrentMonth - revenueLastMonth) / revenueLastMonth * 100).toFixed(1)
+    : (revenueCurrentMonth > 0 ? "100" : "0");
+
+  const pendingRevenue = invoices
+    .filter(i => i.status === 'UNPAID' || i.status === 'PARTIALLY_PAID')
+    .reduce((acc, i) => {
+        const paidForThisInvoice = payments
+            .filter(p => p.invoiceId === i.id)
+            .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+        return acc + (Number(i.total) || 0) - paidForThisInvoice;
+    }, 0);
+
+  const overdueRevenue = invoices.filter(i => i.status === 'overdue').reduce((acc, i) => acc + (Number(i.total) || 0), 0)
+  const paidCount = invoices.filter(i => i.status === 'PAID').length
+
   const revenueData = React.useMemo(() => {
     const months = ["Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec"];
-    const currentYear = new Date().getFullYear();
-    
-    return months.map((month, index) => {
-      const monthRevenue = invoices
-        .filter(i => {
-          const d = new Date(i.date);
-          return d.getMonth() === index && d.getFullYear() === currentYear && i.status === 'paid';
-        })
-        .reduce((acc, i) => acc + i.total, 0);
-      return { month, revenue: monthRevenue };
+    return months.map((m, i) => {
+      const monthStr = String(i + 1).padStart(2, '0');
+      const monthRevenue = payments
+        .filter(p =>
+          p.date && p.date.startsWith(currentYear) &&
+          p.date.split('-')[1] === monthStr
+        )
+        .reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+
+      return { month: m, revenue: monthRevenue };
     });
-  }, [invoices]);
+  }, [payments, currentYear]);
 
-  const paymentMethodData = [
-    { name: "Airtel Money", value: 45, color: "#ef4444" },
-    { name: "Moov Money", value: 30, color: "#3b82f6" },
-    { name: "Virement", value: 25, color: "#10b981" },
-  ]
-
-  const activityTimeline = React.useMemo(() => {
-    const activities = [
-      ...quotes.slice(0, 3).map(q => ({
-        id: `quote-${q.id}`,
-        action: q.status === 'invoiced' ? "Devis converti" : "Nouveau devis",
-        client: q.clientName,
-        time: q.date,
-        type: "send"
-      })),
-      ...invoices.slice(0, 3).map(i => ({
-        id: `inv-${i.id}`,
-        action: i.status === 'paid' ? "Facture payée" : "Facture émise",
-        client: i.clientName,
-        time: i.date,
-        type: i.status === 'paid' ? "payment" : "new"
-      }))
+  const paymentMethodData = React.useMemo(() => {
+    const methods = [
+      { name: "Airtel Money", key: "airtel", color: "#ef4444" },
+      { name: "Moov Money", key: "moov", color: "#3b82f6" },
+      { name: "Virement", key: "virement", color: "#10b981" },
+      { name: "Autre/Cash", key: "cash", color: "#64748b" },
     ];
-    return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
-  }, [quotes, invoices]);
+
+    const totalPaidCount = payments.length || 1;
+
+    return methods.map(m => ({
+      name: m.name,
+      value: Math.round((payments.filter(p => p.paymentMethod === m.key).length / totalPaidCount) * 100),
+      color: m.color
+    })).filter(m => m.value > 0);
+  }, [payments]);
+
+  const activityTimeline = [
+    ...quotes.slice(0, 3).map(q => ({
+      id: q.id,
+      action: q.status === 'invoiced' ? "Devis converti" : "Nouveau devis",
+      client: q.clientName,
+      time: q.date,
+      type: "send"
+    })),
+    ...invoices.slice(0, 3).map(i => ({
+      id: i.id,
+      action: i.status === 'PAID' ? "Facture payée" : i.status === 'PARTIALLY_PAID' ? "Acompte reçu" : "Facture émise",
+      client: i.clientName,
+      time: i.date,
+      type: "payment"
+    }))
+  ].sort((a, b) => b.time.localeCompare(a.time)).slice(0, 5)
 
   React.useEffect(() => {
     setMounted(true)
@@ -216,18 +257,18 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Chiffre d'affaires"
-          value={formatShortCurrency(totalRevenue)}
-          trend="+12.5%"
-          trendUp={true}
+          value={formatShortCurrency(totalRevenue) + " XAF"}
+          trend={`${revenueGrowth}% ce mois`}
+          trendUp={Number(revenueGrowth) >= 0}
           icon={DollarSign}
           iconBg="bg-primary/10"
           iconColor="text-primary"
           delay={0}
         />
         <StatCard
-          title="Factures payees"
+          title="Factures payées"
           value={paidCount.toString()}
-          trend="+8.2%"
+          trend={`${Math.round((paidCount / (invoices.length || 1)) * 100)}% du volume`}
           trendUp={true}
           icon={CheckCircle}
           iconBg="bg-emerald-500/10"
@@ -236,8 +277,8 @@ export function Dashboard() {
         />
         <StatCard
           title="En attente"
-          value={formatShortCurrency(pendingRevenue)}
-          trend={`${invoices.filter(i => i.status === 'pending').length} factures`}
+          value={formatShortCurrency(pendingRevenue) + " XAF"}
+          trend={`${invoices.filter(i => i.status === 'pending').length} document(s)`}
           trendUp={false}
           icon={Clock}
           iconBg="bg-amber-500/10"
@@ -246,9 +287,9 @@ export function Dashboard() {
         />
         <StatCard
           title="En retard"
-          value={formatShortCurrency(overdueRevenue)}
-          trend="-2 ce mois"
-          trendUp={true}
+          value={formatShortCurrency(overdueRevenue) + " XAF"}
+          trend={`${invoices.filter(i => i.status === 'overdue').length} impayé(s)`}
+          trendUp={false}
           icon={AlertCircle}
           iconBg="bg-red-500/10"
           iconColor="text-red-500"

@@ -9,6 +9,7 @@ import { InvoicesPage } from "@/components/pages/invoices"
 import { QuotesPage } from "@/components/pages/quotes"
 import { QuoteEditor } from "@/components/pages/quote-editor"
 import { ClientsPage } from "@/components/pages/clients"
+import { ServicesPage } from "@/components/pages/services"
 import { PaymentsPage } from "@/components/pages/payments"
 import { SettingsPage } from "@/components/pages/settings"
 
@@ -50,6 +51,8 @@ export default function App() {
         return <InvoicesPage onCreateInvoice={() => {}} />
       case "clients":
         return <ClientsPage />
+      case "services":
+        return <ServicesPage />
       case "payments":
         return <PaymentsPage />
       case "settings":

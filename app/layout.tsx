@@ -16,9 +16,8 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "L'Etoile - Facturation Premium pour le Gabon",
-  description: "Application de facturation et devis nouvelle generation pour les entreprises gabonaises",
-  generator: 'v0.app',
+  title: "L'Etoile - Gestion Commerciale & Facturation Gabon",
+  description: "Solution complète de gestion commerciale pour les PME gabonaises (Devis, Facturation, Clients, Services).",
 }
 
 export default function RootLayout({
