@@ -125,27 +125,32 @@ export function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="company-email">Email professionnel</Label>
+                <Label>Email professionnel</Label>
                 <Input
-                  id="company-email"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   className="bg-secondary/50 border-border"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="company-nif">NIF (Numéro d'Identification Fiscale)</Label>
+                <Label>Téléphone</Label>
                 <Input
-                  id="company-nif"
+                  value={formData.phone || ""}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                  className="bg-secondary/50 border-border"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>NIF (Numéro d'Identification Fiscale)</Label>
+                <Input
                   value={formData.nif}
                   onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
                   className="bg-secondary/50 border-border"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="company-rccm">RCCM</Label>
+                <Label>RCCM</Label>
                 <Input
-                  id="company-rccm"
                   value={formData.rccm}
                   onChange={(e) => setFormData({ ...formData, rccm: e.target.value })}
                   className="bg-secondary/50 border-border"
@@ -186,9 +191,8 @@ export function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="tva-rate">Taux TVA (%)</Label>
+                <Label>Taux TVA (%)</Label>
                 <Input
-                  id="tva-rate"
                   type="number"
                   value={formData.tvaRate}
                   onChange={(e) => setFormData({ ...formData, tvaRate: parseFloat(e.target.value) || 0 })}
@@ -196,9 +200,8 @@ export function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="css-rate">Taux CSS (%)</Label>
+                <Label>Taux CSS (%)</Label>
                 <Input
-                  id="css-rate"
                   type="number"
                   value={formData.cssRate}
                   onChange={(e) => setFormData({ ...formData, cssRate: parseFloat(e.target.value) || 0 })}
@@ -206,9 +209,8 @@ export function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="due-days">Délai paiement (jours)</Label>
+                <Label>Délai paiement (jours)</Label>
                 <Input
-                  id="due-days"
                   type="number"
                   value={formData.defaultDueDateDays}
                   onChange={(e) => setFormData({ ...formData, defaultDueDateDays: parseInt(e.target.value) || 0 })}
@@ -216,18 +218,16 @@ export function SettingsPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="invoice-prefix">Préfixe Factures</Label>
+                <Label>Préfixe Factures</Label>
                 <Input
-                  id="invoice-prefix"
                   value={formData.invoicePrefix}
                   onChange={(e) => setFormData({ ...formData, invoicePrefix: e.target.value })}
                   className="bg-secondary/50 border-border"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="quote-prefix">Préfixe Devis</Label>
+                <Label>Préfixe Devis</Label>
                 <Input
-                  id="quote-prefix"
                   value={formData.quotePrefix}
                   onChange={(e) => setFormData({ ...formData, quotePrefix: e.target.value })}
                   className="bg-secondary/50 border-border"
@@ -249,18 +249,16 @@ export function SettingsPage() {
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="bank-name">Nom de la banque</Label>
+                <Label>Nom de la banque</Label>
                 <Input
-                  id="bank-name"
                   value={formData.bankName}
                   onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
                   className="bg-secondary/50 border-border"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="bank-iban">IBAN / RIB</Label>
+                <Label>IBAN / RIB</Label>
                 <Input
-                  id="bank-iban"
                   value={formData.iban}
                   onChange={(e) => setFormData({ ...formData, iban: e.target.value })}
                   className="bg-secondary/50 border-border"

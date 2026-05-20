@@ -129,6 +129,42 @@ db.exec(`
   );
 `);
 
+// Migrate settings table to add missing logo column if upgrading database schema
+try {
+  const settingsColumns = db.prepare("PRAGMA table_info(settings)").all() as Array<{ name: string }>;
+  const hasLogoColumn = settingsColumns.some(col => col.name === 'logo');
+  if (!hasLogoColumn) {
+    db.prepare("ALTER TABLE settings ADD COLUMN logo TEXT").run();
+    console.log("✓ Database Migration: Added missing 'logo' column to 'settings' table successfully.");
+  }
+} catch (migrationError) {
+  console.error("❌ Database Migration Error adding 'logo' column:", migrationError);
+}
+
+// Migrate quotes table to add missing deletedAt column if upgrading database schema for soft deletes
+try {
+  const quotesColumns = db.prepare("PRAGMA table_info(quotes)").all() as Array<{ name: string }>;
+  const hasDeletedAt = quotesColumns.some(col => col.name === 'deletedAt');
+  if (!hasDeletedAt) {
+    db.prepare("ALTER TABLE quotes ADD COLUMN deletedAt TEXT").run();
+    console.log("✓ Database Migration: Added missing 'deletedAt' column to 'quotes' table successfully.");
+  }
+} catch (migrationError) {
+  console.error("❌ Database Migration Error adding 'deletedAt' column to quotes:", migrationError);
+}
+
+// Migrate invoices table to add missing deletedAt column if upgrading database schema for soft deletes
+try {
+  const invoicesColumns = db.prepare("PRAGMA table_info(invoices)").all() as Array<{ name: string }>;
+  const hasDeletedAt = invoicesColumns.some(col => col.name === 'deletedAt');
+  if (!hasDeletedAt) {
+    db.prepare("ALTER TABLE invoices ADD COLUMN deletedAt TEXT").run();
+    console.log("✓ Database Migration: Added missing 'deletedAt' column to 'invoices' table successfully.");
+  }
+} catch (migrationError) {
+  console.error("❌ Database Migration Error adding 'deletedAt' column to invoices:", migrationError);
+}
+
 // Insert default settings if not exists
 const row = db.prepare('SELECT COUNT(*) as count FROM settings').get() as { count: number };
 if (row.count === 0) {

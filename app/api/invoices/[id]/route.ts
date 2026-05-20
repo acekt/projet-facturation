@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(id);
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id);
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
 
     const items = db.prepare('SELECT * FROM invoice_items WHERE invoiceId = ?').all(id);
@@ -19,6 +19,11 @@ export async function GET(
   }
 }
 
+// RULE 2: Invoices are strictly immutable once generated. Block any updates.
+export async function PUT() {
+  return NextResponse.json({ error: 'Une facture générée est strictement immuable et ne peut pas être modifiée.' }, { status: 405 });
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: { id: string } }
@@ -26,9 +31,8 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // We might want to allow deletion even if paid, but usually caution is better.
-    // For now, let's allow it as requested by the user audit.
-    const result = db.prepare('DELETE FROM invoices WHERE id = ?').run(id);
+    // RULE 5: Enforce Soft Delete to maintain fiscal audit trail
+    const result = db.prepare("UPDATE invoices SET deletedAt = datetime('now'), status = 'cancelled' WHERE id = ?").run(id);
 
     if (result.changes === 0) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });

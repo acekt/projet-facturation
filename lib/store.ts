@@ -1,6 +1,7 @@
 "use client"
 
 import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
 
 export interface Client {
   id: string;

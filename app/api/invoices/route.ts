@@ -15,6 +15,7 @@ export async function GET() {
                'total', total
              )) FROM invoice_items WHERE invoiceId = i.id) as items
       FROM invoices i
+      WHERE i.deletedAt IS NULL
       ORDER BY createdAt DESC
     `).all();
 
@@ -39,6 +40,24 @@ export async function POST(request: Request) {
     }
 
     const data = validation.data;
+
+    // RULE 1: quoteId is strictly mandatory to create an invoice
+    if (!data.quoteId) {
+      return NextResponse.json({ error: 'Une facture doit être associée à un devis existant.' }, { status: 400 });
+    }
+
+    // Validate the quote exists, is not soft-deleted, and has not been converted yet
+    const quote = db.prepare('SELECT status, deletedAt FROM quotes WHERE id = ?').get(data.quoteId) as any;
+    if (!quote) {
+      return NextResponse.json({ error: 'Devis introuvable.' }, { status: 400 });
+    }
+    if (quote.deletedAt !== null) {
+      return NextResponse.json({ error: 'Le devis associé a été supprimé.' }, { status: 400 });
+    }
+    if (quote.status === 'invoiced') {
+      return NextResponse.json({ error: 'Ce devis a déjà été converti en facture.' }, { status: 400 });
+    }
+
     const settings = db.prepare('SELECT invoicePrefix FROM settings WHERE id = 1').get() as any;
     const year = new Date().getFullYear();
     const id = crypto.randomUUID();
@@ -54,7 +73,7 @@ export async function POST(request: Request) {
           subtotal, discount, taxBase, tvaAmount, cssAmount, total, notes, status
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        id, number, invData.quoteId || null, invData.clientId, invData.clientName, invData.clientEmail, invData.date, invData.dueDate,
+        id, number, invData.quoteId, invData.clientId, invData.clientName, invData.clientEmail, invData.date, invData.dueDate,
         Math.round(invData.subtotal), Math.round(invData.discount), Math.round(invData.taxBase),
         Math.round(invData.tvaAmount), Math.round(invData.cssAmount), Math.round(invData.total), invData.notes,
         invData.status === 'pending' ? 'UNPAID' : invData.status
@@ -76,9 +95,8 @@ export async function POST(request: Request) {
         );
       }
 
-      if (invData.quoteId) {
-        db.prepare("UPDATE quotes SET status = 'invoiced' WHERE id = ?").run(invData.quoteId);
-      }
+      // Automatically update the quote status to 'invoiced'
+      db.prepare("UPDATE quotes SET status = 'invoiced' WHERE id = ?").run(invData.quoteId);
 
       return { id, number };
     });

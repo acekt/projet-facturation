@@ -11,6 +11,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
     }
 
+    if (quote.deletedAt !== null) {
+      return NextResponse.json({ error: 'Cannot convert a deleted quote' }, { status: 400 });
+    }
+
     if (quote.status === 'invoiced') {
       return NextResponse.json({ error: 'Quote already invoiced' }, { status: 400 });
     }

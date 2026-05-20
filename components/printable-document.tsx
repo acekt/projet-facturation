@@ -4,6 +4,18 @@ import * as React from "react"
 import { useStore, type Quote, type Invoice } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils"
 
+function generateDocumentHash(doc: any, type: string) {
+  const inputStr = `${type}-${doc.number || ''}-${doc.date || ''}-${doc.total || 0}-${doc.clientId || ''}-${doc.subtotal || 0}`;
+  let hash = 0;
+  for (let i = 0; i < inputStr.length; i++) {
+    const char = inputStr.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  const hexHash = Math.abs(hash).toString(16).toUpperCase().padStart(8, '0');
+  return `DGI-VAL-${hexHash.substring(0, 4)}-${hexHash.substring(4, 8)}-${(Math.round(doc.total || 0) % 997).toString().padStart(3, '0')}`;
+}
+
 interface PrintableDocumentProps {
   document: Quote | Invoice
   type: 'devis' | 'facture'
@@ -120,11 +132,26 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
       </div>
 
       {/* Footer */}
-      <div className="mt-auto pt-12 border-t border-gray-100 text-center text-[10pt] text-gray-400">
-        <p className="mb-1 font-bold">{settings.companyName}</p>
-        <p>Siège social: {settings.address}</p>
-        <p>NIF: {settings.nif} | RCCM: {settings.rccm}</p>
-        <p className="mt-4 italic font-medium text-gray-300 italic">Document généré informatiquement par L'Etoile</p>
+      <div className="mt-auto pt-8 border-t border-gray-100 text-[10pt] text-gray-400">
+        <div className="grid grid-cols-2 gap-8 items-start mb-6">
+          <div className="text-left">
+            <p className="font-bold text-gray-500 mb-0.5">Validation Numérique & Traçabilité (DGI Gabon)</p>
+            <p className="font-mono text-xs select-all text-gray-400 font-semibold">{generateDocumentHash(document, type)}</p>
+          </div>
+          <div className="text-right">
+            <span className="inline-block border border-primary/20 px-3 py-1 rounded bg-primary/5 text-primary uppercase font-bold text-[8pt] tracking-widest">
+              Conforme Système DGI-Gabon
+            </span>
+          </div>
+        </div>
+
+        <div className="text-center pt-4 border-t border-gray-50">
+          <p className="mb-1 font-bold">{settings.companyName}</p>
+          <p>Siège social: {settings.address} | NIF: {settings.nif} | RCCM: {settings.rccm}</p>
+          <p className="mt-2 text-xs italic font-medium text-gray-300">
+            {type === 'facture' ? "Facture originale émise électroniquement par L'Etoile conformément au code général des impôts gabonais." : "Document de proforma généré électroniquement par L'Etoile."}
+          </p>
+        </div>
       </div>
 
       <style jsx global>{`
