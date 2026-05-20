@@ -26,7 +26,7 @@ import { toast } from "sonner"
 import { DownloadCloud } from "lucide-react"
 
 export function ClientsPage() {
-  const { clients, setClients, invoices } = useStore()
+  const { clients, setClients } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false)
   const [newClient, setNewClient] = React.useState({
@@ -61,23 +61,6 @@ export function ClientsPage() {
       toast.success("Client ajouté avec succès")
     } catch (error) {
       toast.error("Erreur lors de l'ajout du client")
-    }
-  }
-
-  const handleDelete = async (id: string) => {
-    try {
-      const response = await fetch(`/api/clients/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) throw new Error('Failed to delete client')
-
-      toast.success("Client supprimé avec succès")
-      
-      const newClients = await fetch('/api/clients').then(res => res.json())
-      setClients(newClients)
-    } catch (error) {
-      toast.error("Erreur lors de la suppression")
     }
   }
 
@@ -211,10 +194,7 @@ export function ClientsPage() {
                         <DropdownMenuItem className="gap-2">
                           <Edit2 className="w-4 h-4" /> Modifier
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
-                          className="gap-2 text-destructive focus:text-destructive"
-                          onClick={() => handleDelete(client.id)}
-                        >
+                        <DropdownMenuItem className="gap-2 text-destructive">
                           <Trash2 className="w-4 h-4" /> Supprimer
                         </DropdownMenuItem>
                       </DropdownMenuContent>

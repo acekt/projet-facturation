@@ -72,7 +72,6 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
         if (item.id === itemId) {
           const updated = { ...item, [field]: value }
           if (field === "quantity" || field === "unitPrice") {
-            if (Number(updated.unitPrice) < 0) updated.unitPrice = 0
             updated.total = (Number(updated.quantity) || 0) * (Number(updated.unitPrice) || 0)
           }
 
@@ -114,11 +113,6 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
   const handleSave = async (status: Invoice['status']) => {
     if (!selectedClient) {
       toast.error("Veuillez sélectionner un client")
-      return
-    }
-
-    if (items.some(item => !item.description || item.quantity <= 0 || item.unitPrice < 0)) {
-      toast.error("Veuillez remplir correctement tous les articles")
       return
     }
 

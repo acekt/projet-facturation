@@ -15,7 +15,6 @@ import {
   CheckCircle2,
   AlertCircle,
   XCircle,
-  Eye,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,7 +29,8 @@ import { Badge } from "@/components/ui/badge"
 import { useStore, type Quote } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
-import { DocumentPreview } from "@/components/document-preview"
+import { PrintableDocument } from "@/components/printable-document"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 
 interface QuotesPageProps {
   onCreateQuote: () => void
@@ -39,7 +39,7 @@ interface QuotesPageProps {
 export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   const { quotes, setQuotes } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
-  const [previewQuote, setPreviewQuote] = React.useState<Quote | null>(null)
+  const [selectedQuote, setSelectedQuote] = React.useState<Quote | null>(null)
 
   const filteredQuotes = quotes.filter(
     (quote) =>
@@ -76,20 +76,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   }
 
   const handleDelete = async (id: string) => {
-    try {
-      const response = await fetch(`/api/quotes/${id}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) throw new Error('Failed to delete quote')
-
-      toast.success("Devis supprimé avec succès")
-      
-      const newQuotes = await fetch('/api/quotes').then(res => res.json())
-      setQuotes(newQuotes)
-    } catch (error) {
-      toast.error("Erreur lors de la suppression")
-    }
+    toast.info("Fonctionnalité de suppression en cours de développement")
   }
 
   const handleConvertToInvoice = async (quoteId: string) => {
@@ -190,10 +177,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                          <DropdownMenuItem className="gap-2" onClick={() => setPreviewQuote(quote)}>
-                            <Eye className="w-4 h-4" /> Aperçu
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2">
@@ -244,14 +228,17 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
         )}
       </div>
 
-      {previewQuote && (
-        <DocumentPreview
-          open={!!previewQuote}
-          onOpenChange={(open) => !open && setPreviewQuote(null)}
-          type="Quote"
-          data={previewQuote}
-        />
-      )}
+      <Dialog open={!!selectedQuote} onOpenChange={() => setSelectedQuote(null)}>
+        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
+          <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
+            <h2 className="font-bold">Aperçu avant impression</h2>
+            <Button onClick={() => window.print()} className="gap-2">
+              <Printer className="w-4 h-4" /> Imprimer
+            </Button>
+          </div>
+          {selectedQuote && <PrintableDocument document={selectedQuote} type="devis" />}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
