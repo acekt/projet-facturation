@@ -149,40 +149,25 @@ export function Dashboard() {
     { name: "Virement", value: 25, color: "#10b981" },
   ]
 
-<<<<<<< Updated upstream
-  const activityTimeline = [
-    ...quotes.slice(0, 3).map(q => ({
-      id: q.id,
-      action: q.status === 'invoiced' ? "Devis converti" : "Nouveau devis",
-      client: q.clientName,
-      time: q.date,
-      type: "send"
-    })),
-    ...invoices.slice(0, 3).map(i => ({
-      id: i.id,
-      action: i.status === 'paid' ? "Facture payée" : "Facture émise",
-      client: i.clientName,
-      time: i.date,
-      type: "payment"
-    }))
-  ].sort((a, b) => b.time.localeCompare(a.time)).slice(0, 5)
-=======
   const activityTimeline = React.useMemo(() => {
-    const activities: any[] = [];
-    
-    invoices.slice(0, 3).forEach(inv => {
-      activities.push({
-        id: `inv-${inv.id}`,
-        action: inv.status === 'paid' ? "Facture payee" : "Nouvelle facture",
-        client: inv.clientName,
-        time: inv.date,
-        type: inv.status === 'paid' ? "payment" : "new"
-      });
-    });
-
-    return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
-  }, [invoices]);
->>>>>>> Stashed changes
+    const activities = [
+      ...quotes.slice(0, 3).map(q => ({
+        id: `quote-${q.id}`,
+        action: q.status === 'invoiced' ? "Devis converti" : "Nouveau devis",
+        client: q.clientName,
+        time: q.date,
+        type: "send"
+      })),
+      ...invoices.slice(0, 3).map(i => ({
+        id: `inv-${i.id}`,
+        action: i.status === 'paid' ? "Facture payée" : "Facture émise",
+        client: i.clientName,
+        time: i.date,
+        type: i.status === 'paid' ? "payment" : "new"
+      }))
+    ];
+    return activities.sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
+  }, [quotes, invoices]);
 
   React.useEffect(() => {
     setMounted(true)

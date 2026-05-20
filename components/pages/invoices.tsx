@@ -29,12 +29,7 @@ import { Badge } from "@/components/ui/badge"
 import { useStore, type Invoice } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
-<<<<<<< Updated upstream
-import { PrintableDocument } from "@/components/printable-document"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
-=======
 import { DocumentPreview } from "@/components/document-preview"
->>>>>>> Stashed changes
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
@@ -43,8 +38,7 @@ interface InvoicesPageProps {
 export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
   const { invoices, setInvoices } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
-<<<<<<< Updated upstream
-  const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
+  const [previewInvoice, setPreviewInvoice] = React.useState<Invoice | null>(null)
 
   const handleUpdateStatus = async (invoiceId: string, status: string) => {
     try {
@@ -61,8 +55,8 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
       setInvoices(updatedInvoices)
     } catch (error) {
       toast.error("Erreur lors de la mise à jour")
-=======
-  const [previewInvoice, setPreviewInvoice] = React.useState<Invoice | null>(null)
+    }
+  }
 
   const handleDelete = async (id: string) => {
     try {
@@ -78,7 +72,6 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
       setInvoices(newInvoices)
     } catch (error) {
       toast.error("Erreur lors de la suppression")
->>>>>>> Stashed changes
     }
   }
 
@@ -164,14 +157,10 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-<<<<<<< Updated upstream
-                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
-=======
                           <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
                             <Eye className="w-4 h-4" /> Aperçu
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2">
->>>>>>> Stashed changes
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2">
@@ -205,19 +194,6 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
         )}
       </div>
 
-<<<<<<< Updated upstream
-      <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
-        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
-          <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
-            <h2 className="font-bold">Aperçu avant impression</h2>
-            <Button onClick={() => window.print()} className="gap-2">
-              <Printer className="w-4 h-4" /> Imprimer
-            </Button>
-          </div>
-          {selectedInvoice && <PrintableDocument document={selectedInvoice} type="facture" />}
-        </DialogContent>
-      </Dialog>
-=======
       {previewInvoice && (
         <DocumentPreview
           open={!!previewInvoice}
@@ -226,7 +202,6 @@ export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
           data={previewInvoice}
         />
       )}
->>>>>>> Stashed changes
     </div>
   )
 }

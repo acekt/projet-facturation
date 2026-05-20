@@ -65,11 +65,7 @@ export async function POST(request: Request) {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id, number, invData.quoteId || null, invData.clientId, invData.clientName, invData.clientEmail, invData.date, invData.dueDate,
-<<<<<<< Updated upstream
-        roundedSubtotal, roundedDiscount, roundedTaxBase, roundedTva, roundedCss, roundedTotal, invData.notes, invData.status
-=======
-        invData.subtotal, invData.discount, invData.taxBase, invData.tvaAmount, invData.cssAmount, invData.total, invData.notes || null, invData.status
->>>>>>> Stashed changes
+        roundedSubtotal, roundedDiscount, roundedTaxBase, roundedTva, roundedCss, roundedTotal, invData.notes || null, invData.status
       );
 
       const insertItem = db.prepare(`
