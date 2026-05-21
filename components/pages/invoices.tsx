@@ -259,14 +259,19 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       </div>
 
       <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
-        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
-          <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
-            <h2 className="font-bold">Aperçu avant impression</h2>
-            <Button onClick={() => window.print()} className="gap-2">
+        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-zinc-50">
+          <DialogTitle className="sr-only">Aperçu de la Facture</DialogTitle>
+          <div className="no-print p-4 bg-white border-b flex justify-between items-center sticky top-0 z-10 shadow-sm">
+            <h2 className="font-bold text-zinc-950">Aperçu avant impression</h2>
+            <Button onClick={() => window.print()} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/95 font-medium">
               <Printer className="w-4 h-4" /> Imprimer
             </Button>
           </div>
-          {selectedInvoice && <PrintableDocument document={selectedInvoice} type="facture" />}
+          <div className="p-8 flex justify-center items-start">
+            <div className="shadow-2xl border border-zinc-200/80 bg-white rounded-sm overflow-hidden">
+              {selectedInvoice && <PrintableDocument document={selectedInvoice} type="facture" />}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
 
