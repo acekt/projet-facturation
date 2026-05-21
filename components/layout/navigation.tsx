@@ -8,6 +8,7 @@ import {
   Users,
   Briefcase,
   CreditCard,
+  RefreshCcw,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -42,6 +43,7 @@ const navItems = [
   { id: "clients", label: "Clients", icon: Users },
   { id: "services", label: "Services", icon: Briefcase },
   { id: "payments", label: "Paiements", icon: CreditCard },
+  { id: "credit-notes", label: "Avoirs", icon: RefreshCcw },
   { id: "settings", label: "Parametres", icon: Settings },
 ]
 

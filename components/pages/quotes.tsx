@@ -33,16 +33,19 @@ import { toast } from "sonner"
 import { DocumentPreview } from "@/components/document-preview"
 import { PrintableDocument } from "@/components/printable-document"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { pdf } from '@react-pdf/renderer'
+import { PDFDocument } from "@/components/pdf-document"
 
 interface QuotesPageProps {
   onCreateQuote: () => void
 }
 
 export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
-  const { quotes, setQuotes } = useStore()
+  const { quotes, setQuotes, settings } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [previewQuote, setPreviewQuote] = React.useState<Quote | null>(null)
   const [selectedQuote, setSelectedQuote] = React.useState<Quote | null>(null)
+  const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
 
   const filteredQuotes = quotes.filter(
     (quote) =>
@@ -96,6 +99,27 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
       setQuotes(newQuotes)
     } catch (error: any) {
       toast.error(error.message || "Erreur lors de la suppression")
+    }
+  }
+
+  const handleDownloadPDF = async (quote: Quote) => {
+    try {
+      setIsDownloading(quote.id)
+      const blob = await pdf(<PDFDocument document={quote} type="devis" settings={settings} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `DEVIS_${quote.number}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      toast.success("Téléchargement démarré")
+    } catch (error) {
+      console.error("PDF Error:", error)
+      toast.error("Erreur lors de la génération du PDF")
+    } finally {
+      setIsDownloading(null)
     }
   }
 
@@ -203,8 +227,13 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
-                            <Download className="w-4 h-4" /> Télécharger PDF
+                          <DropdownMenuItem
+                            className="gap-2"
+                            onClick={() => handleDownloadPDF(quote)}
+                            disabled={isDownloading === quote.id}
+                          >
+                            <Download className="w-4 h-4" />
+                            {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2" onClick={() => {
                             toast.info("Fonctionnalité de duplication : Pour modifier ou dupliquer un devis, veuillez créer un nouveau devis.");

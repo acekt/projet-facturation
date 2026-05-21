@@ -25,7 +25,7 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
   const { settings } = useStore()
 
   return (
-    <div className="printable-document p-8 bg-white text-black font-sans min-h-[297mm] w-[210mm] mx-auto text-[12pt] leading-normal">
+    <div className="printable-document p-4 md:p-8 bg-white text-black font-sans min-h-[297mm] w-full max-w-[210mm] mx-auto text-[10pt] md:text-[12pt] leading-normal shadow-sm">
       {/* Header */}
       <div className="flex justify-between items-start mb-12 border-b-2 border-primary pb-6">
         <div className="flex items-center gap-4">

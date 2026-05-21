@@ -127,6 +127,44 @@ db.exec(`
     unitPrice REAL DEFAULT 0,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE TABLE IF NOT EXISTS users (
+    id TEXT PRIMARY KEY,
+    username TEXT UNIQUE NOT NULL,
+    password TEXT NOT NULL, -- Hashed
+    name TEXT,
+    role TEXT DEFAULT 'admin',
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
+
+  CREATE TABLE IF NOT EXISTS credit_notes (
+    id TEXT PRIMARY KEY,
+    number TEXT UNIQUE NOT NULL,
+    invoiceId TEXT NOT NULL,
+    clientId TEXT NOT NULL,
+    clientName TEXT,
+    date TEXT NOT NULL,
+    reason TEXT,
+    subtotal REAL DEFAULT 0,
+    taxBase REAL DEFAULT 0,
+    tvaAmount REAL DEFAULT 0,
+    cssAmount REAL DEFAULT 0,
+    total REAL DEFAULT 0,
+    status TEXT DEFAULT 'open', -- open, closed
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (invoiceId) REFERENCES invoices(id),
+    FOREIGN KEY (clientId) REFERENCES clients(id)
+  );
+
+  CREATE TABLE IF NOT EXISTS credit_note_items (
+    id TEXT PRIMARY KEY,
+    creditNoteId TEXT NOT NULL,
+    description TEXT NOT NULL,
+    quantity REAL NOT NULL,
+    unitPrice REAL NOT NULL,
+    total REAL NOT NULL,
+    FOREIGN KEY (creditNoteId) REFERENCES credit_notes(id) ON DELETE CASCADE
+  );
 `);
 
 // Migrate settings table to add missing logo column if upgrading database schema
