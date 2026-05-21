@@ -124,7 +124,7 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
 
       {/* Bank Info */}
       <div className="mb-12 p-4 border-2 border-dashed border-gray-200 rounded-xl">
-        <h3 className="text-xs font-bold uppercase text-gray-500 mb-2">Coordonnées Bancaires</h3>
+        <h3 className="text-xs font-bold uppercase text-gray-500 mb-2">Coordonnées pour Virement Bancaire</h3>
         <div className="grid grid-cols-2 text-sm">
           <p><span className="font-semibold">Banque:</span> {settings.bankName}</p>
           <p><span className="font-semibold">IBAN/RIB:</span> {settings.iban}</p>

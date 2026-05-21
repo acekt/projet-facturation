@@ -347,7 +347,7 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
 
         {/* Bank */}
         <View style={styles.bankSection}>
-          <Text style={styles.bankTitle}>Coordonnées Bancaires</Text>
+          <Text style={styles.bankTitle}>Coordonnées pour Virement Bancaire</Text>
           <View style={styles.bankGrid}>
             <Text style={{ fontSize: 8 }}><Text style={{ fontWeight: 'bold' }}>Banque:</Text> {settings.bankName}</Text>
             <Text style={{ fontSize: 8 }}><Text style={{ fontWeight: 'bold' }}>IBAN/RIB:</Text> {settings.iban}</Text>
