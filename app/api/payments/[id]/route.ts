@@ -3,7 +3,7 @@ import db from '@/lib/db';
 
 export async function DELETE(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { id } = await params;
