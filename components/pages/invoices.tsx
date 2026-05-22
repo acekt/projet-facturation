@@ -16,6 +16,8 @@ import {
   AlertCircle,
   DownloadCloud,
   Edit2,
+  Eye,
+  RefreshCcw,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -33,6 +35,8 @@ import { toast } from "sonner"
 import { PrintableDocument } from "@/components/printable-document"
 import { DocumentPreview } from "@/components/document-preview"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { pdf } from '@react-pdf/renderer'
+import { PDFDocument } from "@/components/pdf-document"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
@@ -42,13 +46,12 @@ interface InvoicesPageProps {
 }
 
 export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPageProps) {
-  const invoices = useStore((state) => state.invoices)
-  const setInvoices = useStore((state) => state.setInvoices)
-  const setPayments = useStore((state) => state.setPayments)
+  const { invoices, setInvoices, setPayments, settings, setCreditNotes } = useStore()
 
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
   const [previewInvoice, setPreviewInvoice] = React.useState<Invoice | null>(null)
+  const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false)
   const [paymentInvoice, setPaymentInvoice] = React.useState<Invoice | null>(null)
   const [paymentMethod, setPaymentMethod] = React.useState("cash")
@@ -71,6 +74,51 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       setPaymentInvoice(invoice);
       setPaymentAmount(invoice.total.toString());
       setPaymentDialogOpen(true);
+  }
+
+  const handleCreateCreditNote = async (invoice: Invoice) => {
+    if (!confirm(`Voulez-vous créer un avoir pour la facture ${invoice.number} ? Cela annulera comptablement cette facture.`)) return;
+
+    try {
+      const response = await fetch('/api/credit-notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          invoiceId: invoice.id,
+          reason: "Annulation de facture / Retour",
+          items: invoice.items
+        }),
+      });
+
+      if (!response.ok) throw new Error('Failed to create credit note');
+
+      toast.success("Avoir créé avec succès");
+      const updatedNotes = await fetch('/api/credit-notes').then(res => res.json());
+      setCreditNotes(updatedNotes);
+    } catch (error) {
+      toast.error("Erreur lors de la création de l'avoir");
+    }
+  }
+
+  const handleDownloadPDF = async (invoice: Invoice) => {
+    try {
+      setIsDownloading(invoice.id)
+      const blob = await pdf(<PDFDocument document={invoice} type="facture" settings={settings} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `FACTURE_${invoice.number}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      toast.success("Téléchargement démarré")
+    } catch (error) {
+      console.error("PDF Error:", error)
+      toast.error("Erreur lors de la génération du PDF")
+    } finally {
+      setIsDownloading(null)
+    }
   }
 
   const confirmPayment = async () => {
@@ -229,14 +277,22 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
-                            <Download className="w-4 h-4" /> Télécharger PDF
+                          <DropdownMenuItem
+                            className="gap-2"
+                            onClick={() => handleDownloadPDF(invoice)}
+                            disabled={isDownloading === invoice.id}
+                          >
+                            <Download className="w-4 h-4" />
+                            {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
                           </DropdownMenuItem>
                           {invoice.status !== 'PAID' && (
                             <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
                               <CheckCircle2 className="w-4 h-4" /> Enregistrer un paiement
                             </DropdownMenuItem>
                           )}
+                          <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
+                            <RefreshCcw className="w-4 h-4" /> Créer un avoir
+                          </DropdownMenuItem>
                           <div className="h-px bg-border my-1" />
                           <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>
                             <Trash2 className="w-4 h-4" /> Supprimer

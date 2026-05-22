@@ -73,7 +73,7 @@ export function ClientsPage() {
       if (!response.ok) throw new Error('Failed to delete client')
 
       toast.success("Client supprimé avec succès")
-      
+
       const newClients = await fetch('/api/clients').then(res => res.json())
       setClients(newClients)
     } catch (error) {
@@ -211,7 +211,7 @@ export function ClientsPage() {
                         <DropdownMenuItem className="gap-2">
                           <Edit2 className="w-4 h-4" /> Modifier
                         </DropdownMenuItem>
-                        <DropdownMenuItem 
+                        <DropdownMenuItem
                           className="gap-2 text-destructive focus:text-destructive"
                           onClick={() => handleDelete(client.id)}
                         >

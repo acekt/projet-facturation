@@ -105,11 +105,12 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
     }
   }
 
-  const subtotal = items.reduce((acc, item) => acc + item.total, 0)
-  const taxBase = Math.max(0, subtotal - discount)
-  const tva = taxBase * TAX_RATE
-  const css = taxBase * CSS_RATE
-  const total = taxBase + tva + css
+  const subtotal = Math.round(items.reduce((acc, item) => acc + item.total, 0))
+  const netHT = Math.max(0, subtotal - Math.round(discount))
+  const cssAmount = Math.round(netHT * CSS_RATE)
+  const taxBase = netHT + cssAmount
+  const tvaAmount = Math.round(taxBase * TAX_RATE)
+  const total = netHT + cssAmount + tvaAmount
 
   const handleSave = async (status: Invoice['status']) => {
     if (!selectedClient) {
@@ -138,8 +139,8 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
           discount,
           subtotal,
           taxBase,
-          tvaAmount: tva,
-          cssAmount: css,
+          tvaAmount: tvaAmount,
+          cssAmount: cssAmount,
           total,
           status
         }),
@@ -419,18 +420,26 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
 
                 <div className="pt-2 border-t border-border/50">
                   <div className="flex justify-between text-sm font-semibold">
-                    <span>Base Imposable</span>
+                    <span>Net HT</span>
+                    <span>{formatCurrency(netHT)}</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">CSS ({settings.cssRate}%)</span>
+                  <span>{formatCurrency(cssAmount)}</span>
+                </div>
+
+                <div className="pt-1 border-t border-dashed border-border/30">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span className="text-muted-foreground">Base TVA</span>
                     <span>{formatCurrency(taxBase)}</span>
                   </div>
                 </div>
 
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">TVA ({settings.tvaRate}%)</span>
-                  <span>{formatCurrency(tva)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">CSS ({settings.cssRate}%)</span>
-                  <span>{formatCurrency(css)}</span>
+                  <span>{formatCurrency(tvaAmount)}</span>
                 </div>
               </div>
 

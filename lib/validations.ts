@@ -64,6 +64,7 @@ export const settingsSchema = z.object({
   defaultDueDateDays: z.number().min(0),
   invoicePrefix: z.string().min(1),
   quotePrefix: z.string().min(1),
+  companyCode: z.string().min(1),
   mentionsLegales: z.string().nullable().optional(),
   logo: z.string().nullable().optional(),
 });

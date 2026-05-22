@@ -143,7 +143,7 @@ export function DocumentPreview({ open, onOpenChange, type, data }: DocumentPrev
               <p className="text-sm text-gray-600">Banque: <span className="font-medium text-gray-900">{settings.bankName}</span></p>
               <p className="text-sm text-gray-600">IBAN: <span className="font-medium text-gray-900">{settings.iban}</span></p>
             </div>
-            
+
             {data.notes && (
               <div>
                 <p className="text-sm font-semibold uppercase text-gray-600 mb-1">Notes / Mentions Légales</p>

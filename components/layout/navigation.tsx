@@ -8,6 +8,7 @@ import {
   Users,
   Briefcase,
   CreditCard,
+  RefreshCcw,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -42,6 +43,7 @@ const navItems = [
   { id: "clients", label: "Clients", icon: Users },
   { id: "services", label: "Services", icon: Briefcase },
   { id: "payments", label: "Paiements", icon: CreditCard },
+  { id: "credit-notes", label: "Avoirs", icon: RefreshCcw },
   { id: "settings", label: "Parametres", icon: Settings },
 ]
 
@@ -72,9 +74,9 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
                   className="flex flex-col"
                 >
                   <span className="font-bold text-foreground tracking-tight text-lg">
-                    L&apos;Etoile
+                    Global M.
                   </span>
-                  <span className="text-xs text-muted-foreground -mt-0.5">Facturation Pro</span>
+                  <span className="text-xs text-muted-foreground -mt-0.5">Gestion PME</span>
                 </motion.div>
               )}
             </AnimatePresence>

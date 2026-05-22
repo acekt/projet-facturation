@@ -9,12 +9,12 @@ export async function GET() {
 
     // 2. Growth calculation (Current Month vs Previous Month)
     const currentMonthRevRow = db.prepare(`
-      SELECT COALESCE(SUM(amount), 0) as total FROM payments 
+      SELECT COALESCE(SUM(amount), 0) as total FROM payments
       WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now')
     `).get() as any;
-    
+
     const lastMonthRevRow = db.prepare(`
-      SELECT COALESCE(SUM(amount), 0) as total FROM payments 
+      SELECT COALESCE(SUM(amount), 0) as total FROM payments
       WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now', '-1 month')
     `).get() as any;
 
@@ -26,15 +26,15 @@ export async function GET() {
     const pendingRevenueRow = db.prepare(`
       SELECT COALESCE(SUM(total - (
         SELECT COALESCE(SUM(amount), 0) FROM payments WHERE invoiceId = invoices.id
-      )), 0) as total 
-      FROM invoices 
+      )), 0) as total
+      FROM invoices
       WHERE status IN ('UNPAID', 'PARTIALLY_PAID') AND deletedAt IS NULL
     `).get() as any;
     const pendingRevenue = pendingRevenueRow.total;
 
     // 4. Overdue Revenue
     const overdueRevenueRow = db.prepare(`
-      SELECT COALESCE(SUM(total), 0) as total FROM invoices 
+      SELECT COALESCE(SUM(total), 0) as total FROM invoices
       WHERE status = 'overdue' AND deletedAt IS NULL
     `).get() as any;
     const overdueRevenue = overdueRevenueRow.total;
@@ -50,8 +50,8 @@ export async function GET() {
     const revenueData = months.map((m, i) => {
       const monthStr = String(i + 1).padStart(2, '0');
       const row = db.prepare(`
-        SELECT COALESCE(SUM(amount), 0) as total FROM payments 
-        WHERE strftime('%Y', date) = strftime('%Y', 'now') 
+        SELECT COALESCE(SUM(amount), 0) as total FROM payments
+        WHERE strftime('%Y', date) = strftime('%Y', 'now')
         AND strftime('%m', date) = ?
       `).get(monthStr) as any;
       return { month: m, revenue: row.total };
@@ -77,8 +77,8 @@ export async function GET() {
 
     // 8. Recent Invoices
     const recentInvoices = db.prepare(`
-      SELECT * FROM invoices 
-      WHERE deletedAt IS NULL 
+      SELECT * FROM invoices
+      WHERE deletedAt IS NULL
       ORDER BY date DESC LIMIT 5
     `).all() as any[];
 

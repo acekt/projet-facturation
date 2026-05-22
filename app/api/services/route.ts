@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     const { name, description, category, unitPrice } = validation.data;
     const id = crypto.randomUUID();
 
-    db.prepare('INSERT INTO services (id, name, description, category, Math.round(unitPrice)) VALUES (?, ?, ?, ?, ?)')
+    db.prepare('INSERT INTO services (id, name, description, category, unitPrice) VALUES (?, ?, ?, ?, ?)')
       .run(id, name, description, category, Math.round(unitPrice));
 
     const service = db.prepare('SELECT * FROM services WHERE id = ?').get(id);

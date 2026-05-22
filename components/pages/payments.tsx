@@ -202,8 +202,8 @@ export function PaymentsPage() {
               <div>
                 <p className="text-muted-foreground text-sm">CA Annuel (Encaissé)</p>
                 <p className="text-2xl font-bold text-foreground">
-                    {formatShortCurrency(paidInvoices
-                        .filter(i => i.date?.startsWith(currentYear))
+                    {formatShortCurrency(invoices
+                        .filter(i => i.status === 'PAID' && i.date?.startsWith(currentYear))
                         .reduce((sum, i) => sum + (Number(i.total) || 0), 0))} XAF
                 </p>
               </div>

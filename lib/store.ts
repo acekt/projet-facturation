@@ -77,6 +77,23 @@ export interface Service {
   unitPrice: number;
 }
 
+export interface CreditNote {
+  id: string;
+  number: string;
+  invoiceId: string;
+  clientId: string;
+  clientName: string;
+  date: string;
+  reason: string;
+  subtotal: number;
+  taxBase: number;
+  tvaAmount: number;
+  cssAmount: number;
+  total: number;
+  status: 'open' | 'closed';
+  items: InvoiceItem[];
+}
+
 export interface Settings {
   companyName: string;
   nif: string;
@@ -91,6 +108,7 @@ export interface Settings {
   defaultDueDateDays: number;
   invoicePrefix: string;
   quotePrefix: string;
+  companyCode: string;
   mentionsLegales?: string;
   logo?: string;
 }
@@ -101,21 +119,23 @@ interface AppState {
   invoices: Invoice[];
   services: Service[];
   payments: Payment[];
+  creditNotes: CreditNote[];
   settings: Settings;
   setClients: (clients: Client[]) => void;
   setQuotes: (quotes: Quote[]) => void;
   setInvoices: (invoices: Invoice[]) => void;
   setServices: (services: Service[]) => void;
   setPayments: (payments: Payment[]) => void;
+  setCreditNotes: (creditNotes: CreditNote[]) => void;
   setSettings: (settings: Settings) => void;
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  companyName: "L'Etoile SARL",
+  companyName: "Global Maintenance",
   nif: "XXXXXXXXXX",
   rccm: "GA-LBV-XX-XXXX-XXXX",
   address: "123 Boulevard Triomphal, Libreville, Gabon",
-  email: "facturation@letoile.ga",
+  email: "facturation@globalm.ga",
   phone: "+241 01 76 XX XX",
   bankName: "BGFI Bank",
   iban: "GAXX XXXX XXXX XXXX XXXX",
@@ -124,6 +144,7 @@ const DEFAULT_SETTINGS: Settings = {
   defaultDueDateDays: 30,
   invoicePrefix: "FAC",
   quotePrefix: "DEV",
+  companyCode: "GM",
 };
 
 export const useStore = create<AppState>()((set) => ({
@@ -132,6 +153,7 @@ export const useStore = create<AppState>()((set) => ({
   invoices: [],
   services: [],
   payments: [],
+  creditNotes: [],
   settings: DEFAULT_SETTINGS,
 
   setClients: (clients) => set({ clients }),
@@ -139,5 +161,6 @@ export const useStore = create<AppState>()((set) => ({
   setInvoices: (invoices) => set({ invoices }),
   setServices: (services) => set({ services }),
   setPayments: (payments) => set({ payments }),
+  setCreditNotes: (creditNotes) => set({ creditNotes }),
   setSettings: (settings) => set({ settings }),
 }));
