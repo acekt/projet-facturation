@@ -1,12 +1,16 @@
 import { NextResponse } from 'next/server'
-import type { NextRequest } from 'next/request'
+import type { NextRequest } from 'next/server'
 
-export function proxy(request: any) {
+export function proxy(request: NextRequest) {
   const session = request.cookies.get('auth_session')
-  const isLoginPage = request.nextUrl.pathname.startsWith('/login')
-  const isApiAuth = request.nextUrl.pathname.startsWith('/api/auth')
+  const { pathname } = request.nextUrl
 
-  if (!session && !isLoginPage && !isApiAuth && !request.nextUrl.pathname.startsWith('/_next')) {
+  // Protected routes logic
+  const isLoginPage = pathname.startsWith('/login')
+  const isApiAuth = pathname.startsWith('/api/auth')
+  const isPublicAsset = pathname.startsWith('/_next') || pathname.includes('.')
+
+  if (!session && !isLoginPage && !isApiAuth && !isPublicAsset) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
 

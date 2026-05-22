@@ -74,9 +74,9 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
                   className="flex flex-col"
                 >
                   <span className="font-bold text-foreground tracking-tight text-lg">
-                    L&apos;Etoile
+                    Global M.
                   </span>
-                  <span className="text-xs text-muted-foreground -mt-0.5">Facturation Pro</span>
+                  <span className="text-xs text-muted-foreground -mt-0.5">Gestion PME</span>
                 </motion.div>
               )}
             </AnimatePresence>

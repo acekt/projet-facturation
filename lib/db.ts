@@ -24,6 +24,7 @@ db.exec(`
     defaultDueDateDays INTEGER,
     invoicePrefix TEXT,
     quotePrefix TEXT,
+    companyCode TEXT,
     mentionsLegales TEXT,
     logo TEXT
   );
@@ -175,8 +176,14 @@ try {
     db.prepare("ALTER TABLE settings ADD COLUMN logo TEXT").run();
     console.log("✓ Database Migration: Added missing 'logo' column to 'settings' table successfully.");
   }
+  const hasCompanyCode = settingsColumns.some(col => col.name === 'companyCode');
+  if (!hasCompanyCode) {
+    db.prepare("ALTER TABLE settings ADD COLUMN companyCode TEXT").run();
+    db.prepare("UPDATE settings SET companyCode = 'GM' WHERE id = 1").run();
+    console.log("✓ Database Migration: Added missing 'companyCode' column to 'settings' table successfully.");
+  }
 } catch (migrationError) {
-  console.error("❌ Database Migration Error adding 'logo' column:", migrationError);
+  console.error("❌ Database Migration Error during settings migration:", migrationError);
 }
 
 // Migrate quotes table to add missing deletedAt column if upgrading database schema for soft deletes
@@ -209,16 +216,16 @@ if (row.count === 0) {
   db.prepare(`
     INSERT INTO settings (
       id, companyName, nif, rccm, address, email, phone, mentionsLegales, bankName, iban,
-      tvaRate, cssRate, defaultDueDateDays, invoicePrefix, quotePrefix
+      tvaRate, cssRate, defaultDueDateDays, invoicePrefix, quotePrefix, companyCode
     ) VALUES (
-      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `).run(
-    "L'Etoile SARL",
+    "Global Maintenance",
     "XXXXXXXXXX",
     "GA-LBV-XX-XXXX-XXXX",
     "123 Boulevard Triomphal, Libreville, Gabon",
-    "facturation@letoile.ga",
+    "facturation@globalm.ga",
     "+241 01 76 XX XX",
     "Merci de votre confiance.",
     "BGFI Bank",
@@ -227,7 +234,8 @@ if (row.count === 0) {
     1,
     30,
     "FAC",
-    "DEV"
+    "DEV",
+    "GM"
   );
 }
 

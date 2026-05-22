@@ -107,11 +107,12 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
     }
   }
 
-  const subtotal = items.reduce((acc, item) => acc + item.total, 0)
-  const taxBase = Math.max(0, subtotal - discount)
-  const tva = taxBase * TAX_RATE
-  const css = taxBase * CSS_RATE
-  const total = taxBase + tva + css
+  const subtotal = Math.round(items.reduce((acc, item) => acc + item.total, 0))
+  const netHT = Math.max(0, subtotal - Math.round(discount))
+  const cssAmount = Math.round(netHT * CSS_RATE)
+  const taxBase = netHT + cssAmount
+  const tvaAmount = Math.round(taxBase * TAX_RATE)
+  const total = netHT + cssAmount + tvaAmount
 
   const handleSave = async (status: Quote['status']) => {
     if (!selectedClient) {
@@ -140,8 +141,8 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
           discount,
           subtotal,
           taxBase,
-          tvaAmount: tva,
-          cssAmount: css,
+          tvaAmount,
+          cssAmount,
           total,
           status
         }),
@@ -432,18 +433,26 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
 
                 <div className="pt-2 border-t border-border/50">
                   <div className="flex justify-between text-sm font-semibold">
-                    <span>Base Imposable (HT Net)</span>
+                    <span>Net HT</span>
+                    <span>{formatCurrency(netHT)}</span>
+                  </div>
+                </div>
+
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">CSS ({settings.cssRate}%)</span>
+                  <span className="text-foreground">{formatCurrency(cssAmount)}</span>
+                </div>
+
+                <div className="pt-1 border-t border-dashed border-border/30">
+                  <div className="flex justify-between text-xs font-medium">
+                    <span className="text-muted-foreground">Base TVA</span>
                     <span>{formatCurrency(taxBase)}</span>
                   </div>
                 </div>
 
                 <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">TVA ({settings.tvaRate}%)</span>
-                  <span className="text-foreground">{formatCurrency(tva)}</span>
-                </div>
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">CSS ({settings.cssRate}%)</span>
-                  <span className="text-foreground">{formatCurrency(css)}</span>
+                  <span className="text-foreground">{formatCurrency(tvaAmount)}</span>
                 </div>
               </div>
 
@@ -483,8 +492,8 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
             subtotal: subtotal,
             discount: discount,
             taxBase: taxBase,
-            tvaAmount: tva,
-            cssAmount: css,
+            tvaAmount: tvaAmount,
+            cssAmount: cssAmount,
             total: total,
             notes: notes
           }}

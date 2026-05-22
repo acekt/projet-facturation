@@ -58,14 +58,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Ce devis a déjà été converti en facture.' }, { status: 400 });
     }
 
-    const settings = db.prepare('SELECT invoicePrefix FROM settings WHERE id = 1').get() as any;
+    const settings = db.prepare('SELECT invoicePrefix, companyCode FROM settings WHERE id = 1').get() as any;
     const year = new Date().getFullYear();
     const id = crypto.randomUUID();
 
     const insertInvoice = db.transaction((invData) => {
       db.prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = 'invoice'").run();
       const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'invoice'").get() as any;
-      const number = `${settings.invoicePrefix}-${year}-${String(sequence.current_value).padStart(4, '0')}`;
+      const number = `${String(sequence.current_value).padStart(3, '0')}/${settings.companyCode}/${year}`;
 
       db.prepare(`
         INSERT INTO invoices (

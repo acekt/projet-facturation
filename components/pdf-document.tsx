@@ -18,9 +18,7 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 30,
-    borderBottomWidth: 2,
-    borderBottomColor: '#1a365d',
+    marginBottom: 40,
     paddingBottom: 15,
   },
   logoSection: {
@@ -47,15 +45,25 @@ const styles = StyleSheet.create({
   docTypeSection: {
     textAlign: 'right',
   },
+  docHeaderContainer: {
+    borderWidth: 1,
+    borderColor: '#000',
+    borderRadius: 8,
+    padding: 8,
+    width: 200,
+    alignSelf: 'flex-end',
+    marginBottom: 10,
+  },
   docType: {
-    fontSize: 24,
-    fontWeight: 'black',
+    fontSize: 18,
+    fontWeight: 'bold',
     textTransform: 'uppercase',
+    textAlign: 'center',
   },
   docNumber: {
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: 'bold',
-    marginTop: 2,
+    textAlign: 'center',
   },
   dateSection: {
     marginTop: 10,
@@ -107,16 +115,16 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#f3f4f6',
-    borderBottomWidth: 1,
-    borderBottomColor: '#d1d5db',
-    borderTopWidth: 1,
-    borderTopColor: '#d1d5db',
+    backgroundColor: '#8DBE6A',
+    borderWidth: 1,
+    borderColor: '#000',
   },
   tableRow: {
     flexDirection: 'row',
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderColor: '#000',
     minHeight: 30,
     alignItems: 'center',
   },
@@ -128,20 +136,39 @@ const styles = StyleSheet.create({
     fontSize: 8,
     fontWeight: 'bold',
     textTransform: 'uppercase',
+    color: '#000',
   },
   totalsSection: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'center',
     marginBottom: 30,
   },
   totalsContainer: {
-    width: 200,
-  },
-  totalRow: {
+    width: '100%',
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 3,
-    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#000',
+  },
+  totalCol: {
+    flex: 1,
+    borderRightWidth: 1,
+    borderColor: '#000',
+    padding: 4,
+    alignItems: 'center',
+  },
+  totalColLast: {
+    flex: 1,
+    padding: 4,
+    alignItems: 'center',
+  },
+  totalLabel: {
+    fontSize: 8,
+    fontWeight: 'bold',
+    marginBottom: 2,
+  },
+  totalVal: {
+    fontSize: 9,
+    fontWeight: 'bold',
   },
   totalRowBold: {
     flexDirection: 'row',
@@ -224,12 +251,11 @@ const styles = StyleSheet.create({
 });
 
 function formatCurrencyPDF(amount: number) {
-  return new Intl.NumberFormat('fr-GA', {
-    style: 'currency',
-    currency: 'XAF',
+  return new Intl.NumberFormat('fr-FR', {
+    style: 'decimal',
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(amount).replace('XAF', '').trim() + ' FCFA';
+  }).format(Math.round(amount)).replace(/\u00a0/g, ' ') + ' FCFA';
 }
 
 function generateHash(doc: any, type: string) {
@@ -251,6 +277,7 @@ interface PDFDocumentProps {
 
 export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
   const hash = generateHash(document, type);
+  const docTypeLabel = type === 'devis' ? 'DEVIS' : type === 'facture' ? 'FACTURE' : 'AVOIR';
 
   return (
     <Document title={`${type.toUpperCase()}_${document.number}`}>
@@ -258,40 +285,29 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.logoSection}>
-            {settings.logo && (
+            {settings.logo ? (
               <Image src={settings.logo} style={styles.logo} />
+            ) : (
+              <View style={[styles.logo, { backgroundColor: '#eee', borderRadius: 10 }]} />
             )}
             <View>
               <Text style={styles.companyName}>{settings.companyName}</Text>
-              <View style={styles.companyDetails}>
-                <Text>{settings.address}</Text>
-                <Text>Email: {settings.email} | Tél: {settings.phone}</Text>
-              </View>
             </View>
           </View>
           <View style={styles.docTypeSection}>
-            <Text style={styles.docType}>{type}</Text>
-            <Text style={styles.docNumber}>N° {document.number}</Text>
-            <View style={styles.dateSection}>
-              <Text>Date d'émission: {document.date}</Text>
-              <Text>Date d'échéance: {document.dueDate}</Text>
+            <Text style={{ fontSize: 10, marginBottom: 20 }}>Moanda, le {document.date}</Text>
+            <View style={styles.docHeaderContainer}>
+              <Text style={styles.docType}>{docTypeLabel}: N°{document.number}</Text>
             </View>
           </View>
         </View>
 
         {/* Client Info */}
-        <View style={styles.infoGrid}>
-          <View style={styles.infoBoxGray}>
-            <Text style={styles.infoTitle}>Émetteur</Text>
-            <Text style={styles.infoText}>{settings.companyName}</Text>
-            <Text style={styles.infoSubtext}>NIF: {settings.nif}</Text>
-            <Text style={styles.infoSubtext}>RCCM: {settings.rccm}</Text>
-          </View>
-          <View style={styles.infoBox}>
-            <Text style={styles.infoTitle}>Destinataire</Text>
-            <Text style={styles.infoText}>{document.clientName}</Text>
-            <Text style={styles.infoSubtext}>{document.clientEmail}</Text>
-          </View>
+        <View style={{ marginBottom: 30, fontSize: 10 }}>
+          <Text style={{ fontWeight: 'bold' }}>Client: {document.clientName}</Text>
+          <Text>Objet: {document.notes || "Prestations de services"}</Text>
+          <Text>NIF:</Text>
+          <Text>BC:</Text>
         </View>
 
         {/* Table */}
@@ -313,34 +329,32 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
           ))}
         </View>
 
-        {/* Totals */}
+        {/* Totals Grid */}
         <View style={styles.totalsSection}>
           <View style={styles.totalsContainer}>
-            <View style={styles.totalRow}>
-              <Text style={{ color: '#666' }}>Total HT</Text>
-              <Text>{formatCurrencyPDF(document.subtotal)}</Text>
+            <View style={styles.totalCol}>
+              <Text style={styles.totalLabel}>Brut HT</Text>
+              <Text style={styles.totalVal}>{formatCurrencyPDF(document.subtotal)}</Text>
             </View>
-            {document.discount > 0 && (
-              <View style={styles.totalRow}>
-                <Text style={{ color: '#dc2626', fontStyle: 'italic' }}>Remise</Text>
-                <Text style={{ color: '#dc2626' }}>- {formatCurrencyPDF(document.discount)}</Text>
-              </View>
-            )}
-            <View style={styles.totalRowBold}>
-              <Text style={{ fontWeight: 'bold' }}>Net Hors Taxes</Text>
-              <Text style={{ fontWeight: 'bold' }}>{formatCurrencyPDF(document.taxBase)}</Text>
+            <View style={styles.totalCol}>
+              <Text style={styles.totalLabel}>Remise</Text>
+              <Text style={styles.totalVal}>{formatCurrencyPDF(document.discount)}</Text>
             </View>
-            <View style={styles.totalRow}>
-              <Text style={{ color: '#666', fontSize: 8 }}>TVA ({settings.tvaRate}%)</Text>
-              <Text style={{ fontSize: 8 }}>{formatCurrencyPDF(document.tvaAmount)}</Text>
+            <View style={styles.totalCol}>
+              <Text style={styles.totalLabel}>Net HT</Text>
+              <Text style={styles.totalVal}>{formatCurrencyPDF(document.taxBase - document.cssAmount)}</Text>
             </View>
-            <View style={styles.totalRow}>
-              <Text style={{ color: '#666', fontSize: 8 }}>CSS ({settings.cssRate}%)</Text>
-              <Text style={{ fontSize: 8 }}>{formatCurrencyPDF(document.cssAmount)}</Text>
+            <View style={styles.totalCol}>
+              <Text style={styles.totalLabel}>CSS</Text>
+              <Text style={styles.totalVal}>{formatCurrencyPDF(document.cssAmount)}</Text>
             </View>
-            <View style={styles.totalFinal}>
-              <Text style={styles.totalFinalText}>NET À PAYER</Text>
-              <Text style={styles.totalFinalText}>{formatCurrencyPDF(document.total)}</Text>
+            <View style={styles.totalCol}>
+              <Text style={styles.totalLabel}>TVA {settings.tvaRate}%</Text>
+              <Text style={styles.totalVal}>{formatCurrencyPDF(document.tvaAmount)}</Text>
+            </View>
+            <View style={styles.totalColLast}>
+              <Text style={styles.totalLabel}>NET A PAYER</Text>
+              <Text style={styles.totalVal}>{formatCurrencyPDF(document.total)}</Text>
             </View>
           </View>
         </View>
@@ -354,23 +368,28 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
           </View>
         </View>
 
+        <View style={{ marginBottom: 40, fontSize: 10 }}>
+           <Text style={{ fontWeight: 'bold', marginBottom: 10 }}>
+             Arrêter {type === 'devis' ? 'Le Présent devis' : 'La Présente facture'} à la Somme totale de : ... FCFA TTC
+           </Text>
+           <Text style={{ color: 'blue', fontSize: 9 }}>N.B:</Text>
+           <Text style={{ color: 'red', fontSize: 9 }}>- Les modes de règlement: *Espèces ; *Chèques ; *Virements .</Text>
+           <Text style={{ color: 'red', fontSize: 9 }}>- Les délais de règlement: *Au Comptant;</Text>
+        </View>
+
+        <View style={{ alignItems: 'flex-end', marginBottom: 60 }}>
+          <Text style={{ fontWeight: 'bold', marginRight: 40 }}>La Direction</Text>
+        </View>
+
         {/* Footer */}
-        <View style={styles.footer}>
-          <View style={styles.validationSection}>
-            <View>
-              <Text style={{ fontSize: 7, fontWeight: 'bold', color: '#666' }}>Validation Numérique DGI Gabon</Text>
-              <Text style={styles.hashText}>{hash}</Text>
-            </View>
-            <Text style={styles.badge}>Conforme Système DGI-Gabon</Text>
-          </View>
+        <View style={[styles.footer, { borderTopWidth: 0 }]}>
           <View style={styles.bottomCenter}>
-            <Text style={{ fontWeight: 'bold', marginBottom: 2 }}>{settings.companyName}</Text>
-            <Text>Siège: {settings.address} | NIF: {settings.nif} | RCCM: {settings.rccm}</Text>
-            <Text style={{ marginTop: 5, fontStyle: 'italic', fontSize: 7 }}>
-              {type === 'facture' && "Facture originale émise électroniquement selon le code général des impôts gabonais."}
-              {type === 'devis' && "Ce document est un devis proforma valable 30 jours."}
-              {type === 'avoir' && "Avoir commercial émis en réduction d'une facture précédente."}
-            </Text>
+            <Text style={{ fontWeight: 'bold', fontSize: 10, color: '#000', marginBottom: 2 }}>{settings.companyName.toUpperCase()}</Text>
+            <Text>Tél: {settings.phone}</Text>
+            <Text>BP: {settings.address.split(',')[1]?.trim() || "111 LIBREVILLE"}</Text>
+            <Text>Email: {settings.email}</Text>
+            <Text>NIF: {settings.nif} / RCCM: {settings.rccm}</Text>
+            <Text>Compte BGFI N°: {settings.iban}</Text>
           </View>
         </View>
       </Page>

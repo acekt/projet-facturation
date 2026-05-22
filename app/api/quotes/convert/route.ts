@@ -21,7 +21,7 @@ export async function POST(request: Request) {
 
     const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(quoteId) as any[];
 
-    const settings = db.prepare('SELECT invoicePrefix, defaultDueDateDays FROM settings WHERE id = 1').get() as any;
+    const settings = db.prepare('SELECT invoicePrefix, companyCode, defaultDueDateDays FROM settings WHERE id = 1').get() as any;
     const year = new Date().getFullYear();
     const invoiceId = crypto.randomUUID();
 
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       // Increment sequence
       db.prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = 'invoice'").run();
       const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'invoice'").get() as any;
-      const number = `${settings.invoicePrefix}-${year}-${String(sequence.current_value).padStart(4, '0')}`;
+      const number = `${String(sequence.current_value).padStart(3, '0')}/${settings.companyCode}/${year}`;
 
       // Create invoice
       db.prepare(`

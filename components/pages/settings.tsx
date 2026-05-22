@@ -233,6 +233,14 @@ export function SettingsPage() {
                   className="bg-secondary/50 border-border"
                 />
               </div>
+              <div className="space-y-2">
+                <Label>Code Entreprise (ex: GM)</Label>
+                <Input
+                  value={formData.companyCode}
+                  onChange={(e) => setFormData({ ...formData, companyCode: e.target.value })}
+                  className="bg-secondary/50 border-border"
+                />
+              </div>
             </div>
           </CardContent>
         </Card>

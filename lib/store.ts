@@ -108,6 +108,7 @@ export interface Settings {
   defaultDueDateDays: number;
   invoicePrefix: string;
   quotePrefix: string;
+  companyCode: string;
   mentionsLegales?: string;
   logo?: string;
 }
@@ -130,11 +131,11 @@ interface AppState {
 }
 
 const DEFAULT_SETTINGS: Settings = {
-  companyName: "L'Etoile SARL",
+  companyName: "Global Maintenance",
   nif: "XXXXXXXXXX",
   rccm: "GA-LBV-XX-XXXX-XXXX",
   address: "123 Boulevard Triomphal, Libreville, Gabon",
-  email: "facturation@letoile.ga",
+  email: "facturation@globalm.ga",
   phone: "+241 01 76 XX XX",
   bankName: "BGFI Bank",
   iban: "GAXX XXXX XXXX XXXX XXXX",
@@ -143,6 +144,7 @@ const DEFAULT_SETTINGS: Settings = {
   defaultDueDateDays: 30,
   invoicePrefix: "FAC",
   quotePrefix: "DEV",
+  companyCode: "GM",
 };
 
 export const useStore = create<AppState>()((set) => ({

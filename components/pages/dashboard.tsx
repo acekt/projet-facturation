@@ -198,13 +198,13 @@ export function Dashboard() {
               Live
             </Badge>
           </div>
-          <p className="text-muted-foreground">Apercu de votre activite de facturation</p>
+          <p className="text-muted-foreground">Aperçu de votre activité de facturation</p>
         </div>
         <div className="flex items-center gap-3">
           <select className="px-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
             <option>Ce mois</option>
             <option>Ce trimestre</option>
-            <option>Cette annee</option>
+            <option>Cette année</option>
           </select>
         </div>
       </div>
@@ -213,7 +213,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Chiffre d'affaires"
-          value={formatShortCurrency(totalRevenue) + " XAF"}
+          value={formatShortCurrency(totalRevenue)}
           trend={`${revenueGrowth}% ce mois`}
           trendUp={Number(revenueGrowth) >= 0}
           icon={DollarSign}
@@ -233,7 +233,7 @@ export function Dashboard() {
         />
         <StatCard
           title="En attente"
-          value={formatShortCurrency(pendingRevenue) + " XAF"}
+          value={formatShortCurrency(pendingRevenue)}
           trend={`${totalInvoicesCount - paidCount} document(s)`}
           trendUp={false}
           icon={Clock}
@@ -243,7 +243,7 @@ export function Dashboard() {
         />
         <StatCard
           title="En retard"
-          value={formatShortCurrency(overdueRevenue) + " XAF"}
+          value={formatShortCurrency(overdueRevenue)}
           trend="Suivi en temps réel"
           trendUp={false}
           icon={AlertCircle}
@@ -334,8 +334,8 @@ export function Dashboard() {
                   <PieChartIcon className="w-5 h-5 text-accent" />
                 </div>
                 <div>
-                  <CardTitle className="text-foreground font-semibold">Methodes de paiement</CardTitle>
-                  <p className="text-sm text-muted-foreground">Repartition des paiements</p>
+                  <CardTitle className="text-foreground font-semibold">Méthodes de paiement</CardTitle>
+                  <p className="text-sm text-muted-foreground">Répartition des paiements</p>
                 </div>
               </div>
             </CardHeader>
@@ -399,8 +399,8 @@ export function Dashboard() {
                     <FileText className="w-5 h-5 text-muted-foreground" />
                   </div>
                   <div>
-                    <CardTitle className="text-foreground font-semibold">Factures recentes</CardTitle>
-                    <p className="text-sm text-muted-foreground">5 dernieres factures</p>
+                    <CardTitle className="text-foreground font-semibold">Factures récentes</CardTitle>
+                    <p className="text-sm text-muted-foreground">5 dernières factures</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/10">
@@ -455,8 +455,8 @@ export function Dashboard() {
                   <Clock className="w-5 h-5 text-purple-500" />
                 </div>
                 <div>
-                  <CardTitle className="text-foreground font-semibold">Activite recente</CardTitle>
-                  <p className="text-sm text-muted-foreground">Derniers evenements</p>
+                  <CardTitle className="text-foreground font-semibold">Activité récente</CardTitle>
+                  <p className="text-sm text-muted-foreground">Derniers événements</p>
                 </div>
               </div>
             </CardHeader>

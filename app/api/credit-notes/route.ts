@@ -42,19 +42,21 @@ export async function POST(request: Request) {
     // Sequence for credit notes? Let's add it if not exists or use a simple one
     db.exec("INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('credit_note', 0)");
 
+    const settings = db.prepare('SELECT companyCode FROM settings WHERE id = 1').get() as any;
+
     const insertCreditNote = db.transaction((cnData) => {
       db.prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = 'credit_note'").run();
       const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'credit_note'").get() as any;
-      const number = `AVO-${year}-${String(sequence.current_value).padStart(4, '0')}`;
+      const number = `${String(sequence.current_value).padStart(3, '0')}/${settings.companyCode}/${year}`;
 
       // Calculate totals based on items
-      const subtotal = items.reduce((acc: number, item: any) => acc + (item.quantity * item.unitPrice), 0);
-      const settings = db.prepare('SELECT tvaRate, cssRate FROM settings WHERE id = 1').get() as any;
+      const subtotal = Math.round(items.reduce((acc: number, item: any) => acc + (item.quantity * item.unitPrice), 0));
+      const rates = db.prepare('SELECT tvaRate, cssRate FROM settings WHERE id = 1').get() as any;
 
-      const taxBase = Math.round(subtotal);
-      const tvaAmount = Math.round(taxBase * (settings.tvaRate / 100));
-      const cssAmount = Math.round(taxBase * (settings.cssRate / 100));
-      const total = taxBase + tvaAmount + cssAmount;
+      const cssAmount = Math.round(subtotal * (rates.cssRate / 100));
+      const taxBase = subtotal + cssAmount;
+      const tvaAmount = Math.round(taxBase * (rates.tvaRate / 100));
+      const total = subtotal + cssAmount + tvaAmount;
 
       db.prepare(`
         INSERT INTO credit_notes (
