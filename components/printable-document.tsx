@@ -25,7 +25,7 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
   const { settings } = useStore()
 
   return (
-    <div className="printable-document p-8 bg-white text-black font-sans min-h-[297mm] w-[210mm] mx-auto text-[12pt] leading-normal">
+    <div className="printable-document p-4 md:p-8 bg-white text-black font-sans min-h-[297mm] w-full max-w-[210mm] mx-auto text-[10pt] md:text-[12pt] leading-normal shadow-sm">
       {/* Header */}
       <div className="flex justify-between items-start mb-12 border-b-2 border-primary pb-6">
         <div className="flex items-center gap-4">
@@ -124,7 +124,7 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
 
       {/* Bank Info */}
       <div className="mb-12 p-4 border-2 border-dashed border-gray-200 rounded-xl">
-        <h3 className="text-xs font-bold uppercase text-gray-500 mb-2">Coordonnées Bancaires</h3>
+        <h3 className="text-xs font-bold uppercase text-gray-500 mb-2">Coordonnées pour Virement Bancaire</h3>
         <div className="grid grid-cols-2 text-sm">
           <p><span className="font-semibold">Banque:</span> {settings.bankName}</p>
           <p><span className="font-semibold">IBAN/RIB:</span> {settings.iban}</p>

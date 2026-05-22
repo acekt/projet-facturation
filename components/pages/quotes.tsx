@@ -32,17 +32,20 @@ import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { DocumentPreview } from "@/components/document-preview"
 import { PrintableDocument } from "@/components/printable-document"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { pdf } from '@react-pdf/renderer'
+import { PDFDocument } from "@/components/pdf-document"
 
 interface QuotesPageProps {
   onCreateQuote: () => void
 }
 
 export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
-  const { quotes, setQuotes } = useStore()
+  const { quotes, setQuotes, settings } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [previewQuote, setPreviewQuote] = React.useState<Quote | null>(null)
   const [selectedQuote, setSelectedQuote] = React.useState<Quote | null>(null)
+  const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
 
   const filteredQuotes = quotes.filter(
     (quote) =>
@@ -96,6 +99,27 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
       setQuotes(newQuotes)
     } catch (error: any) {
       toast.error(error.message || "Erreur lors de la suppression")
+    }
+  }
+
+  const handleDownloadPDF = async (quote: Quote) => {
+    try {
+      setIsDownloading(quote.id)
+      const blob = await pdf(<PDFDocument document={quote} type="devis" settings={settings} />).toBlob()
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `DEVIS_${quote.number}.pdf`
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      URL.revokeObjectURL(url)
+      toast.success("Téléchargement démarré")
+    } catch (error) {
+      console.error("PDF Error:", error)
+      toast.error("Erreur lors de la génération du PDF")
+    } finally {
+      setIsDownloading(null)
     }
   }
 
@@ -203,8 +227,13 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
                             <Printer className="w-4 h-4" /> Imprimer
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
-                            <Download className="w-4 h-4" /> Télécharger PDF
+                          <DropdownMenuItem
+                            className="gap-2"
+                            onClick={() => handleDownloadPDF(quote)}
+                            disabled={isDownloading === quote.id}
+                          >
+                            <Download className="w-4 h-4" />
+                            {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2" onClick={() => {
                             toast.info("Fonctionnalité de duplication : Pour modifier ou dupliquer un devis, veuillez créer un nouveau devis.");
@@ -263,19 +292,14 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
       )}
 
       <Dialog open={!!selectedQuote} onOpenChange={() => setSelectedQuote(null)}>
-        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-zinc-50">
-          <DialogTitle className="sr-only">Aperçu du Devis</DialogTitle>
-          <div className="no-print p-4 bg-white border-b flex justify-between items-center sticky top-0 z-10 shadow-sm">
-            <h2 className="font-bold text-zinc-950">Aperçu avant impression</h2>
-            <Button onClick={() => window.print()} className="gap-2 bg-primary text-primary-foreground hover:bg-primary/95 font-medium">
+        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
+          <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
+            <h2 className="font-bold text-black">Aperçu avant impression</h2>
+            <Button onClick={() => window.print()} className="gap-2">
               <Printer className="w-4 h-4" /> Imprimer
             </Button>
           </div>
-          <div className="p-8 flex justify-center items-start">
-            <div className="shadow-2xl border border-zinc-200/80 bg-white rounded-sm overflow-hidden">
-              {selectedQuote && <PrintableDocument document={selectedQuote} type="devis" />}
-            </div>
-          </div>
+          {selectedQuote && <PrintableDocument document={selectedQuote} type="devis" />}
         </DialogContent>
       </Dialog>
     </div>
