@@ -75,15 +75,6 @@ export function CommandMenu({ open, onOpenChange, onNavigate }: CommandMenuProps
               <p className="text-xs text-muted-foreground">Créer un nouveau devis</p>
             </div>
           </CommandItem>
-          <CommandItem onSelect={() => handleSelect("new-invoice")} className="gap-3 py-3 cursor-pointer">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-              <Plus className="w-4 h-4 text-primary" />
-            </div>
-            <div>
-              <p className="font-medium text-foreground">Nouvelle facture</p>
-              <p className="text-xs text-muted-foreground">Créer une facture directe</p>
-            </div>
-          </CommandItem>
           <CommandItem onSelect={() => handleSelect("clients")} className="gap-3 py-3 cursor-pointer">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/10 flex items-center justify-center">
               <Users className="w-4 h-4 text-emerald-500" />

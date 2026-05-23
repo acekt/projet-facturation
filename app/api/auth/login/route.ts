@@ -1,10 +1,16 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { cookies } from 'next/headers';
+import crypto from 'crypto';
+
+function hashPassword(password: string) {
+  return crypto.createHash('sha256').update(password).digest('hex');
+}
 
 export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
+    const hashedPassword = hashPassword(password);
 
     // In a real local desktop app, we might have a single admin user
     // For this implementation, we check the 'users' table.
@@ -16,10 +22,10 @@ export async function POST(request: Request) {
       // Create default admin on first attempt for local simplicity
       const id = crypto.randomUUID();
       db.prepare('INSERT INTO users (id, username, password, name, role) VALUES (?, ?, ?, ?, ?)')
-        .run(id, username, password, 'Administrateur', 'admin');
+        .run(id, username, hashedPassword, 'Administrateur', 'admin');
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, password) as any;
+    const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, hashedPassword) as any;
 
     if (!user) {
       return NextResponse.json({ error: 'Identifiants invalides' }, { status: 401 });
