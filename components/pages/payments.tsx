@@ -174,7 +174,7 @@ export function PaymentsPage() {
               <div className="flex-1">
                 <p className="text-muted-foreground text-sm">Entrées ce mois</p>
                 <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {formatShortCurrency(incomeThisMonth)} XAF
+                  {formatShortCurrency(incomeThisMonth)}
                 </p>
               </div>
             </div>
@@ -204,7 +204,7 @@ export function PaymentsPage() {
                 <p className="text-2xl font-bold text-foreground">
                     {formatShortCurrency(invoices
                         .filter(i => i.status === 'PAID' && i.date?.startsWith(currentYear))
-                        .reduce((sum, i) => sum + (Number(i.total) || 0), 0))} XAF
+                        .reduce((sum, i) => sum + (Number(i.total) || 0), 0))}
                 </p>
               </div>
             </div>
@@ -219,7 +219,7 @@ export function PaymentsPage() {
               <div>
                 <p className="text-muted-foreground text-sm">En attente</p>
                 <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-                  {formatShortCurrency(pendingPayments)} XAF
+                  {formatShortCurrency(pendingPayments)}
                 </p>
               </div>
             </div>

@@ -32,7 +32,7 @@ export function DataSync() {
     };
 
     fetchData();
-  }, [setClients, setQuotes, setInvoices, setSettings]);
+  }, [setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes]);
 
   return null;
 }
