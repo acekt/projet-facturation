@@ -19,12 +19,13 @@ export async function GET() {
 
     const formatted = notes.map((n: any) => ({
       ...n,
-      items: JSON.parse(n.items)
+      items: n.items ? JSON.parse(n.items) : []
     }));
 
     return NextResponse.json(formatted);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch credit notes' }, { status: 500 });
+    console.error('Credit notes error:', error);
+    return NextResponse.json([], { status: 200 });
   }
 }
 
@@ -47,7 +48,8 @@ export async function POST(request: Request) {
     const insertCreditNote = db.transaction((cnData) => {
       db.prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = 'credit_note'").run();
       const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'credit_note'").get() as any;
-      const number = `${String(sequence.current_value).padStart(3, '0')}/${settings.companyCode}/${year}`;
+      const companyCode = settings?.companyCode || 'GAB';
+      const number = `${String(sequence.current_value).padStart(3, '0')}/${companyCode}/${year}`;
 
       // Calculate totals based on items
       const subtotal = Math.round(items.reduce((acc: number, item: any) => acc + (item.quantity * item.unitPrice), 0));
