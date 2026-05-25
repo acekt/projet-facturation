@@ -113,7 +113,14 @@ export interface Settings {
   logo?: string;
 }
 
+interface User {
+  id: string;
+  name: string;
+  role: 'admin' | 'user';
+}
+
 interface AppState {
+  user: User | null;
   clients: Client[];
   quotes: Quote[];
   invoices: Invoice[];
@@ -121,6 +128,7 @@ interface AppState {
   payments: Payment[];
   creditNotes: CreditNote[];
   settings: Settings;
+  setUser: (user: User | null) => void;
   setClients: (clients: Client[]) => void;
   setQuotes: (quotes: Quote[]) => void;
   setInvoices: (invoices: Invoice[]) => void;
@@ -148,6 +156,7 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 export const useStore = create<AppState>()((set) => ({
+  user: null,
   clients: [],
   quotes: [],
   invoices: [],
@@ -156,6 +165,7 @@ export const useStore = create<AppState>()((set) => ({
   creditNotes: [],
   settings: DEFAULT_SETTINGS,
 
+  setUser: (user) => set({ user }),
   setClients: (clients) => set({ clients }),
   setQuotes: (quotes) => set({ quotes }),
   setInvoices: (invoices) => set({ invoices }),

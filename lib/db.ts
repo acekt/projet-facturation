@@ -166,6 +166,17 @@ db.exec(`
     total REAL NOT NULL,
     FOREIGN KEY (creditNoteId) REFERENCES credit_notes(id) ON DELETE CASCADE
   );
+
+  CREATE TABLE IF NOT EXISTS audit_logs (
+    id TEXT PRIMARY KEY,
+    userId TEXT,
+    userName TEXT,
+    action TEXT NOT NULL,
+    entityType TEXT NOT NULL, -- quote, invoice, client, etc.
+    entityId TEXT,
+    details TEXT,
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+  );
 `);
 
 // Migrate settings table to add missing logo column if upgrading database schema

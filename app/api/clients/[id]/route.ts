@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { clientSchema } from '@/lib/validations';
+import { logAudit } from '@/lib/api/audit';
 
 export async function GET(
   request: Request,
@@ -40,6 +41,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
 
+    logAudit('UPDATE', 'client', id, `Client mis à jour: ${name}`);
     const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
     return NextResponse.json(client);
   } catch (error) {
@@ -53,10 +55,12 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const client = db.prepare('SELECT name FROM clients WHERE id = ?').get(id) as any;
     const result = db.prepare('DELETE FROM clients WHERE id = ?').run(id);
     if (result.changes === 0) {
       return NextResponse.json({ error: 'Client not found' }, { status: 404 });
     }
+    logAudit('DELETE', 'client', id, `Client supprimé: ${client?.name || id}`);
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete client' }, { status: 500 });

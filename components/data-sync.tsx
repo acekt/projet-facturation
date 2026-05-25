@@ -4,19 +4,20 @@ import * as React from "react"
 import { useStore } from "@/lib/store"
 
 export function DataSync() {
-  const { setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes } = useStore()
+  const { setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser } = useStore()
 
   React.useEffect(() => {
     const fetchData = async () => {
       try {
-        const [clients, quotes, invoices, services, payments, settings, creditNotes] = await Promise.all([
+        const [clients, quotes, invoices, services, payments, settings, creditNotes, me] = await Promise.all([
           fetch('/api/clients').then(res => res.json()),
           fetch('/api/quotes').then(res => res.json()),
           fetch('/api/invoices').then(res => res.json()),
           fetch('/api/services').then(res => res.json()),
           fetch('/api/payments').then(res => res.json()),
           fetch('/api/settings').then(res => res.json()),
-          fetch('/api/credit-notes').then(res => res.json())
+          fetch('/api/credit-notes').then(res => res.json()),
+          fetch('/api/auth/me').then(res => res.json())
         ]);
 
         if (!clients.error) setClients(clients);
@@ -26,6 +27,7 @@ export function DataSync() {
         if (!payments.error) setPayments(payments);
         if (!settings.error) setSettings(settings);
         if (!creditNotes.error) setCreditNotes(creditNotes);
+        if (!me.error) setUser(me.user);
       } catch (error) {
         console.error('Failed to sync data:', error);
       }
