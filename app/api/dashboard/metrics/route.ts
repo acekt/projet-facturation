@@ -1,26 +1,33 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    // 1. Total Revenue (sum of all payments)
-    const totalRevenueRow = db.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM payments").get() as any;
+    const { searchParams } = new URL(request.url);
+    const range = searchParams.get('range') || 'month';
+
+    let dateFilter = "strftime('%Y-%m', date) = strftime('%Y-%m', 'now')";
+    let prevDateFilter = "strftime('%Y-%m', date) = strftime('%Y-%m', 'now', '-1 month')";
+
+    if (range === 'quarter') {
+      dateFilter = "date >= date('now', '-3 months')";
+      prevDateFilter = "date >= date('now', '-6 months') AND date < date('now', '-3 months')";
+    } else if (range === 'year') {
+      dateFilter = "strftime('%Y', date) = strftime('%Y', 'now')";
+      prevDateFilter = "strftime('%Y', date) = strftime('%Y', 'now', '-1 year')";
+    }
+
+    // 1. Total Revenue within range
+    const totalRevenueRow = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE ${dateFilter}`).get() as any;
     const totalRevenue = totalRevenueRow.total;
 
-    // 2. Growth calculation (Current Month vs Previous Month)
-    const currentMonthRevRow = db.prepare(`
-      SELECT COALESCE(SUM(amount), 0) as total FROM payments
-      WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now')
-    `).get() as any;
+    // 2. Growth calculation
+    const currentRevRow = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE ${dateFilter}`).get() as any;
+    const prevRevRow = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE ${prevDateFilter}`).get() as any;
 
-    const lastMonthRevRow = db.prepare(`
-      SELECT COALESCE(SUM(amount), 0) as total FROM payments
-      WHERE strftime('%Y-%m', date) = strftime('%Y-%m', 'now', '-1 month')
-    `).get() as any;
-
-    const growth = lastMonthRevRow.total > 0
-      ? ((currentMonthRevRow.total - lastMonthRevRow.total) / lastMonthRevRow.total * 100).toFixed(1)
-      : (currentMonthRevRow.total > 0 ? "100.0" : "0.0");
+    const growth = prevRevRow.total > 0
+      ? ((currentRevRow.total - prevRevRow.total) / prevRevRow.total * 100).toFixed(1)
+      : (currentRevRow.total > 0 ? "100.0" : "0.0");
 
     // 3. Pending Revenue (Sum of remaining totals of active invoices)
     const pendingRevenueRow = db.prepare(`

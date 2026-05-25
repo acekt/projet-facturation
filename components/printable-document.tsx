@@ -122,7 +122,7 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
            <p className="text-red-600 text-sm font-bold">- Les délais de règlement: *Au Comptant;</p>
       </div>
 
-      <div className="flex justify-end mb-20">
+      <div className="flex justify-end mb-20 avoid-break">
           <p className="font-bold mr-20">La Direction</p>
       </div>
 
@@ -135,7 +135,18 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
       </div>
 
       <style jsx global>{`
+        @page {
+          size: A4 portrait;
+          margin: 0mm;
+        }
         @media print {
+          html, body {
+            background: white !important;
+            color: black !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
           body * {
             visibility: hidden;
           }
@@ -146,14 +157,33 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
             position: absolute;
             left: 0;
             top: 0;
-            width: 100%;
-            padding: 0;
-            margin: 0;
-            border: none;
-            box-shadow: none;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 15mm !important;
+            margin: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            background: white !important;
+            color: black !important;
           }
-          .no-print {
+          .no-print, nav, aside, button, .sidebar, .topbar {
             display: none !important;
+          }
+          table {
+            page-break-inside: auto;
+          }
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
+          }
+          thead {
+            display: table-header-group;
+          }
+          tfoot {
+            display: table-footer-group;
+          }
+          .avoid-break {
+            page-break-inside: avoid !important;
           }
         }
       `}</style>

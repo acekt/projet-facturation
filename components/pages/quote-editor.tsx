@@ -27,6 +27,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Switch } from "@/components/ui/switch"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { cn } from "@/lib/utils"
 
 import { useStore, type InvoiceItem, type Quote } from "@/lib/store"
 import { toast } from "sonner"
@@ -49,6 +52,8 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
     { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
   ])
   const [quoteDate, setQuoteDate] = React.useState(new Date().toISOString().split("T")[0])
+  const [isValidityActive, setIsValidityActive] = React.useState(true)
+  const [isDueDateActive, setIsDueDateActive] = React.useState(true)
   const [dueDate, setDueDate] = React.useState(() => {
     const d = new Date()
     d.setDate(d.getDate() + settings.defaultDueDateDays)
@@ -195,21 +200,12 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
             Aperçu
           </Button>
           <Button
-            variant="outline"
-            className="gap-2"
-            onClick={() => handleSave('draft')}
-            disabled={isSubmitting}
-          >
-            <Save className="w-4 h-4" />
-            Brouillon
-          </Button>
-          <Button
             className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
             onClick={() => handleSave('sent')}
             disabled={isSubmitting}
           >
             <Send className="w-4 h-4" />
-            Finaliser le devis
+            Générer le devis
           </Button>
         </div>
       </div>
@@ -232,12 +228,23 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-sm">Date de validité</Label>
+                  <div className="flex items-center justify-between mb-1">
+                    <Label className="text-muted-foreground text-sm">Date de validité</Label>
+                    <Switch
+                      checked={isValidityActive}
+                      onCheckedChange={setIsValidityActive}
+                      className="scale-75"
+                    />
+                  </div>
                   <Input
                     type="date"
                     value={dueDate}
                     onChange={(e) => setDueDate(e.target.value)}
-                    className="bg-secondary border-border text-foreground"
+                    className={cn(
+                      "bg-secondary border-border text-foreground transition-opacity",
+                      !isValidityActive && "opacity-50 pointer-events-none"
+                    )}
+                    disabled={!isValidityActive}
                   />
                 </div>
               </div>
@@ -357,18 +364,24 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
                 {items.map((item, index) => (
                   <div key={item.id} className="grid grid-cols-12 gap-2 md:gap-4 items-start p-3 rounded-xl bg-muted/30">
                     <div className="col-span-12 md:col-span-6">
-                      <Input
-                        placeholder="Libellé de la prestation..."
+                      <Select
+                        onValueChange={(val) => updateItem(item.id, "description", val)}
                         value={item.description}
-                        onChange={(e) => updateItem(item.id, "description", e.target.value)}
-                        className="bg-transparent border-0 md:border md:bg-secondary focus-visible:ring-1"
-                        list={`services-list-${item.id}`}
-                      />
-                      <datalist id={`services-list-${item.id}`}>
-                        {services.map(s => (
-                          <option key={s.id} value={s.name}>{s.category} - {formatCurrency(s.unitPrice)}</option>
-                        ))}
-                      </datalist>
+                      >
+                        <SelectTrigger className="bg-transparent border-0 md:border md:bg-secondary focus:ring-1 text-foreground">
+                          <SelectValue placeholder="Sélectionner un service..." />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card border-border">
+                          {services.map(s => (
+                            <SelectItem key={s.id} value={s.name}>
+                              <div className="flex flex-col">
+                                <span className="font-medium">{s.name}</span>
+                                <span className="text-[10px] text-muted-foreground uppercase">{s.category} • {formatCurrency(s.unitPrice)}</span>
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="col-span-4 md:col-span-2">
                       <Input

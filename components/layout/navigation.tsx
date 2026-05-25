@@ -90,7 +90,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
               <Button
                 variant="outline"
                 className={cn(
-                  "w-full border-primary/20 hover:bg-primary/5 text-primary transition-all",
+                  "w-full border-primary/20 hover:bg-primary hover:text-primary-foreground text-primary transition-all shadow-sm",
                   collapsed ? "justify-center px-2" : "justify-start gap-2"
                 )}
                 onClick={() => onPageChange("new-quote")}
@@ -100,21 +100,6 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
               </Button>
             </TooltipTrigger>
             {collapsed && <TooltipContent side="right">Nouveau devis</TooltipContent>}
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                className={cn(
-                  "w-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-md shadow-primary/20 transition-all",
-                  collapsed ? "justify-center px-2" : "justify-start gap-2"
-                )}
-                onClick={() => onPageChange("new-invoice")}
-              >
-                <Plus className="w-4 h-4" />
-                {!collapsed && <span className="text-sm font-medium">Nouvelle facture</span>}
-              </Button>
-            </TooltipTrigger>
-            {collapsed && <TooltipContent side="right">Nouvelle facture</TooltipContent>}
           </Tooltip>
         </div>
 
