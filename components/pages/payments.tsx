@@ -350,14 +350,16 @@ export function PaymentsPage() {
                         <p className="font-bold text-emerald-600 dark:text-emerald-400">+{formatCurrency(p.amount)}</p>
                         <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-600 border-emerald-600/20">Encaissé</Badge>
                         </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
-                        onClick={() => handleDeletePayment(p.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {useStore.getState().user?.role === 'admin' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                          onClick={() => handleDeletePayment(p.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                       </div>
                   </motion.div>
                 );

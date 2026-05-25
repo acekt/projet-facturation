@@ -252,13 +252,17 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                             </DropdownMenuItem>
                             </>
                           )}
-                          <div className="h-px bg-border my-1" />
-                          <DropdownMenuItem
-                            className="gap-2 text-destructive focus:text-destructive"
-                            onClick={() => handleDelete(quote.id)}
-                          >
-                            <Trash2 className="w-4 h-4" /> Supprimer
-                          </DropdownMenuItem>
+                          {useStore.getState().user?.role === 'admin' && (
+                            <>
+                            <div className="h-px bg-border my-1" />
+                            <DropdownMenuItem
+                                className="gap-2 text-destructive focus:text-destructive"
+                                onClick={() => handleDelete(quote.id)}
+                            >
+                                <Trash2 className="w-4 h-4" /> Supprimer
+                            </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>

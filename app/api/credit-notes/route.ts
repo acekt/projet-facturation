@@ -85,8 +85,8 @@ export async function POST(request: Request) {
         );
       }
 
-      // Mark invoice as having an associated credit note?
-      // For now, let's keep it simple.
+      // Update invoice status to 'cancelled' or similar if needed
+      db.prepare("UPDATE invoices SET status = 'cancelled' WHERE id = ?").run(invoice.id);
 
       return { id, number };
     });

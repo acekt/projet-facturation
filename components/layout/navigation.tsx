@@ -17,8 +17,11 @@ import {
   Search,
   Bell,
   Command,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useStore } from "@/lib/store"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
 import {
@@ -37,17 +40,32 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-  { id: "quotes", label: "Devis", icon: FileText },
-  { id: "invoices", label: "Factures", icon: FileText },
-  { id: "clients", label: "Clients", icon: Users },
-  { id: "services", label: "Services", icon: Briefcase },
-  { id: "payments", label: "Paiements", icon: CreditCard },
-  { id: "credit-notes", label: "Avoirs", icon: RefreshCcw },
-  { id: "settings", label: "Parametres", icon: Settings },
+  { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, adminOnly: false },
+  { id: "quotes", label: "Devis", icon: FileText, adminOnly: false },
+  { id: "invoices", label: "Factures", icon: FileText, adminOnly: false },
+  { id: "clients", label: "Clients", icon: Users, adminOnly: false },
+  { id: "services", label: "Services", icon: Briefcase, adminOnly: false },
+  { id: "payments", label: "Paiements", icon: CreditCard, adminOnly: false },
+  { id: "credit-notes", label: "Avoirs", icon: RefreshCcw, adminOnly: false },
+  { id: "settings", label: "Parametres", icon: Settings, adminOnly: true },
+  { id: "audit", label: "Journal Audit", icon: FileText, adminOnly: true },
 ]
 
 export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: SidebarProps) {
+  const user = useStore((state) => state.user)
+  const setUser = useStore((state) => state.setUser)
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    // Ideally we should have an api/auth/logout route to clear the cookie
+    // For now, we'll just clear the store and redirect, the cookie will be stale or we can try to clear it client-side if not httpOnly
+    try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {}
+    setUser(null);
+    router.push('/login');
+  };
+
   return (
     <TooltipProvider delayDuration={0}>
       <motion.aside
@@ -105,7 +123,9 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-2 space-y-1">
-          {navItems.map((item) => (
+          {navItems
+            .filter(item => !item.adminOnly || user?.role === 'admin')
+            .map((item) => (
             <Tooltip key={item.id}>
               <TooltipTrigger asChild>
                 <motion.button
@@ -151,23 +171,34 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
         </nav>
 
         {/* User Section */}
-        <div className="p-3 border-t border-border">
+        <div className="p-3 border-t border-border space-y-1">
           <div className={cn(
-            "flex items-center gap-3 p-2 rounded-xl hover:bg-secondary cursor-pointer transition-colors",
+            "flex items-center gap-3 p-2 rounded-xl hover:bg-secondary transition-colors",
             collapsed && "justify-center"
           )}>
             <Avatar className="w-9 h-9 ring-2 ring-border">
               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs font-medium">
-                ADM
+                {user?.name?.substring(0, 2).toUpperCase() || 'AD'}
               </AvatarFallback>
             </Avatar>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">Administrateur</p>
-                <p className="text-xs text-muted-foreground truncate">Session Locale</p>
+                <p className="text-sm font-medium text-foreground truncate">{user?.name || 'Administrateur'}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">{user?.role === 'admin' ? 'Accès Total' : 'Accès Limité'}</p>
               </div>
             )}
           </div>
+          <Button
+            variant="ghost"
+            className={cn(
+                "w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all",
+                collapsed ? "justify-center px-2" : "justify-start gap-2"
+            )}
+            onClick={handleLogout}
+          >
+            <LogOut className="w-4 h-4" />
+            {!collapsed && <span className="text-sm font-medium">Déconnexion</span>}
+          </Button>
         </div>
 
         {/* Toggle Button */}

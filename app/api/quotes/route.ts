@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { quoteSchema } from '@/lib/validations';
 import crypto from 'crypto';
+import { logAudit } from '@/lib/api/audit';
 
 export async function GET() {
   try {
@@ -77,6 +78,7 @@ export async function POST(request: Request) {
         );
       }
 
+      logAudit('CREATE', 'quote', id, `Nouveau devis créé: ${number}`);
       return { id, number };
     });
 

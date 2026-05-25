@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { invoiceSchema } from '@/lib/validations';
 import crypto from 'crypto';
+import { logAudit } from '@/lib/api/audit';
 
 export async function GET() {
   try {
@@ -98,6 +99,7 @@ export async function POST(request: Request) {
       // Automatically update the quote status to 'invoiced'
       db.prepare("UPDATE quotes SET status = 'invoiced' WHERE id = ?").run(invData.quoteId);
 
+      logAudit('CREATE', 'invoice', id, `Nouvelle facture créée: ${number}`);
       return { id, number };
     });
 

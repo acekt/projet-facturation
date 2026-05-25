@@ -94,7 +94,11 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       if (!response.ok) throw new Error('Failed to create credit note');
 
       toast.success("Avoir créé avec succès");
-      const updatedNotes = await fetch('/api/credit-notes').then(res => res.json());
+      const [updatedInvoices, updatedNotes] = await Promise.all([
+          fetch('/api/invoices').then(res => res.json()),
+          fetch('/api/credit-notes').then(res => res.json())
+      ]);
+      setInvoices(updatedInvoices);
       setCreditNotes(updatedNotes);
     } catch (error) {
       toast.error("Erreur lors de la création de l'avoir");
@@ -173,6 +177,8 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">En retard</Badge>
       case "draft":
         return <Badge variant="secondary" className="bg-slate-100 text-slate-700">Brouillon</Badge>
+      case "cancelled":
+        return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Annulée (Avoir)</Badge>
       default:
         return null
     }
@@ -282,10 +288,14 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
                             <RefreshCcw className="w-4 h-4" /> Créer un avoir
                           </DropdownMenuItem>
-                          <div className="h-px bg-border my-1" />
-                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>
-                            <Trash2 className="w-4 h-4" /> Supprimer
-                          </DropdownMenuItem>
+                          {useStore.getState().user?.role === 'admin' && (
+                            <>
+                            <div className="h-px bg-border my-1" />
+                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>
+                                <Trash2 className="w-4 h-4" /> Supprimer
+                            </DropdownMenuItem>
+                            </>
+                          )}
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>

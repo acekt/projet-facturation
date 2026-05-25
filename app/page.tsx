@@ -13,6 +13,7 @@ import { ServicesPage } from "@/components/pages/services"
 import { PaymentsPage } from "@/components/pages/payments"
 import { SettingsPage } from "@/components/pages/settings"
 import { CreditNotesPage } from "@/components/pages/credit-notes"
+import { AuditLogsPage } from "@/components/pages/audit-logs"
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -58,6 +59,8 @@ export default function App() {
         return <PaymentsPage />
       case "credit-notes":
         return <CreditNotesPage />
+      case "audit":
+        return <AuditLogsPage />
       case "settings":
         return <SettingsPage />
       default:

@@ -8,12 +8,14 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { Lock } from "lucide-react"
+import { useStore } from "@/lib/store"
 
 export default function LoginPage() {
   const [username, setUsername] = React.useState('')
   const [password, setPassword] = React.useState('')
   const [loading, setLoading] = React.useState(false)
   const router = useRouter()
+  const setUser = useStore((state) => state.setUser)
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,6 +29,7 @@ export default function LoginPage() {
       const data = await res.json()
       if (res.ok) {
         toast.success("Bienvenue dans L'Étoile")
+        setUser(data.user)
         router.push('/')
         router.refresh()
       } else {

@@ -148,9 +148,11 @@ export function ServicesPage() {
                         }}>
                           <Edit2 className="w-4 h-4" /> Modifier
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(service.id)}>
-                          <Trash2 className="w-4 h-4" /> Supprimer
-                        </DropdownMenuItem>
+                        {useStore.getState().user?.role === 'admin' && (
+                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(service.id)}>
+                            <Trash2 className="w-4 h-4" /> Supprimer
+                          </DropdownMenuItem>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
