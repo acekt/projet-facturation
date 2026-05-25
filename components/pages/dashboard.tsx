@@ -130,9 +130,9 @@ export function Dashboard() {
   const [dashboardData, setDashboardData] = React.useState<any>(null)
   const [isLoading, setIsLoading] = React.useState(true)
 
-  const fetchMetrics = React.useCallback(async () => {
+  const fetchMetrics = React.useCallback(async (range = 'month') => {
     try {
-      const res = await fetch('/api/dashboard/metrics')
+      const res = await fetch(`/api/dashboard/metrics?range=${range}`)
       if (res.ok) {
         const data = await res.json()
         setDashboardData(data)
@@ -201,10 +201,13 @@ export function Dashboard() {
           <p className="text-muted-foreground">Aperçu de votre activité de facturation</p>
         </div>
         <div className="flex items-center gap-3">
-          <select className="px-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all">
-            <option>Ce mois</option>
-            <option>Ce trimestre</option>
-            <option>Cette année</option>
+          <select
+            className="px-4 py-2.5 rounded-xl bg-secondary border border-border text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 transition-all"
+            onChange={(e) => fetchMetrics(e.target.value)}
+          >
+            <option value="month">Ce mois</option>
+            <option value="quarter">Ce trimestre</option>
+            <option value="year">Cette année</option>
           </select>
         </div>
       </div>
@@ -213,7 +216,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Chiffre d'affaires"
-          value={formatShortCurrency(totalRevenue)}
+          value={formatCurrency(totalRevenue)}
           trend={`${revenueGrowth}% ce mois`}
           trendUp={Number(revenueGrowth) >= 0}
           icon={DollarSign}
@@ -233,7 +236,7 @@ export function Dashboard() {
         />
         <StatCard
           title="En attente"
-          value={formatShortCurrency(pendingRevenue)}
+          value={formatCurrency(pendingRevenue)}
           trend={`${totalInvoicesCount - paidCount} document(s)`}
           trendUp={false}
           icon={Clock}
@@ -243,7 +246,7 @@ export function Dashboard() {
         />
         <StatCard
           title="En retard"
-          value={formatShortCurrency(overdueRevenue)}
+          value={formatCurrency(overdueRevenue)}
           trend="Suivi en temps réel"
           trendUp={false}
           icon={AlertCircle}
@@ -296,7 +299,7 @@ export function Dashboard() {
                     <YAxis 
                       stroke={chartColors.axis}
                       tick={{ fill: chartColors.tick, fontSize: 12 }}
-                      tickFormatter={(value) => formatShortCurrency(value)}
+                      tickFormatter={(value) => formatCurrency(value)}
                       axisLine={false}
                       tickLine={false}
                     />
@@ -400,7 +403,7 @@ export function Dashboard() {
                   </div>
                   <div>
                     <CardTitle className="text-foreground font-semibold">Factures récentes</CardTitle>
-                    <p className="text-sm text-muted-foreground">5 dernières factures</p>
+                    <p className="text-sm text-muted-foreground">{recentInvoices.length} dernières factures</p>
                   </div>
                 </div>
                 <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/10">

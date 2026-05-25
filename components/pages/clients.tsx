@@ -24,6 +24,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
 import { DownloadCloud } from "lucide-react"
+import { formatCurrency } from "@/lib/utils"
 
 export function ClientsPage() {
   const { clients, setClients, invoices } = useStore()
@@ -239,10 +240,9 @@ export function ClientsPage() {
                 <div className="bg-secondary/30 p-4 border-t border-border flex items-center justify-between">
                   <div className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">CA Total</div>
                   <div className="font-bold text-foreground">
-                    {useStore.getState().invoices
-                      ?.filter(inv => inv.clientId === client.id && inv.status === 'paid')
-                      .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0)
-                      .toLocaleString('fr-GA')} XAF
+                    {formatCurrency(useStore.getState().invoices
+                      ?.filter(inv => inv.clientId === client.id && inv.status === 'PAID')
+                      .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0))}
                   </div>
                 </div>
               </CardContent>

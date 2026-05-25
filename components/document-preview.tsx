@@ -30,14 +30,14 @@ export function DocumentPreview({ open, onOpenChange, type, data }: DocumentPrev
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader className="print:hidden">
+      <DialogContent className="bg-card border-border max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-0 md:p-6">
+        <DialogHeader className="print:hidden px-6 pt-6 md:px-0 md:pt-0">
           <DialogTitle className="text-foreground">
             Aperçu du {type === 'Quote' ? 'Devis' : 'Facture'} {data.number ? `- ${data.number}` : '(Brouillon)'}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="bg-white text-black p-8 rounded-lg shadow-sm font-sans space-y-8" id="printable-document">
+        <div className="bg-white text-black p-4 md:p-8 rounded-lg shadow-sm font-sans space-y-8 mx-auto w-full max-w-[800px]" id="printable-document">
           {/* Header */}
           <div className="flex justify-between items-start border-b border-gray-200 pb-6">
             <div>

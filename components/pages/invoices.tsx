@@ -56,6 +56,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   const [paymentInvoice, setPaymentInvoice] = React.useState<Invoice | null>(null)
   const [paymentMethod, setPaymentMethod] = React.useState("cash")
   const [paymentAmount, setPaymentAmount] = React.useState("")
+  const [paymentType, setPaymentType] = React.useState("full")
 
   const handleDelete = async (id: string) => {
     if (!confirm("Voulez-vous vraiment supprimer cette facture ?")) return
@@ -204,18 +205,6 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
             <DownloadCloud className="w-4 h-4" />
             Export CSV
           </Button>
-          <Button
-            onClick={() => {
-              toast.info(
-                "Conformément aux normes comptables gabonaises (DGI), une facture commerciale doit obligatoirement être issue de la mutation d'un devis/proforma validé. Veuillez convertir un devis dans l'onglet 'Devis'.",
-                { duration: 6000 }
-              );
-            }}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-          >
-            <Plus className="w-4 h-4" />
-            Nouvelle facture
-          </Button>
         </div>
       </div>
 
@@ -266,7 +255,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-muted-foreground">
+                          <Button variant="ghost" size="icon" className="text-muted-foreground" aria-label="Plus d'options">
                             <MoreVertical className="w-5 h-5" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -287,7 +276,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           </DropdownMenuItem>
                           {invoice.status !== 'PAID' && (
                             <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
-                              <CheckCircle2 className="w-4 h-4" /> Enregistrer un paiement
+                              <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                             </DropdownMenuItem>
                           )}
                           <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
@@ -317,8 +306,14 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
             <h2 className="font-bold">Aperçu avant impression</h2>
-            <Button onClick={() => window.print()} className="gap-2">
-              <Printer className="w-4 h-4" /> Imprimer
+            <Button onClick={() => {
+                if ((window as any).electron) {
+                    (window as any).electron.print();
+                } else {
+                    window.print();
+                }
+            }} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Printer className="w-4 h-4" /> Lancer l'impression
             </Button>
           </div>
           {selectedInvoice && <PrintableDocument document={selectedInvoice} type="facture" />}
@@ -328,16 +323,33 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-foreground">Confirmer le paiement</DialogTitle>
+            <DialogTitle className="text-foreground">Confirmer le règlement</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Montant versé (XAF)</Label>
+                <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Type de règlement</Label>
+                <Select value={paymentType} onValueChange={(val) => {
+                    setPaymentType(val);
+                    if (val === 'full' && paymentInvoice) setPaymentAmount(paymentInvoice.total.toString());
+                }}>
+                    <SelectTrigger className="bg-secondary border-border text-foreground h-11">
+                        <SelectValue placeholder="Sélectionner..." />
+                    </SelectTrigger>
+                    <SelectContent className="bg-card border-border">
+                        <SelectItem value="full">Solde complet (100%)</SelectItem>
+                        <SelectItem value="acompte">Acompte / Partiel</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="payment-amount" className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Montant encaissé (XAF)</Label>
               <Input
+                id="payment-amount"
                 type="number"
                 value={paymentAmount}
                 onChange={(e) => setPaymentAmount(e.target.value)}
                 className="bg-secondary border-border h-11 font-bold text-lg"
+                disabled={paymentType === 'full'}
               />
             </div>
             <div className="space-y-2">
@@ -347,10 +359,9 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                   <SelectValue placeholder="Sélectionner..." />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                  <SelectItem value="airtel">Airtel Money</SelectItem>
-                  <SelectItem value="moov">Moov Africa</SelectItem>
+                    <SelectItem value="cash">Espèces / Cash</SelectItem>
+                    <SelectItem value="cheque">Chèques</SelectItem>
                   <SelectItem value="virement">Virement Bancaire</SelectItem>
-                  <SelectItem value="cash">Espèces / Cash</SelectItem>
                 </SelectContent>
               </Select>
             </div>

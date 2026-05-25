@@ -16,6 +16,7 @@ import {
   RefreshCw,
   Wallet,
   Activity,
+  Trash2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -188,7 +189,7 @@ export function PaymentsPage() {
               </div>
               <div className="flex-1">
                 <p className="text-muted-foreground text-sm">Sorties (Dépenses)</p>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">0 XAF</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(0)}</p>
               </div>
             </div>
           </CardContent>
@@ -264,7 +265,7 @@ export function PaymentsPage() {
                   <YAxis
                     stroke={chartColors.axis}
                     tick={{ fill: chartColors.tick, fontSize: 12 }}
-                    tickFormatter={(value) => formatShortCurrency(value)}
+                    tickFormatter={(value) => formatCurrency(value)}
                     axisLine={false}
                     tickLine={false}
                   />

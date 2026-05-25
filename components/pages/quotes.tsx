@@ -16,6 +16,7 @@ import {
   AlertCircle,
   XCircle,
   Eye,
+  Edit2,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -216,7 +217,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground" aria-label="Plus d'options">
                             <MoreVertical className="w-5 h-5" />
                           </Button>
                         </DropdownMenuTrigger>
@@ -235,18 +236,21 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                             <Download className="w-4 h-4" />
                             {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
                           </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={() => {
-                            toast.info("Fonctionnalité de duplication : Pour modifier ou dupliquer un devis, veuillez créer un nouveau devis.");
-                          }}>
-                            <Copy className="w-4 h-4" /> Dupliquer
-                          </DropdownMenuItem>
                           {quote.status !== 'invoiced' && (
+                            <>
+                            <DropdownMenuItem
+                              className="gap-2"
+                              onClick={() => onCreateQuote()}
+                            >
+                              <Edit2 className="w-4 h-4" /> Modifier le devis
+                            </DropdownMenuItem>
                             <DropdownMenuItem
                               className="gap-2 text-primary font-medium"
                               onClick={() => handleConvertToInvoice(quote.id)}
                             >
                               <CheckCircle2 className="w-4 h-4" /> Convertir en facture
                             </DropdownMenuItem>
+                            </>
                           )}
                           <div className="h-px bg-border my-1" />
                           <DropdownMenuItem
@@ -295,8 +299,14 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
         <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
             <h2 className="font-bold text-black">Aperçu avant impression</h2>
-            <Button onClick={() => window.print()} className="gap-2">
-              <Printer className="w-4 h-4" /> Imprimer
+            <Button onClick={() => {
+                if ((window as any).electron) {
+                    (window as any).electron.print();
+                } else {
+                    window.print();
+                }
+            }} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Printer className="w-4 h-4" /> Lancer l'impression
             </Button>
           </div>
           {selectedQuote && <PrintableDocument document={selectedQuote} type="devis" />}
