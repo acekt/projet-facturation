@@ -42,7 +42,7 @@ interface QuotesPageProps {
 }
 
 export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
-  const { quotes, setQuotes, settings } = useStore()
+  const { quotes, setQuotes, settings, user } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [previewQuote, setPreviewQuote] = React.useState<Quote | null>(null)
   const [selectedQuote, setSelectedQuote] = React.useState<Quote | null>(null)
@@ -159,13 +159,15 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Devis</h1>
           <p className="text-muted-foreground mt-1">Gérez vos propositions commerciales et proformas</p>
         </div>
-        <Button
-          onClick={onCreateQuote}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-        >
-          <Plus className="w-4 h-4" />
-          Nouveau devis
-        </Button>
+        {user?.role === 'user' && (
+          <Button
+            onClick={onCreateQuote}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
+          >
+            <Plus className="w-4 h-4" />
+            Nouveau devis
+          </Button>
+        )}
       </div>
 
       <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
@@ -236,7 +238,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                             <Download className="w-4 h-4" />
                             {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
                           </DropdownMenuItem>
-                          {quote.status !== 'invoiced' && (
+                          {quote.status !== 'invoiced' && user?.role === 'user' && (
                             <>
                             <DropdownMenuItem
                               className="gap-2"

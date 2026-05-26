@@ -14,7 +14,13 @@ export async function GET() {
                'quantity', quantity,
                'unitPrice', unitPrice,
                'total', total
-             )) FROM invoice_items WHERE invoiceId = i.id) as items
+             )) FROM invoice_items WHERE invoiceId = i.id) as items,
+             (SELECT json_group_array(json_object(
+               'id', id,
+               'amount', amount,
+               'paymentMethod', paymentMethod,
+               'date', date
+             )) FROM payments WHERE invoiceId = i.id) as payments
       FROM invoices i
       WHERE i.deletedAt IS NULL
       ORDER BY createdAt DESC
@@ -22,7 +28,8 @@ export async function GET() {
 
     const formattedInvoices = invoices.map((i: any) => ({
       ...i,
-      items: JSON.parse(i.items)
+      items: JSON.parse(i.items),
+      payments: JSON.parse(i.payments)
     }));
 
     return NextResponse.json(formattedInvoices);

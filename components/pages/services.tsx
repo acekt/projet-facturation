@@ -27,6 +27,7 @@ import { formatCurrency } from "@/lib/utils"
 export function ServicesPage() {
   const services = useStore((state) => state.services)
   const setServices = useStore((state) => state.setServices)
+  const user = useStore((state) => state.user)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
   const [editingService, setEditingService] = React.useState<any | null>(null)
@@ -89,17 +90,19 @@ export function ServicesPage() {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Catalogue de Services</h1>
           <p className="text-muted-foreground mt-1">Gérez vos prestations et tarifs standardisés</p>
         </div>
-        <Button
-          onClick={() => {
-            setEditingService(null)
-            setFormData({ name: "", description: "", category: "", unitPrice: 0 })
-            setIsDialogOpen(true)
-          }}
-          className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-        >
-          <Plus className="w-4 h-4" />
-          Nouveau service
-        </Button>
+        {user?.role === 'user' && (
+          <Button
+            onClick={() => {
+              setEditingService(null)
+              setFormData({ name: "", description: "", category: "", unitPrice: 0 })
+              setIsDialogOpen(true)
+            }}
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
+          >
+            <Plus className="w-4 h-4" />
+            Nouveau service
+          </Button>
+        )}
       </div>
 
       <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
@@ -136,19 +139,21 @@ export function ServicesPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40 bg-card border-border">
-                        <DropdownMenuItem className="gap-2" onClick={() => {
-                            setEditingService(service)
-                            setFormData({
-                                name: service.name,
-                                description: service.description || "",
-                                category: service.category || "",
-                                unitPrice: service.unitPrice
-                            })
-                            setIsDialogOpen(true)
-                        }}>
-                          <Edit2 className="w-4 h-4" /> Modifier
-                        </DropdownMenuItem>
-                        {useStore.getState().user?.role === 'admin' && (
+                        {user?.role === 'user' && (
+                          <DropdownMenuItem className="gap-2" onClick={() => {
+                              setEditingService(service)
+                              setFormData({
+                                  name: service.name,
+                                  description: service.description || "",
+                                  category: service.category || "",
+                                  unitPrice: service.unitPrice
+                              })
+                              setIsDialogOpen(true)
+                          }}>
+                            <Edit2 className="w-4 h-4" /> Modifier
+                          </DropdownMenuItem>
+                        )}
+                        {user?.role === 'admin' && (
                           <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(service.id)}>
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>

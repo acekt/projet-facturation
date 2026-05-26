@@ -27,7 +27,7 @@ import { DownloadCloud } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 
 export function ClientsPage() {
-  const { clients, setClients, invoices } = useStore()
+  const { clients, setClients, invoices, user } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false)
   const [newClient, setNewClient] = React.useState({
@@ -109,6 +109,7 @@ export function ClientsPage() {
             <DownloadCloud className="w-4 h-4" />
             Export CSV
           </Button>
+          {user?.role === 'user' && (
           <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
             <DialogTrigger asChild>
               <Button className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20">
@@ -170,6 +171,7 @@ export function ClientsPage() {
             </form>
             </DialogContent>
           </Dialog>
+          )}
         </div>
       </div>
 
@@ -209,10 +211,12 @@ export function ClientsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40 bg-card border-border">
-                        <DropdownMenuItem className="gap-2">
-                          <Edit2 className="w-4 h-4" /> Modifier
-                        </DropdownMenuItem>
-                        {useStore.getState().user?.role === 'admin' && (
+                        {user?.role === 'user' && (
+                          <DropdownMenuItem className="gap-2">
+                            <Edit2 className="w-4 h-4" /> Modifier
+                          </DropdownMenuItem>
+                        )}
+                        {user?.role === 'admin' && (
                           <DropdownMenuItem
                             className="gap-2 text-destructive focus:text-destructive"
                             onClick={() => handleDelete(client.id)}

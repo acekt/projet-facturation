@@ -40,6 +40,7 @@ export function PaymentsPage() {
   const payments = useStore((state) => state.payments)
   const setPayments = useStore((state) => state.setPayments)
   const setInvoices = useStore((state) => state.setInvoices)
+  const user = useStore((state) => state.user)
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -350,7 +351,7 @@ export function PaymentsPage() {
                         <p className="font-bold text-emerald-600 dark:text-emerald-400">+{formatCurrency(p.amount)}</p>
                         <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-600 border-emerald-600/20">Encaissé</Badge>
                         </div>
-                      {useStore.getState().user?.role === 'admin' && (
+                      {user?.role === 'admin' && (
                         <Button
                           variant="ghost"
                           size="icon"

@@ -61,6 +61,7 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
   })
   const [discount, setDiscount] = React.useState(0)
   const [notes, setNotes] = React.useState(settings.mentionsLegales || "")
+  const [isDraft, setIsDraft] = React.useState(true)
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
@@ -201,11 +202,11 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
           </Button>
           <Button
             className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-            onClick={() => handleSave('sent')}
+            onClick={() => handleSave(isDraft ? 'draft' : 'sent')}
             disabled={isSubmitting}
           >
-            <Send className="w-4 h-4" />
-            Générer le devis
+            {isDraft ? <Save className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+            {isDraft ? "Enregistrer" : "Finaliser & Envoyer"}
           </Button>
         </div>
       </div>
@@ -476,14 +477,21 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
                 </div>
               </div>
 
-              <div className="pt-4">
+                <div className="pt-4 space-y-3">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border border-border">
+                    <div className="space-y-0.5">
+                        <Label className="text-sm font-medium">Mode Brouillon</Label>
+                        <p className="text-[10px] text-muted-foreground">Le devis pourra être modifié plus tard</p>
+                    </div>
+                    <Switch checked={isDraft} onCheckedChange={setIsDraft} />
+                  </div>
                 <Button
-                  onClick={() => handleSave('sent')}
+                    onClick={() => handleSave(isDraft ? 'draft' : 'sent')}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12"
                   disabled={isSubmitting}
                 >
-                  <Calculator className="w-4 h-4 mr-2" />
-                  Générer le Devis
+                    {isDraft ? <Save className="w-4 h-4 mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                    {isDraft ? "Enregistrer en brouillon" : "Générer le Devis"}
                 </Button>
               </div>
             </CardContent>

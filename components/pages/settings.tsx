@@ -143,6 +143,16 @@ export function SettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="legal-form">Forme Juridique</Label>
+                    <Input
+                      id="legal-form"
+                      value={formData.legalForm}
+                      onChange={(e) => setFormData({ ...formData, legalForm: e.target.value })}
+                      className="bg-secondary/50 border-border"
+                      placeholder="Ex: SARL, SA..."
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label>Email contact</Label>
                     <Input
                       value={formData.email}
@@ -158,18 +168,18 @@ export function SettingsPage() {
                       className="bg-secondary/50 border-border"
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>NIF</Label>
-                    <Input
-                      value={formData.nif}
-                      onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
-                      className="bg-secondary/50 border-border"
-                    />
-                  </div>
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>NIF</Label>
+                  <Input
+                    value={formData.nif}
+                    onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
+                    className="bg-secondary/50 border-border"
+                  />
+                </div>
                 <div className="space-y-2">
                   <Label>RCCM</Label>
                   <Input
@@ -210,7 +220,9 @@ export function SettingsPage() {
                     value={formData.tvaRate}
                     onChange={(e) => setFormData({ ...formData, tvaRate: parseFloat(e.target.value) || 0 })}
                     className="bg-secondary/50 border-border"
+                    disabled
                   />
+                  <p className="text-[10px] text-muted-foreground italic">Fixé à 18% (DGI)</p>
                 </div>
                 <div className="space-y-2">
                   <Label>CSS (%)</Label>
@@ -222,7 +234,7 @@ export function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Code Entreprise (Format 001/XX/2025)</Label>
+                  <Label>Code Entreprise (Ex: GM)</Label>
                   <Input
                     value={formData.companyCode}
                     onChange={(e) => setFormData({ ...formData, companyCode: e.target.value })}
@@ -231,14 +243,43 @@ export function SettingsPage() {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border">
+                    <div className="space-y-0.5">
+                    <Label className="text-base">Délai de paiement (jours)</Label>
+                    <p className="text-xs text-muted-foreground">Échéance par défaut des factures</p>
+                    </div>
+                    <Input
+                        type="number"
+                        className="w-20 bg-card"
+                        value={formData.defaultDueDateDays}
+                        onChange={(e) => setFormData({ ...formData, defaultDueDateDays: parseInt(e.target.value) || 0 })}
+                    />
+                </div>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border">
+                    <div className="space-y-0.5">
+                    <Label className="text-base">Validité devis (jours)</Label>
+                    <p className="text-xs text-muted-foreground">Délai d'offre par défaut</p>
+                    </div>
+                    <Input
+                        type="number"
+                        className="w-20 bg-card"
+                        value={formData.defaultQuoteValidity}
+                        onChange={(e) => setFormData({ ...formData, defaultQuoteValidity: parseInt(e.target.value) || 0 })}
+                    />
+                </div>
+              </div>
+
               <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border">
                 <div className="space-y-0.5">
-                  <Label className="text-base">Délai de paiement réglementaire</Label>
-                  <p className="text-sm text-muted-foreground">Appliquer automatiquement l'échéance légale de {formData.defaultDueDateDays} jours</p>
+                  <Label className="text-base">Session locale (minutes)</Label>
+                  <p className="text-sm text-muted-foreground">Délai d'inactivité avant déconnexion automatique</p>
                 </div>
-                <Switch
-                  checked={useRegulatedDueDate}
-                  onCheckedChange={setUseRegulatedDueDate}
+                <Input
+                        type="number"
+                        className="w-20 bg-card"
+                        value={formData.sessionTimeout}
+                        onChange={(e) => setFormData({ ...formData, sessionTimeout: parseInt(e.target.value) || 0 })}
                 />
               </div>
 
@@ -268,7 +309,7 @@ export function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Banque (Gabon)</Label>
+                  <Label>Banque</Label>
                   <Input
                     value={formData.bankName}
                     onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
@@ -277,7 +318,31 @@ export function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>IBAN / RIB</Label>
+                  <Label>Agence</Label>
+                  <Input
+                    value={formData.bankAgency}
+                    onChange={(e) => setFormData({ ...formData, bankAgency: e.target.value })}
+                    className="bg-secondary/50 border-border"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>N° de compte</Label>
+                  <Input
+                    value={formData.accountNumber}
+                    onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
+                    className="bg-secondary/50 border-border font-mono"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Code SWIFT / BIC</Label>
+                  <Input
+                    value={formData.swiftCode}
+                    onChange={(e) => setFormData({ ...formData, swiftCode: e.target.value })}
+                    className="bg-secondary/50 border-border font-mono"
+                  />
+                </div>
+                <div className="col-span-2 space-y-2">
+                  <Label>IBAN</Label>
                   <Input
                     value={formData.iban}
                     onChange={(e) => setFormData({ ...formData, iban: e.target.value })}

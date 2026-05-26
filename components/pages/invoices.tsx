@@ -46,7 +46,7 @@ interface InvoicesPageProps {
 }
 
 export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPageProps) {
-  const { invoices, setInvoices, setPayments, settings, setCreditNotes } = useStore()
+  const { invoices, setInvoices, setPayments, settings, setCreditNotes, user } = useStore()
 
   const [searchQuery, setSearchQuery] = React.useState("")
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
@@ -280,15 +280,17 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                             <Download className="w-4 h-4" />
                             {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
                           </DropdownMenuItem>
-                          {invoice.status !== 'PAID' && (
+                          {invoice.status !== 'PAID' && user?.role === 'user' && (
                             <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
                               <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                             </DropdownMenuItem>
                           )}
-                          <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
-                            <RefreshCcw className="w-4 h-4" /> Créer un avoir
-                          </DropdownMenuItem>
-                          {useStore.getState().user?.role === 'admin' && (
+                          {user?.role === 'user' && (
+                            <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
+                              <RefreshCcw className="w-4 h-4" /> Créer un avoir
+                            </DropdownMenuItem>
+                          )}
+                          {user?.role === 'admin' && (
                             <>
                             <div className="h-px bg-border my-1" />
                             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>

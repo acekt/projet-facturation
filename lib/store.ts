@@ -75,6 +75,7 @@ export interface Service {
   description: string;
   category: string;
   unitPrice: number;
+  isActive: boolean;
 }
 
 export interface CreditNote {
@@ -96,16 +97,22 @@ export interface CreditNote {
 
 export interface Settings {
   companyName: string;
+  legalForm: string;
   nif: string;
   rccm: string;
   address: string;
   email: string;
   phone: string;
   bankName: string;
+  bankAgency: string;
+  accountNumber: string;
+  swiftCode: string;
   iban: string;
   tvaRate: number;
   cssRate: number;
   defaultDueDateDays: number;
+  defaultQuoteValidity: number;
+  sessionTimeout: number;
   invoicePrefix: string;
   quotePrefix: string;
   companyCode: string;
@@ -140,16 +147,22 @@ interface AppState {
 
 const DEFAULT_SETTINGS: Settings = {
   companyName: "Global Maintenance",
+  legalForm: "SARL",
   nif: "XXXXXXXXXX",
   rccm: "GA-LBV-XX-XXXX-XXXX",
   address: "123 Boulevard Triomphal, Libreville, Gabon",
   email: "facturation@globalm.ga",
   phone: "+241 01 76 XX XX",
   bankName: "BGFI Bank",
+  bankAgency: "Libreville",
+  accountNumber: "XXXXXXXXXX",
+  swiftCode: "BGFIGAXX",
   iban: "GAXX XXXX XXXX XXXX XXXX",
   tvaRate: 18,
   cssRate: 1,
   defaultDueDateDays: 30,
+  defaultQuoteValidity: 30,
+  sessionTimeout: 30,
   invoicePrefix: "FAC",
   quotePrefix: "DEV",
   companyCode: "GM",

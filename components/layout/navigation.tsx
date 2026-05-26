@@ -47,7 +47,7 @@ const navItems = [
   { id: "services", label: "Services", icon: Briefcase, adminOnly: false },
   { id: "payments", label: "Paiements", icon: CreditCard, adminOnly: false },
   { id: "credit-notes", label: "Avoirs", icon: RefreshCcw, adminOnly: false },
-  { id: "settings", label: "Parametres", icon: Settings, adminOnly: true },
+  { id: "settings", label: "Paramètres", icon: Settings, adminOnly: true },
   { id: "audit", label: "Journal Audit", icon: FileText, adminOnly: true },
 ]
 
@@ -102,24 +102,26 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
         </div>
 
         {/* Quick Actions */}
-        <div className="p-3 space-y-2">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button
-                variant="outline"
-                className={cn(
-                  "w-full border-primary/20 hover:bg-primary hover:text-primary-foreground text-primary transition-all shadow-sm",
-                  collapsed ? "justify-center px-2" : "justify-start gap-2"
-                )}
-                onClick={() => onPageChange("new-quote")}
-              >
-                <Plus className="w-4 h-4" />
-                {!collapsed && <span className="text-sm font-medium">Nouveau devis</span>}
-              </Button>
-            </TooltipTrigger>
-            {collapsed && <TooltipContent side="right">Nouveau devis</TooltipContent>}
-          </Tooltip>
-        </div>
+        {user?.role === 'user' && (
+          <div className="p-3 space-y-2">
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full border-primary/20 hover:bg-primary hover:text-primary-foreground text-primary transition-all shadow-sm",
+                    collapsed ? "justify-center px-2" : "justify-start gap-2"
+                  )}
+                  onClick={() => onPageChange("new-quote")}
+                >
+                  <Plus className="w-4 h-4" />
+                  {!collapsed && <span className="text-sm font-medium">Nouveau devis</span>}
+                </Button>
+              </TooltipTrigger>
+              {collapsed && <TooltipContent side="right">Nouveau devis</TooltipContent>}
+            </Tooltip>
+          </div>
+        )}
 
         {/* Navigation */}
         <nav className="flex-1 px-3 py-2 space-y-1">

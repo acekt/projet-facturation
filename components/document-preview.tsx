@@ -22,6 +22,7 @@ interface DocumentPreviewProps {
     cssAmount: number
     total: number
     notes?: string
+  payments?: any[]
   }
 }
 
@@ -56,6 +57,7 @@ export function DocumentPreview({ open, onOpenChange, type, data }: DocumentPrev
               <p className="text-sm text-gray-500 mt-1">{settings.address}</p>
               <p className="text-sm text-gray-500">{settings.email} • {settings.phone}</p>
               <p className="text-sm text-gray-500 mt-2">NIF: {settings.nif} | RCCM: {settings.rccm}</p>
+              {settings.legalForm && <p className="text-[10px] text-gray-400 uppercase font-bold">{settings.legalForm}</p>}
             </div>
           </div>
 
@@ -130,9 +132,24 @@ export function DocumentPreview({ open, onOpenChange, type, data }: DocumentPrev
                 <span className="font-medium">{formatCurrency(data.cssAmount)}</span>
               </div>
               <div className="flex justify-between text-lg font-bold text-primary pt-1">
-                <span>NET À PAYER</span>
+                <span>{data.payments && data.payments.length > 0 ? "TOTAL TTC" : "NET À PAYER"}</span>
                 <span>{formatCurrency(data.total)}</span>
               </div>
+
+              {data.payments && data.payments.length > 0 && (
+                <>
+                  <div className="flex justify-between text-sm text-emerald-600 pt-2 border-t border-gray-100">
+                    <span>Montant déjà réglé</span>
+                    <span className="font-medium">
+                        -{formatCurrency(data.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-lg font-bold text-red-600 pt-1 border-t-2 border-gray-900">
+                    <span>RESTE À PAYER</span>
+                    <span>{formatCurrency(data.total - data.payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0))}</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -140,8 +157,13 @@ export function DocumentPreview({ open, onOpenChange, type, data }: DocumentPrev
           <div className="pt-8 space-y-4">
             <div className="bg-gray-50 p-4 rounded-lg">
               <p className="text-sm font-semibold uppercase text-gray-600 mb-1">Informations de Paiement</p>
-              <p className="text-sm text-gray-600">Banque: <span className="font-medium text-gray-900">{settings.bankName}</span></p>
-              <p className="text-sm text-gray-600">IBAN: <span className="font-medium text-gray-900">{settings.iban}</span></p>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-1">
+                <p className="text-xs text-gray-600">Banque: <span className="font-medium text-gray-900">{settings.bankName}</span></p>
+                <p className="text-xs text-gray-600">Agence: <span className="font-medium text-gray-900">{settings.bankAgency}</span></p>
+                <p className="text-xs text-gray-600">N° Compte: <span className="font-medium text-gray-900">{settings.accountNumber}</span></p>
+                <p className="text-xs text-gray-600">SWIFT: <span className="font-medium text-gray-900">{settings.swiftCode}</span></p>
+                <p className="text-xs text-gray-600 col-span-2 mt-1">IBAN: <span className="font-medium text-gray-900 font-mono">{settings.iban}</span></p>
+              </div>
             </div>
 
             {data.notes && (
