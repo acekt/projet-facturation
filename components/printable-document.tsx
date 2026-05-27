@@ -36,6 +36,7 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
           )}
           <div>
             <h1 className="text-xl font-bold uppercase text-gray-800">{settings.companyName}</h1>
+            {settings.legalForm && <p className="text-[8pt] font-bold text-gray-500">{settings.legalForm}</p>}
           </div>
         </div>
         <div className="text-right">
@@ -99,17 +100,35 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
             <p className="font-bold">{formatCurrency(document.tvaAmount).replace(' XAF', '')}</p>
         </div>
         <div className="p-2 text-center">
-            <p className="text-[8pt] font-bold uppercase mb-1">NET A PAYER</p>
+            <p className="text-[8pt] font-bold uppercase mb-1">{(document as any).payments?.length > 0 ? "TOTAL TTC" : "NET A PAYER"}</p>
             <p className="font-bold">{formatCurrency(document.total).replace(' XAF', '')}</p>
         </div>
       </div>
 
+      {(document as any).payments?.length > 0 && (
+          <div className="flex justify-end mb-8">
+              <div className="w-1/3 border border-black p-4 space-y-2">
+                <div className="flex justify-between text-xs">
+                    <span>Montant déjà réglé:</span>
+                    <span className="font-bold">{formatCurrency((document as any).payments.reduce((sum: number, p: any) => sum + p.amount, 0)).replace(' XAF', '')}</span>
+                </div>
+                <div className="flex justify-between text-sm border-t border-black pt-2 text-red-600">
+                    <span className="font-bold">RESTE À PAYER:</span>
+                    <span className="font-black underline">{formatCurrency(document.total - (document as any).payments.reduce((sum: number, p: any) => sum + p.amount, 0)).replace(' XAF', '')}</span>
+                </div>
+              </div>
+          </div>
+      )}
+
       {/* Bank Info */}
       <div className="mb-12 p-4 border-2 border-dashed border-gray-200 rounded-xl">
         <h3 className="text-xs font-bold uppercase text-gray-500 mb-2">Coordonnées pour Virement Bancaire</h3>
-        <div className="grid grid-cols-2 text-sm">
-          <p><span className="font-semibold">Banque:</span> {settings.bankName}</p>
-          <p><span className="font-semibold">IBAN/RIB:</span> {settings.iban}</p>
+        <div className="grid grid-cols-2 text-[9pt] gap-y-1">
+          <p><span className="font-bold">Banque:</span> {settings.bankName}</p>
+          <p><span className="font-bold">Agence:</span> {settings.bankAgency}</p>
+          <p><span className="font-bold">N° de Compte:</span> {settings.accountNumber}</p>
+          <p><span className="font-bold">SWIFT/BIC:</span> {settings.swiftCode}</p>
+          <p className="col-span-2"><span className="font-bold">IBAN:</span> <span className="font-mono">{settings.iban}</span></p>
         </div>
       </div>
 
@@ -127,11 +146,11 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
       </div>
 
       {/* Footer */}
-      <div className="mt-auto text-center border-t border-gray-200 pt-4 text-xs">
-          <p className="font-bold text-sm mb-1">{settings.companyName.toUpperCase()}</p>
-          <p>Tél: {settings.phone} | BP: {settings.address.split(',')[1]?.trim() || "111 LIBREVILLE"}</p>
+      <div className="mt-auto text-center border-t border-gray-200 pt-4 text-[8pt] text-gray-600">
+          <p className="font-bold text-black text-sm mb-1">{settings.companyName.toUpperCase()}</p>
+          <p>Tél: {settings.phone} | Adresse: {settings.address}</p>
           <p>Email: {settings.email}</p>
-          <p>NIF: {settings.nif} / RCCM: {settings.rccm} | Compte BGFI N°: {settings.iban}</p>
+          <p>NIF: {settings.nif} / RCCM: {settings.rccm} {settings.bankName ? `| ${settings.bankName} N°: ${settings.accountNumber || settings.iban}` : ''}</p>
       </div>
 
       <style jsx global>{`

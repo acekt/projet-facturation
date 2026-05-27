@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import db from '@/lib/db';
 import { quoteSchema } from '@/lib/validations';
 import crypto from 'crypto';
 import { logAudit } from '@/lib/api/audit';
+import { getNextNumber } from '@/lib/api/numbering';
 
 export async function GET() {
   try {
@@ -33,6 +35,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    // RBAC Check
+    const sessionId = (await cookies()).get('auth_session')?.value;
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(sessionId) as any;
+    if (!user || user.role !== 'user') {
+      return NextResponse.json({ error: 'Unauthorized: Only Users can create quotes' }, { status: 403 });
+    }
+
     const body = await request.json();
 
     const validation = quoteSchema.safeParse(body);
@@ -41,14 +50,10 @@ export async function POST(request: Request) {
     }
 
     const data = validation.data;
-    const settings = db.prepare('SELECT quotePrefix, companyCode FROM settings WHERE id = 1').get() as any;
-    const year = new Date().getFullYear();
     const id = crypto.randomUUID();
 
     const insertQuote = db.transaction((quoteData) => {
-      db.prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = 'quote'").run();
-      const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'quote'").get() as any;
-      const number = `${String(sequence.current_value).padStart(3, '0')}/${settings.companyCode}/${year}`;
+      const number = getNextNumber('quote');
 
       db.prepare(`
         INSERT INTO quotes (

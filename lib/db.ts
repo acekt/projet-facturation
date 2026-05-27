@@ -12,16 +12,22 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     companyName TEXT,
+    legalForm TEXT,
     nif TEXT,
     rccm TEXT,
     address TEXT,
     email TEXT,
     phone TEXT,
     bankName TEXT,
+    bankAgency TEXT,
+    accountNumber TEXT,
+    swiftCode TEXT,
     iban TEXT,
     tvaRate REAL,
     cssRate REAL,
     defaultDueDateDays INTEGER,
+    defaultQuoteValidity INTEGER,
+    sessionTimeout INTEGER,
     invoicePrefix TEXT,
     quotePrefix TEXT,
     companyCode TEXT,
@@ -114,11 +120,12 @@ db.exec(`
 
   CREATE TABLE IF NOT EXISTS sequences (
     name TEXT PRIMARY KEY,
-    current_value INTEGER DEFAULT 0
+    current_value INTEGER DEFAULT 0,
+    last_year INTEGER
   );
 
-  INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('quote', 0);
-  INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('invoice', 0);
+  INSERT OR IGNORE INTO sequences (name, current_value, last_year) VALUES ('quote', 0, strftime('%Y', 'now'));
+  INSERT OR IGNORE INTO sequences (name, current_value, last_year) VALUES ('invoice', 0, strftime('%Y', 'now'));
 
   CREATE TABLE IF NOT EXISTS services (
     id TEXT PRIMARY KEY,
@@ -179,20 +186,29 @@ db.exec(`
   );
 `);
 
-// Migrate settings table to add missing logo column if upgrading database schema
+// Migrate settings table to add missing columns if upgrading database schema
 try {
   const settingsColumns = db.prepare("PRAGMA table_info(settings)").all() as Array<{ name: string }>;
-  const hasLogoColumn = settingsColumns.some(col => col.name === 'logo');
-  if (!hasLogoColumn) {
-    db.prepare("ALTER TABLE settings ADD COLUMN logo TEXT").run();
-    console.log("✓ Database Migration: Added missing 'logo' column to 'settings' table successfully.");
-  }
-  const hasCompanyCode = settingsColumns.some(col => col.name === 'companyCode');
-  if (!hasCompanyCode) {
-    db.prepare("ALTER TABLE settings ADD COLUMN companyCode TEXT").run();
-    db.prepare("UPDATE settings SET companyCode = 'GM' WHERE id = 1").run();
-    console.log("✓ Database Migration: Added missing 'companyCode' column to 'settings' table successfully.");
-  }
+  const requiredColumns = [
+    { name: 'logo', type: 'TEXT' },
+    { name: 'companyCode', type: 'TEXT', default: 'GM' },
+    { name: 'legalForm', type: 'TEXT', default: 'SARL' },
+    { name: 'bankAgency', type: 'TEXT' },
+    { name: 'accountNumber', type: 'TEXT' },
+    { name: 'swiftCode', type: 'TEXT' },
+    { name: 'defaultQuoteValidity', type: 'INTEGER', default: '30' },
+    { name: 'sessionTimeout', type: 'INTEGER', default: '30' }
+  ];
+
+  requiredColumns.forEach(col => {
+    const exists = settingsColumns.some(c => c.name === col.name);
+    if (!exists) {
+      let query = `ALTER TABLE settings ADD COLUMN ${col.name} ${col.type}`;
+      if (col.default) query += ` DEFAULT '${col.default}'`;
+      db.prepare(query).run();
+      console.log(`✓ Database Migration: Added missing '${col.name}' column to 'settings' table.`);
+    }
+  });
 } catch (migrationError) {
   console.error("❌ Database Migration Error during settings migration:", migrationError);
 }
@@ -221,18 +237,34 @@ try {
   console.error("❌ Database Migration Error adding 'deletedAt' column to invoices:", migrationError);
 }
 
+// Migrate sequences table to add missing last_year column
+try {
+  const sequencesColumns = db.prepare("PRAGMA table_info(sequences)").all() as Array<{ name: string }>;
+  const hasLastYear = sequencesColumns.some(col => col.name === 'last_year');
+  if (!hasLastYear) {
+    db.prepare("ALTER TABLE sequences ADD COLUMN last_year INTEGER").run();
+    db.prepare("UPDATE sequences SET last_year = strftime('%Y', 'now')").run();
+    console.log("✓ Database Migration: Added missing 'last_year' column to 'sequences' table successfully.");
+  }
+} catch (migrationError) {
+  console.error("❌ Database Migration Error adding 'last_year' column to sequences:", migrationError);
+}
+
 // Insert default settings if not exists
 const row = db.prepare('SELECT COUNT(*) as count FROM settings').get() as { count: number };
 if (row.count === 0) {
   db.prepare(`
     INSERT INTO settings (
-      id, companyName, nif, rccm, address, email, phone, mentionsLegales, bankName, iban,
-      tvaRate, cssRate, defaultDueDateDays, invoicePrefix, quotePrefix, companyCode
+      id, companyName, legalForm, nif, rccm, address, email, phone, mentionsLegales,
+      bankName, bankAgency, accountNumber, swiftCode, iban,
+      tvaRate, cssRate, defaultDueDateDays, defaultQuoteValidity, sessionTimeout,
+      invoicePrefix, quotePrefix, companyCode
     ) VALUES (
-      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `).run(
     "Global Maintenance",
+    "SARL",
     "XXXXXXXXXX",
     "GA-LBV-XX-XXXX-XXXX",
     "123 Boulevard Triomphal, Libreville, Gabon",
@@ -240,9 +272,14 @@ if (row.count === 0) {
     "+241 01 76 XX XX",
     "Merci de votre confiance.",
     "BGFI Bank",
+    "Libreville",
+    "XXXXXXXXXX",
+    "BGFIGAXX",
     "GAXX XXXX XXXX XXXX XXXX",
     18,
     1,
+    30,
+    30,
     30,
     "FAC",
     "DEV",

@@ -10,22 +10,25 @@
 - **Numérotation :** Système de séquençage intelligent par année (`001/CODE/2025`) avec réinitialisation automatique au 1er Janvier.
 
 ### Ce qui est "Fragile" / Points de Vigilance
-- **Absence de Logs d'Audit :** Bien que les suppressions soient "douces" (soft delete), il n'y a pas de trace des modifications manuelles sur les devis ou des changements de statuts.
-- **Gestion des Erreurs :** Les retours API sont parfois génériques (`Erreur serveur`). Une gestion plus fine des exceptions permettrait une meilleure résilience.
-- **Concurrence :** SQLite est excellent en lecture, mais une montée en charge avec plusieurs utilisateurs modifiant des données simultanément pourrait atteindre les limites de verrouillage de la base.
-- **Sauvegarde :** Aucun mécanisme d'export de la base de données ou de sauvegarde automatisée n'est actuellement en place.
+- **Concurrence :** SQLite est excellent en lecture, mais une montée en charge avec plusieurs utilisateurs distants modifiant des données simultanément pourrait atteindre les limites de verrouillage (non critique pour un usage monoposte).
+- **Sauvegarde :** Aucun mécanisme de sauvegarde automatisée sur le Cloud ou support externe n'est actuellement en place.
 
 ---
 
-## 2. Le "Missing Link" (Priorités Techniques & Métier)
+## 2. Réalisations Post-Audit (Stabilisation & Conformité)
 
-### Priorité Haute (Immédiat)
-1. **Export Comptable :** Génération de fichiers CSV/Excel formatés pour les logiciels de comptabilité (ex: Sage, Odoo) pour faciliter le travail du comptable en fin de mois.
-2. **Tableau des Flux de Trésorerie :** Vue consolidée des encaissements réels (via la table `payments`) vs CA facturé.
+### 2.1 Sécurité & Gouvernance (RBAC)
+- **Étanchéité des Rôles :** Séparation stricte entre le compte `Admin` (paramétrage, audit) et le compte `User` (opérations métier). L'Admin ne peut pas polluer les données comptables.
+- **Journal d'Audit :** Implémentation d'une table `audit_logs` traçant chaque création, modification et suppression (qui, quoi, quand).
 
-### Priorité Moyenne (Évolution)
-3. **Gestion des Acomptes :** Possibilité de lier plusieurs factures d'acompte à un seul devis.
-4. **Logs d'Audit Applicatifs :** Table `audit_logs` pour enregistrer qui a fait quoi et quand (crucial pour la conformité).
+### 2.2 Intelligence Métier & Fiscalité
+- **Cascade DGI Certifiée :** Calcul HT -> CSS 1% -> Base TVA -> TVA 18% -> TTC arrondi à l'entier.
+- **Gestion des Acomptes :** Possibilité d'encaisser des règlements partiels avec mise à jour du statut (Acompte / Payée) et affichage du "Reste à payer" sur les factures.
+- **Numérotation Annuelle :** Réinitialisation automatique du séquençage au 1er Janvier (`001/.../2026`).
+
+### 2.3 UX & Export
+- **Export Comptable :** Bouton d'export CSV intégré sur les listes Clients et Factures.
+- **Prévisualisation Réaliste :** Templates PDF et styles d'impression optimisés pour les formats A4 (DGI standard).
 
 ---
 
