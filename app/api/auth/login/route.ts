@@ -3,8 +3,10 @@ import db from '@/lib/db';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
+const SALT = 'letoile-gabon-2026';
+
 function hashPassword(password: string) {
-  return crypto.createHash('sha256').update(password).digest('hex');
+  return crypto.createHash('sha256').update(password + SALT).digest('hex');
 }
 
 export async function POST(request: Request) {
