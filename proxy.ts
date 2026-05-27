@@ -11,6 +11,12 @@ export default function proxy(request: NextRequest) {
   const isPublicAsset = pathname.startsWith('/_next') || pathname.includes('.')
 
   if (!session && !isLoginPage && !isApiAuth && !isPublicAsset) {
+    if (pathname.startsWith('/api')) {
+      return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), {
+        status: 401,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
     return NextResponse.redirect(new URL('/login', request.url))
   }
 
