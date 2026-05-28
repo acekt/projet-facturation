@@ -31,12 +31,24 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // RULE 5: Enforce Soft Delete to maintain fiscal audit trail
-    const result = db.prepare("UPDATE invoices SET deletedAt = datetime('now'), status = 'cancelled' WHERE id = ?").run(id);
-
-    if (result.changes === 0) {
+    const invoice = db.prepare('SELECT quoteId FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id) as { quoteId: string | null } | undefined;
+    
+    if (!invoice) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
+
+    const transaction = db.transaction(() => {
+      // RULE 5: Enforce Soft Delete to maintain fiscal audit trail
+      db.prepare("UPDATE invoices SET deletedAt = datetime('now'), status = 'cancelled' WHERE id = ?").run(id);
+
+      if (invoice.quoteId) {
+        // Libérer le devis pour une nouvelle génération
+        db.prepare("UPDATE quotes SET status = 'sent' WHERE id = ?").run(invoice.quoteId);
+      }
+    });
+
+    transaction();
+    
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete invoice' }, { status: 500 });
