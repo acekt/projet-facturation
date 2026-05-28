@@ -18,6 +18,8 @@ import {
   Bell,
   Command,
   LogOut,
+  BarChart3,
+  ScrollText,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useStore } from "@/lib/store"
@@ -40,15 +42,22 @@ interface SidebarProps {
 }
 
 const navItems = [
-  { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, adminOnly: false },
-  { id: "quotes", label: "Devis", icon: FileText, adminOnly: false },
-  { id: "invoices", label: "Factures", icon: FileText, adminOnly: false },
-  { id: "clients", label: "Clients", icon: Users, adminOnly: false },
-  { id: "services", label: "Services", icon: Briefcase, adminOnly: false },
-  { id: "payments", label: "Paiements", icon: CreditCard, adminOnly: false },
-  { id: "credit-notes", label: "Avoirs", icon: RefreshCcw, adminOnly: false },
-  { id: "settings", label: "Paramètres", icon: Settings, adminOnly: true },
-  { id: "audit", label: "Journal Audit", icon: FileText, adminOnly: true },
+  // Groupe Système
+  { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ['admin', 'user'], group: 'system' },
+  { id: "analytics", label: "Statistiques", icon: BarChart3, roles: ['admin', 'user'], group: 'system' },
+  { id: "users", label: "Utilisateurs", icon: Users, roles: ['admin'], group: 'system' },
+  { id: "audit", label: "Journal Audit", icon: ScrollText, roles: ['admin'], group: 'system' },
+
+  // Groupe Opérations
+  { id: "clients", label: "Clients", icon: Users, roles: ['user'], group: 'business' },
+  { id: "quotes", label: "Devis", icon: FileText, roles: ['user'], group: 'business' },
+  { id: "invoices", label: "Factures", icon: FileText, roles: ['user'], group: 'business' },
+  { id: "services", label: "Services", icon: Briefcase, roles: ['user'], group: 'business' },
+  { id: "payments", label: "Paiements", icon: CreditCard, roles: ['user'], group: 'business' },
+  { id: "credit-notes", label: "Avoirs", icon: RefreshCcw, roles: ['user'], group: 'business' },
+
+  // Bas de Sidebar
+  { id: "settings", label: "Paramètres", icon: Settings, roles: ['admin', 'user'], group: 'bottom' },
 ]
 
 export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: SidebarProps) {
@@ -57,14 +66,61 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
   const router = useRouter()
 
   const handleLogout = async () => {
-    // Ideally we should have an api/auth/logout route to clear the cookie
-    // For now, we'll just clear the store and redirect, the cookie will be stale or we can try to clear it client-side if not httpOnly
     try {
         await fetch('/api/auth/logout', { method: 'POST' });
     } catch (e) {}
     setUser(null);
     router.push('/login');
   };
+
+  const filteredItems = navItems.filter(item => item.roles.includes(user?.role || 'user'));
+  const systemItems = filteredItems.filter(i => i.group === 'system');
+  const businessItems = filteredItems.filter(i => i.group === 'business');
+  const bottomItems = filteredItems.filter(i => i.group === 'bottom');
+
+  const renderItem = (item: typeof navItems[0]) => (
+    <Tooltip key={item.id}>
+      <TooltipTrigger asChild>
+        <motion.button
+          onClick={() => onPageChange(item.id)}
+          className={cn(
+            "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all relative group",
+            currentPage === item.id
+              ? "bg-primary/10 text-primary"
+              : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+            collapsed && "justify-center px-2"
+          )}
+          whileHover={{ scale: 1.01 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          {currentPage === item.id && (
+            <motion.div
+              layoutId="activeNav"
+              className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full"
+              transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+            />
+          )}
+          <item.icon className={cn(
+            "w-5 h-5 relative z-10 transition-colors",
+            currentPage === item.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
+          )} />
+          <AnimatePresence>
+            {!collapsed && (
+              <motion.span
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="relative z-10"
+              >
+                {item.label}
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.button>
+      </TooltipTrigger>
+      {collapsed && <TooltipContent side="right">{item.label}</TooltipContent>}
+    </Tooltip>
+  );
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -74,8 +130,8 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
         className="fixed left-0 top-0 h-screen bg-card border-r border-border flex flex-col z-50 shadow-sm"
       >
-        {/* Logo */}
-        <div className="h-16 flex items-center px-4 border-b border-border">
+        {/* Logo Section */}
+        <div className="h-20 flex flex-col justify-center px-4 border-b border-border">
           <motion.div
             className="flex items-center gap-3"
             animate={{ justifyContent: collapsed ? "center" : "flex-start" }}
@@ -83,27 +139,23 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
               <Star className="w-5 h-5 text-white" />
             </div>
-            <AnimatePresence>
-              {!collapsed && (
-                <motion.div
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  exit={{ opacity: 0, x: -10 }}
-                  className="flex flex-col"
-                >
-                  <span className="font-bold text-foreground tracking-tight text-lg">
-                    Global M.
-                  </span>
-                  <span className="text-xs text-muted-foreground -mt-0.5">Gestion PME</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {!collapsed && (
+              <div className="flex flex-col">
+                <span className="font-bold text-foreground tracking-tight text-lg">L'ÉTOILE</span>
+                <span className={cn(
+                    "text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded w-fit",
+                    user?.role === 'admin' ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"
+                )}>
+                    {user?.role === 'admin' ? "Administration" : "Opérations"}
+                </span>
+              </div>
+            )}
           </motion.div>
         </div>
 
-        {/* Quick Actions */}
+        {/* Action Button (User Only) */}
         {user?.role === 'user' && (
-          <div className="p-3 space-y-2">
+          <div className="p-3">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -123,90 +175,67 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
           </div>
         )}
 
-        {/* Navigation */}
-        <nav className="flex-1 px-3 py-2 space-y-1">
-          {navItems
-            .filter(item => !item.adminOnly || user?.role === 'admin')
-            .map((item) => (
-            <Tooltip key={item.id}>
-              <TooltipTrigger asChild>
-                <motion.button
-                  onClick={() => onPageChange(item.id)}
-                  className={cn(
-                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all relative group",
-                    currentPage === item.id
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary",
-                    collapsed && "justify-center px-2"
-                  )}
-                  whileHover={{ scale: 1.01 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  {currentPage === item.id && (
-                    <motion.div
-                      layoutId="activeNav"
-                      className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 bg-primary rounded-r-full"
-                      transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                    />
-                  )}
-                  <item.icon className={cn(
-                    "w-5 h-5 relative z-10 transition-colors",
-                    currentPage === item.id ? "text-primary" : "text-muted-foreground group-hover:text-foreground"
-                  )} />
-                  <AnimatePresence>
-                    {!collapsed && (
-                      <motion.span
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        exit={{ opacity: 0, x: -10 }}
-                        className="relative z-10"
-                      >
-                        {item.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
-                </motion.button>
-              </TooltipTrigger>
-              {collapsed && <TooltipContent side="right">{item.label}</TooltipContent>}
-            </Tooltip>
-          ))}
-        </nav>
+        {/* Navigation Content */}
+        <div className="flex-1 overflow-y-auto px-3 py-2 space-y-6">
+          {/* Groupe Système */}
+          <div className="space-y-1">
+            {!collapsed && <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Système</p>}
+            {systemItems.map(renderItem)}
+          </div>
 
-        {/* User Section */}
-        <div className="p-3 border-t border-border space-y-1">
+          {/* Groupe Opérations */}
+          {businessItems.length > 0 && (
+            <div className="space-y-1">
+              {!collapsed && <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Opérations</p>}
+              {businessItems.map(renderItem)}
+            </div>
+          )}
+        </div>
+
+        {/* Bottom Section */}
+        <div className="p-3 border-t border-border space-y-3">
+          <div className="space-y-1">
+            {bottomItems.map(renderItem)}
+          </div>
+
           <div className={cn(
-            "flex items-center gap-3 p-2 rounded-xl hover:bg-secondary transition-colors",
+            "flex items-center gap-3 p-2 rounded-xl bg-secondary/50",
             collapsed && "justify-center"
           )}>
-            <Avatar className="w-9 h-9 ring-2 ring-border">
+            <Avatar className="w-9 h-9 ring-2 ring-background">
               <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs font-medium">
                 {user?.name?.substring(0, 2).toUpperCase() || 'AD'}
               </AvatarFallback>
             </Avatar>
             {!collapsed && (
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground truncate">{user?.name || 'Administrateur'}</p>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">{user?.role === 'admin' ? 'Accès Total' : 'Accès Limité'}</p>
+                <p className="text-xs font-bold text-foreground truncate">{user?.name || 'Utilisateur'}</p>
+                <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors mt-0.5"
+                >
+                    <LogOut className="w-3 h-3" />
+                    Déconnexion
+                </button>
               </div>
             )}
-          </div>
-          <Button
-            variant="ghost"
-            className={cn(
-                "w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all",
-                collapsed ? "justify-center px-2" : "justify-start gap-2"
+            {collapsed && (
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" onClick={handleLogout} className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                            <LogOut className="h-4 w-4" />
+                        </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">Déconnexion</TooltipContent>
+                </Tooltip>
             )}
-            onClick={handleLogout}
-          >
-            <LogOut className="w-4 h-4" />
-            {!collapsed && <span className="text-sm font-medium">Déconnexion</span>}
-          </Button>
+          </div>
         </div>
 
         {/* Toggle Button */}
         <button
           onClick={onToggle}
-          className="absolute -right-3 top-20 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shadow-sm"
+          className="absolute -right-3 top-24 w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors shadow-sm z-50"
         >
           {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </button>

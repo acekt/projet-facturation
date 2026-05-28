@@ -126,8 +126,52 @@ interface User {
   role: 'admin' | 'user';
 }
 
+interface RolePermissions {
+  canViewDashboard: boolean;
+  canViewAnalytics: boolean;
+  canViewSettings: boolean;
+  canViewAuditLog: boolean;
+  canViewUsers: boolean;
+  canManageUsers: boolean;
+  canViewCustomers: boolean;
+  canViewQuotes: boolean;
+  canCreateQuote: boolean;
+  canViewInvoices: boolean;
+  canViewServices: boolean;
+}
+
+const ADMIN_PERMISSIONS: RolePermissions = {
+  canViewDashboard: true,
+  canViewAnalytics: true,
+  canViewSettings: true,
+  canViewAuditLog: true,
+  canViewUsers: true,
+  canManageUsers: true,
+  canViewCustomers: false,
+  canViewQuotes: false,
+  canCreateQuote: false,
+  canViewInvoices: false,
+  canViewServices: false,
+};
+
+const USER_PERMISSIONS: RolePermissions = {
+  canViewDashboard: true,
+  canViewAnalytics: true,
+  canViewSettings: true,
+  canViewAuditLog: false,
+  canViewUsers: false,
+  canManageUsers: false,
+  canViewCustomers: true,
+  canViewQuotes: true,
+  canCreateQuote: true,
+  canViewInvoices: true,
+  canViewServices: true,
+};
+
 interface AppState {
   user: User | null;
+  permissions: RolePermissions | null;
+  isAuthenticated: boolean;
   clients: Client[];
   quotes: Quote[];
   invoices: Invoice[];
@@ -168,22 +212,43 @@ const DEFAULT_SETTINGS: Settings = {
   companyCode: "GM",
 };
 
-export const useStore = create<AppState>()((set) => ({
-  user: null,
-  clients: [],
-  quotes: [],
-  invoices: [],
-  services: [],
-  payments: [],
-  creditNotes: [],
-  settings: DEFAULT_SETTINGS,
+export const useStore = create<AppState>()(
+  persist(
+    (set) => ({
+      user: null,
+      permissions: null,
+      isAuthenticated: false,
+      clients: [],
+      quotes: [],
+      invoices: [],
+      services: [],
+      payments: [],
+      creditNotes: [],
+      settings: DEFAULT_SETTINGS,
 
-  setUser: (user) => set({ user }),
-  setClients: (clients) => set({ clients }),
-  setQuotes: (quotes) => set({ quotes }),
-  setInvoices: (invoices) => set({ invoices }),
-  setServices: (services) => set({ services }),
-  setPayments: (payments) => set({ payments }),
-  setCreditNotes: (creditNotes) => set({ creditNotes }),
-  setSettings: (settings) => set({ settings }),
-}));
+      setUser: (user) => {
+        const permissions = user
+          ? (user.role === 'admin' ? ADMIN_PERMISSIONS : USER_PERMISSIONS)
+          : null;
+        set({ user, permissions, isAuthenticated: !!user });
+      },
+      setClients: (clients) => set({ clients }),
+      setQuotes: (quotes) => set({ quotes }),
+      setInvoices: (invoices) => set({ invoices }),
+      setServices: (services) => set({ services }),
+      setPayments: (payments) => set({ payments }),
+      setCreditNotes: (creditNotes) => set({ creditNotes }),
+      setSettings: (settings) => set({ settings }),
+    }),
+    {
+      name: 'letoile-storage',
+      storage: createJSONStorage(() => sessionStorage),
+      partialize: (state) => ({
+        user: state.user,
+        permissions: state.permissions,
+        isAuthenticated: state.isAuthenticated,
+        settings: state.settings
+      }),
+    }
+  )
+);

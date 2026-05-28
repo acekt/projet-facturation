@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
-import { Save, Building2, FileText, Percent, Mail, Phone, MapPin, Landmark, Upload, X } from "lucide-react"
+import { Save, Building2, FileText, Percent, Mail, Phone, MapPin, Landmark, Upload, X, ShieldAlert } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,15 +14,18 @@ import { useStore } from "@/lib/store"
 import { toast } from "sonner"
 
 export function SettingsPage() {
-  const { settings, setSettings } = useStore()
+  const { settings, setSettings, user } = useStore()
   const [formData, setFormData] = React.useState(settings)
   const [isSaving, setIsSaving] = React.useState(false)
+
+  const isAdmin = user?.role === 'admin'
 
   React.useEffect(() => {
     setFormData(settings)
   }, [settings])
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!isAdmin) return;
     const file = e.target.files?.[0]
     if (file) {
       if (file.size > 1024 * 1024) { // 1MB limit
@@ -38,6 +41,7 @@ export function SettingsPage() {
   }
 
   const handleSave = async () => {
+    if (!isAdmin) return;
     setIsSaving(true)
     try {
       const response = await fetch('/api/settings', {
@@ -58,8 +62,6 @@ export function SettingsPage() {
     }
   }
 
-  const [useRegulatedDueDate, setUseRegulatedDueDate] = React.useState(true)
-
   return (
     <div className="space-y-6 max-w-4xl">
       <div className="flex items-center justify-between">
@@ -67,14 +69,21 @@ export function SettingsPage() {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Paramètres</h1>
           <p className="text-muted-foreground mt-1">Configurez votre entreprise et vos préférences de facturation</p>
         </div>
-        <Button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 h-11 px-6 shadow-lg shadow-primary/20"
-          >
-            <Save className="w-4 h-4" />
-            {isSaving ? "En cours..." : "Enregistrer"}
-        </Button>
+        {isAdmin ? (
+            <Button
+                onClick={handleSave}
+                disabled={isSaving}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 h-11 px-6 shadow-lg shadow-primary/20"
+            >
+                <Save className="w-4 h-4" />
+                {isSaving ? "En cours..." : "Enregistrer"}
+            </Button>
+        ) : (
+            <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50">
+                <ShieldAlert className="w-4 h-4" />
+                <span className="text-sm font-medium">Lecture seule (Opérateur)</span>
+            </div>
+        )}
       </div>
 
       <Tabs defaultValue="company" className="w-full">
@@ -102,33 +111,37 @@ export function SettingsPage() {
                       {formData.logo ? (
                         <>
                           <img src={formData.logo} alt="Logo" className="w-full h-full object-contain p-2" />
-                          <button
-                            onClick={() => setFormData({ ...formData, logo: "" })}
-                            className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
-                          >
-                            <X className="w-6 h-6" />
-                          </button>
+                          {isAdmin && (
+                            <button
+                                onClick={() => setFormData({ ...formData, logo: "" })}
+                                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
+                            >
+                                <X className="w-6 h-6" />
+                            </button>
+                          )}
                         </>
                       ) : (
                         <Upload className="w-8 h-8 text-muted-foreground" />
                       )}
                     </div>
-                    <div className="space-y-2">
-                      <Input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoUpload}
-                        className="hidden"
-                        id="logo-upload"
-                      />
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => document.getElementById('logo-upload')?.click()}
-                      >
-                        {formData.logo ? "Changer" : "Choisir"}
-                      </Button>
-                    </div>
+                    {isAdmin && (
+                        <div className="space-y-2">
+                            <Input
+                                type="file"
+                                accept="image/*"
+                                onChange={handleLogoUpload}
+                                className="hidden"
+                                id="logo-upload"
+                            />
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => document.getElementById('logo-upload')?.click()}
+                            >
+                                {formData.logo ? "Changer" : "Choisir"}
+                            </Button>
+                        </div>
+                    )}
                   </div>
                 </div>
 
@@ -140,6 +153,7 @@ export function SettingsPage() {
                       value={formData.companyName}
                       onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                       className="bg-secondary/50 border-border"
+                      disabled={!isAdmin}
                     />
                   </div>
                   <div className="space-y-2">
@@ -150,6 +164,7 @@ export function SettingsPage() {
                       onChange={(e) => setFormData({ ...formData, legalForm: e.target.value })}
                       className="bg-secondary/50 border-border"
                       placeholder="Ex: SARL, SA..."
+                      disabled={!isAdmin}
                     />
                   </div>
                   <div className="space-y-2">
@@ -158,6 +173,7 @@ export function SettingsPage() {
                       value={formData.email}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="bg-secondary/50 border-border"
+                      disabled={!isAdmin}
                     />
                   </div>
                   <div className="space-y-2">
@@ -166,6 +182,7 @@ export function SettingsPage() {
                       value={formData.phone || ""}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="bg-secondary/50 border-border"
+                      disabled={!isAdmin}
                     />
                   </div>
                 </div>
@@ -178,6 +195,7 @@ export function SettingsPage() {
                     value={formData.nif}
                     onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
                     className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div className="space-y-2">
@@ -186,6 +204,7 @@ export function SettingsPage() {
                     value={formData.rccm}
                     onChange={(e) => setFormData({ ...formData, rccm: e.target.value })}
                     className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div className="space-y-2">
@@ -195,6 +214,7 @@ export function SettingsPage() {
                     value={formData.address}
                     onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                     className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
                   />
                 </div>
               </div>
@@ -231,6 +251,7 @@ export function SettingsPage() {
                     value={formData.cssRate}
                     onChange={(e) => setFormData({ ...formData, cssRate: parseFloat(e.target.value) || 0 })}
                     className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div className="space-y-2">
@@ -239,6 +260,7 @@ export function SettingsPage() {
                     value={formData.companyCode}
                     onChange={(e) => setFormData({ ...formData, companyCode: e.target.value })}
                     className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
                   />
                 </div>
               </div>
@@ -254,6 +276,7 @@ export function SettingsPage() {
                         className="w-20 bg-card"
                         value={formData.defaultDueDateDays}
                         onChange={(e) => setFormData({ ...formData, defaultDueDateDays: parseInt(e.target.value) || 0 })}
+                        disabled={!isAdmin}
                     />
                 </div>
                 <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border">
@@ -266,6 +289,7 @@ export function SettingsPage() {
                         className="w-20 bg-card"
                         value={formData.defaultQuoteValidity}
                         onChange={(e) => setFormData({ ...formData, defaultQuoteValidity: parseInt(e.target.value) || 0 })}
+                        disabled={!isAdmin}
                     />
                 </div>
               </div>
@@ -280,6 +304,7 @@ export function SettingsPage() {
                         className="w-20 bg-card"
                         value={formData.sessionTimeout}
                         onChange={(e) => setFormData({ ...formData, sessionTimeout: parseInt(e.target.value) || 0 })}
+                        disabled={!isAdmin}
                 />
               </div>
 
@@ -291,6 +316,7 @@ export function SettingsPage() {
                   onChange={(e) => setFormData({ ...formData, mentionsLegales: e.target.value })}
                   placeholder="Ex: Conditions générales de vente..."
                   className="bg-secondary/50 border-border min-h-[120px]"
+                  disabled={!isAdmin}
                 />
               </div>
             </CardContent>
@@ -315,6 +341,7 @@ export function SettingsPage() {
                     onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
                     className="bg-secondary/50 border-border"
                     placeholder="Ex: BGFI Bank, BICIG..."
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div className="space-y-2">
@@ -323,6 +350,7 @@ export function SettingsPage() {
                     value={formData.bankAgency}
                     onChange={(e) => setFormData({ ...formData, bankAgency: e.target.value })}
                     className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div className="space-y-2">
@@ -331,6 +359,7 @@ export function SettingsPage() {
                     value={formData.accountNumber}
                     onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
                     className="bg-secondary/50 border-border font-mono"
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div className="space-y-2">
@@ -339,6 +368,7 @@ export function SettingsPage() {
                     value={formData.swiftCode}
                     onChange={(e) => setFormData({ ...formData, swiftCode: e.target.value })}
                     className="bg-secondary/50 border-border font-mono"
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div className="col-span-2 space-y-2">
@@ -347,6 +377,7 @@ export function SettingsPage() {
                     value={formData.iban}
                     onChange={(e) => setFormData({ ...formData, iban: e.target.value })}
                     className="bg-secondary/50 border-border font-mono"
+                    disabled={!isAdmin}
                   />
                 </div>
               </div>
