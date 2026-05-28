@@ -355,7 +355,7 @@ export function Dashboard() {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {paymentMethodData.map((entry, index) => (
+                      {paymentMethodData.map((entry: any, index: number) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -372,7 +372,7 @@ export function Dashboard() {
                 </ResponsiveContainer>
               </div>
               <div className="space-y-3 mt-4">
-                {paymentMethodData.map((method) => (
+                {paymentMethodData.map((method: any) => (
                   <div key={method.name} className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary/50 transition-colors">
                     <div className="flex items-center gap-3">
                       <div 
@@ -465,7 +465,7 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {activityTimeline.map((activity, index) => (
+                {activityTimeline.map((activity: any, index: number) => (
                   <motion.div
                     key={activity.id}
                     initial={{ opacity: 0, y: 10 }}

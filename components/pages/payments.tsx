@@ -34,6 +34,7 @@ import {
 
 import { useStore } from "@/lib/store"
 import { formatCurrency, formatShortCurrency } from "@/lib/utils"
+import { toast } from "sonner"
 
 export function PaymentsPage() {
   const invoices = useStore((state) => state.invoices)
