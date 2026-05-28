@@ -319,7 +319,7 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
             <View style={styles.colTotal}><Text style={styles.tableHeaderText}>Total (HT)</Text></View>
           </View>
 
-          {document.items.map((item: any, index: number) => (
+          {document.items.map((item, index) => (
             <View key={index} style={styles.tableRow}>
               <View style={styles.colDescription}><Text>{item.description}</Text></View>
               <View style={styles.colQty}><Text>{item.quantity}</Text></View>
