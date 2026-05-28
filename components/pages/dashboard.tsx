@@ -36,10 +36,12 @@ import {
 
 import { useStore } from "@/lib/store"
 import { formatCurrency, formatShortCurrency } from "@/lib/utils"
+import { DocumentPreview } from "@/components/document-preview"
 
 const getStatusBadge = (status: string) => {
   switch (status) {
     case "PAID":
+    case "paid":
       return (
         <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20">
           <CheckCircle className="w-3 h-3 mr-1" />
@@ -54,6 +56,7 @@ const getStatusBadge = (status: string) => {
         </Badge>
       )
     case "UNPAID":
+    case "pending":
       return (
         <Badge className="bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20 hover:bg-amber-500/20">
           <Clock className="w-3 h-3 mr-1" />
@@ -124,11 +127,19 @@ function StatCard({ title, value, trend, trendUp, icon: Icon, iconBg, iconColor,
   )
 }
 
-export function Dashboard() {
+interface DashboardProps {
+  onNavigate?: (page: string) => void
+}
+
+export function Dashboard({ onNavigate }: DashboardProps) {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
   const [dashboardData, setDashboardData] = React.useState<any>(null)
   const [isLoading, setIsLoading] = React.useState(true)
+  const { user } = useStore()
+
+  const [previewOpen, setPreviewOpen] = React.useState(false)
+  const [previewData, setPreviewData] = React.useState<any>(null)
 
   const fetchMetrics = React.useCallback(async (range = 'month') => {
     try {
@@ -179,6 +190,27 @@ export function Dashboard() {
     tooltipBg: isDark ? "rgba(10, 10, 10, 0.95)" : "rgba(255, 255, 255, 0.98)",
     tooltipBorder: isDark ? "rgba(255,255,255,0.1)" : "rgba(0,0,0,0.1)",
     tooltipText: isDark ? "#ffffff" : "#0a0a0a",
+  }
+
+  const handleSeeAll = () => {
+    if (user?.role === 'admin') {
+      onNavigate?.("analytics")
+    } else {
+      onNavigate?.("invoices")
+    }
+  }
+
+  const handlePreview = async (invoice: any) => {
+    try {
+        const res = await fetch(`/api/invoices/${invoice.id}`)
+        if (res.ok) {
+            const data = await res.json()
+            setPreviewData(data)
+            setPreviewOpen(true)
+        }
+    } catch (e) {
+        toast.error("Erreur lors du chargement de l'aperçu")
+    }
   }
 
   return (
@@ -355,7 +387,7 @@ export function Dashboard() {
                       paddingAngle={5}
                       dataKey="value"
                     >
-                      {paymentMethodData.map((entry: any, index: number) => (
+                      {paymentMethodData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Pie>
@@ -372,7 +404,7 @@ export function Dashboard() {
                 </ResponsiveContainer>
               </div>
               <div className="space-y-3 mt-4">
-                {paymentMethodData.map((method: any) => (
+                {paymentMethodData.map((method) => (
                   <div key={method.name} className="flex items-center justify-between p-2 rounded-lg hover:bg-secondary/50 transition-colors">
                     <div className="flex items-center gap-3">
                       <div 
@@ -406,7 +438,12 @@ export function Dashboard() {
                     <p className="text-sm text-muted-foreground">{recentInvoices.length} dernières factures</p>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" className="text-primary hover:text-primary hover:bg-primary/10">
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-primary hover:text-primary hover:bg-primary/10"
+                    onClick={handleSeeAll}
+                >
                   Voir tout
                   <ArrowUpRight className="w-4 h-4 ml-1" />
                 </Button>
@@ -421,6 +458,7 @@ export function Dashboard() {
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.08 }}
                     className="group flex items-center justify-between p-3 rounded-xl hover:bg-secondary/50 transition-all cursor-pointer"
+                    onClick={() => handlePreview(invoice)}
                   >
                     <div className="flex items-center gap-4">
                       <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center group-hover:bg-primary/10 transition-colors">
@@ -465,7 +503,7 @@ export function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {activityTimeline.map((activity: any, index: number) => (
+                {activityTimeline.map((activity, index) => (
                   <motion.div
                     key={activity.id}
                     initial={{ opacity: 0, y: 10 }}
@@ -495,6 +533,15 @@ export function Dashboard() {
           </Card>
         </motion.div>
       </div>
+
+      {previewData && (
+        <DocumentPreview
+          open={previewOpen}
+          onOpenChange={setPreviewOpen}
+          type="Invoice"
+          data={previewData}
+        />
+      )}
     </motion.div>
   )
 }

@@ -42,9 +42,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
+  onEditInvoice: (id: string) => void
 }
 
-export function InvoicesPage({ onCreateInvoice }: InvoicesPageProps) {
+export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPageProps) {
   const { invoices, setInvoices, setPayments, settings, setCreditNotes, user } = useStore()
 
   const [searchQuery, setSearchQuery] = React.useState("")

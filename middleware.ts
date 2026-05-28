@@ -1,35 +1,64 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+// In Next.js Edge Runtime, we use the Web Crypto API (SubtleCrypto)
+// because node:crypto and Buffer/atob might be limited or restricted.
+
 const SESSION_SECRET = 'letoile-secret-key-2026-signing'
 
-// Version compatible Edge Runtime utilisant l'API Web Crypto standard
-export async function verifySignature(cookieValue: string) {
+// Helper to convert string to ArrayBuffer
+function str2ab(str: string) {
+  const buf = new ArrayBuffer(str.length);
+  const bufView = new Uint8Array(buf);
+  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return buf;
+}
+
+// Helper to convert ArrayBuffer to Base64
+function ab2base64(buf: ArrayBuffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buf);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+async function verifySignature(data: string, signature: string) {
+  try {
+    const key = await crypto.subtle.importKey(
+      'raw',
+      str2ab(SESSION_SECRET),
+      { name: 'HMAC', hash: 'SHA-256' },
+      false,
+      ['verify']
+    );
+
+    const sigBuf = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
+    const dataBuf = str2ab(data);
+
+    return await crypto.subtle.verify(
+      'HMAC',
+      key,
+      sigBuf,
+      dataBuf
+    );
+  } catch (e) {
+    return false;
+  }
+}
+
+async function getSession(cookieValue: string) {
   const [data, signature] = cookieValue.split('.')
   if (!data || !signature) return null
 
+  const isValid = await verifySignature(data, signature)
+  if (!isValid) return null
+
   try {
-    // 1. Re-calcul de la signature attendue en Web Crypto HMAC SHA-256
-    const encoder = new TextEncoder()
-    const secretKeyData = encoder.encode(SESSION_SECRET)
-    const sourceData = encoder.encode(data)
-
-    const key = await crypto.subtle.importKey(
-      "raw",
-      secretKeyData,
-      { name: "HMAC", hash: "SHA-256" },
-      false,
-      ["sign"]
-    )
-
-    const signatureBuffer = await crypto.subtle.sign("HMAC", key, sourceData)
-    
-    // Encodage en base64 standard équivalent à digest('base64')
-    const expectedSignature = btoa(String.fromCharCode(...new Uint8Array(signatureBuffer)))
-
-    if (signature !== expectedSignature) return null
-
-    // 2. Décodage des données (Remplacement de Buffer par atob standard)
     const decoded = atob(data)
     return JSON.parse(decoded)
   } catch (e) {
@@ -41,12 +70,12 @@ export async function middleware(request: NextRequest) {
   const sessionCookie = request.cookies.get('auth_session')
   const { pathname } = request.nextUrl
 
-  // Logique des routes protégées
+  // Protected routes logic
   const isLoginPage = pathname.startsWith('/login')
   const isApiAuth = pathname.startsWith('/api/auth')
   const isPublicAsset = pathname.startsWith('/_next') || pathname.includes('.')
 
-  // 1. Vérification de l'authentification de base
+  // 1. Check Authentication
   if (!sessionCookie && !isLoginPage && !isApiAuth && !isPublicAsset) {
     if (pathname.startsWith('/api')) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), {
@@ -61,9 +90,9 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.url))
   }
 
-  // 2. Application du RBAC avec vérification de la signature asynchrone
+  // 2. RBAC Enforcement
   if (sessionCookie) {
-    const session = await verifySignature(sessionCookie.value)
+    const session = await getSession(sessionCookie.value)
 
     if (!session) {
       const response = NextResponse.redirect(new URL('/login', request.url))
@@ -71,16 +100,16 @@ export async function middleware(request: NextRequest) {
       return response
     }
 
-    // Vérification de l'expiration du token
+    // Check expiration
     if (session.exp < Date.now()) {
       const response = NextResponse.redirect(new URL('/login', request.url))
       response.cookies.delete('auth_session')
       return response
     }
 
-    const role = session.role?.toLowerCase() // Sécurité sur la casse (admin / user)
+    const role = session.role
 
-    // Définition des modules métiers opérationnels
+    // Business routes
     const isBusinessRoute = pathname.startsWith('/quotes') ||
                             pathname.startsWith('/invoices') ||
                             pathname.startsWith('/clients') ||
@@ -91,16 +120,7 @@ export async function middleware(request: NextRequest) {
                           pathname.startsWith('/api/clients') ||
                           pathname.startsWith('/api/services')
 
-    // Définition des modules administratifs exclusifs
-    const isAdminOnlyRoute = pathname.startsWith('/audit') || 
-                             pathname.startsWith('/users') || 
-                             pathname.startsWith('/settings') // Paramètres rajoutés
-                             
-    const isAdminOnlyApi = pathname.startsWith('/api/audit-logs') || 
-                           pathname.startsWith('/api/users') || 
-                           pathname.startsWith('/api/settings')
-
-    // 🔒 RESTRICTIONS ADMIN : Interdiction d'accès aux modules métiers opérationnels
+    // Admin Restrictions
     if (role === 'admin') {
       if (isBusinessRoute) {
         return NextResponse.redirect(new URL('/?error=admin_restricted', request.url))
@@ -113,7 +133,10 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    // 🔒 RESTRICTIONS USER : Interdiction d'accès aux modules administratifs
+    // User Restrictions
+    const isAdminOnlyRoute = pathname.startsWith('/audit') || pathname.startsWith('/users')
+    const isAdminOnlyApi = pathname.startsWith('/api/audit-logs') || pathname.startsWith('/api/users')
+
     if (role === 'user') {
       if (isAdminOnlyRoute) {
         return NextResponse.redirect(new URL('/?error=user_restricted', request.url))
@@ -131,5 +154,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  matcher: ['/((?!api/auth|_next/static|_next/image|favicon.ico).*)'],
 }

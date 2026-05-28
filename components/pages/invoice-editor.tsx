@@ -194,7 +194,7 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
           </Button>
           <Button 
             className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-            onClick={() => handleSave('UNPAID')}
+            onClick={() => handleSave('pending')}
             disabled={isSubmitting}
           >
             <Send className="w-4 h-4" />
@@ -452,7 +452,7 @@ export function InvoiceEditor({ onBack }: InvoiceEditorProps) {
 
               <div className="pt-4">
                 <Button 
-                  onClick={() => handleSave('UNPAID')}
+                  onClick={() => handleSave('pending')}
                   className="w-full h-12"
                   disabled={isSubmitting}
                 >
