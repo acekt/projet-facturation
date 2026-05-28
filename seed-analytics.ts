@@ -17,7 +17,9 @@ function hashPassword(password: string) {
   return crypto.createHash('sha256').update(password + SALT).digest('hex');
 }
 
-// 1. Nettoyage complet
+// 1. Désactiver les clés étrangères pour le nettoyage
+db.pragma('foreign_keys = OFF');
+
 db.exec(`
     DELETE FROM audit_logs;
     DELETE FROM payments;
@@ -32,6 +34,9 @@ db.exec(`
     DELETE FROM users;
     DELETE FROM sequences;
 `);
+
+// Réactiver les clés étrangères
+db.pragma('foreign_keys = ON');
 
 // 2. Initialisation des séquences
 db.prepare("INSERT INTO sequences (name, current_value, last_year) VALUES ('quote', 0, 2026)").run();
@@ -48,7 +53,7 @@ db.prepare('INSERT INTO users (id, username, password, role, name) VALUES (?, ?,
     userId, 'user@letoile.ga', hashPassword('admin123'), 'user', 'Opérateur'
 );
 
-// 4. Catalogue de Services réalistes pour une PME de maintenance/services au Gabon
+// 4. Catalogue de Services
 const serviceCatalog = [
     { name: 'Maintenance Climatisation Split', category: 'Maintenance', price: 45000 },
     { name: 'Installation Électrique Tertiaire', category: 'Installation', price: 150000 },
@@ -88,22 +93,20 @@ years.forEach(year => {
     let yearlyInvSeq = 1;
 
     months.forEach(month => {
-        if (year === 2026 && month > 5) return; // Jusqu'à Mai 2026
+        if (year === 2026 && month > 5) return;
 
-        const docsPerMonth = Math.floor(Math.random() * 4) + 3; // 3-7 documents par mois
+        const docsPerMonth = Math.floor(Math.random() * 4) + 3;
 
         for (let i = 0; i < docsPerMonth; i++) {
             const client = clients[Math.floor(Math.random() * clients.length)];
             const day = Math.floor(Math.random() * 28) + 1;
             const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
 
-            // --- DEVIS ---
             const quoteId = randomUUID();
             const quoteNum = `${yearlyQuoteSeq.toString().padStart(3, '0')}/GM/${year}`;
             yearlyQuoteSeq++;
             quoteTotalSeq++;
 
-            // Sélectionner 1-3 services au hasard
             const numItems = Math.floor(Math.random() * 3) + 1;
             const selectedServices = [];
             let subtotal = 0;
@@ -134,12 +137,10 @@ years.forEach(year => {
                 );
             });
 
-            // Log d'audit pour le devis
             db.prepare(`INSERT INTO audit_logs (id, userId, userName, action, entityType, entityId, details, createdAt) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
                 randomUUID(), userId, 'Opérateur', 'Création Devis', 'quote', quoteId, `Numéro: ${quoteNum}`, dateStr + ' 09:00:00'
             );
 
-            // --- FACTURE (si invoqué) ---
             if (status === 'invoiced') {
                 const invId = randomUUID();
                 const invNum = `${yearlyInvSeq.toString().padStart(3, '0')}/GM/${year}`;
@@ -159,20 +160,17 @@ years.forEach(year => {
                     );
                 });
 
-                // Paiements
                 if (invStatus === 'paid') {
                     db.prepare(`INSERT INTO payments (id, invoiceId, amount, paymentMethod, date) VALUES (?, ?, ?, ?, ?)`).run(
                         randomUUID(), invId, total, (Math.random() > 0.3 ? 'virement' : 'cash'), dateStr
                     );
                 } else if (invStatus === 'pending' && Math.random() > 0.5) {
-                    // Partiellement payé
                     const acompte = Math.round(total * 0.4);
                     db.prepare(`INSERT INTO payments (id, invoiceId, amount, paymentMethod, date) VALUES (?, ?, ?, ?, ?)`).run(
                         randomUUID(), invId, acompte, 'virement', dateStr
                     );
                 }
 
-                // Avoirs (Credit Notes) : simuler 2-3 annulations sur toute la période
                 if (invStatus === 'paid' && Math.random() < 0.05) {
                     const cnId = randomUUID();
                     const cnNum = `AV-${invNum}`;
@@ -193,8 +191,5 @@ years.forEach(year => {
 });
 
 console.log(`✅ Simulation globale terminée !`);
-console.log(`- ${quoteTotalSeq} Devis injectés (Brouillons, Envoyés, Facturés, Refusés)`);
-console.log(`- ${invTotalSeq} Factures injectées (Payées, En attente, Annulées)`);
-console.log(`- ${clients.length} Clients dans le CRM`);
-console.log(`- ${serviceCatalog.length} Services dans le catalogue`);
-console.log(`- Journaux d'audit et paiements générés.`);
+console.log(`- ${quoteTotalSeq} Devis injectés`);
+console.log(`- ${invTotalSeq} Factures injectées`);

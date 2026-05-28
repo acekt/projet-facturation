@@ -4,9 +4,15 @@ import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
 const SALT = 'letoile-gabon-2026';
+const SESSION_SECRET = 'letoile-secret-key-2026-signing'; // Dans une vraie app, utiliser une variable d'env
 
 function hashPassword(password: string) {
   return crypto.createHash('sha256').update(password + SALT).digest('hex');
+}
+
+function signSession(data: string) {
+  const signature = crypto.createHmac('sha256', SESSION_SECRET).update(data).digest('base64');
+  return `${data}.${signature}`;
 }
 
 export async function POST(request: Request) {
@@ -14,14 +20,8 @@ export async function POST(request: Request) {
     const { username, password } = await request.json();
     const hashedPassword = hashPassword(password);
 
-    // In a real local desktop app, we might have a single admin user
-    // For this implementation, we check the 'users' table.
-    // If empty, the first login creates the admin.
-
     const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
-
     if (userCount.count === 0) {
-      // Create default admin on first attempt for local simplicity
       const id = crypto.randomUUID();
       db.prepare('INSERT INTO users (id, username, password, name, role) VALUES (?, ?, ?, ?, ?)')
         .run(id, username, hashedPassword, 'Administrateur', 'admin');
@@ -33,11 +33,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Identifiants invalides' }, { status: 401 });
     }
 
-    // Set a simple cookie for local session
-    (await cookies()).set('auth_session', user.id, {
+    // Session Data
+    const sessionData = JSON.stringify({
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      exp: Date.now() + (24 * 60 * 60 * 1000)
+    });
+
+    const base64Data = Buffer.from(sessionData).toString('base64');
+    const signedSession = signSession(base64Data);
+
+    (await cookies()).set('auth_session', signedSession, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24, // 24 hours
+      maxAge: 60 * 60 * 24,
       path: '/',
     });
 
