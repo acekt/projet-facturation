@@ -14,7 +14,6 @@ import { PaymentsPage } from "@/components/pages/payments"
 import { SettingsPage } from "@/components/pages/settings"
 import { CreditNotesPage } from "@/components/pages/credit-notes"
 import { AuditLogsPage } from "@/components/pages/audit-logs"
-import { AnalyticsPage } from "@/components/pages/analytics"
 import { UsersPage } from "@/components/pages/users"
 
 const pageVariants = {
@@ -47,8 +46,6 @@ export default function App() {
     switch (currentPage) {
       case "dashboard":
         return <Dashboard onNavigate={handlePageChange} />
-      case "analytics":
-        return <AnalyticsPage />
       case "users":
         return <UsersPage />
       case "quotes":

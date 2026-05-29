@@ -101,10 +101,6 @@ export function CommandMenu({ open, onOpenChange, onNavigate }: CommandMenuProps
             <span className="text-foreground">Tableau de bord</span>
           </CommandItem>
 
-          <CommandItem onSelect={() => handleSelect("analytics")} className="gap-3 py-2 cursor-pointer">
-            <BarChart3 className="w-4 h-4 text-muted-foreground" />
-            <span className="text-foreground">Statistiques</span>
-          </CommandItem>
 
           {isAdmin && (
             <>

@@ -37,6 +37,7 @@ export interface Quote {
   status: 'draft' | 'sent' | 'invoiced' | 'rejected';
   items: InvoiceItem[];
   notes?: string;
+  created_by?: string;
 }
 
 export interface Invoice {
@@ -58,6 +59,7 @@ export interface Invoice {
   items: InvoiceItem[];
   payments?: Payment[];
   notes?: string;
+  created_by?: string;
 }
 
 export interface Payment {
@@ -128,7 +130,6 @@ interface User {
 
 interface RolePermissions {
   canViewDashboard: boolean;
-  canViewAnalytics: boolean;
   canViewSettings: boolean;
   canViewAuditLog: boolean;
   canViewUsers: boolean;
@@ -138,11 +139,12 @@ interface RolePermissions {
   canCreateQuote: boolean;
   canViewInvoices: boolean;
   canViewServices: boolean;
+  canResetPassword: boolean;
+  canDeactivateUser: boolean;
 }
 
 const ADMIN_PERMISSIONS: RolePermissions = {
   canViewDashboard: true,
-  canViewAnalytics: true,
   canViewSettings: true,
   canViewAuditLog: true,
   canViewUsers: true,
@@ -152,11 +154,12 @@ const ADMIN_PERMISSIONS: RolePermissions = {
   canCreateQuote: false,
   canViewInvoices: false,
   canViewServices: false,
+  canResetPassword: true,
+  canDeactivateUser: true,
 };
 
 const USER_PERMISSIONS: RolePermissions = {
   canViewDashboard: true,
-  canViewAnalytics: true,
   canViewSettings: true,
   canViewAuditLog: false,
   canViewUsers: false,
@@ -166,6 +169,8 @@ const USER_PERMISSIONS: RolePermissions = {
   canCreateQuote: true,
   canViewInvoices: true,
   canViewServices: true,
+  canResetPassword: false,
+  canDeactivateUser: false,
 };
 
 interface AppState {
