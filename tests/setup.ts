@@ -25,3 +25,30 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: vi.fn(),
   })),
 })
+
+// Mock better-sqlite3 globally for testing to enforce in-memory safety
+vi.mock('better-sqlite3', async (importActual) => {
+  const actual = await importActual<typeof import('better-sqlite3')>();
+  class MockDatabase extends actual.default {
+    constructor(filename: string, options?: any) {
+      // Force all database connections to use in-memory SQLite for isolated test state
+      super(':memory:', options);
+    }
+  }
+  return {
+    default: MockDatabase,
+  };
+});
+
+// Mock Web Crypto API for middleware signature verification
+if (typeof globalThis.crypto === 'undefined') {
+  Object.defineProperty(globalThis, 'crypto', {
+    value: {
+      subtle: {
+        importKey: vi.fn(),
+        sign: vi.fn(),
+        verify: vi.fn(),
+      },
+    },
+  });
+}
