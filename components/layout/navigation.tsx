@@ -44,7 +44,6 @@ interface SidebarProps {
 const navItems = [
   // Groupe Système
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ['admin', 'user'], group: 'system' },
-  { id: "analytics", label: "Statistiques", icon: BarChart3, roles: ['admin', 'user'], group: 'system' },
   { id: "users", label: "Utilisateurs", icon: Users, roles: ['admin'], group: 'system' },
   { id: "audit", label: "Journal Audit", icon: ScrollText, roles: ['admin'], group: 'system' },
 

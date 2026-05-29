@@ -62,6 +62,8 @@ db.exec(`
     status TEXT DEFAULT 'draft', -- draft, sent, invoiced, rejected
     notes TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deletedAt DATETIME,
+    created_by TEXT,
     FOREIGN KEY (clientId) REFERENCES clients(id)
   );
 
@@ -93,6 +95,8 @@ db.exec(`
     status TEXT DEFAULT 'pending', -- draft, pending, paid, overdue, cancelled
     notes TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deletedAt DATETIME,
+    created_by TEXT,
     FOREIGN KEY (clientId) REFERENCES clients(id),
     FOREIGN KEY (quoteId) REFERENCES quotes(id)
   );
@@ -136,13 +140,19 @@ db.exec(`
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
+  -- New User Table Schema (v4.0)
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL,
-    password TEXT NOT NULL, -- Hashed
-    name TEXT,
-    role TEXT DEFAULT 'admin',
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    username TEXT UNIQUE NOT NULL, -- used as email in logic
+    email TEXT UNIQUE,
+    password TEXT NOT NULL,
+    name TEXT NOT NULL,
+    role TEXT CHECK(role IN ('admin', 'user')) NOT NULL DEFAULT 'user',
+    is_active INTEGER NOT NULL DEFAULT 1,
+    force_password_change INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_login_at DATETIME,
+    created_by TEXT
   );
 
   CREATE TABLE IF NOT EXISTS credit_notes (
@@ -160,6 +170,7 @@ db.exec(`
     total REAL DEFAULT 0,
     status TEXT DEFAULT 'open', -- open, closed
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_by TEXT,
     FOREIGN KEY (invoiceId) REFERENCES invoices(id),
     FOREIGN KEY (clientId) REFERENCES clients(id)
   );
@@ -186,71 +197,45 @@ db.exec(`
   );
 `);
 
-// Migrate settings table to add missing columns if upgrading database schema
+// MIGRATION LOGIC FOR USERS (v3 to v4)
 try {
-  const settingsColumns = db.prepare("PRAGMA table_info(settings)").all() as Array<{ name: string }>;
-  const requiredColumns = [
-    { name: 'logo', type: 'TEXT' },
-    { name: 'companyCode', type: 'TEXT', default: 'GM' },
-    { name: 'legalForm', type: 'TEXT', default: 'SARL' },
-    { name: 'bankAgency', type: 'TEXT' },
-    { name: 'accountNumber', type: 'TEXT' },
-    { name: 'swiftCode', type: 'TEXT' },
-    { name: 'defaultQuoteValidity', type: 'INTEGER', default: '30' },
-    { name: 'sessionTimeout', type: 'INTEGER', default: '30' }
-  ];
+  const usersColumns = db.prepare("PRAGMA table_info(users)").all() as Array<{ name: string }>;
 
-  requiredColumns.forEach(col => {
-    const exists = settingsColumns.some(c => c.name === col.name);
-    if (!exists) {
-      let query = `ALTER TABLE settings ADD COLUMN ${col.name} ${col.type}`;
-      if (col.default) query += ` DEFAULT '${col.default}'`;
-      db.prepare(query).run();
-      console.log(`✓ Database Migration: Added missing '${col.name}' column to 'settings' table.`);
-    }
-  });
-} catch (migrationError) {
-  console.error("❌ Database Migration Error during settings migration:", migrationError);
+  if (!usersColumns.some(c => c.name === 'is_active')) {
+    db.prepare("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1").run();
+  }
+  if (!usersColumns.some(c => c.name === 'force_password_change')) {
+    db.prepare("ALTER TABLE users ADD COLUMN force_password_change INTEGER NOT NULL DEFAULT 0").run();
+  }
+  if (!usersColumns.some(c => c.name === 'last_login_at')) {
+    db.prepare("ALTER TABLE users ADD COLUMN last_login_at DATETIME").run();
+  }
+  if (!usersColumns.some(c => c.name === 'created_by')) {
+    db.prepare("ALTER TABLE users ADD COLUMN created_by TEXT").run();
+  }
+  if (!usersColumns.some(c => c.name === 'email')) {
+    db.prepare("ALTER TABLE users ADD COLUMN email TEXT").run();
+    // Pre-populate email with username
+    db.prepare("UPDATE users SET email = username WHERE email IS NULL").run();
+  }
+} catch (e) {
+  console.error("Migration error on users table:", e);
 }
 
-// Migrate quotes table to add missing deletedAt column if upgrading database schema for soft deletes
+// Ensure other missing columns from previous migrations
 try {
   const quotesColumns = db.prepare("PRAGMA table_info(quotes)").all() as Array<{ name: string }>;
-  const hasDeletedAt = quotesColumns.some(col => col.name === 'deletedAt');
-  if (!hasDeletedAt) {
-    db.prepare("ALTER TABLE quotes ADD COLUMN deletedAt TEXT").run();
-    console.log("✓ Database Migration: Added missing 'deletedAt' column to 'quotes' table successfully.");
+  if (!quotesColumns.some(c => c.name === 'created_by')) {
+    db.prepare("ALTER TABLE quotes ADD COLUMN created_by TEXT").run();
   }
-} catch (migrationError) {
-  console.error("❌ Database Migration Error adding 'deletedAt' column to quotes:", migrationError);
-}
 
-// Migrate invoices table to add missing deletedAt column if upgrading database schema for soft deletes
-try {
   const invoicesColumns = db.prepare("PRAGMA table_info(invoices)").all() as Array<{ name: string }>;
-  const hasDeletedAt = invoicesColumns.some(col => col.name === 'deletedAt');
-  if (!hasDeletedAt) {
-    db.prepare("ALTER TABLE invoices ADD COLUMN deletedAt TEXT").run();
-    console.log("✓ Database Migration: Added missing 'deletedAt' column to 'invoices' table successfully.");
+  if (!invoicesColumns.some(c => c.name === 'created_by')) {
+    db.prepare("ALTER TABLE invoices ADD COLUMN created_by TEXT").run();
   }
-} catch (migrationError) {
-  console.error("❌ Database Migration Error adding 'deletedAt' column to invoices:", migrationError);
-}
+} catch (e) {}
 
-// Migrate sequences table to add missing last_year column
-try {
-  const sequencesColumns = db.prepare("PRAGMA table_info(sequences)").all() as Array<{ name: string }>;
-  const hasLastYear = sequencesColumns.some(col => col.name === 'last_year');
-  if (!hasLastYear) {
-    db.prepare("ALTER TABLE sequences ADD COLUMN last_year INTEGER").run();
-    db.prepare("UPDATE sequences SET last_year = strftime('%Y', 'now')").run();
-    console.log("✓ Database Migration: Added missing 'last_year' column to 'sequences' table successfully.");
-  }
-} catch (migrationError) {
-  console.error("❌ Database Migration Error adding 'last_year' column to sequences:", migrationError);
-}
-
-// Insert default settings if not exists
+// Insert default settings
 const row = db.prepare('SELECT COUNT(*) as count FROM settings').get() as { count: number };
 if (row.count === 0) {
   db.prepare(`

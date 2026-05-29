@@ -112,12 +112,12 @@ export async function middleware(request: NextRequest) {
     // Business routes
     const isBusinessRoute = pathname.startsWith('/quotes') ||
                             pathname.startsWith('/invoices') ||
-                            pathname.startsWith('/clients') ||
+                            pathname.startsWith('/customers') ||
                             pathname.startsWith('/services')
 
     const isBusinessApi = pathname.startsWith('/api/quotes') ||
                           pathname.startsWith('/api/invoices') ||
-                          pathname.startsWith('/api/clients') ||
+                          pathname.startsWith('/api/customers') ||
                           pathname.startsWith('/api/services')
 
     // Admin Restrictions

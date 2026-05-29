@@ -2,7 +2,10 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
-import { Save, Building2, FileText, Percent, Mail, Phone, MapPin, Landmark, Upload, X, ShieldAlert } from "lucide-react"
+import {
+    Save, Building2, FileText, Percent, Mail, Phone, MapPin,
+    Landmark, Upload, X, ShieldAlert, CloudUpload, Image as ImageIcon
+} from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -12,11 +15,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 
 export function SettingsPage() {
   const { settings, setSettings, user } = useStore()
   const [formData, setFormData] = React.useState(settings)
   const [isSaving, setIsSaving] = React.useState(false)
+  const [isDragging, setIsDragging] = React.useState(false)
+  const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   const isAdmin = user?.role === 'admin'
 
@@ -24,20 +30,44 @@ export function SettingsPage() {
     setFormData(settings)
   }, [settings])
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!isAdmin) return;
-    const file = e.target.files?.[0]
-    if (file) {
-      if (file.size > 1024 * 1024) { // 1MB limit
-          toast.error("Le logo est trop lourd (max 1Mo)");
-          return;
-      }
-      const reader = new FileReader()
-      reader.onloadend = () => {
-        setFormData({ ...formData, logo: reader.result as string })
-      }
-      reader.readAsDataURL(file)
+  const validateAndUpload = (file: File) => {
+    if (file.size > 2 * 1024 * 1024) {
+        toast.error("Le fichier est trop volumineux (max 2 Mo)")
+        return
     }
+    const allowedTypes = ['image/png', 'image/jpeg', 'image/svg+xml']
+    if (!allowedTypes.includes(file.type)) {
+        toast.error("Format non supporté (PNG, JPG, SVG uniquement)")
+        return
+    }
+
+    const reader = new FileReader()
+    reader.onloadend = () => {
+        setFormData({ ...formData, logo: reader.result as string })
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (file) validateAndUpload(file)
+  }
+
+  const onDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+    if (isAdmin) setIsDragging(true)
+  }
+
+  const onDragLeave = () => {
+    setIsDragging(false)
+  }
+
+  const onDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+    if (!isAdmin) return
+    const file = e.dataTransfer.files?.[0]
+    if (file) validateAndUpload(file)
   }
 
   const handleSave = async () => {
@@ -103,46 +133,63 @@ export function SettingsPage() {
               <CardDescription>Informations légales et logo</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="flex flex-col md:flex-row gap-6 items-start">
-                <div className="space-y-2">
-                  <Label>Logo</Label>
-                  <div className="flex items-center gap-4">
-                    <div className="w-24 h-24 rounded-xl border-2 border-dashed border-border flex items-center justify-center bg-secondary/30 overflow-hidden relative group">
-                      {formData.logo ? (
-                        <>
-                          <img src={formData.logo} alt="Logo" className="w-full h-full object-contain p-2" />
-                          {isAdmin && (
-                            <button
-                                onClick={() => setFormData({ ...formData, logo: "" })}
-                                className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white"
-                            >
-                                <X className="w-6 h-6" />
-                            </button>
-                          )}
-                        </>
-                      ) : (
-                        <Upload className="w-8 h-8 text-muted-foreground" />
-                      )}
-                    </div>
-                    {isAdmin && (
-                        <div className="space-y-2">
-                            <Input
-                                type="file"
-                                accept="image/*"
-                                onChange={handleLogoUpload}
-                                className="hidden"
-                                id="logo-upload"
-                            />
-                            <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => document.getElementById('logo-upload')?.click()}
-                            >
-                                {formData.logo ? "Changer" : "Choisir"}
-                            </Button>
+              <div className="flex flex-col md:flex-row gap-8 items-start">
+                <div className="space-y-3 w-full md:w-64">
+                  <Label>Logo de l'entreprise</Label>
+                  <div
+                    onClick={() => isAdmin && fileInputRef.current?.click()}
+                    onDragOver={onDragOver}
+                    onDragLeave={onDragLeave}
+                    onDrop={onDrop}
+                    className={cn(
+                        "relative aspect-square rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center text-center p-4 overflow-hidden",
+                        isAdmin ? "cursor-pointer" : "cursor-default",
+                        isDragging ? "border-primary bg-primary/5 scale-[1.02]" : "border-border bg-secondary/30",
+                        isAdmin && "hover:border-primary/50 hover:bg-secondary/50",
+                        formData.logo && "border-solid border-primary/20 bg-white dark:bg-slate-950"
+                    )}
+                  >
+                    <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleFileChange}
+                        accept="image/png,image/jpeg,image/svg+xml"
+                        className="absolute inset-0 opacity-0 cursor-pointer pointer-events-none"
+                        disabled={!isAdmin}
+                    />
+
+                    {formData.logo ? (
+                        <div className="group w-full h-full flex flex-col items-center justify-center gap-2">
+                            <img src={formData.logo} alt="Logo preview" className="max-w-full max-h-[140px] object-contain" />
+                            {isAdmin && (
+                                <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white gap-2">
+                                    <CloudUpload className="w-8 h-8" />
+                                    <span className="text-xs font-bold uppercase tracking-wider">Remplacer</span>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col items-center gap-3">
+                            <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
+                                <CloudUpload className={cn("w-6 h-6", isDragging ? "text-primary" : "text-muted-foreground")} />
+                            </div>
+                            <div>
+                                <p className="text-sm font-semibold text-foreground">
+                                    {isDragging ? "Déposez ici" : "Cliquez pour uploader"}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground mt-1 px-4">PNG, JPG, SVG jusqu'à 2 Mo</p>
+                            </div>
                         </div>
                     )}
                   </div>
+                  {formData.logo && isAdmin && (
+                    <button
+                        onClick={() => setFormData({...formData, logo: ""})}
+                        className="text-[10px] text-muted-foreground hover:text-destructive flex items-center gap-1 mx-auto transition-colors font-bold uppercase tracking-tighter"
+                    >
+                        <X className="w-3 h-3" /> Supprimer le logo
+                    </button>
+                  )}
                 </div>
 
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
@@ -185,37 +232,34 @@ export function SettingsPage() {
                       disabled={!isAdmin}
                     />
                   </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>NIF</Label>
-                  <Input
-                    value={formData.nif}
-                    onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
-                    className="bg-secondary/50 border-border"
-                    disabled={!isAdmin}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>RCCM</Label>
-                  <Input
-                    value={formData.rccm}
-                    onChange={(e) => setFormData({ ...formData, rccm: e.target.value })}
-                    className="bg-secondary/50 border-border"
-                    disabled={!isAdmin}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="company-address">Adresse complète</Label>
-                  <Input
-                    id="company-address"
-                    value={formData.address}
-                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                    className="bg-secondary/50 border-border"
-                    disabled={!isAdmin}
-                  />
+                  <div className="space-y-2">
+                    <Label>NIF</Label>
+                    <Input
+                      value={formData.nif}
+                      onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
+                      className="bg-secondary/50 border-border"
+                      disabled={!isAdmin}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>RCCM</Label>
+                    <Input
+                      value={formData.rccm}
+                      onChange={(e) => setFormData({ ...formData, rccm: e.target.value })}
+                      className="bg-secondary/50 border-border"
+                      disabled={!isAdmin}
+                    />
+                  </div>
+                  <div className="col-span-full space-y-2">
+                    <Label htmlFor="company-address">Adresse complète</Label>
+                    <Input
+                        id="company-address"
+                        value={formData.address}
+                        onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                        className="bg-secondary/50 border-border"
+                        disabled={!isAdmin}
+                    />
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -238,7 +282,6 @@ export function SettingsPage() {
                   <Input
                     type="number"
                     value={formData.tvaRate}
-                    onChange={(e) => setFormData({ ...formData, tvaRate: parseFloat(e.target.value) || 0 })}
                     className="bg-secondary/50 border-border"
                     disabled
                   />
@@ -292,20 +335,6 @@ export function SettingsPage() {
                         disabled={!isAdmin}
                     />
                 </div>
-              </div>
-
-              <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border">
-                <div className="space-y-0.5">
-                  <Label className="text-base">Session locale (minutes)</Label>
-                  <p className="text-sm text-muted-foreground">Délai d'inactivité avant déconnexion automatique</p>
-                </div>
-                <Input
-                        type="number"
-                        className="w-20 bg-card"
-                        value={formData.sessionTimeout}
-                        onChange={(e) => setFormData({ ...formData, sessionTimeout: parseInt(e.target.value) || 0 })}
-                        disabled={!isAdmin}
-                />
               </div>
 
               <div className="space-y-2">
