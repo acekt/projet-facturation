@@ -317,7 +317,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
         <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
-            <DialogTitle className="font-bold text-black text-lg">Aperçu avant impression</DialogTitle>
+            <h2 className="font-bold">Aperçu avant impression</h2>
             <Button onClick={() => {
                 if ((window as any).electron) {
                     (window as any).electron.print();

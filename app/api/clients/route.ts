@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import db from '@/lib/db';
 import { clientSchema } from '@/lib/validations';
 import crypto from 'crypto';
+import { getSession } from '@/lib/api/auth';
 
 export async function GET() {
   try {
@@ -16,9 +16,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     // RBAC Check
-    const sessionId = (await cookies()).get('auth_session')?.value;
-    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(sessionId) as any;
-    if (!user || user.role !== 'user') {
+    const session = await getSession();
+    if (!session || session.role !== 'user') {
       return NextResponse.json({ error: 'Unauthorized: Only Users can create clients' }, { status: 403 });
     }
 

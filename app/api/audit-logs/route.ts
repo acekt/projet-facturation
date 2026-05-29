@@ -1,13 +1,12 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import db from '@/lib/db';
+import { getSession } from '@/lib/api/auth';
 
 export async function GET() {
     try {
         // RBAC Check
-        const sessionId = (await cookies()).get('auth_session')?.value;
-        const user = db.prepare('SELECT role FROM users WHERE id = ?').get(sessionId) as any;
-        if (!user || user.role !== 'admin') {
+        const session = await getSession();
+        if (!session || session.role !== 'admin') {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }
 

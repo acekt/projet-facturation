@@ -33,7 +33,7 @@ import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { DocumentPreview } from "@/components/document-preview"
 import { PrintableDocument } from "@/components/printable-document"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
 
@@ -304,7 +304,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
       <Dialog open={!!selectedQuote} onOpenChange={() => setSelectedQuote(null)}>
         <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
-            <DialogTitle className="font-bold text-black text-lg">Aperçu avant impression</DialogTitle>
+            <h2 className="font-bold text-black">Aperçu avant impression</h2>
             <Button onClick={() => {
                 if ((window as any).electron) {
                     (window as any).electron.print();
