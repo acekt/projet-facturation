@@ -31,6 +31,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { useStore } from "@/lib/store"
+import { Pagination } from "@/components/ui/pagination-custom"
 
 export function UsersPage() {
   const [users, setUsers] = React.useState<any[]>([])
@@ -38,6 +39,8 @@ export function UsersPage() {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [roleFilter, setRoleFilter] = React.useState("all")
   const [statusFilter, setStatusFilter] = React.useState("all")
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
   const { user: currentUser } = useStore()
 
   // Modal States
@@ -77,13 +80,25 @@ export function UsersPage() {
     fetchUsers()
   }, [])
 
-  const filteredUsers = users.filter(u => {
-    const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          u.email.toLowerCase().includes(searchQuery.toLowerCase())
-    const matchesRole = roleFilter === "all" || u.role === roleFilter
-    const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? u.is_active === 1 : u.is_active === 0)
-    return matchesSearch && matchesRole && matchesStatus
-  })
+  const filteredUsers = React.useMemo(() => {
+    return users.filter(u => {
+        const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              u.email.toLowerCase().includes(searchQuery.toLowerCase())
+        const matchesRole = roleFilter === "all" || u.role === roleFilter
+        const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? u.is_active === 1 : u.is_active === 0)
+        return matchesSearch && matchesRole && matchesStatus
+      })
+  }, [users, searchQuery, roleFilter, statusFilter])
+
+  const totalPages = Math.ceil(filteredUsers.length / itemsPerPage)
+  const paginatedUsers = filteredUsers.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
+
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, roleFilter, statusFilter])
 
   const generatePassword = () => {
     const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*"
@@ -260,7 +275,7 @@ export function UsersPage() {
                 </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-                {filteredUsers.map((u) => (
+                {paginatedUsers.map((u) => (
                     <tr key={u.id} className={cn(
                         "group transition-colors",
                         u.id === currentUser?.id ? "bg-indigo-500/5" : "hover:bg-muted/30"
@@ -336,6 +351,11 @@ export function UsersPage() {
                 ))}
             </tbody>
         </table>
+        <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={setCurrentPage}
+        />
       </div>
 
       {/* MODALS */}

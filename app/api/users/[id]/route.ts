@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
 import crypto from 'crypto';
 
@@ -11,12 +11,9 @@ function hashPassword(password: string) {
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
     try {
         const { id } = await params;
-        const sessionId = (await cookies()).get('auth_session')?.value;
-        const sessionParts = sessionId?.split('.');
-        if (!sessionParts) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        const decoded = JSON.parse(atob(sessionParts[0]));
+        const session = await getSession();
 
-        if (decoded.role !== 'admin') {
+        if (!session || session.role !== 'admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -34,7 +31,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
         if (is_active !== undefined) {
             // Prevent self-deactivation
-            if (id === decoded.id && is_active === 0) {
+            if (id === session.userId && is_active === 0) {
                 return NextResponse.json({ error: 'Impossible de désactiver votre propre compte' }, { status: 400 });
             }
             db.prepare('UPDATE users SET is_active = ? WHERE id = ?').run(is_active, id);
@@ -49,16 +46,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
     try {
         const { id } = await params;
-        const sessionId = (await cookies()).get('auth_session')?.value;
-        const sessionParts = sessionId?.split('.');
-        if (!sessionParts) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        const decoded = JSON.parse(atob(sessionParts[0]));
+        const session = await getSession();
 
-        if (decoded.role !== 'admin') {
+        if (!session || session.role !== 'admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        if (id === decoded.id) {
+        if (id === session.userId) {
             return NextResponse.json({ error: 'Impossible de supprimer votre propre compte' }, { status: 400 });
         }
 

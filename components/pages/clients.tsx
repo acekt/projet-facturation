@@ -25,10 +25,13 @@ import { useStore } from "@/lib/store"
 import { toast } from "sonner"
 import { DownloadCloud } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
+import { Pagination } from "@/components/ui/pagination-custom"
 
 export function ClientsPage() {
   const { clients, setClients, invoices, user } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 9 // Grid 3x3
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false)
   const [newClient, setNewClient] = React.useState({
     name: "",
@@ -37,11 +40,23 @@ export function ClientsPage() {
     address: "",
   })
 
-  const filteredClients = clients.filter(
-    (client) =>
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.email.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredClients = React.useMemo(() => {
+    return clients.filter(
+      (client) =>
+        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        client.email.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }, [clients, searchQuery])
+
+  const totalPages = Math.ceil(filteredClients.length / itemsPerPage)
+  const paginatedClients = filteredClients.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   )
+
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -188,7 +203,7 @@ export function ClientsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredClients.map((client, index) => (
+        {paginatedClients.map((client, index) => (
           <motion.div
             key={client.id}
             initial={{ opacity: 0, scale: 0.95 }}
@@ -256,6 +271,12 @@ export function ClientsPage() {
           </motion.div>
         ))}
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+      />
     </div>
   )
 }

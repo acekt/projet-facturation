@@ -50,7 +50,7 @@ export async function POST(request: Request) {
 
     // Session Data
     const sessionData = JSON.stringify({
-      id: user.id,
+      userId: user.id,
       name: user.name,
       role: user.role,
       exp: Date.now() + (24 * 60 * 60 * 1000)

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
 import crypto from 'crypto';
 
@@ -10,13 +10,8 @@ function hashPassword(password: string) {
 
 export async function GET() {
     try {
-        const sessionId = (await cookies()).get('auth_session')?.value;
-        // Verify admin role via proxy check logic if needed, but here we do it explicitly
-        const sessionParts = sessionId?.split('.');
-        if (!sessionParts || sessionParts.length < 2) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        const decoded = JSON.parse(atob(sessionParts[0]));
-
-        if (decoded.role !== 'admin') {
+        const session = await getSession();
+        if (!session || session.role !== 'admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -29,12 +24,8 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
-        const sessionId = (await cookies()).get('auth_session')?.value;
-        const sessionParts = sessionId?.split('.');
-        if (!sessionParts) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        const decoded = JSON.parse(atob(sessionParts[0]));
-
-        if (decoded.role !== 'admin') {
+        const session = await getSession();
+        if (!session || session.role !== 'admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -50,7 +41,7 @@ export async function POST(request: Request) {
         db.prepare(`
             INSERT INTO users (id, name, email, username, password, role, is_active, created_by)
             VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-        `).run(id, name, email, email, hashedPassword, role, decoded.id);
+        `).run(id, name, email, email, hashedPassword, role, session.userId);
 
         return NextResponse.json({ id, name, email, role });
     } catch (error: any) {

@@ -6,10 +6,13 @@ import { ShieldCheck, User, Clock, Info } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import { Pagination } from "@/components/ui/pagination-custom"
 
 export function AuditLogsPage() {
   const [logs, setLogs] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
 
   React.useEffect(() => {
     fetch('/api/audit-logs')
@@ -46,7 +49,7 @@ export function AuditLogsPage() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {logs.map((log) => (
+              {logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((log) => (
                 <TableRow key={log.id}>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {new Date(log.createdAt).toLocaleString('fr-FR')}
@@ -77,6 +80,11 @@ export function AuditLogsPage() {
               )}
             </TableBody>
           </Table>
+          <Pagination
+            currentPage={currentPage}
+            totalPages={Math.ceil(logs.length / itemsPerPage)}
+            onPageChange={setCurrentPage}
+          />
         </CardContent>
       </Card>
     </div>

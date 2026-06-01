@@ -2,7 +2,7 @@
 ## Application Desktop de Facturation & Gestion de Devis
 ### CAHIER DES CHARGES FONCTIONNEL ET TECHNIQUE
 
-**Version :** 2.0 — Optimisée
+**Version :** 4.0.0-prod — Optimisée
 **Date :** Mai 2026
 **Cible :** PME & Prestataires de services — Marché Gabonais
 **Déploiement :** Monoposte — 100 % Hors-ligne

@@ -39,6 +39,7 @@ import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Pagination } from "@/components/ui/pagination-custom"
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
@@ -49,6 +50,8 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   const { invoices, setInvoices, setPayments, settings, setCreditNotes, user } = useStore()
 
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
   const [previewInvoice, setPreviewInvoice] = React.useState<Invoice | null>(null)
   const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
@@ -159,11 +162,23 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       }
   }
 
-  const filteredInvoices = invoices.filter(
-    (invoice) =>
-      invoice.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      invoice.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredInvoices = React.useMemo(() => {
+    return invoices.filter(
+      (invoice) =>
+        invoice.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        invoice.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }, [invoices, searchQuery])
+
+  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage)
+  const paginatedInvoices = filteredInvoices.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   )
+
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   const getStatusBadge = (status: Invoice['status']) => {
     switch (status) {
@@ -227,8 +242,8 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {filteredInvoices.length > 0 ? (
-          filteredInvoices.map((invoice, index) => (
+        {paginatedInvoices.length > 0 ? (
+          paginatedInvoices.map((invoice, index) => (
             <motion.div
               key={invoice.id}
               initial={{ opacity: 0, y: 20 }}
@@ -313,6 +328,12 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           </div>
         )}
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+      />
 
       <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
         <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">

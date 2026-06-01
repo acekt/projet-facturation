@@ -34,6 +34,7 @@ import { toast } from "sonner"
 import { DocumentPreview } from "@/components/document-preview"
 import { PrintableDocument } from "@/components/printable-document"
 import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Pagination } from "@/components/ui/pagination-custom"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
 
@@ -44,15 +45,29 @@ interface QuotesPageProps {
 export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   const { quotes, setQuotes, settings, user } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
   const [previewQuote, setPreviewQuote] = React.useState<Quote | null>(null)
   const [selectedQuote, setSelectedQuote] = React.useState<Quote | null>(null)
   const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
 
-  const filteredQuotes = quotes.filter(
-    (quote) =>
-      quote.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      quote.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredQuotes = React.useMemo(() => {
+    return quotes.filter(
+      (quote) =>
+        quote.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        quote.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }, [quotes, searchQuery])
+
+  const totalPages = Math.ceil(filteredQuotes.length / itemsPerPage)
+  const paginatedQuotes = filteredQuotes.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   )
+
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   const getStatusBadge = (status: Quote['status']) => {
     switch (status) {
@@ -183,8 +198,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {filteredQuotes.length > 0 ? (
-          filteredQuotes.map((quote, index) => (
+        {paginatedQuotes.length > 0 ? (
+          paginatedQuotes.map((quote, index) => (
             <motion.div
               key={quote.id}
               initial={{ opacity: 0, y: 20 }}
@@ -291,6 +306,12 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
           </div>
         )}
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+      />
 
       {previewQuote && (
         <DocumentPreview
