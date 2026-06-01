@@ -4,18 +4,13 @@ import * as React from "react"
 import { motion } from "framer-motion"
 import {
     Plus, UserPlus, FileText, Clock, AlertCircle,
-    ArrowUpRight, Eye, CheckCircle, Search,
-    BarChart3, TrendingUp, Wallet
+    ArrowUpRight, Eye, CheckCircle, Search
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
 import { DocumentPreview } from "@/components/document-preview"
-import {
-    ResponsiveContainer, AreaChart, Area, XAxis, YAxis,
-    CartesianGrid, Tooltip, PieChart, Pie, Cell
-} from 'recharts'
 
 interface DashboardUserProps {
   onNavigate: (page: string) => void
@@ -69,140 +64,30 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card className="bg-card border-border hover:border-indigo-500/30 transition-all group">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription className="uppercase text-[10px] font-bold tracking-widest">Devis Actifs</CardDescription>
-                <FileText className="w-4 h-4 text-indigo-500" />
+                <CardDescription className="uppercase text-[10px] font-bold tracking-widest">Mes Devis en Cours</CardDescription>
+                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-500 group-hover:scale-110 transition-transform">
+                    <FileText className="w-5 h-5" />
+                </div>
             </CardHeader>
             <CardContent>
-                <p className="text-3xl font-black mb-1">12</p>
-                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">En attente de conversion</p>
-            </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border hover:border-emerald-500/30 transition-all group">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription className="uppercase text-[10px] font-bold tracking-widest">Encaissé (Mois)</CardDescription>
-                <Wallet className="w-4 h-4 text-emerald-500" />
-            </CardHeader>
-            <CardContent>
-                <p className="text-3xl font-black mb-1 text-emerald-600">{formatCurrency(metrics.totalRevenue || 0)}</p>
-                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Performance perso</p>
+                <p className="text-4xl font-black mb-1">08</p>
+                <p className="text-xs text-muted-foreground">Soumis & Acceptés en attente</p>
             </CardContent>
         </Card>
 
         <Card className="bg-card border-border hover:border-red-500/30 transition-all group">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
-                <CardDescription className="uppercase text-[10px] font-bold tracking-widest">À Relancer</CardDescription>
-                <AlertCircle className="w-4 h-4 text-red-500" />
+                <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-red-500">Mes Factures à Relancer</CardDescription>
+                <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center text-red-500 group-hover:scale-110 transition-transform">
+                    <AlertCircle className="w-5 h-5" />
+                </div>
             </CardHeader>
             <CardContent>
-                <p className="text-3xl font-black mb-1 text-red-500">{formatCurrency(metrics.pendingRevenue || 0)}</p>
-                <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-tighter">Retards de paiement</p>
-            </CardContent>
-        </Card>
-
-        <Card className="bg-indigo-600 border-indigo-500 text-white shadow-lg shadow-indigo-500/20 group cursor-pointer overflow-hidden relative">
-            <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-150 transition-transform">
-                <TrendingUp className="w-16 h-16" />
-            </div>
-            <CardHeader className="flex flex-row items-center justify-between pb-2 relative z-10">
-                <CardDescription className="text-[10px] font-bold uppercase tracking-widest text-indigo-100">Conversion</CardDescription>
-                <ArrowUpRight className="w-4 h-4" />
-            </CardHeader>
-            <CardContent className="relative z-10">
-                <p className="text-3xl font-black">74%</p>
-                <p className="text-[10px] text-indigo-100 font-medium uppercase tracking-tighter">Objectif Mensuel</p>
-            </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <Card className="lg:col-span-2 border-border bg-card shadow-sm overflow-hidden">
-            <CardHeader className="border-b border-border/50 bg-muted/20">
-                <div className="flex items-center justify-between">
-                    <div>
-                        <CardTitle className="text-lg flex items-center gap-2">
-                            <BarChart3 className="w-5 h-5 text-indigo-500" />
-                            Performance Commerciale
-                        </CardTitle>
-                        <CardDescription>Flux financier de l'année 2026</CardDescription>
-                    </div>
-                </div>
-            </CardHeader>
-            <CardContent className="pt-6">
-                <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={data?.revenueData || []}>
-                            <defs>
-                                <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                            <XAxis
-                                dataKey="month"
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fontSize: 10, fontWeight: 600, fill: '#64748b' }}
-                            />
-                            <YAxis
-                                hide
-                            />
-                            <Tooltip
-                                contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' }}
-                                formatter={(value: number) => [formatCurrency(value), "CA"]}
-                            />
-                            <Area
-                                type="monotone"
-                                dataKey="revenue"
-                                stroke="#6366f1"
-                                strokeWidth={3}
-                                fillOpacity={1}
-                                fill="url(#colorRev)"
-                            />
-                        </AreaChart>
-                    </ResponsiveContainer>
-                </div>
-            </CardContent>
-        </Card>
-
-        <Card className="border-border bg-card shadow-sm">
-            <CardHeader className="border-b border-border/50 bg-muted/20">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider">Répartition Encaissements</CardTitle>
-            </CardHeader>
-            <CardContent className="pt-6">
-                <div className="h-[240px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                            <Pie
-                                data={data?.paymentMethodData || []}
-                                cx="50%"
-                                cy="50%"
-                                innerRadius={60}
-                                outerRadius={80}
-                                paddingAngle={5}
-                                dataKey="value"
-                            >
-                                {(data?.paymentMethodData || []).map((entry: any, index: number) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
-                                ))}
-                            </Pie>
-                            <Tooltip />
-                        </PieChart>
-                    </ResponsiveContainer>
-                </div>
-                <div className="grid grid-cols-2 gap-2 mt-4">
-                    {(data?.paymentMethodData || []).map((m: any) => (
-                        <div key={m.name} className="flex items-center gap-2 p-2 rounded-lg bg-secondary/30">
-                            <div className="w-2 h-2 rounded-full" style={{ backgroundColor: m.color }} />
-                            <span className="text-[10px] font-bold text-muted-foreground uppercase truncate">{m.name}</span>
-                            <span className="text-[10px] font-black ml-auto">{m.value}%</span>
-                        </div>
-                    ))}
-                </div>
+                <p className="text-4xl font-black text-red-500 mb-1">{formatCurrency(metrics.pendingRevenue || 0)}</p>
+                <p className="text-xs text-muted-foreground">Volume total des impayés perso</p>
             </CardContent>
         </Card>
       </div>

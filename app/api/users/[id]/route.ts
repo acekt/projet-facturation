@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
 import crypto from 'crypto';
-import { getSession } from '@/lib/api/auth';
 
 const SALT = 'letoile-gabon-2026';
 function hashPassword(password: string) {
@@ -12,9 +12,8 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     try {
         const { id } = await params;
         const session = await getSession();
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        if (session.role !== 'admin') {
+        if (!session || session.role !== 'admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -32,7 +31,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
         if (is_active !== undefined) {
             // Prevent self-deactivation
-            if (id === session.id && is_active === 0) {
+            if (id === session.userId && is_active === 0) {
                 return NextResponse.json({ error: 'Impossible de désactiver votre propre compte' }, { status: 400 });
             }
             db.prepare('UPDATE users SET is_active = ? WHERE id = ?').run(is_active, id);
@@ -48,13 +47,12 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
     try {
         const { id } = await params;
         const session = await getSession();
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-        if (session.role !== 'admin') {
+        if (!session || session.role !== 'admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        if (id === session.id) {
+        if (id === session.userId) {
             return NextResponse.json({ error: 'Impossible de supprimer votre propre compte' }, { status: 400 });
         }
 

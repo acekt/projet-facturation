@@ -34,6 +34,7 @@ import {
 
 import { useStore } from "@/lib/store"
 import { formatCurrency, formatShortCurrency } from "@/lib/utils"
+import { Pagination } from "@/components/ui/pagination-custom"
 
 export function PaymentsPage() {
   const invoices = useStore((state) => state.invoices)
@@ -44,6 +45,8 @@ export function PaymentsPage() {
   const { resolvedTheme } = useTheme()
   const [mounted, setMounted] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
 
   const sortedPayments = React.useMemo(() =>
     [...payments].sort((a, b) => b.date.localeCompare(a.date)),
@@ -103,16 +106,28 @@ export function PaymentsPage() {
     tooltipText: isDark ? "#ffffff" : "#0a0a0a",
   }
 
-  const filteredTransactions = sortedPayments.filter(
-    (p) => {
-      const invoice = invoices.find(i => i.id === p.invoiceId);
-      return (
-        invoice?.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        invoice?.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        p.paymentMethod?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-    }
+  const filteredTransactions = React.useMemo(() => {
+    return sortedPayments.filter(
+        (p) => {
+          const invoice = invoices.find(i => i.id === p.invoiceId);
+          return (
+            invoice?.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            invoice?.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            p.paymentMethod?.toLowerCase().includes(searchQuery.toLowerCase())
+          );
+        }
+      )
+  }, [sortedPayments, invoices, searchQuery])
+
+  const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage)
+  const paginatedTransactions = filteredTransactions.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   )
+
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   const handleDeletePayment = async (id: string) => {
       if (!confirm("Supprimer ce règlement ? Le statut de la facture sera recalculé.")) return;
@@ -321,8 +336,8 @@ export function PaymentsPage() {
           </CardHeader>
           <CardContent>
             <div className="space-y-2">
-              {filteredTransactions.length > 0 ? (
-              filteredTransactions.map((p, index) => {
+              {paginatedTransactions.length > 0 ? (
+              paginatedTransactions.map((p, index) => {
                 const invoice = invoices.find(i => i.id === p.invoiceId);
                 return (
                   <motion.div
@@ -371,6 +386,11 @@ export function PaymentsPage() {
                 </div>
               )}
             </div>
+            <Pagination
+                currentPage={currentPage}
+                totalPages={totalPages}
+                onPageChange={setCurrentPage}
+            />
           </CardContent>
         </Card>
       </motion.div>

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import db from '@/lib/db';
 import { getSession } from '@/lib/api/auth';
+import db from '@/lib/db';
 
 export async function GET() {
     try {
@@ -9,7 +9,7 @@ export async function GET() {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
-        const user = db.prepare('SELECT id, name, role, username FROM users WHERE id = ?').get(session.id) as any;
+        const user = db.prepare('SELECT id, name, role, username FROM users WHERE id = ?').get(session.userId) as any;
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }

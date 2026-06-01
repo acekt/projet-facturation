@@ -23,12 +23,15 @@ import { Label } from "@/components/ui/label"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
+import { Pagination } from "@/components/ui/pagination-custom"
 
 export function ServicesPage() {
   const services = useStore((state) => state.services)
   const setServices = useStore((state) => state.setServices)
   const user = useStore((state) => state.user)
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 9 // Grid 3x3
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
   const [editingService, setEditingService] = React.useState<any | null>(null)
   const [formData, setFormData] = React.useState({
@@ -38,11 +41,23 @@ export function ServicesPage() {
     unitPrice: 0,
   })
 
-  const filteredServices = services.filter(
-    (s) =>
-      s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      s.category.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredServices = React.useMemo(() => {
+    return services.filter(
+      (s) =>
+        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.category.toLowerCase().includes(searchQuery.toLowerCase())
+    )
+  }, [services, searchQuery])
+
+  const totalPages = Math.ceil(filteredServices.length / itemsPerPage)
+  const paginatedServices = filteredServices.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   )
+
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -118,7 +133,7 @@ export function ServicesPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredServices.map((service, index) => (
+        {paginatedServices.map((service, index) => (
           <motion.div
             key={service.id}
             initial={{ opacity: 0, y: 20 }}
@@ -179,6 +194,12 @@ export function ServicesPage() {
           </motion.div>
         ))}
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+      />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="bg-card border-border">

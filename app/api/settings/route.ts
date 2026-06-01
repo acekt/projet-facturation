@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
 import { settingsSchema } from '@/lib/validations';
-import { getSession } from '@/lib/api/auth';
 
 export async function GET() {
   try {
@@ -16,7 +16,8 @@ export async function PATCH(request: Request) {
   try {
     // RBAC Check
     const session = await getSession();
-    if (!session || session.role !== 'admin') {
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session?.userId) as any;
+    if (!user || user.role !== 'admin') {
       return NextResponse.json({ error: 'Unauthorized: Admin access required' }, { status: 403 });
     }
 

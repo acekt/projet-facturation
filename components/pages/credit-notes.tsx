@@ -16,17 +16,32 @@ import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
+import { Pagination } from "@/components/ui/pagination-custom"
 
 export function CreditNotesPage() {
   const { creditNotes, settings } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [currentPage, setCurrentPage] = React.useState(1)
+  const itemsPerPage = 10
   const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
 
-  const filtered = creditNotes.filter(
-    (n) =>
-      n.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      n.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+  const filtered = React.useMemo(() => {
+    return creditNotes.filter(
+        (n) =>
+          n.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          n.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+      )
+  }, [creditNotes, searchQuery])
+
+  const totalPages = Math.ceil(filtered.length / itemsPerPage)
+  const paginated = filtered.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
   )
+
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery])
 
   const handleDownloadPDF = async (note: CreditNote) => {
     try {
@@ -68,8 +83,8 @@ export function CreditNotesPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-4">
-        {filtered.length > 0 ? (
-          filtered.map((note, index) => (
+        {paginated.length > 0 ? (
+          paginated.map((note, index) => (
             <motion.div
               key={note.id}
               initial={{ opacity: 0, y: 20 }}
@@ -118,6 +133,12 @@ export function CreditNotesPage() {
           </div>
         )}
       </div>
+
+      <Pagination
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+      />
     </div>
   )
 }

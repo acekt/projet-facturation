@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
 import crypto from 'crypto';
-import { getSession } from '@/lib/api/auth';
 
 const SALT = 'letoile-gabon-2026';
 function hashPassword(password: string) {
@@ -11,9 +11,7 @@ function hashPassword(password: string) {
 export async function GET() {
     try {
         const session = await getSession();
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-        if (session.role !== 'admin') {
+        if (!session || session.role !== 'admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -27,9 +25,7 @@ export async function GET() {
 export async function POST(request: Request) {
     try {
         const session = await getSession();
-        if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
-        if (session.role !== 'admin') {
+        if (!session || session.role !== 'admin') {
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
@@ -45,7 +41,7 @@ export async function POST(request: Request) {
         db.prepare(`
             INSERT INTO users (id, name, email, username, password, role, is_active, created_by)
             VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-        `).run(id, name, email, email, hashedPassword, role, session.id);
+        `).run(id, name, email, email, hashedPassword, role, session.userId);
 
         return NextResponse.json({ id, name, email, role });
     } catch (error: any) {

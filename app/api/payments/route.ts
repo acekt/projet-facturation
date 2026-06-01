@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
 import crypto from 'crypto';
-import { getSession } from '@/lib/api/auth';
 
 function updateInvoiceStatus(invoiceId: string) {
     const invoice = db.prepare('SELECT total FROM invoices WHERE id = ?').get(invoiceId) as any;
@@ -36,7 +36,8 @@ export async function POST(request: Request) {
   try {
     // RBAC Check
     const session = await getSession();
-    if (!session || session.role !== 'user') {
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session?.userId) as any;
+    if (!user || user.role !== 'user') {
       return NextResponse.json({ error: 'Unauthorized: Only Users can record payments' }, { status: 403 });
     }
 

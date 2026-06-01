@@ -5,7 +5,7 @@ import crypto from 'crypto';
 const dbPath = path.join(process.cwd(), 'database.sqlite');
 const db = new Database(dbPath);
 
-console.log('🌱 Démarrage d\'une simulation globale v4.0 (L\'Étoile) - Scenario 2025-2026...');
+console.log('🌱 Démarrage d\'une simulation globale v4.0 (L\'Étoile)...');
 
 function randomUUID() {
     return crypto.randomUUID();
@@ -33,21 +33,21 @@ db.exec(`
 `);
 db.pragma('foreign_keys = ON');
 
-db.prepare("INSERT INTO sequences (name, current_value, last_year) VALUES ('quote', 45, 2026)").run();
-db.prepare("INSERT INTO sequences (name, current_value, last_year) VALUES ('invoice', 32, 2026)").run();
+db.prepare("INSERT INTO sequences (name, current_value, last_year) VALUES ('quote', 0, 2026)").run();
+db.prepare("INSERT INTO sequences (name, current_value, last_year) VALUES ('invoice', 0, 2026)").run();
 
 const adminId = randomUUID();
 const userId = randomUUID();
 
-// Users
+// New schema users
 db.prepare(`
-    INSERT INTO users (id, username, email, password, role, name, is_active)
-    VALUES (?, ?, ?, ?, ?, ?, 1)
+    INSERT INTO users (id, username, email, password, role, name, is_active, createdAt)
+    VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP)
 `).run(adminId, 'admin@letoile.ga', 'admin@letoile.ga', hashPassword('admin123'), 'admin', 'Administrateur Système');
 
 db.prepare(`
-    INSERT INTO users (id, username, email, password, role, name, is_active, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, 1, ?)
+    INSERT INTO users (id, username, email, password, role, name, is_active, createdAt, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, 1, CURRENT_TIMESTAMP, ?)
 `).run(userId, 'user@letoile.ga', 'user@letoile.ga', hashPassword('admin123'), 'user', 'Opérateur Service Client', adminId);
 
 const serviceCatalog = [
@@ -63,95 +63,42 @@ const clients = [
     { id: randomUUID(), name: 'CGA Gabon', email: 'contact@cga-gabon.com', address: 'Zone Industrielle Oloumi, Libreville' },
     { id: randomUUID(), name: 'TotalEnergies Marketing Gabon', email: 'billing@totalenergies.ga', address: 'Boulevard de l\'Indépendance' },
     { id: randomUUID(), name: 'Setrag', email: 'finance@setrag.ga', address: 'Gare d\'Owendo' },
-    { id: randomUUID(), name: 'COMILOG', email: 'compta@comilog.ga', address: 'Moanda' },
 ];
 
 const insertClient = db.prepare('INSERT INTO clients (id, name, email, address, status) VALUES (?, ?, ?, ?, ?)');
 clients.forEach(c => insertClient.run(c.id, c.name, c.email, c.address, 'active'));
 
-const years = [2025, 2026];
-years.forEach(year => {
+years: [2025, 2026].forEach(year => {
     let yearlyQuoteSeq = 1;
     let yearlyInvSeq = 1;
-
-    // Simulate each month
-    for (let month = 1; month <= 12; month++) {
-        if (year === 2026 && month > 6) break; // Simulation up to June 2026
-
-        const businessActivity = month % 3 === 0 ? 5 : 3; // Peaks every quarter
-
-        for (let i = 0; i < businessActivity; i++) {
+    [1, 2, 3, 4, 5].forEach(month => {
+        if (year === 2026 && month > 5) return;
+        const count = 3;
+        for (let i = 0; i < count; i++) {
             const client = clients[Math.floor(Math.random() * clients.length)];
-            const day = Math.floor(Math.random() * 25) + 1;
-            const dateStr = `${year}-${month.toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
-
-            const subtotal = Math.floor(Math.random() * 500000) + 100000;
-            const css = Math.round(subtotal * 0.01);
-            const baseTVA = subtotal + css;
-            const tva = Math.round(baseTVA * 0.18);
-            const total = subtotal + css + tva;
-
-            // QUOTE
+            const dateStr = `${year}-${month.toString().padStart(2, '0')}-10`;
             const quoteId = randomUUID();
             const quoteNum = `${yearlyQuoteSeq.toString().padStart(3, '0')}/GM/${year}`;
             yearlyQuoteSeq++;
 
-            // Quote Scenarios: 70% Invoiced, 20% Draft/Sent, 10% Rejected
-            let quoteStatus = 'sent';
-            const rand = Math.random();
-            if (rand < 0.7) quoteStatus = 'invoiced';
-            else if (rand < 0.9) quoteStatus = 'sent';
-            else quoteStatus = 'rejected';
-
             db.prepare(`
                 INSERT INTO quotes (id, number, clientId, clientName, date, subtotal, cssAmount, tvaAmount, total, status, created_by)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(quoteId, quoteNum, client.id, client.name, dateStr, subtotal, css, tva, total, quoteStatus, userId);
+            `).run(quoteId, quoteNum, client.id, client.name, dateStr, 100000, 1000, 18180, 119180, 'invoiced', userId);
 
-            // INVOICE (if quote was accepted/invoiced)
-            if (quoteStatus === 'invoiced') {
-                const invId = randomUUID();
-                const invNum = `${yearlyInvSeq.toString().padStart(3, '0')}/GM/${year}`;
-                yearlyInvSeq++;
+            const invId = randomUUID();
+            const invNum = `${yearlyInvSeq.toString().padStart(3, '0')}/GM/${year}`;
+            yearlyInvSeq++;
+            db.prepare(`
+                INSERT INTO invoices (id, number, quoteId, clientId, clientName, date, dueDate, subtotal, cssAmount, tvaAmount, total, status, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(invId, invNum, quoteId, client.id, client.name, dateStr, dateStr, 100000, 1000, 18180, 119180, 'PAID', userId);
 
-                // Invoice Scenarios: 80% Paid, 15% Unpaid/Pending, 5% Overdue
-                let invStatus = 'PAID';
-                const randInv = Math.random();
-                if (randInv < 0.8) invStatus = 'PAID';
-                else if (randInv < 0.95) invStatus = 'UNPAID';
-                else invStatus = 'overdue';
-
-                const dueDate = new Date(new Date(dateStr).getTime() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-
-                db.prepare(`
-                    INSERT INTO invoices (id, number, quoteId, clientId, clientName, date, dueDate, subtotal, cssAmount, tvaAmount, total, status, created_by)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                `).run(invId, invNum, quoteId, client.id, client.name, dateStr, dueDate, subtotal, css, tva, total, invStatus, userId);
-
-                // PAYMENTS
-                if (invStatus === 'PAID') {
-                    db.prepare(`INSERT INTO payments (id, invoiceId, amount, paymentMethod, date) VALUES (?, ?, ?, ?, ?)`).run(
-                        randomUUID(), invId, total, ['virement', 'airtel', 'moov', 'cash'][Math.floor(Math.random() * 4)], dateStr
-                    );
-                } else if (Math.random() > 0.5) {
-                    // Partially paid
-                    const acompte = Math.round(total / 3);
-                    db.prepare(`INSERT INTO payments (id, invoiceId, amount, paymentMethod, date) VALUES (?, ?, ?, ?, ?)`).run(
-                        randomUUID(), invId, acompte, 'cash', dateStr
-                    );
-                    db.prepare("UPDATE invoices SET status = 'PARTIALLY_PAID' WHERE id = ?").run(invId);
-                }
-            }
+            db.prepare(`INSERT INTO payments (id, invoiceId, amount, paymentMethod, date) VALUES (?, ?, ?, ?, ?)`).run(
+                randomUUID(), invId, 119180, 'virement', dateStr
+            );
         }
-    }
+    });
 });
 
-// Audit Logs
-db.prepare(`INSERT INTO audit_logs (id, userId, userName, action, entityType, entityId, details) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
-    randomUUID(), adminId, 'Administrateur', 'LOGIN', 'user', adminId, 'Connexion réussie'
-);
-db.prepare(`INSERT INTO audit_logs (id, userId, userName, action, entityType, entityId, details) VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
-    randomUUID(), userId, 'Opérateur', 'CREATE', 'quote', '001/GM/2026', 'Nouveau devis généré'
-);
-
-console.log(`✅ Simulation massive 2025-2026 terminée.`);
+console.log(`✅ Simulation v4.0 terminée avec succès.`);

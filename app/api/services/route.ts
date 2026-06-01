@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
 import { serviceSchema } from '@/lib/validations';
 import crypto from 'crypto';
-import { getSession } from '@/lib/api/auth';
 
 export async function GET() {
   try {
@@ -17,7 +17,8 @@ export async function POST(request: Request) {
   try {
     // RBAC Check
     const session = await getSession();
-    if (!session || session.role !== 'user') {
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session?.userId) as any;
+    if (!user || user.role !== 'user') {
       return NextResponse.json({ error: 'Unauthorized: Only Users can manage services' }, { status: 403 });
     }
 

@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
+import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
 import crypto from 'crypto';
 import { getNextNumber } from '@/lib/api/numbering';
-import { getSession } from '@/lib/api/auth';
 
 export async function POST(request: Request) {
   try {
     // RBAC Check
     const session = await getSession();
-    if (!session || session.role !== 'user') {
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session?.userId) as any;
+    if (!user || user.role !== 'user') {
       return NextResponse.json({ error: 'Unauthorized: Only Users can convert quotes' }, { status: 403 });
     }
 
