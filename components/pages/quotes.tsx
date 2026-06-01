@@ -33,8 +33,10 @@ import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { DocumentPreview } from "@/components/document-preview"
 import { PrintableDocument } from "@/components/printable-document"
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Pagination } from "@/components/ui/pagination-custom"
+import { EmptyState } from "@/components/ui/empty-state"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
 
@@ -289,21 +291,13 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
             </motion.div>
           ))
         ) : (
-          <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border">
-            <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
-              <FileText className="w-8 h-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-lg font-semibold text-foreground">Aucun devis trouvé</h3>
-            <p className="text-muted-foreground max-w-xs mx-auto mt-2">
-              {searchQuery ? "Essayez d'ajuster vos critères de recherche." : "Commencez par créer votre premier devis professionnel."}
-            </p>
-            {!searchQuery && (
-              <Button onClick={onCreateQuote} variant="outline" className="mt-6 gap-2">
-                <Plus className="w-4 h-4" />
-                Créer un devis
-              </Button>
-            )}
-          </div>
+          <EmptyState
+            icon={FileText}
+            title={searchQuery ? "Aucun résultat" : "Aucun devis"}
+            description={searchQuery ? "Aucun devis ne correspond à votre recherche actuelle." : "Commencez par créer votre premier devis professionnel pour le marché gabonais."}
+            actionLabel={!searchQuery && user?.role === 'user' ? "Créer un devis" : undefined}
+            onAction={!searchQuery && user?.role === 'user' ? () => onCreateQuote() : undefined}
+          />
         )}
       </div>
 
@@ -324,6 +318,9 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
 
       <Dialog open={!!selectedQuote} onOpenChange={() => setSelectedQuote(null)}>
         <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
+          <VisuallyHidden>
+            <DialogTitle>Impression du devis {selectedQuote?.number}</DialogTitle>
+          </VisuallyHidden>
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
             <h2 className="font-bold text-black">Aperçu avant impression</h2>
             <Button onClick={() => {

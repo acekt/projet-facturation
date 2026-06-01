@@ -25,7 +25,9 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -328,6 +330,9 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   <DialogContent className="bg-card border-border">
                     <DialogHeader>
                       <DialogTitle className="text-foreground">Rechercher un client</DialogTitle>
+                      <VisuallyHidden>
+                        <DialogDescription>Sélectionnez un client dans votre base de données pour ce devis</DialogDescription>
+                      </VisuallyHidden>
                     </DialogHeader>
                     <div className="mt-4 space-y-4">
                       <div className="relative">

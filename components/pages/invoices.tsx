@@ -35,11 +35,13 @@ import { toast } from "sonner"
 import { PrintableDocument } from "@/components/printable-document"
 import { DocumentPreview } from "@/components/document-preview"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Pagination } from "@/components/ui/pagination-custom"
+import { EmptyState } from "@/components/ui/empty-state"
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
@@ -322,10 +324,11 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
             </motion.div>
           ))
         ) : (
-          <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border">
-            <h3 className="text-lg font-semibold text-foreground">Aucune facture trouvée</h3>
-            <p className="text-muted-foreground mt-1">Les factures sont générées automatiquement lors de la confirmation d'un devis.</p>
-          </div>
+          <EmptyState
+            icon={FileText}
+            title={searchQuery ? "Aucun résultat" : "Aucune facture"}
+            description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
+          />
         )}
       </div>
 
@@ -337,8 +340,11 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
 
       <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
         <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
+          <VisuallyHidden>
+            <DialogTitle>Impression de la facture {selectedInvoice?.number}</DialogTitle>
+          </VisuallyHidden>
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
-            <h2 className="font-bold">Aperçu avant impression</h2>
+            <h2 className="font-bold text-black">Aperçu avant impression</h2>
             <Button onClick={() => {
                 if ((window as any).electron) {
                     (window as any).electron.print();
@@ -357,6 +363,9 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-foreground">Confirmer le règlement</DialogTitle>
+            <VisuallyHidden>
+              <DialogDescription>Formulaire pour enregistrer un paiement partiel ou total pour cette facture</DialogDescription>
+            </VisuallyHidden>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">

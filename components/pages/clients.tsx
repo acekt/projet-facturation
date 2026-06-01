@@ -18,14 +18,17 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
-import { DownloadCloud } from "lucide-react"
+import { DownloadCloud, Users } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
+import { EmptyState } from "@/components/ui/empty-state"
 
 export function ClientsPage() {
   const { clients, setClients, invoices, user } = useStore()
@@ -135,6 +138,9 @@ export function ClientsPage() {
           <DialogContent className="bg-card border-border">
             <DialogHeader>
               <DialogTitle className="text-foreground">Ajouter un nouveau client</DialogTitle>
+              <VisuallyHidden>
+                <DialogDescription>Formulaire pour ajouter un client à votre base de données</DialogDescription>
+              </VisuallyHidden>
             </DialogHeader>
             <form onSubmit={handleAddClient} className="space-y-4 mt-4">
               <div className="space-y-2">
@@ -203,7 +209,7 @@ export function ClientsPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {paginatedClients.map((client, index) => (
+        {paginatedClients.length > 0 ? paginatedClients.map((client, index) => (
           <motion.div
             key={client.id}
             initial={{ opacity: 0, scale: 0.95 }}
@@ -269,7 +275,17 @@ export function ClientsPage() {
               </CardContent>
             </Card>
           </motion.div>
-        ))}
+        )) : (
+          <div className="col-span-full">
+            <EmptyState
+              icon={Users}
+              title={searchQuery ? "Aucun client trouvé" : "Base clients vide"}
+              description={searchQuery ? "Aucun client ne correspond à votre recherche." : "Ajoutez votre premier client pour commencer à générer des devis."}
+              actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau client" : undefined}
+              onAction={!searchQuery && user?.role === 'user' ? () => setIsAddDialogOpen(true) : undefined}
+            />
+          </div>
+        )}
       </div>
 
       <Pagination
