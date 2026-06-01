@@ -124,6 +124,10 @@ export function DocumentPreview({ open, onOpenChange, type, data }: DocumentPrev
                 <span className="font-medium">{formatCurrency(data.taxBase)}</span>
               </div>
               <div className="flex justify-between text-sm text-gray-600">
+                <span>TPS ({settings.tpsRate}%)</span>
+                <span className="font-medium">{formatCurrency(data.tpsAmount || 0)}</span>
+              </div>
+              <div className="flex justify-between text-sm text-gray-600">
                 <span>TVA ({settings.tvaRate}%)</span>
                 <span className="font-medium">{formatCurrency(data.tvaAmount)}</span>
               </div>

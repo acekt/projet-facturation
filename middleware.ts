@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 // In Next.js Edge Runtime, we use the Web Crypto API (SubtleCrypto)
 // because node:crypto and Buffer/atob might be limited or restricted.
 
-const SESSION_SECRET = 'letoile-secret-key-2026-signing'
+const SESSION_SECRET = process.env.SESSION_SECRET || 'letoile-secret-key-2026-signing'
 
 // Helper to convert string to ArrayBuffer
 function str2ab(str: string) {

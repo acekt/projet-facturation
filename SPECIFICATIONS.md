@@ -24,7 +24,7 @@ L'Étoile est une application desktop fintech dédiée à la facturation et à l
 ## 2. ARCHITECTURE TECHNIQUE ET STACK
 | Couche | Technologie | Rôle |
 | :--- | :--- | :--- |
-| **UI / Routing** | Next.js 16.2.6 + Turbopack | Rendu React côté client, navigation |
+| **UI / Routing** | Next.js 15.1.0 + Turbopack | Rendu React côté client, navigation |
 | **Runtime Desktop** | Electron.js | Encapsulation native Windows, IPC, impression |
 | **Persistance** | SQLite via better-sqlite3 | Base de données locale, 100 % hors-ligne |
 | **Langage** | TypeScript strict | Fiabilité, maintenabilité, auto-complétion |
@@ -196,9 +196,10 @@ L'écran de liste des devis est la vue centrale de suivi. Il offre les capacité
 | 1 | **Total Brut HT** | Σ (Qté × Prix Unitaire) | 100 000 XAF |
 | 2 | **Net HT** | Total Brut HT − Remise | 95 000 XAF (remise 5%) |
 | 3 | **CSS** | % CSS × Net HT | 950 XAF (CSS 1%) |
-| 4 | **Base TVA** | Net HT + CSS | 95 950 XAF |
-| 5 | **TVA** | 18% × Base TVA | 17 271 XAF |
-| 6 | **Net à Payer (TTC)** | Math.round(Net HT + CSS + TVA) | 113 221 XAF |
+| 4 | **Base Imposable** | Net HT + CSS | 95 950 XAF |
+| 5 | **TPS** | 9.5% × Base Imposable | 9 115 XAF |
+| 6 | **TVA** | 18% × Base Imposable | 17 271 XAF |
+| 7 | **Net à Payer (TTC)** | Math.round(Net HT + CSS + TPS + TVA) | 122 336 XAF |
 
 ⚠️ **Tous les montants sont arrondis à l'entier le plus proche (Math.round). Aucune décimale n'apparaît sur les documents imprimés ou à l'écran, conformément à l'usage du Franc CFA (XAF).**
 

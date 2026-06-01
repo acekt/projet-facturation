@@ -38,9 +38,10 @@ import { DocumentPreview } from "@/components/document-preview"
 
 interface QuoteEditorProps {
   onBack: () => void
+  editingId?: string | null
 }
 
-export function QuoteEditor({ onBack }: QuoteEditorProps) {
+export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   const clients = useStore((state) => state.clients)
   const settings = useStore((state) => state.settings)
   const setQuotes = useStore((state) => state.setQuotes)
@@ -64,8 +65,36 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
   const [isDraft, setIsDraft] = React.useState(true)
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [isLoading, setIsLoading] = React.useState(!!editingId)
+
+  React.useEffect(() => {
+    if (editingId) {
+      fetch(`/api/quotes/${editingId}`)
+        .then(res => res.json())
+        .then(data => {
+          setSelectedClient(clients.find(c => c.id === data.clientId) || {
+            id: data.clientId,
+            name: data.clientName,
+            email: data.clientEmail,
+            phone: '', address: '', status: 'active'
+          });
+          setItems(data.items);
+          setQuoteDate(data.date);
+          setDueDate(data.dueDate);
+          setDiscount(data.discount);
+          setNotes(data.notes || "");
+          setIsDraft(data.status === 'draft');
+          setIsLoading(false);
+        })
+        .catch(() => {
+          toast.error("Impossible de charger le devis");
+          onBack();
+        });
+    }
+  }, [editingId]);
 
   const TAX_RATE = settings.tvaRate / 100
+  const TPS_RATE = (settings as any).tpsRate / 100 || 0.095
   const CSS_RATE = settings.cssRate / 100
 
   const filteredClients = clients.filter(
@@ -117,8 +146,9 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
   const netHT = Math.max(0, subtotal - Math.round(discount))
   const cssAmount = Math.round(netHT * CSS_RATE)
   const taxBase = netHT + cssAmount
+  const tpsAmount = Math.round(taxBase * TPS_RATE)
   const tvaAmount = Math.round(taxBase * TAX_RATE)
-  const total = netHT + cssAmount + tvaAmount
+  const total = netHT + cssAmount + tpsAmount + tvaAmount
 
   const handleSave = async (status: Quote['status']) => {
     if (!selectedClient) {
@@ -147,6 +177,7 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
           discount,
           subtotal,
           taxBase,
+          tpsAmount,
           tvaAmount,
           cssAmount,
           total,
@@ -465,6 +496,11 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
                 </div>
 
                 <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">TPS ({(settings as any).tpsRate || 9.5}%)</span>
+                  <span className="text-foreground">{formatCurrency(tpsAmount)}</span>
+                </div>
+
+                <div className="flex justify-between text-xs">
                   <span className="text-muted-foreground">TVA ({settings.tvaRate}%)</span>
                   <span className="text-foreground">{formatCurrency(tvaAmount)}</span>
                 </div>
@@ -513,6 +549,7 @@ export function QuoteEditor({ onBack }: QuoteEditorProps) {
             subtotal: subtotal,
             discount: discount,
             taxBase: taxBase,
+            tpsAmount: tpsAmount,
             tvaAmount: tvaAmount,
             cssAmount: cssAmount,
             total: total,

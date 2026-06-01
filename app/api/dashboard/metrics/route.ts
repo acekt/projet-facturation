@@ -52,17 +52,57 @@ export async function GET(request: Request) {
     const totalInvoicesCount = activeInvoicesCountRow.count;
     const paidCount = paidCountRow.count;
 
-    // 6. Monthly Revenue Data (for 12 months of the current year)
-    const months = ["Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec"];
-    const revenueData = months.map((m, i) => {
-      const monthStr = String(i + 1).padStart(2, '0');
-      const row = db.prepare(`
-        SELECT COALESCE(SUM(amount), 0) as total FROM payments
-        WHERE strftime('%Y', date) = strftime('%Y', 'now')
-        AND strftime('%m', date) = ?
-      `).get(monthStr) as any;
-      return { month: m, revenue: row.total };
-    });
+    // 5b. Pending Quotes (for Operator)
+    const pendingQuotesCountRow = db.prepare("SELECT COUNT(*) as count FROM quotes WHERE status NOT IN ('invoiced', 'archived') AND deletedAt IS NULL").get() as any;
+    const pendingQuotesCount = pendingQuotesCountRow.count;
+
+    // 5c. Expiring Quotes (within 7 days)
+    const expiringQuotes = db.prepare(`
+      SELECT number, clientName,
+             (julianday(dueDate) - julianday('now')) as daysRemaining
+      FROM quotes
+      WHERE status NOT IN ('invoiced', 'archived')
+        AND deletedAt IS NULL
+        AND daysRemaining <= 7
+        AND daysRemaining >= 0
+      ORDER BY daysRemaining ASC
+    `).all() as any[];
+
+    // 5d. User Performance (for Admin)
+    const userPerformance = db.prepare(`
+      SELECT u.name,
+             COUNT(i.id) as docsCount,
+             COALESCE(SUM(i.total), 0) as totalRevenue
+      FROM users u
+      LEFT JOIN invoices i ON i.created_by = u.id
+      WHERE u.role = 'user'
+      GROUP BY u.id, u.name
+    `).all() as any[];
+
+    // 6. Dynamic Revenue Data based on range
+    let revenueData = [];
+    if (range === 'month') {
+      // Last 30 days
+      for (let i = 29; i >= 0; i--) {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const dateStr = date.toISOString().split('T')[0];
+        const row = db.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE date = ?").get(dateStr) as any;
+        revenueData.push({ label: date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }), value: row.total });
+      }
+    } else {
+      // Monthly for current year
+      const months = ["Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec"];
+      revenueData = months.map((m, i) => {
+        const monthStr = String(i + 1).padStart(2, '0');
+        const row = db.prepare(`
+          SELECT COALESCE(SUM(amount), 0) as total FROM payments
+          WHERE strftime('%Y', date) = strftime('%Y', 'now')
+          AND strftime('%m', date) = ?
+        `).get(monthStr) as any;
+        return { label: m, value: row.total };
+      });
+    }
 
     // 7. Payment methods distribution percentages
     const totalPaymentsCountRow = db.prepare("SELECT COUNT(*) as count FROM payments").get() as any;
@@ -117,12 +157,15 @@ export async function GET(request: Request) {
         pendingRevenue,
         overdueRevenue,
         paidCount,
-        totalInvoicesCount
+        totalInvoicesCount,
+        pendingQuotesCount
       },
-      revenueData,
+      revenueData, // Changed from {month, revenue} to {label, value}
       paymentMethodData,
       recentInvoices,
-      activityTimeline
+      activityTimeline,
+      expiringQuotes,
+      userPerformance
     });
   } catch (error) {
     console.error(error);

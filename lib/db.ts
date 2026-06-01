@@ -24,6 +24,7 @@ db.exec(`
     swiftCode TEXT,
     iban TEXT,
     tvaRate REAL,
+    tpsRate REAL DEFAULT 9.5,
     cssRate REAL,
     defaultDueDateDays INTEGER,
     defaultQuoteValidity INTEGER,
@@ -56,6 +57,7 @@ db.exec(`
     subtotal REAL DEFAULT 0,
     discount REAL DEFAULT 0,
     taxBase REAL DEFAULT 0,
+    tpsAmount REAL DEFAULT 0,
     tvaAmount REAL DEFAULT 0,
     cssAmount REAL DEFAULT 0,
     total REAL DEFAULT 0,
@@ -89,6 +91,7 @@ db.exec(`
     subtotal REAL DEFAULT 0,
     discount REAL DEFAULT 0,
     taxBase REAL DEFAULT 0,
+    tpsAmount REAL DEFAULT 0,
     tvaAmount REAL DEFAULT 0,
     cssAmount REAL DEFAULT 0,
     total REAL DEFAULT 0,
@@ -165,6 +168,7 @@ db.exec(`
     reason TEXT,
     subtotal REAL DEFAULT 0,
     taxBase REAL DEFAULT 0,
+    tpsAmount REAL DEFAULT 0,
     tvaAmount REAL DEFAULT 0,
     cssAmount REAL DEFAULT 0,
     total REAL DEFAULT 0,
@@ -233,7 +237,28 @@ try {
   if (!invoicesColumns.some(c => c.name === 'created_by')) {
     db.prepare("ALTER TABLE invoices ADD COLUMN created_by TEXT").run();
   }
-} catch (e) {}
+
+  // TPS Migrations
+  const settingsColumns = db.prepare("PRAGMA table_info(settings)").all() as Array<{ name: string }>;
+  if (!settingsColumns.some(c => c.name === 'tpsRate')) {
+    db.prepare("ALTER TABLE settings ADD COLUMN tpsRate REAL DEFAULT 9.5").run();
+  }
+
+  if (!quotesColumns.some(c => c.name === 'tpsAmount')) {
+    db.prepare("ALTER TABLE quotes ADD COLUMN tpsAmount REAL DEFAULT 0").run();
+  }
+
+  if (!invoicesColumns.some(c => c.name === 'tpsAmount')) {
+    db.prepare("ALTER TABLE invoices ADD COLUMN tpsAmount REAL DEFAULT 0").run();
+  }
+
+  const cnColumns = db.prepare("PRAGMA table_info(credit_notes)").all() as Array<{ name: string }>;
+  if (!cnColumns.some(c => c.name === 'tpsAmount')) {
+    db.prepare("ALTER TABLE credit_notes ADD COLUMN tpsAmount REAL DEFAULT 0").run();
+  }
+} catch (e) {
+  console.error("Migration error:", e);
+}
 
 // Insert default settings
 const row = db.prepare('SELECT COUNT(*) as count FROM settings').get() as { count: number };
@@ -242,10 +267,10 @@ if (row.count === 0) {
     INSERT INTO settings (
       id, companyName, legalForm, nif, rccm, address, email, phone, mentionsLegales,
       bankName, bankAgency, accountNumber, swiftCode, iban,
-      tvaRate, cssRate, defaultDueDateDays, defaultQuoteValidity, sessionTimeout,
+      tvaRate, tpsRate, cssRate, defaultDueDateDays, defaultQuoteValidity, sessionTimeout,
       invoicePrefix, quotePrefix, companyCode
     ) VALUES (
-      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `).run(
     "Global Maintenance",
@@ -262,6 +287,7 @@ if (row.count === 0) {
     "BGFIGAXX",
     "GAXX XXXX XXXX XXXX XXXX",
     18,
+    9.5,
     1,
     30,
     30,

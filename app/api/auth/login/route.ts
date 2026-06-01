@@ -3,8 +3,8 @@ import db from '@/lib/db';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
-const SALT = 'letoile-gabon-2026';
-const SESSION_SECRET = 'letoile-secret-key-2026-signing';
+const SALT = process.env.PASSWORD_SALT || 'letoile-gabon-2026';
+const SESSION_SECRET = process.env.SESSION_SECRET || 'letoile-secret-key-2026-signing';
 
 function hashPassword(password: string) {
   return crypto.createHash('sha256').update(password + SALT).digest('hex');
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       exp: Date.now() + (24 * 60 * 60 * 1000)
     });
 
-    const base64Data = btoa(sessionData);
+    const base64Data = Buffer.from(sessionData).toString('base64');
     const signedSession = await signSession(base64Data);
 
     (await cookies()).set('auth_session', signedSession, {

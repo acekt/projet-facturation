@@ -1,6 +1,6 @@
 import { cookies } from 'next/headers'
 
-const SESSION_SECRET = 'letoile-secret-key-2026-signing'
+const SESSION_SECRET = process.env.SESSION_SECRET || 'letoile-secret-key-2026-signing'
 
 function str2ab(str: string) {
   const buf = new ArrayBuffer(str.length)

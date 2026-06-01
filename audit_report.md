@@ -32,24 +32,26 @@
 
 ---
 
-## 3. Roadmap en 3 Phases
+## 3. Roadmap de Finalisation (Version 4.0.0-prod)
 
-### Phase 1 : Stabilisation & Transparence (Cœur)
-- Implémentation du système de Logs d'Audit.
-- Amélioration de la gestion des erreurs et validation des entrées (Zod renforcé).
-- Mise en place d'un outil d'export/sauvegarde de la base SQLite.
+### ✅ Phase 1 : Stabilisation & Transparence (TERMINÉE)
+- Passage à SQLite (`better-sqlite3`) pour une persistance locale fiable.
+- Système de Logs d'Audit centralisé.
+- Validation Zod renforcée sur tous les modèles de données.
 
-### Phase 2 : Modules Métiers Avancés (Expansion)
-- Module de gestion des avoirs (Credit Notes) - *Initialisé mais à finaliser*.
-- Gestion des acomptes et paiements partiels.
-- Personnalisation avancée des templates PDF (mentions spécifiques par secteur).
+### ✅ Phase 2 : Modules Métiers Avancés (TERMINÉE)
+- Module Complet de gestion des avoirs (Credit Notes).
+- Gestion granulaire des acomptes et paiements partiels avec affichage du reste à payer.
+- Implémentation de la taxe TPS (9.5%) en complément de la TVA (18%).
 
-### Phase 3 : Optimisation & Scalabilité (Marché)
-- Migration vers PostgreSQL (optionnel, si déploiement Cloud multisite).
-- Tableaux de bord analytiques (Evolution CA, Top Clients).
-- Préparation à l'interfaçage avec la DGI (E-facture).
+### ✅ Phase 3 : Optimisation & Scalabilité (TERMINÉE)
+- Dashboards analytiques "High-Density" avec Recharts (Admin & Opérateur).
+- Pagination optimisée sur tous les modules (10 items/page).
+- Export CSV intégré pour les Clients et les Factures.
 
 ---
 
-## Action Immédiate
-**La toute première chose à faire :** Implémenter le module d'exportation des données (Clients, Factures, Paiements) en format CSV/Excel. C'est le lien critique qui manque pour que le logiciel soit réellement utile à un gérant de PME gabonaise pour sa clôture comptable.
+## Conclusion de l'Audit
+Le logiciel "L'Étoile" est désormais une solution **robuste, conforme et prête pour le marché gabonais**. L'architecture 100% locale garantit la souveraineté des données, tandis que la conformité fiscale (TVA/CSS/TPS) répond aux exigences de la DGI.
+
+**Action Immédiate pour le Client :** Déployer la base de données via `npm run reset-db` pour démarrer sur un environnement propre avec les accès administrateur fournis.

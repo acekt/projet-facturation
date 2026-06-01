@@ -58,13 +58,13 @@ export async function POST(request: Request) {
       db.prepare(`
         INSERT INTO quotes (
           id, number, clientId, clientName, clientEmail, date, dueDate,
-          subtotal, discount, taxBase, tvaAmount, cssAmount, total, notes, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, notes, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id, number, quoteData.clientId, quoteData.clientName, quoteData.clientEmail, quoteData.date, quoteData.dueDate,
         Math.round(quoteData.subtotal), Math.round(quoteData.discount), Math.round(quoteData.taxBase),
-        Math.round(quoteData.tvaAmount), Math.round(quoteData.cssAmount), Math.round(quoteData.total),
-        quoteData.notes, quoteData.status
+        Math.round(quoteData.tvaAmount), Math.round(quoteData.tpsAmount || 0), Math.round(quoteData.cssAmount),
+        Math.round(quoteData.total), quoteData.notes, quoteData.status
       );
 
       const insertItem = db.prepare(`

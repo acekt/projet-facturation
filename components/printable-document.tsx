@@ -78,30 +78,34 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
       </table>
 
       {/* Totals Grid */}
-      <div className="grid grid-cols-6 border border-black mb-8">
+      <div className="grid grid-cols-7 border border-black mb-8">
         <div className="border-r border-black p-2 text-center">
-            <p className="text-[8pt] font-bold uppercase mb-1">Brut HT</p>
-            <p className="font-bold">{formatCurrency(document.subtotal).replace(' XAF', '')}</p>
+            <p className="text-[7pt] font-bold uppercase mb-1">Brut HT</p>
+            <p className="font-bold text-xs">{formatCurrency(document.subtotal).replace(' XAF', '')}</p>
         </div>
         <div className="border-r border-black p-2 text-center">
-            <p className="text-[8pt] font-bold uppercase mb-1">Remise</p>
-            <p className="font-bold">{formatCurrency(document.discount).replace(' XAF', '')}</p>
+            <p className="text-[7pt] font-bold uppercase mb-1">Remise</p>
+            <p className="font-bold text-xs">{formatCurrency(document.discount).replace(' XAF', '')}</p>
         </div>
         <div className="border-r border-black p-2 text-center">
-            <p className="text-[8pt] font-bold uppercase mb-1">Net HT</p>
-            <p className="font-bold">{formatCurrency(document.taxBase - document.cssAmount).replace(' XAF', '')}</p>
+            <p className="text-[7pt] font-bold uppercase mb-1">Net HT</p>
+            <p className="font-bold text-xs">{formatCurrency(document.taxBase - document.cssAmount).replace(' XAF', '')}</p>
         </div>
         <div className="border-r border-black p-2 text-center">
-            <p className="text-[8pt] font-bold uppercase mb-1">CSS</p>
-            <p className="font-bold">{formatCurrency(document.cssAmount).replace(' XAF', '')}</p>
+            <p className="text-[7pt] font-bold uppercase mb-1">CSS</p>
+            <p className="font-bold text-xs">{formatCurrency(document.cssAmount).replace(' XAF', '')}</p>
         </div>
         <div className="border-r border-black p-2 text-center">
-            <p className="text-[8pt] font-bold uppercase mb-1">TVA {settings.tvaRate}%</p>
-            <p className="font-bold">{formatCurrency(document.tvaAmount).replace(' XAF', '')}</p>
+            <p className="text-[7pt] font-bold uppercase mb-1">TPS {settings.tpsRate}%</p>
+            <p className="font-bold text-xs">{formatCurrency(document.tpsAmount || 0).replace(' XAF', '')}</p>
         </div>
-        <div className="p-2 text-center">
-            <p className="text-[8pt] font-bold uppercase mb-1">{(document as any).payments?.length > 0 ? "TOTAL TTC" : "NET A PAYER"}</p>
-            <p className="font-bold">{formatCurrency(document.total).replace(' XAF', '')}</p>
+        <div className="border-r border-black p-2 text-center">
+            <p className="text-[7pt] font-bold uppercase mb-1">TVA {settings.tvaRate}%</p>
+            <p className="font-bold text-xs">{formatCurrency(document.tvaAmount).replace(' XAF', '')}</p>
+        </div>
+        <div className="p-2 text-center bg-gray-50">
+            <p className="text-[7pt] font-black uppercase mb-1">{(document as any).payments?.length > 0 ? "TOTAL TTC" : "NET A PAYER"}</p>
+            <p className="font-black text-sm">{formatCurrency(document.total).replace(' XAF', '')}</p>
         </div>
       </div>
 
