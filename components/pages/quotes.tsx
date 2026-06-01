@@ -39,7 +39,7 @@ import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
 
 interface QuotesPageProps {
-  onCreateQuote: () => void
+  onCreateQuote: (id?: string) => void
 }
 
 export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
@@ -206,31 +206,31 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-              <Card className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm hover:shadow-md">
-                <CardContent className="p-4 md:p-6">
+              <Card className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm">
+                <CardContent className="p-3 md:p-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                        <FileText className="w-6 h-6" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                        <FileText className="w-5 h-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-foreground text-lg">{quote.number}</h3>
+                          <h3 className="font-bold text-foreground text-sm">{quote.number}</h3>
                           {getStatusBadge(quote.status)}
                         </div>
-                        <div className="flex flex-col md:flex-row md:items-center gap-x-4 gap-y-1 mt-1 text-sm text-muted-foreground">
-                          <span className="font-medium text-foreground/80">{quote.clientName}</span>
-                          <span className="flex items-center gap-1.5">
-                            <Clock className="w-3.5 h-3.5" />
+                        <div className="flex flex-col md:flex-row md:items-center gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-muted-foreground">
+                          <span className="font-black text-foreground/80 uppercase tracking-tighter">{quote.clientName}</span>
+                          <span className="flex items-center gap-1 opacity-60">
+                            <Clock className="w-3 h-3" />
                             {quote.date}
                           </span>
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 md:gap-8">
+                    <div className="flex items-center gap-4 md:gap-6">
                       <div className="text-right hidden sm:block">
-                        <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total TTC</p>
-                        <p className="text-xl font-bold text-foreground">{formatCurrency(quote.total)}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black">Total TTC</p>
+                        <p className="text-lg font-black text-foreground tracking-tighter">{formatCurrency(quote.total)}</p>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -257,7 +257,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                             <>
                             <DropdownMenuItem
                               className="gap-2"
-                              onClick={() => onCreateQuote()}
+                              onClick={() => onCreateQuote(quote.id)}
                             >
                               <Edit2 className="w-4 h-4" /> Modifier le devis
                             </DropdownMenuItem>

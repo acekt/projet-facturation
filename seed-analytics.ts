@@ -82,17 +82,17 @@ years: [2025, 2026].forEach(year => {
             yearlyQuoteSeq++;
 
             db.prepare(`
-                INSERT INTO quotes (id, number, clientId, clientName, date, subtotal, cssAmount, tvaAmount, total, status, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(quoteId, quoteNum, client.id, client.name, dateStr, 100000, 1000, 18180, 119180, 'invoiced', userId);
+                INSERT INTO quotes (id, number, clientId, clientName, date, subtotal, cssAmount, tpsAmount, tvaAmount, total, status, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(quoteId, quoteNum, client.id, client.name, dateStr, 100000, 1000, 9595, 17271, 127866, 'invoiced', userId);
 
             const invId = randomUUID();
             const invNum = `${yearlyInvSeq.toString().padStart(3, '0')}/GM/${year}`;
             yearlyInvSeq++;
             db.prepare(`
-                INSERT INTO invoices (id, number, quoteId, clientId, clientName, date, dueDate, subtotal, cssAmount, tvaAmount, total, status, created_by)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            `).run(invId, invNum, quoteId, client.id, client.name, dateStr, dateStr, 100000, 1000, 18180, 119180, 'PAID', userId);
+                INSERT INTO invoices (id, number, quoteId, clientId, clientName, date, dueDate, subtotal, cssAmount, tpsAmount, tvaAmount, total, status, created_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(invId, invNum, quoteId, client.id, client.name, dateStr, dateStr, 100000, 1000, 9595, 17271, 127866, 'PAID', userId);
 
             db.prepare(`INSERT INTO payments (id, invoiceId, amount, paymentMethod, date) VALUES (?, ?, ?, ?, ?)`).run(
                 randomUUID(), invId, 119180, 'virement', dateStr

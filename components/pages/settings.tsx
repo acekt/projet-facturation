@@ -298,6 +298,16 @@ export function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
+                  <Label>TPS (%)</Label>
+                  <Input
+                    type="number"
+                    value={formData.tpsRate}
+                    onChange={(e) => setFormData({ ...formData, tpsRate: parseFloat(e.target.value) || 0 })}
+                    className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
+                  />
+                </div>
+                <div className="space-y-2">
                   <Label>Code Entreprise (Ex: GM)</Label>
                   <Input
                     value={formData.companyCode}

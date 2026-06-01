@@ -202,7 +202,7 @@ export function ClientsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {paginatedClients.map((client, index) => (
           <motion.div
             key={client.id}
@@ -210,13 +210,13 @@ export function ClientsPage() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: index * 0.05 }}
           >
-            <Card className="bg-card border-border hover:border-primary/30 transition-all group overflow-hidden">
+            <Card className="bg-card border-border hover:border-primary/30 transition-all group overflow-hidden shadow-sm">
               <CardContent className="p-0">
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <Avatar className="w-12 h-12 ring-2 ring-border">
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-lg font-bold">
-                        {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                <div className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <Avatar className="w-10 h-10 ring-1 ring-border">
+                      <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground text-sm font-black">
+                        {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
                     <DropdownMenu>
@@ -242,25 +242,25 @@ export function ClientsPage() {
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
-                  <h3 className="font-bold text-foreground text-lg mb-1 truncate">{client.name}</h3>
-                  <div className="space-y-2 mt-4">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Mail className="w-4 h-4 text-primary/60" />
-                      <span className="truncate">{client.email}</span>
+                  <h3 className="font-black text-foreground text-sm mb-1 truncate uppercase tracking-tighter">{client.name}</h3>
+                  <div className="space-y-1.5 mt-3">
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <Mail className="w-3.5 h-3.5 text-primary/40" />
+                      <span className="truncate font-medium">{client.email}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Phone className="w-4 h-4 text-primary/60" />
-                      <span>{client.phone}</span>
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <Phone className="w-3.5 h-3.5 text-primary/40" />
+                      <span className="font-medium">{client.phone || 'Non renseigné'}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <MapPin className="w-4 h-4 text-primary/60" />
-                      <span className="truncate">{client.address}</span>
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <MapPin className="w-3.5 h-3.5 text-primary/40" />
+                      <span className="truncate font-medium">{client.address || 'Libreville, Gabon'}</span>
                     </div>
                   </div>
                 </div>
-                <div className="bg-secondary/30 p-4 border-t border-border flex items-center justify-between">
-                  <div className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">CA Total</div>
-                  <div className="font-bold text-foreground">
+                <div className="bg-secondary/30 px-4 py-2 border-t border-border/50 flex items-center justify-between">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-black">CA Encaissé</div>
+                  <div className="font-black text-foreground text-sm tracking-tighter">
                     {formatCurrency(useStore.getState().invoices
                       ?.filter(inv => inv.clientId === client.id && inv.status === 'PAID')
                       .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0))}

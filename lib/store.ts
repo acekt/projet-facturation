@@ -31,6 +31,7 @@ export interface Quote {
   subtotal: number;
   discount: number;
   taxBase: number;
+  tpsAmount?: number;
   tvaAmount: number;
   cssAmount: number;
   total: number;
@@ -52,6 +53,7 @@ export interface Invoice {
   subtotal: number;
   discount: number;
   taxBase: number;
+  tpsAmount?: number;
   tvaAmount: number;
   cssAmount: number;
   total: number;
@@ -90,6 +92,7 @@ export interface CreditNote {
   reason: string;
   subtotal: number;
   taxBase: number;
+  tpsAmount?: number;
   tvaAmount: number;
   cssAmount: number;
   total: number;
@@ -111,6 +114,7 @@ export interface Settings {
   swiftCode: string;
   iban: string;
   tvaRate: number;
+  tpsRate: number;
   cssRate: number;
   defaultDueDateDays: number;
   defaultQuoteValidity: number;
@@ -208,6 +212,7 @@ const DEFAULT_SETTINGS: Settings = {
   swiftCode: "BGFIGAXX",
   iban: "GAXX XXXX XXXX XXXX XXXX",
   tvaRate: 18,
+  tpsRate: 9.5,
   cssRate: 1,
   defaultDueDateDays: 30,
   defaultQuoteValidity: 30,

@@ -280,45 +280,45 @@ export function UsersPage() {
                         "group transition-colors",
                         u.id === currentUser?.id ? "bg-indigo-500/5" : "hover:bg-muted/30"
                     )}>
-                        <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                                <Avatar className="h-9 w-9 ring-2 ring-background">
-                                    <AvatarFallback className="bg-primary/10 text-primary font-bold text-xs">
+                        <td className="px-4 py-2">
+                            <div className="flex items-center gap-2">
+                                <Avatar className="h-7 w-7 ring-1 ring-border">
+                                    <AvatarFallback className="bg-primary/10 text-primary font-black text-[10px]">
                                         {u.name.substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                    <p className="text-sm font-semibold text-foreground">
-                                        {u.name} {u.id === currentUser?.id && <span className="text-[10px] text-primary font-bold">(Vous)</span>}
+                                    <p className="text-[11px] font-black text-foreground uppercase tracking-tighter">
+                                        {u.name} {u.id === currentUser?.id && <span className="text-[9px] text-primary font-bold">(MOI)</span>}
                                     </p>
-                                    <p className="text-xs text-muted-foreground">{u.email}</p>
+                                    <p className="text-[10px] text-muted-foreground leading-none">{u.email}</p>
                                 </div>
                             </div>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-2">
                             <Badge className={cn(
-                                "font-medium",
-                                u.role === 'admin' ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"
+                                "text-[9px] px-1.5 py-0 h-5 font-black uppercase tracking-widest",
+                                u.role === 'admin' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : "bg-indigo-500/10 text-indigo-600 border-indigo-500/20"
                             )}>
-                                {u.role === 'admin' ? 'Administrateur' : 'Opérateur'}
+                                {u.role === 'admin' ? 'Admin' : 'User'}
                             </Badge>
                         </td>
-                        <td className="px-6 py-4">
+                        <td className="px-4 py-2">
                             {u.is_active === 1 ? (
-                                <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                                    <Check className="w-3 h-3 mr-1" /> Actif
+                                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[9px] px-1.5 py-0 h-5 font-black uppercase tracking-widest">
+                                    Actif
                                 </Badge>
                             ) : (
-                                <Badge className="bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400">
-                                    <UserX className="w-3 h-3 mr-1" /> Désactivé
+                                <Badge className="bg-gray-500/10 text-gray-600 border-gray-500/20 text-[9px] px-1.5 py-0 h-5 font-black uppercase tracking-widest">
+                                    Off
                                 </Badge>
                             )}
                         </td>
-                        <td className="px-6 py-4 text-xs text-muted-foreground font-mono">
+                        <td className="px-4 py-2 text-[10px] text-muted-foreground font-black uppercase tracking-tighter">
                             {u.created_at?.split(' ')[0]}
                         </td>
-                        <td className="px-6 py-4 text-xs text-muted-foreground">
-                            {u.last_login_at || "Jamais"}
+                        <td className="px-4 py-2 text-[10px] text-muted-foreground font-bold italic">
+                            {u.last_login_at || "N/A"}
                         </td>
                         <td className="px-6 py-4 text-right">
                             <DropdownMenu>

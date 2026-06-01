@@ -24,6 +24,7 @@ const pageVariants = {
 
 export default function App() {
   const [currentPage, setCurrentPage] = React.useState("dashboard")
+  const [editingId, setEditingId] = React.useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
   const [commandOpen, setCommandOpen] = React.useState(false)
 
@@ -49,9 +50,18 @@ export default function App() {
       case "users":
         return <UsersPage />
       case "quotes":
-        return <QuotesPage onCreateQuote={() => setCurrentPage("new-quote")} />
+        return <QuotesPage onCreateQuote={(id) => {
+          setEditingId(id || null);
+          setCurrentPage("new-quote");
+        }} />
       case "new-quote":
-        return <QuoteEditor onBack={() => setCurrentPage("quotes")} />
+        return <QuoteEditor
+          onBack={() => {
+            setEditingId(null);
+            setCurrentPage("quotes");
+          }}
+          editingId={editingId}
+        />
       case "invoices":
         return <InvoicesPage onCreateInvoice={() => {}} />
       case "clients":

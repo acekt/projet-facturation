@@ -40,8 +40,8 @@ export async function POST(request: Request) {
       db.prepare(`
         INSERT INTO invoices (
           id, number, quoteId, clientId, clientName, clientEmail, date, dueDate,
-          subtotal, discount, taxBase, tvaAmount, cssAmount, total, status, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         invoiceId,
         number,
@@ -55,6 +55,7 @@ export async function POST(request: Request) {
         Math.round(quote.discount),
         Math.round(quote.taxBase),
         Math.round(quote.tvaAmount),
+        Math.round(quote.tpsAmount || 0),
         Math.round(quote.cssAmount),
         Math.round(quote.total),
         'UNPAID',

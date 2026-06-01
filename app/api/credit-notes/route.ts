@@ -59,22 +59,23 @@ export async function POST(request: Request) {
 
       // Calculate totals based on items
       const subtotal = Math.round(items.reduce((acc: number, item: any) => acc + (item.quantity * item.unitPrice), 0));
-      const rates = db.prepare('SELECT tvaRate, cssRate FROM settings WHERE id = 1').get() as any;
+      const rates = db.prepare('SELECT tvaRate, tpsRate, cssRate FROM settings WHERE id = 1').get() as any;
 
       const cssAmount = Math.round(subtotal * (rates.cssRate / 100));
       const taxBase = subtotal + cssAmount;
+      const tpsAmount = Math.round(taxBase * (rates.tpsRate / 100));
       const tvaAmount = Math.round(taxBase * (rates.tvaRate / 100));
-      const total = subtotal + cssAmount + tvaAmount;
+      const total = subtotal + cssAmount + tpsAmount + tvaAmount;
 
       db.prepare(`
         INSERT INTO credit_notes (
           id, number, invoiceId, clientId, clientName, date, reason,
-          subtotal, taxBase, tvaAmount, cssAmount, total, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          subtotal, taxBase, tvaAmount, tpsAmount, cssAmount, total, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id, number, invoice.id, invoice.clientId, invoice.clientName,
         new Date().toISOString().split('T')[0], reason,
-        subtotal, taxBase, tvaAmount, cssAmount, total, 'open'
+        subtotal, taxBase, tvaAmount, tpsAmount, cssAmount, total, 'open'
       );
 
       const insertItem = db.prepare(`

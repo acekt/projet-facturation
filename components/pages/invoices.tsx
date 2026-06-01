@@ -251,28 +251,28 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
               transition={{ delay: index * 0.05 }}
             >
               <Card className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm">
-                <CardContent className="p-4 md:p-6">
+                <CardContent className="p-3 md:p-4">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                        <FileText className="w-6 h-6" />
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                        <FileText className="w-5 h-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-foreground text-lg">{invoice.number}</h3>
+                          <h3 className="font-bold text-foreground text-sm">{invoice.number}</h3>
                           {getStatusBadge(invoice.status)}
                         </div>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          <span className="font-medium text-foreground/80">{invoice.clientName}</span>
-                          <span className="mx-2">•</span>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          <span className="font-black text-foreground/80 uppercase tracking-tighter">{invoice.clientName}</span>
+                          <span className="mx-2 opacity-30">•</span>
                           {invoice.date}
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 md:gap-8">
+                    <div className="flex items-center gap-4 md:gap-6">
                       <div className="text-right hidden sm:block">
-                        <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold">Total TTC</p>
-                        <p className="text-xl font-bold text-foreground">{formatCurrency(invoice.total)}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black">Total TTC</p>
+                        <p className="text-lg font-black text-foreground tracking-tighter">{formatCurrency(invoice.total)}</p>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>

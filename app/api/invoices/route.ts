@@ -78,12 +78,12 @@ export async function POST(request: Request) {
       db.prepare(`
         INSERT INTO invoices (
           id, number, quoteId, clientId, clientName, clientEmail, date, dueDate,
-          subtotal, discount, taxBase, tvaAmount, cssAmount, total, notes, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, notes, status
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id, number, invData.quoteId, invData.clientId, invData.clientName, invData.clientEmail, invData.date, invData.dueDate,
         Math.round(invData.subtotal), Math.round(invData.discount), Math.round(invData.taxBase),
-        Math.round(invData.tvaAmount), Math.round(invData.cssAmount), Math.round(invData.total), invData.notes,
+        Math.round(invData.tvaAmount), Math.round(invData.tpsAmount || 0), Math.round(invData.cssAmount), Math.round(invData.total), invData.notes,
         invData.status === 'pending' ? 'UNPAID' : invData.status
       );
 
