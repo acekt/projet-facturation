@@ -27,6 +27,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
@@ -399,6 +400,9 @@ export function UsersPage() {
         <DialogContent className="bg-card border-border">
           <DialogHeader>
             <DialogTitle>Modifier l'utilisateur</DialogTitle>
+            <VisuallyHidden>
+              <DialogDescription>Formulaire de modification des informations de l'utilisateur</DialogDescription>
+            </VisuallyHidden>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">

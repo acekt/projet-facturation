@@ -191,7 +191,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             <CardContent>
                 <div className="space-y-3">
                     {(data.userPerformance || []).map((u: any) => (
-                        <div key={u.name} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
+                        <div key={u.id || u.name} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500 font-bold text-xs">
                                     {u.name[0]}

@@ -18,12 +18,15 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
+import { EmptyState } from "@/components/ui/empty-state"
 
 export function ServicesPage() {
   const services = useStore((state) => state.services)
@@ -133,7 +136,7 @@ export function ServicesPage() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {paginatedServices.map((service, index) => (
+        {paginatedServices.length > 0 ? paginatedServices.map((service, index) => (
           <motion.div
             key={service.id}
             initial={{ opacity: 0, y: 20 }}
@@ -192,7 +195,17 @@ export function ServicesPage() {
               </CardContent>
             </Card>
           </motion.div>
-        ))}
+        )) : (
+          <div className="col-span-full">
+            <EmptyState
+              icon={Briefcase}
+              title={searchQuery ? "Aucun service trouvé" : "Catalogue vide"}
+              description={searchQuery ? "Aucun service ne correspond à votre recherche dans le catalogue." : "Enregistrez vos prestations habituelles pour gagner du temps lors de la création de devis."}
+              actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau service" : undefined}
+              onAction={!searchQuery && user?.role === 'user' ? () => setIsDialogOpen(true) : undefined}
+            />
+          </div>
+        )}
       </div>
 
       <Pagination
@@ -207,6 +220,9 @@ export function ServicesPage() {
             <DialogTitle className="text-foreground">
               {editingService ? "Modifier le service" : "Ajouter un nouveau service"}
             </DialogTitle>
+            <VisuallyHidden>
+              <DialogDescription>Formulaire pour enregistrer les informations d'un service dans le catalogue</DialogDescription>
+            </VisuallyHidden>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
