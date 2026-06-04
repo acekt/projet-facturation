@@ -26,6 +26,8 @@ db.exec(`
     tvaRate REAL,
     tpsRate REAL DEFAULT 9.5,
     cssRate REAL,
+    defaultDueDateDays INTEGER,
+    defaultQuoteValidity INTEGER,
     sessionTimeout INTEGER,
     invoicePrefix TEXT,
     quotePrefix TEXT,
@@ -268,10 +270,9 @@ if (row.count === 0) {
     INSERT INTO settings (
       id, companyName, legalForm, nif, rccm, address, email, phone, mentionsLegales,
       bankName, bankAgency, accountNumber, swiftCode, iban,
-      tvaRate, tpsRate, cssRate, defaultDueDateDays, defaultQuoteValidity, sessionTimeout,
-      invoicePrefix, quotePrefix, companyCode
+      tvaRate, tpsRate, cssRate, sessionTimeout, invoicePrefix, quotePrefix, companyCode
     ) VALUES (
-      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `).run(
     "Global Maintenance",
@@ -290,8 +291,6 @@ if (row.count === 0) {
     18,
     9.5,
     1,
-    30,
-    30,
     30,
     "FAC",
     "DEV",
