@@ -295,21 +295,3 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
     </div>
   )
 }
-                        <span className="text-[10px] font-mono text-muted-foreground">{log.time}</span>
-                    </div>
-                ))}
-            </div>
-         </CardContent>
-      </Card>
-
-      <div className="flex gap-4">
-         <Button className="flex-1 bg-amber-500 hover:bg-amber-600 h-14 text-lg font-black tracking-tighter" onClick={() => onNavigate('users')}>
-            <Users className="w-5 h-5 mr-2" /> AJOUTER UN UTILISATEUR
-         </Button>
-         <Button variant="secondary" className="flex-1 h-14 text-lg font-black tracking-tighter" onClick={() => onNavigate('audit')}>
-            <ScrollText className="w-5 h-5 mr-2" /> VOIR LES LOGS
-         </Button>
-      </div>
-    </div>
-  )
-}
