@@ -332,6 +332,19 @@ export function SettingsPage() {
                         disabled={!isAdmin}
                     />
                 </div>
+                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border hidden">
+                    <div className="space-y-0.5">
+                    <Label className="text-base">Validité devis (jours)</Label>
+                    <p className="text-xs text-muted-foreground">Délai d'offre par défaut</p>
+                    </div>
+                    <Input
+                        type="number"
+                        className="w-20 bg-card"
+                        value={formData.defaultQuoteValidity}
+                        onChange={(e) => setFormData({ ...formData, defaultQuoteValidity: parseInt(e.target.value) || 0 })}
+                        disabled={!isAdmin}
+                    />
+                </div>
               </div>
 
               <div className="space-y-2">
