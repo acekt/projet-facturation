@@ -31,11 +31,20 @@ export async function DELETE(
   try {
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
-    const { deleteQuote = false } = body;
+    const { deleteQuote = false, userRole = 'user' } = body;
 
     // Get invoice details
     const invoice = db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id);
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+
+    // Check if invoice is older than 3 days and user is not admin
+    const invoiceDate = new Date(invoice.date);
+    const threeDaysAgo = new Date();
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
+    
+    if (invoiceDate < threeDaysAgo && userRole !== 'admin') {
+      return NextResponse.json({ error: 'Les factures de plus de 3 jours ne peuvent être annulées que par un administrateur' }, { status: 403 });
+    }
 
     // RULE 5: Enforce Soft Delete to maintain fiscal audit trail
     const result = db.prepare("UPDATE invoices SET deletedAt = datetime('now'), status = 'cancelled' WHERE id = ?").run(id);

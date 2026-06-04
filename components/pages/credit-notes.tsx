@@ -8,6 +8,7 @@ import {
   Search,
   RefreshCcw,
   MoreVertical,
+  Eye,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -24,6 +25,8 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
+import { DocumentPreview } from "@/components/document-preview"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 
@@ -51,6 +54,11 @@ export function CreditNotesPage() {
   React.useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery])
+
+  const handlePreview = (note: CreditNote) => {
+    setPreviewData(note)
+    setPreviewOpen(true)
+  }
 
   const handleDownloadPDF = async (note: CreditNote) => {
     try {
@@ -176,6 +184,10 @@ export function CreditNotesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+                          <DropdownMenuItem className="gap-2" onClick={() => handlePreview(note)}>
+                            <Eye className="w-4 h-4" />
+                            Aperçu
+                          </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2" onClick={() => handleDownloadPDF(note)} disabled={isDownloading === note.id}>
                             <Download className="w-4 h-4" />
                             {isDownloading === note.id ? "Génération..." : "Télécharger PDF"}
@@ -213,6 +225,21 @@ export function CreditNotesPage() {
         totalPages={totalPages}
         onPageChange={setCurrentPage}
       />
+
+      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Aperçu de l'avoir</DialogTitle>
+          </DialogHeader>
+          {previewData && (
+            <DocumentPreview
+              document={previewData}
+              type="avoir"
+              settings={settings}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

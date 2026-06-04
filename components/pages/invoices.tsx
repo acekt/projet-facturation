@@ -87,7 +87,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   }
 
   const handleCreateCreditNote = async (invoice: Invoice) => {
-    const deleteQuote = confirm(`Voulez-vous créer un avoir pour la facture ${invoice.number} ?\n\nCela annulera comptablement cette facture.\n\nVoulez-vous également supprimer le devis associé ?\n\nOK = Oui, supprimer le devis\nAnnuler = Non, garder le devis (il deviendra brouillon)`);
+    const deleteQuote = confirm(`Voulez-vous annuler la facture ${invoice.number} ?\n\nCela annulera comptablement cette facture.\n\nVoulez-vous également supprimer le devis associé ?\n\nOK = Oui, supprimer le devis\nAnnuler = Non, garder le devis (il deviendra brouillon)`);
     
     if (deleteQuote === null) return; // User cancelled
 
@@ -95,10 +95,17 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       const response = await fetch(`/api/invoices/${invoice.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deleteQuote: deleteQuote === true }),
+        body: JSON.stringify({ deleteQuote: deleteQuote === true, userRole: user?.role || 'user' }),
       });
 
-      if (!response.ok) throw new Error('Failed to cancel invoice');
+      if (!response.ok) {
+        const error = await response.json();
+        if (response.status === 403) {
+          toast.error(error.error || "Accès refusé");
+          return;
+        }
+        throw new Error('Failed to cancel invoice');
+      }
 
       toast.success("Facture annulée avec succès");
       const [updatedInvoices, updatedQuotes, updatedNotes] = await Promise.all([

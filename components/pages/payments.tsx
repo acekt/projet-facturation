@@ -200,19 +200,6 @@ export function PaymentsPage() {
         <Card className="bg-card border-border hover:shadow-md transition-shadow">
           <CardContent className="p-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
-                <ArrowUpRight className="w-5 h-5 text-red-500" />
-              </div>
-              <div className="flex-1">
-                <p className="text-muted-foreground text-sm">Sorties (Dépenses)</p>
-                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(0)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-card border-border hover:shadow-md transition-shadow">
-          <CardContent className="p-5">
-            <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Wallet className="w-5 h-5 text-primary" />
               </div>
