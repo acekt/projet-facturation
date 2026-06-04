@@ -56,11 +56,17 @@ export function DataSync() {
         if (me && !me.error) {
           if (me.user) {
             setUser(me.user);
-          } else if (me.error === 'User not found' || me.status === 404) {
+          } else if (me.status === 404 || me.error === 'User not found') {
             // User not found in database, clear session and redirect to login
-            console.error('[DataSync] User not found, clearing session');
+            console.error('[DataSync] User not found in database, clearing session and redirecting to login');
+            document.cookie = 'auth_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
             window.location.href = '/login';
           }
+        } else if (me && me.status === 401) {
+          // Session invalid, redirect to login
+          console.error('[DataSync] Session invalid, redirecting to login');
+          document.cookie = 'auth_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          window.location.href = '/login';
         }
       } catch (error) {
         console.error('[DataSync] Failed to sync data:', error);
