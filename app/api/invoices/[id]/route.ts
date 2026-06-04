@@ -34,7 +34,7 @@ export async function DELETE(
     const { deleteQuote = false, userRole = 'user' } = body;
 
     // Get invoice details
-    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id);
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id) as any;
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
 
     // Check if invoice is older than 3 days and user is not admin

@@ -92,7 +92,7 @@ export function CreditNotesPage() {
         <div className="flex items-center gap-2">
           <ViewFormatSelector
             currentFormat={format}
-            onFormatChange={(f: 'list' | 'grid') => setViewFormat('creditNotes', f)}
+            onFormatChange={(f: 'list' | 'grid') => (setViewFormat as any)('creditNotes', f)}
           />
         </div>
       </div>

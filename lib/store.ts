@@ -246,7 +246,8 @@ export const useStore = create<AppState>()(
         quotes: 'table',
         invoices: 'table',
         clients: 'block',
-        services: 'block'
+        services: 'block',
+        creditNotes: 'list'
       },
 
       setUser: (user) => {
