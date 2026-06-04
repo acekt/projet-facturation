@@ -17,6 +17,7 @@ import {
   XCircle,
   Eye,
   Edit2,
+  Calendar,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -232,7 +233,6 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                   <td className="p-4">
                     <div className="text-xs text-muted-foreground">
                       <div>Émission: {formatDate(quote.date)}</div>
-                      <div>Échéance: {formatDate(quote.dueDate)}</div>
                     </div>
                   </td>
                   <td className="p-4">{getStatusBadge(quote.status)}</td>
@@ -435,12 +435,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                   <p className="text-xs text-muted-foreground mb-2">{quote.clientName}</p>
                   <div className="space-y-1 mb-3">
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <Clock className="w-3 h-3" />
+                      <Calendar className="w-3 h-3" />
                       <span>Émission: {formatDate(quote.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <Clock className="w-3 h-3" />
-                      <span>Échéance: {formatDate(quote.dueDate)}</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-border/50">

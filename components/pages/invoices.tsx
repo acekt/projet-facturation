@@ -18,6 +18,7 @@ import {
   Edit2,
   Eye,
   RefreshCcw,
+  Calendar,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -518,12 +519,8 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                   <p className="text-xs text-muted-foreground mb-2">{invoice.clientName}</p>
                   <div className="space-y-1 mb-3">
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <Clock className="w-3 h-3" />
+                      <Calendar className="w-3 h-3" />
                       <span>Émission: {formatDate(invoice.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <Clock className="w-3 h-3" />
-                      <span>Échéance: {formatDate(invoice.dueDate)}</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-border/50">

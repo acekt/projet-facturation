@@ -319,7 +319,7 @@ export function SettingsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border">
+                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border hidden">
                     <div className="space-y-0.5">
                     <Label className="text-base">Délai de paiement (jours)</Label>
                     <p className="text-xs text-muted-foreground">Échéance par défaut des factures</p>
