@@ -57,11 +57,18 @@ export function PaymentsPage() {
   const currentYear = now.getFullYear().toString();
 
   const incomeThisMonth = payments
-    .filter(p => p.date?.startsWith(currentYear) && p.date?.split('-')[1] === currentMonth)
+    .filter(p => {
+      const invoice = invoices.find(i => i.id === p.invoiceId)
+      return p.date?.startsWith(currentYear) && 
+             p.date?.split('-')[1] === currentMonth &&
+             invoice &&
+             invoice.status !== 'cancelled' &&
+             !invoice.deletedAt
+    })
     .reduce((acc, p) => acc + (Number(p.amount) || 0), 0)
 
   const pendingPayments = invoices
-    .filter(i => i.status === 'UNPAID' || i.status === 'PARTIALLY_PAID')
+    .filter(i => (i.status === 'UNPAID' || i.status === 'PARTIALLY_PAID') && i.status !== 'cancelled' && !i.deletedAt)
     .reduce((acc, i) => {
         const paidForThisInvoice = payments
             .filter(p => p.invoiceId === i.id)
@@ -72,7 +79,8 @@ export function PaymentsPage() {
   const cashflowData = React.useMemo(() => {
     const dailyTotals: Record<string, number> = {};
     payments.forEach(p => {
-        if (p.date) {
+        const invoice = invoices.find(i => i.id === p.invoiceId)
+        if (p.date && invoice && invoice.status !== 'cancelled' && !invoice.deletedAt) {
             const dateKey = p.date.split('-').slice(1).reverse().join('/');
             dailyTotals[dateKey] = (dailyTotals[dateKey] || 0) + (Number(p.amount) || 0);
         }
