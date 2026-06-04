@@ -205,8 +205,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
       </div>
 
       {viewFormat.quotes === 'table' && (
-        <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-          <table className="w-full">
+        <div className="bg-card rounded-xl border border-border overflow-x-auto shadow-sm">
+          <table className="w-full min-w-[600px]">
             <thead className="bg-secondary/50">
               <tr>
                 <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Devis</th>

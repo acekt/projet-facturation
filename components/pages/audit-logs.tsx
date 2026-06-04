@@ -59,7 +59,8 @@ export function AuditLogsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <Table>
+          <div className="overflow-x-auto">
+            <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Date</TableHead>
@@ -98,9 +99,10 @@ export function AuditLogsPage() {
                     Aucun log d'audit disponible.
                   </TableCell>
                 </TableRow>
-              )}
+              ))}
             </TableBody>
           </Table>
+          </div>
           <Pagination
             currentPage={currentPage}
             totalPages={Math.ceil(logs.length / itemsPerPage)}
