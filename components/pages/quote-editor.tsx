@@ -25,9 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-  DialogDescription,
 } from "@/components/ui/dialog"
-import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -55,10 +53,11 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
   ])
   const [quoteDate, setQuoteDate] = React.useState(new Date().toISOString().split("T")[0])
+  const [isValidityActive, setIsValidityActive] = React.useState(true)
   const [isDueDateActive, setIsDueDateActive] = React.useState(true)
   const [dueDate, setDueDate] = React.useState(() => {
     const d = new Date()
-    d.setDate(d.getDate() + 30)
+    d.setDate(d.getDate() + settings.defaultDueDateDays)
     return d.toISOString().split("T")[0]
   })
   const [discount, setDiscount] = React.useState(0)
@@ -172,6 +171,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
           clientName: selectedClient.name,
           clientEmail: selectedClient.email,
           date: quoteDate,
+          dueDate,
           items,
           notes,
           discount,
@@ -328,9 +328,6 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   <DialogContent className="bg-card border-border">
                     <DialogHeader>
                       <DialogTitle className="text-foreground">Rechercher un client</DialogTitle>
-                      <VisuallyHidden>
-                        <DialogDescription>Sélectionnez un client dans votre base de données pour ce devis</DialogDescription>
-                      </VisuallyHidden>
                     </DialogHeader>
                     <div className="mt-4 space-y-4">
                       <div className="relative">
@@ -547,6 +544,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             clientName: selectedClient.name,
             clientEmail: selectedClient.email,
             date: quoteDate,
+            dueDate: dueDate,
             items: items,
             subtotal: subtotal,
             discount: discount,

@@ -2,12 +2,12 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
-import { ShieldCheck, User, Clock, Info } from "lucide-react"
+import { ShieldCheck, User, Clock, Info, History } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Pagination } from "@/components/ui/pagination-custom"
-import { formatDate } from "@/lib/utils"
+import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
 
 export function AuditLogsPage() {
   const [logs, setLogs] = React.useState<any[]>([])
@@ -16,33 +16,12 @@ export function AuditLogsPage() {
   const itemsPerPage = 10
 
   React.useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        console.log('[AuditLogsPage] Fetching logs from /api/audit-logs')
-        const res = await fetch('/api/audit-logs')
-        
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}))
-          console.error('[AuditLogsPage] API Error:', errorData)
-          if (res.status === 403) {
-            console.warn('[AuditLogsPage] Access denied - not admin')
-          }
-          throw new Error(errorData.error || `HTTP ${res.status}`)
-        }
-        
-        const data = await res.json()
-        console.log('[AuditLogsPage] Logs fetched:', data.length)
-        if (!data.error) {
-          setLogs(data)
-        }
-      } catch (err) {
-        console.error('[AuditLogsPage] Fetch error:', err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    
-    fetchLogs()
+    fetch('/api/audit-logs')
+      .then(res => res.json())
+      .then(data => {
+        if (!data.error) setLogs(data);
+        setIsLoading(false);
+      });
   }, [])
 
   return (
@@ -60,50 +39,58 @@ export function AuditLogsPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Utilisateur</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Entité</TableHead>
-                  <TableHead>Détails</TableHead>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Date</TableHead>
+                <TableHead>Utilisateur</TableHead>
+                <TableHead>Action</TableHead>
+                <TableHead>Entité</TableHead>
+                <TableHead>Détails</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((log) => (
+                <TableRow key={log.id}>
+                  <TableCell className="font-mono text-xs text-muted-foreground">
+                    {new Date(log.createdAt).toLocaleString('fr-FR')}
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2">
+                      <User className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span>{log.userName}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={log.action === 'DELETE' ? 'destructive' : 'secondary'}>
+                      {log.action}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="capitalize">{log.entityType}</TableCell>
+                  <TableCell className="max-w-md truncate text-sm">
+                    {log.details}
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((log) => (
-                  <TableRow key={log.id}>
-                    <TableCell className="font-mono text-xs text-muted-foreground">
-                      {formatDate(log.createdAt)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <User className="w-3.5 h-3.5 text-muted-foreground" />
-                        <span>{log.userName}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={log.action === 'DELETE' ? 'destructive' : 'secondary'}>
-                        {log.action}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="capitalize">{log.entityType}</TableCell>
-                    <TableCell className="max-w-md truncate text-sm">
-                      {log.details}
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {logs.length === 0 && !isLoading && (
-                  <TableRow>
-                    <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
-                      Aucun log d'audit disponible.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+              ))}
+              {logs.length === 0 && !isLoading && (
+                <TableRow>
+                  <TableCell colSpan={5} className="p-0 border-0">
+                    <Empty className="py-20 bg-transparent border-0">
+                      <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                          <History className="w-6 h-6 text-muted-foreground" />
+                        </EmptyMedia>
+                        <EmptyTitle>JOURNAL VIDE</EmptyTitle>
+                        <EmptyDescription className="font-black uppercase tracking-widest text-[10px]">
+                          AUCUN ÉVÉNEMENT N'A ÉTÉ ENREGISTRÉ POUR LE MOMENT.
+                        </EmptyDescription>
+                      </EmptyHeader>
+                    </Empty>
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
           <Pagination
             currentPage={currentPage}
             totalPages={Math.ceil(logs.length / itemsPerPage)}
