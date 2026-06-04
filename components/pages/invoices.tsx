@@ -201,22 +201,8 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   }, [searchQuery])
 
   const getStatusBadge = (status: Invoice['status']) => {
-    switch (status) {
-      case "PAID":
-        return null // Handled by getPaymentBadge to avoid duplication
-      case "PARTIALLY_PAID":
-        return null // Handled by getPaymentBadge to avoid duplication
-      case "UNPAID":
-        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">Non payé</Badge>
-      case "overdue":
-        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">En retard</Badge>
-      case "draft":
-        return <Badge variant="secondary" className="bg-slate-100 text-slate-700">Brouillon</Badge>
-      case "cancelled":
-        return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Annulée</Badge>
-      default:
-        return null
-    }
+    // Not used anymore - replaced by getPaymentBadge for better detail
+    return null
   }
 
   const getPaymentStatus = (invoice: Invoice) => {
@@ -337,10 +323,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                     </div>
                   </td>
                   <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      {getStatusBadge(invoice.status)}
-                      {getPaymentBadge(invoice)}
-                    </div>
+                    {getPaymentBadge(invoice)}
                   </td>
                   <td className="p-4 text-right font-bold text-sm">{formatCurrency(invoice.total)}</td>
                   <td className="p-4 text-right">
@@ -511,7 +494,6 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                       <FileText className="w-5 h-5" />
                     </div>
                     <div className="flex items-center gap-2">
-                      {getStatusBadge(invoice.status)}
                       {getPaymentBadge(invoice)}
                     </div>
                   </div>
