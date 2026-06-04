@@ -116,8 +116,6 @@ export interface Settings {
   tvaRate: number;
   tpsRate: number;
   cssRate: number;
-  defaultDueDateDays: number;
-  defaultQuoteValidity: number;
   sessionTimeout: number;
   invoicePrefix: string;
   quotePrefix: string;
