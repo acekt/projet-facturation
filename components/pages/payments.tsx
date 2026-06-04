@@ -207,7 +207,7 @@ export function PaymentsPage() {
                 <p className="text-muted-foreground text-sm">Chiffre d'Affaires Annuel</p>
                 <p className="text-2xl font-bold text-foreground">
                     {formatShortCurrency(invoices
-                        .filter(i => i.status === 'PAID' && i.date?.startsWith(currentYear))
+                        .filter(i => i.status === 'PAID' && i.date?.startsWith(currentYear) && !i.deletedAt)
                         .reduce((sum, i) => sum + (Number(i.total) || 0), 0))}
                 </p>
               </div>
