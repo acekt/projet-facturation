@@ -23,6 +23,10 @@ export function DataSync() {
         // Only parse as JSON if the response is actually OK and JSON
         const results = await Promise.all(responses.map(async (res) => {
           if (!res.ok) {
+            // Don't log error for mock response (when not authenticated)
+            if (!('url' in res) && !('status' in res)) {
+              return { error: true };
+            }
             const url = 'url' in res ? res.url : 'unknown';
             const status = 'status' in res ? res.status : 'unknown';
             console.error(`[DataSync] API Error: ${url} - ${status}`);
