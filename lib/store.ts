@@ -62,7 +62,6 @@ export interface Invoice {
   payments?: Payment[];
   notes?: string;
   created_by?: string;
-  deletedAt?: string;
 }
 
 export interface Payment {
@@ -117,6 +116,8 @@ export interface Settings {
   tvaRate: number;
   tpsRate: number;
   cssRate: number;
+  defaultDueDateDays: number;
+  defaultQuoteValidity: number;
   sessionTimeout: number;
   invoicePrefix: string;
   quotePrefix: string;
@@ -245,8 +246,7 @@ export const useStore = create<AppState>()(
         quotes: 'table',
         invoices: 'table',
         clients: 'block',
-        services: 'block',
-        creditNotes: 'list'
+        services: 'block'
       },
 
       setUser: (user) => {

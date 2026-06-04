@@ -8,7 +8,6 @@ import {
   Search,
   RefreshCcw,
   MoreVertical,
-  Eye,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -25,8 +24,6 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
-import { DocumentPreview } from "@/components/document-preview"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 
@@ -54,11 +51,6 @@ export function CreditNotesPage() {
   React.useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery])
-
-  const handlePreview = (note: CreditNote) => {
-    setPreviewData(note)
-    setPreviewOpen(true)
-  }
 
   const handleDownloadPDF = async (note: CreditNote) => {
     try {
@@ -92,7 +84,7 @@ export function CreditNotesPage() {
         <div className="flex items-center gap-2">
           <ViewFormatSelector
             currentFormat={format}
-            onFormatChange={(f: 'list' | 'grid') => (setViewFormat as any)('creditNotes', f)}
+            onFormatChange={(f: 'list' | 'grid') => setViewFormat('creditNotes', f)}
           />
         </div>
       </div>
@@ -156,7 +148,7 @@ export function CreditNotesPage() {
             ))
           ) : (
             <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border">
-              <h3 className="text-lg font-semibold text-foreground">Aucun avoir émis</h3>
+              <h3 className="text-lg font-black text-foreground tracking-tight uppercase">Aucun avoir émis</h3>
               <p className="text-muted-foreground mt-1">Créez un avoir depuis le menu d'une facture pour l'annuler.</p>
             </div>
           )}
@@ -184,10 +176,6 @@ export function CreditNotesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                          <DropdownMenuItem className="gap-2" onClick={() => handlePreview(note)}>
-                            <Eye className="w-4 h-4" />
-                            Aperçu
-                          </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2" onClick={() => handleDownloadPDF(note)} disabled={isDownloading === note.id}>
                             <Download className="w-4 h-4" />
                             {isDownloading === note.id ? "Génération..." : "Télécharger PDF"}
@@ -213,7 +201,7 @@ export function CreditNotesPage() {
             ))
           ) : (
             <div className="col-span-full text-center py-20 bg-card rounded-2xl border border-dashed border-border">
-              <h3 className="text-lg font-semibold text-foreground">Aucun avoir émis</h3>
+              <h3 className="text-lg font-black text-foreground tracking-tight uppercase">Aucun avoir émis</h3>
               <p className="text-muted-foreground mt-1">Créez un avoir depuis le menu d'une facture pour l'annuler.</p>
             </div>
           )}
@@ -225,21 +213,6 @@ export function CreditNotesPage() {
         totalPages={totalPages}
         onPageChange={setCurrentPage}
       />
-
-      <Dialog open={previewOpen} onOpenChange={setPreviewOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Aperçu de l'avoir</DialogTitle>
-          </DialogHeader>
-          {previewData && (
-            <DocumentPreview
-              document={previewData}
-              type="avoir"
-              settings={settings}
-            />
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

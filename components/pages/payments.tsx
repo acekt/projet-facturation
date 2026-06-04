@@ -34,7 +34,6 @@ import {
 
 import { useStore } from "@/lib/store"
 import { formatCurrency, formatShortCurrency, formatDate } from "@/lib/utils"
-import { toast } from "sonner"
 import { Pagination } from "@/components/ui/pagination-custom"
 
 export function PaymentsPage() {
@@ -58,18 +57,11 @@ export function PaymentsPage() {
   const currentYear = now.getFullYear().toString();
 
   const incomeThisMonth = payments
-    .filter(p => {
-      const invoice = invoices.find(i => i.id === p.invoiceId)
-      return p.date?.startsWith(currentYear) && 
-             p.date?.split('-')[1] === currentMonth &&
-             invoice &&
-             invoice.status !== 'cancelled' &&
-             !invoice.deletedAt
-    })
+    .filter(p => p.date?.startsWith(currentYear) && p.date?.split('-')[1] === currentMonth)
     .reduce((acc, p) => acc + (Number(p.amount) || 0), 0)
 
   const pendingPayments = invoices
-    .filter(i => (i.status === 'UNPAID' || i.status === 'PARTIALLY_PAID') && i.status !== 'cancelled' && !i.deletedAt)
+    .filter(i => i.status === 'UNPAID' || i.status === 'PARTIALLY_PAID')
     .reduce((acc, i) => {
         const paidForThisInvoice = payments
             .filter(p => p.invoiceId === i.id)
@@ -80,8 +72,7 @@ export function PaymentsPage() {
   const cashflowData = React.useMemo(() => {
     const dailyTotals: Record<string, number> = {};
     payments.forEach(p => {
-        const invoice = invoices.find(i => i.id === p.invoiceId)
-        if (p.date && invoice && invoice.status !== 'cancelled' && !invoice.deletedAt) {
+        if (p.date) {
             const dateKey = p.date.split('-').slice(1).reverse().join('/');
             dailyTotals[dateKey] = (dailyTotals[dateKey] || 0) + (Number(p.amount) || 0);
         }
@@ -209,6 +200,19 @@ export function PaymentsPage() {
         <Card className="bg-card border-border hover:shadow-md transition-shadow">
           <CardContent className="p-5">
             <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-red-500/10 flex items-center justify-center">
+                <ArrowUpRight className="w-5 h-5 text-red-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-muted-foreground text-sm">Sorties (Dépenses)</p>
+                <p className="text-2xl font-bold text-red-600 dark:text-red-400">{formatCurrency(0)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-card border-border hover:shadow-md transition-shadow">
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Wallet className="w-5 h-5 text-primary" />
               </div>
@@ -216,7 +220,7 @@ export function PaymentsPage() {
                 <p className="text-muted-foreground text-sm">Chiffre d'Affaires Annuel</p>
                 <p className="text-2xl font-bold text-foreground">
                     {formatShortCurrency(invoices
-                        .filter(i => i.status === 'PAID' && i.date?.startsWith(currentYear) && !i.deletedAt)
+                        .filter(i => i.status === 'PAID' && i.date?.startsWith(currentYear))
                         .reduce((sum, i) => sum + (Number(i.total) || 0), 0))}
                 </p>
               </div>

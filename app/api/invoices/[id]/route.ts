@@ -31,45 +31,11 @@ export async function DELETE(
   try {
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
-    const { deleteQuote = false, userRole = 'user', restore = false } = body;
-
-    // Restore functionality
-    if (restore) {
-      const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(id) as any;
-      if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
-      if (!invoice.deletedAt) return NextResponse.json({ error: 'Invoice is not cancelled' }, { status: 400 });
-
-      // Check if invoice was cancelled more than 3 days ago
-      const cancelledDate = new Date(invoice.deletedAt);
-      const threeDaysAgo = new Date();
-      threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-      
-      if (cancelledDate < threeDaysAgo && userRole !== 'admin') {
-        return NextResponse.json({ error: 'Les factures annulées depuis plus de 3 jours ne peuvent être restaurées que par un administrateur' }, { status: 403 });
-      }
-
-      // Restore invoice
-      const result = db.prepare("UPDATE invoices SET deletedAt = NULL, status = 'UNPAID' WHERE id = ?").run(id);
-      
-      if (result.changes === 0) {
-        return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
-      }
-
-      return NextResponse.json({ success: true });
-    }
+    const { deleteQuote = false } = body;
 
     // Get invoice details
-    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id) as any;
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id);
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
-
-    // Check if invoice is older than 3 days and user is not admin
-    const invoiceDate = new Date(invoice.date);
-    const threeDaysAgo = new Date();
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 3);
-    
-    if (invoiceDate < threeDaysAgo && userRole !== 'admin') {
-      return NextResponse.json({ error: 'Les factures de plus de 3 jours ne peuvent être annulées que par un administrateur' }, { status: 403 });
-    }
 
     // RULE 5: Enforce Soft Delete to maintain fiscal audit trail
     const result = db.prepare("UPDATE invoices SET deletedAt = datetime('now'), status = 'cancelled' WHERE id = ?").run(id);
