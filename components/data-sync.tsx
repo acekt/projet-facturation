@@ -4,7 +4,7 @@ import * as React from "react"
 import { useStore } from "@/lib/store"
 
 export function DataSync() {
-  const { setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser } = useStore()
+  const { setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser, isAuthenticated } = useStore()
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -22,7 +22,10 @@ export function DataSync() {
 
         // Only parse as JSON if the response is actually OK and JSON
         const results = await Promise.all(responses.map(async (res) => {
-          if (!res.ok) return { error: true };
+          if (!res.ok) {
+            console.error(`[DataSync] API Error: ${res.url} - ${res.status}`);
+            return { error: true };
+          }
           const contentType = res.headers.get("content-type");
           if (contentType && contentType.indexOf("application/json") !== -1) {
             return res.json();
@@ -41,12 +44,12 @@ export function DataSync() {
         if (creditNotes && !creditNotes.error) setCreditNotes(creditNotes);
         if (me && !me.error && me.user) setUser(me.user);
       } catch (error) {
-        console.error('Failed to sync data:', error);
+        console.error('[DataSync] Failed to sync data:', error);
       }
     };
 
     fetchData();
-  }, [setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser]);
+  }, [setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser, isAuthenticated]);
 
   return null;
 }

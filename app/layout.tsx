@@ -29,6 +29,7 @@ export default function RootLayout({
     <html lang="fr" suppressHydrationWarning className="bg-background">
       <head>
         <script
+          suppressHydrationWarning
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
