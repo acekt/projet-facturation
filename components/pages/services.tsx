@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
-import { Plus, Search, MoreVertical, Edit2, Trash2, Briefcase, Tag, Layers } from "lucide-react"
+import { Plus, Search, MoreVertical, Edit2, Trash2, Briefcase, Tag } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -15,23 +15,27 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
+import { Badge } from "@/components/ui/badge"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
-import { Empty, EmptyHeader, EmptyMedia, EmptyTitle, EmptyDescription } from "@/components/ui/empty"
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 
 export function ServicesPage() {
   const services = useStore((state) => state.services)
   const setServices = useStore((state) => state.setServices)
   const user = useStore((state) => state.user)
+  const viewFormat = useStore((state) => state.viewFormat)
+  const setViewFormat = useStore((state) => state.setViewFormat)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 9 // Grid 3x3
@@ -133,11 +137,155 @@ export function ServicesPage() {
             className="pl-10 bg-secondary/50 border-border text-foreground w-full md:max-w-md"
           />
         </div>
+        <ViewFormatSelector
+          currentFormat={viewFormat.services || 'block'}
+          onFormatChange={(format: 'table' | 'horizontal' | 'block') => setViewFormat('services', format)}
+        />
       </div>
 
-      {paginatedServices.length > 0 ? (
+      {(!viewFormat.services || viewFormat.services === 'table') && (
+        <div className="bg-card rounded-xl border border-border overflow-x-auto shadow-sm">
+          <table className="w-full min-w-[600px]">
+            <thead className="bg-secondary/50">
+              <tr>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Service</th>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Catégorie</th>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Description</th>
+                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Prix</th>
+                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {paginatedServices.length > 0 ? paginatedServices.map((service) => (
+                <tr key={service.id} className="hover:bg-secondary/30 transition-colors">
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                        <Briefcase className="w-4 h-4" />
+                      </div>
+                      <span className="font-bold text-sm">{service.name}</span>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <Badge variant="secondary">{service.category || 'Non classé'}</Badge>
+                  </td>
+                  <td className="p-4 text-sm text-muted-foreground line-clamp-1">{service.description || '-'}</td>
+                  <td className="p-4 text-right font-bold text-sm">{formatCurrency(service.unitPrice)}</td>
+                  <td className="p-4 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40 bg-card border-border">
+                        {user?.role === 'user' && (
+                          <DropdownMenuItem className="gap-2" onClick={() => {
+                              setEditingService(service)
+                              setFormData({
+                                  name: service.name,
+                                  description: service.description || "",
+                                  category: service.category || "",
+                                  unitPrice: service.unitPrice
+                              })
+                              setIsDialogOpen(true)
+                          }}>
+                            <Edit2 className="w-4 h-4" /> Modifier
+                          </DropdownMenuItem>
+                        )}
+                        {user?.role === 'admin' && (
+                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(service.id)}>
+                            <Trash2 className="w-4 h-4" /> Supprimer
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              )) : null}
+            </tbody>
+          </table>
+          {paginatedServices.length === 0 && (
+            <div className="p-8 text-center">
+              <EmptyState
+                icon={Briefcase}
+                title={searchQuery ? "Aucun service trouvé" : "Catalogue vide"}
+                description={searchQuery ? "Aucun service ne correspond à votre recherche dans le catalogue." : "Enregistrez vos prestations habituelles pour gagner du temps lors de la création de devis."}
+                actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau service" : undefined}
+                onAction={!searchQuery && user?.role === 'user' ? () => setIsDialogOpen(true) : undefined}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {viewFormat.services === 'horizontal' && (
+        <div className="space-y-3">
+          {paginatedServices.length > 0 ? paginatedServices.map((service) => (
+            <Card key={service.id} className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-4">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                      <Briefcase className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-sm">{service.name}</h3>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="secondary" className="text-[10px]">{service.category || 'Non classé'}</Badge>
+                        <span className="text-xs text-muted-foreground">{formatCurrency(service.unitPrice)}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40 bg-card border-border">
+                        {user?.role === 'user' && (
+                          <DropdownMenuItem className="gap-2" onClick={() => {
+                              setEditingService(service)
+                              setFormData({
+                                  name: service.name,
+                                  description: service.description || "",
+                                  category: service.category || "",
+                                  unitPrice: service.unitPrice
+                              })
+                              setIsDialogOpen(true)
+                          }}>
+                            <Edit2 className="w-4 h-4" /> Modifier
+                          </DropdownMenuItem>
+                        )}
+                        {user?.role === 'admin' && (
+                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(service.id)}>
+                            <Trash2 className="w-4 h-4" /> Supprimer
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )) : null}
+          {paginatedServices.length === 0 && (
+            <EmptyState
+              icon={Briefcase}
+              title={searchQuery ? "Aucun service trouvé" : "Catalogue vide"}
+              description={searchQuery ? "Aucun service ne correspond à votre recherche dans le catalogue." : "Enregistrez vos prestations habituelles pour gagner du temps lors de la création de devis."}
+              actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau service" : undefined}
+              onAction={!searchQuery && user?.role === 'user' ? () => setIsDialogOpen(true) : undefined}
+            />
+          )}
+        </div>
+      )}
+
+      {viewFormat.services === 'block' && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {paginatedServices.map((service, index) => (
+          {paginatedServices.length > 0 ? paginatedServices.map((service, index) => (
             <motion.div
               key={service.id}
               initial={{ opacity: 0, y: 20 }}
@@ -196,20 +344,19 @@ export function ServicesPage() {
                 </CardContent>
               </Card>
             </motion.div>
-          ))}
+          )) : null}
+          {paginatedServices.length === 0 && (
+            <div className="col-span-full">
+              <EmptyState
+                icon={Briefcase}
+                title={searchQuery ? "Aucun service trouvé" : "Catalogue vide"}
+                description={searchQuery ? "Aucun service ne correspond à votre recherche dans le catalogue." : "Enregistrez vos prestations habituelles pour gagner du temps lors de la création de devis."}
+                actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau service" : undefined}
+                onAction={!searchQuery && user?.role === 'user' ? () => setIsDialogOpen(true) : undefined}
+              />
+            </div>
+          )}
         </div>
-      ) : (
-        <Empty className="py-20">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Layers className="w-6 h-6 text-muted-foreground" />
-            </EmptyMedia>
-            <EmptyTitle>CATALOGUE VIDE</EmptyTitle>
-            <EmptyDescription className="font-black uppercase tracking-widest text-[10px]">
-              {searchQuery ? "AUCUN SERVICE NE CORRESPOND À VOTRE RECHERCHE." : "ORGANISEZ VOS PRESTATIONS DANS LE CATALOGUE."}
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
       )}
 
       <Pagination
@@ -225,9 +372,7 @@ export function ServicesPage() {
               {editingService ? "Modifier le service" : "Ajouter un nouveau service"}
             </DialogTitle>
             <VisuallyHidden>
-              <DialogDescription>
-                Formulaire pour gérer les services du catalogue.
-              </DialogDescription>
+              <DialogDescription>Formulaire pour enregistrer les informations d'un service dans le catalogue</DialogDescription>
             </VisuallyHidden>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">

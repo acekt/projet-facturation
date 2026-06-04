@@ -18,6 +18,7 @@ import {
   Edit2,
   Eye,
   RefreshCcw,
+  Calendar,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -30,16 +31,19 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { useStore, type Invoice, type Payment } from "@/lib/store"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { PrintableDocument } from "@/components/printable-document"
 import { DocumentPreview } from "@/components/document-preview"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Pagination } from "@/components/ui/pagination-custom"
+import { EmptyState } from "@/components/ui/empty-state"
+import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
@@ -47,7 +51,7 @@ interface InvoicesPageProps {
 }
 
 export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPageProps) {
-  const { invoices, setInvoices, setPayments, settings, setCreditNotes, user } = useStore()
+  const { invoices, setInvoices, quotes, setQuotes, setPayments, settings, setCreditNotes, user, viewFormat, setViewFormat } = useStore()
 
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
@@ -75,36 +79,38 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   }
 
   const markAsPaid = (invoice: Invoice) => {
+      const totalPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+      const remaining = invoice.total - totalPaid
       setPaymentInvoice(invoice);
-      setPaymentAmount(invoice.total.toString());
+      setPaymentAmount(remaining.toString());
       setPaymentDialogOpen(true);
   }
 
   const handleCreateCreditNote = async (invoice: Invoice) => {
-    if (!confirm(`Voulez-vous créer un avoir pour la facture ${invoice.number} ? Cela annulera comptablement cette facture.`)) return;
+    const deleteQuote = confirm(`Voulez-vous créer un avoir pour la facture ${invoice.number} ?\n\nCela annulera comptablement cette facture.\n\nVoulez-vous également supprimer le devis associé ?\n\nOK = Oui, supprimer le devis\nAnnuler = Non, garder le devis (il deviendra brouillon)`);
+    
+    if (deleteQuote === null) return; // User cancelled
 
     try {
-      const response = await fetch('/api/credit-notes', {
-        method: 'POST',
+      const response = await fetch(`/api/invoices/${invoice.id}`, {
+        method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          invoiceId: invoice.id,
-          reason: "Annulation de facture / Retour",
-          items: invoice.items
-        }),
+        body: JSON.stringify({ deleteQuote: deleteQuote === true }),
       });
 
-      if (!response.ok) throw new Error('Failed to create credit note');
+      if (!response.ok) throw new Error('Failed to cancel invoice');
 
-      toast.success("Avoir créé avec succès");
-      const [updatedInvoices, updatedNotes] = await Promise.all([
+      toast.success("Facture annulée avec succès");
+      const [updatedInvoices, updatedQuotes, updatedNotes] = await Promise.all([
           fetch('/api/invoices').then(res => res.json()),
+          fetch('/api/quotes').then(res => res.json()),
           fetch('/api/credit-notes').then(res => res.json())
       ]);
       setInvoices(updatedInvoices);
+      setQuotes(updatedQuotes);
       setCreditNotes(updatedNotes);
     } catch (error) {
-      toast.error("Erreur lors de la création de l'avoir");
+      toast.error("Erreur lors de l'annulation de la facture");
     }
   }
 
@@ -131,13 +137,27 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
 
   const confirmPayment = async () => {
       if (paymentInvoice) {
+          const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+          const remaining = paymentInvoice.total - totalPaid
+          const amount = parseFloat(paymentAmount)
+          
+          if (amount <= 0) {
+              toast.error("Le montant doit être supérieur à 0")
+              return
+          }
+          
+          if (amount > remaining) {
+              toast.error(`Le montant ne peut pas dépasser le reste à payer (${formatCurrency(remaining)})`)
+              return
+          }
+          
           try {
             const response = await fetch('/api/payments', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                   invoiceId: paymentInvoice.id,
-                  amount: parseFloat(paymentAmount),
+                  amount: amount,
                   paymentMethod,
                   date: new Date().toISOString().split('T')[0]
               }),
@@ -181,19 +201,45 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   }, [searchQuery])
 
   const getStatusBadge = (status: Invoice['status']) => {
-    switch (status) {
-      case "PAID":
-        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">Payée</Badge>
-      case "PARTIALLY_PAID":
-        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200">Acompte</Badge>
-      case "UNPAID":
-        return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200">Impayée</Badge>
-      case "overdue":
-        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">En retard</Badge>
-      case "draft":
-        return <Badge variant="secondary" className="bg-slate-100 text-slate-700">Brouillon</Badge>
-      case "cancelled":
-        return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Annulée (Avoir)</Badge>
+    // Not used anymore - replaced by getPaymentBadge for better detail
+    return null
+  }
+
+  const getPaymentStatus = (invoice: Invoice) => {
+    const totalPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+    const remaining = invoice.total - totalPaid
+    
+    if (totalPaid === 0) {
+      return { status: 'unpaid', paid: 0, remaining: invoice.total }
+    }
+    if (totalPaid >= invoice.total) {
+      return { status: 'paid', paid: totalPaid, remaining: 0 }
+    }
+    return { status: 'partial', paid: totalPaid, remaining }
+  }
+
+  const getPaymentBadge = (invoice: Invoice) => {
+    const paymentStatus = getPaymentStatus(invoice)
+    
+    switch (paymentStatus.status) {
+      case 'paid':
+        return (
+          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+            Soldé ({formatCurrency(paymentStatus.paid)})
+          </Badge>
+        )
+      case 'partial':
+        return (
+          <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+            Partiel - Payé: {formatCurrency(paymentStatus.paid)} | Reste: {formatCurrency(paymentStatus.remaining)}
+          </Badge>
+        )
+      case 'unpaid':
+        return (
+          <Badge className="bg-red-100 text-red-700 border-red-200">
+            Non payé - Reste: {formatCurrency(paymentStatus.remaining)}
+          </Badge>
+        )
       default:
         return null
     }
@@ -229,7 +275,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         </div>
       </div>
 
-      <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border">
+      <div className="flex items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -239,11 +285,109 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
             className="pl-10 bg-secondary/50 border-border text-foreground w-full md:max-w-md"
           />
         </div>
+        <ViewFormatSelector
+          currentFormat={viewFormat.invoices}
+          onFormatChange={(format: 'table' | 'horizontal' | 'block') => setViewFormat('invoices', format)}
+        />
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {paginatedInvoices.length > 0 ? (
-          paginatedInvoices.map((invoice, index) => (
+      {viewFormat.invoices === 'table' && (
+        <div className="bg-card rounded-xl border border-border overflow-x-auto shadow-sm">
+          <table className="w-full min-w-[600px]">
+            <thead className="bg-secondary/50">
+              <tr>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Facture</th>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Client</th>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Dates</th>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Statut</th>
+                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Total</th>
+                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {paginatedInvoices.map((invoice) => (
+                <tr key={invoice.id} className="hover:bg-secondary/30 transition-colors">
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <span className="font-bold text-sm">{invoice.number}</span>
+                    </div>
+                  </td>
+                  <td className="p-4 text-sm text-muted-foreground">{invoice.clientName}</td>
+                  <td className="p-4">
+                    <div className="text-xs text-muted-foreground">
+                      <div>Émission: {formatDate(invoice.date)}</div>
+                      <div>Échéance: {formatDate(invoice.dueDate)}</div>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    {getPaymentBadge(invoice)}
+                  </td>
+                  <td className="p-4 text-right font-bold text-sm">{formatCurrency(invoice.total)}</td>
+                  <td className="p-4 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+                        <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
+                          <Eye className="w-4 h-4" /> Aperçu
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
+                          <Printer className="w-4 h-4" /> Imprimer
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={() => handleDownloadPDF(invoice)}
+                          disabled={isDownloading === invoice.id}
+                        >
+                          <Download className="w-4 h-4" />
+                          {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
+                        </DropdownMenuItem>
+                        {invoice.status !== 'PAID' && user?.role === 'user' && (
+                          <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
+                            <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
+                          </DropdownMenuItem>
+                        )}
+                        {user?.role === 'user' && (
+                          <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
+                            <RefreshCcw className="w-4 h-4" /> Annuler
+                          </DropdownMenuItem>
+                        )}
+                        {user?.role === 'admin' && (
+                          <>
+                            <div className="h-px bg-border my-1" />
+                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>
+                                <Trash2 className="w-4 h-4" /> Supprimer
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {paginatedInvoices.length === 0 && (
+            <div className="p-8 text-center">
+              <EmptyState
+                icon={FileText}
+                title={searchQuery ? "Aucun résultat" : "Aucune facture"}
+                description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {viewFormat.invoices === 'horizontal' && (
+        <div className="grid grid-cols-1 gap-4">
+          {paginatedInvoices.map((invoice, index) => (
             <motion.div
               key={invoice.id}
               initial={{ opacity: 0, y: 20 }}
@@ -258,14 +402,17 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                         <FileText className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-bold text-foreground text-sm">{invoice.number}</h3>
                           {getStatusBadge(invoice.status)}
+                          {getPaymentBadge(invoice)}
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
                           <span className="font-black text-foreground/80 uppercase tracking-tighter">{invoice.clientName}</span>
                           <span className="mx-2 opacity-30">•</span>
-                          {invoice.date}
+                          <span>Émission: {formatDate(invoice.date)}</span>
+                          <span className="mx-2 opacity-30">•</span>
+                          <span>Échéance: {formatDate(invoice.dueDate)}</span>
                         </p>
                       </div>
                     </div>
@@ -302,7 +449,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           )}
                           {user?.role === 'user' && (
                             <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
-                              <RefreshCcw className="w-4 h-4" /> Créer un avoir
+                              <RefreshCcw className="w-4 h-4" /> Annuler la facture
                             </DropdownMenuItem>
                           )}
                           {user?.role === 'admin' && (
@@ -320,14 +467,103 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                 </CardContent>
               </Card>
             </motion.div>
-          ))
-        ) : (
-          <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border">
-            <h3 className="text-lg font-semibold text-foreground">Aucune facture trouvée</h3>
-            <p className="text-muted-foreground mt-1">Les factures sont générées automatiquement lors de la confirmation d'un devis.</p>
-          </div>
-        )}
-      </div>
+          ))}
+          {paginatedInvoices.length === 0 && (
+            <EmptyState
+              icon={FileText}
+              title={searchQuery ? "Aucun résultat" : "Aucune facture"}
+              description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
+            />
+          )}
+        </div>
+      )}
+
+      {viewFormat.invoices === 'block' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {paginatedInvoices.map((invoice, index) => (
+            <motion.div
+              key={invoice.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <Card className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getPaymentBadge(invoice)}
+                    </div>
+                  </div>
+                  <h3 className="font-bold text-sm mb-1">{invoice.number}</h3>
+                  <p className="text-xs text-muted-foreground mb-2">{invoice.clientName}</p>
+                  <div className="space-y-1 mb-3">
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <Calendar className="w-3 h-3" />
+                      <span>Émission: {formatDate(invoice.date)}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                    <p className="text-lg font-black text-foreground tracking-tighter">{formatCurrency(invoice.total)}</p>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+                        <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
+                          <Eye className="w-4 h-4" /> Aperçu
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
+                          <Printer className="w-4 h-4" /> Imprimer
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={() => handleDownloadPDF(invoice)}
+                          disabled={isDownloading === invoice.id}
+                        >
+                          <Download className="w-4 h-4" />
+                          {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
+                        </DropdownMenuItem>
+                        {invoice.status !== 'PAID' && user?.role === 'user' && (
+                          <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
+                            <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
+                          </DropdownMenuItem>
+                        )}
+                        {user?.role === 'user' && (
+                          <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
+                            <RefreshCcw className="w-4 h-4" /> Annuler
+                          </DropdownMenuItem>
+                        )}
+                        {user?.role === 'admin' && (
+                          <>
+                            <div className="h-px bg-border my-1" />
+                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>
+                                <Trash2 className="w-4 h-4" /> Supprimer
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+          {paginatedInvoices.length === 0 && (
+            <div className="col-span-full">
+              <EmptyState
+                icon={FileText}
+                title={searchQuery ? "Aucun résultat" : "Aucune facture"}
+                description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <Pagination
         currentPage={currentPage}
@@ -337,8 +573,11 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
 
       <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
         <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
+          <VisuallyHidden>
+            <DialogTitle>Impression de la facture {selectedInvoice?.number}</DialogTitle>
+          </VisuallyHidden>
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
-            <h2 className="font-bold">Aperçu avant impression</h2>
+            <h2 className="font-bold text-black">Aperçu avant impression</h2>
             <Button onClick={() => {
                 if ((window as any).electron) {
                     (window as any).electron.print();
@@ -357,13 +596,20 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         <DialogContent className="bg-card border-border max-w-sm">
           <DialogHeader>
             <DialogTitle className="text-foreground">Confirmer le règlement</DialogTitle>
+            <VisuallyHidden>
+              <DialogDescription>Formulaire pour enregistrer un paiement partiel ou total pour cette facture</DialogDescription>
+            </VisuallyHidden>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
                 <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Type de règlement</Label>
                 <Select value={paymentType} onValueChange={(val) => {
                     setPaymentType(val);
-                    if (val === 'full' && paymentInvoice) setPaymentAmount(paymentInvoice.total.toString());
+                    if (val === 'full' && paymentInvoice) {
+                        const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+                        const remaining = paymentInvoice.total - totalPaid
+                        setPaymentAmount(remaining.toString());
+                    }
                 }}>
                     <SelectTrigger className="bg-secondary border-border text-foreground h-11">
                         <SelectValue placeholder="Sélectionner..." />
@@ -375,15 +621,31 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                 </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="payment-amount" className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Montant encaissé (XAF)</Label>
+              <Label htmlFor="payment-amount" className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Montant du paiement (XAF)</Label>
               <Input
                 id="payment-amount"
                 type="number"
                 value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
+                onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0
+                    if (paymentInvoice) {
+                        const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+                        const remaining = paymentInvoice.total - totalPaid
+                        if (value <= remaining) {
+                            setPaymentAmount(e.target.value)
+                        }
+                    } else {
+                        setPaymentAmount(e.target.value)
+                    }
+                }}
                 className="bg-secondary border-border h-11 font-bold text-lg"
                 disabled={paymentType === 'full'}
               />
+              {paymentInvoice && (
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                      Reste à payer: {formatCurrency(paymentInvoice.total - (paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0))}
+                  </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Mode de règlement</Label>

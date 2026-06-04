@@ -319,32 +319,6 @@ export function SettingsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border">
-                    <div className="space-y-0.5">
-                    <Label className="text-base">Délai de paiement (jours)</Label>
-                    <p className="text-xs text-muted-foreground">Échéance par défaut des factures</p>
-                    </div>
-                    <Input
-                        type="number"
-                        className="w-20 bg-card"
-                        value={formData.defaultDueDateDays}
-                        onChange={(e) => setFormData({ ...formData, defaultDueDateDays: parseInt(e.target.value) || 0 })}
-                        disabled={!isAdmin}
-                    />
-                </div>
-                <div className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border">
-                    <div className="space-y-0.5">
-                    <Label className="text-base">Validité devis (jours)</Label>
-                    <p className="text-xs text-muted-foreground">Délai d'offre par défaut</p>
-                    </div>
-                    <Input
-                        type="number"
-                        className="w-20 bg-card"
-                        value={formData.defaultQuoteValidity}
-                        onChange={(e) => setFormData({ ...formData, defaultQuoteValidity: parseInt(e.target.value) || 0 })}
-                        disabled={!isAdmin}
-                    />
-                </div>
               </div>
 
               <div className="space-y-2">

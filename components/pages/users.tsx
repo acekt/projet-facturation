@@ -27,16 +27,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { useStore } from "@/lib/store"
-import { cn } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
-import { VisuallyHidden } from "@/components/ui/visually-hidden"
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty"
 
-export function UsersPage() {
+interface UsersPageProps {
+  onCreateUser: () => void
+  onEditUser: (id: string) => void
+}
+
+export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   const [users, setUsers] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -67,21 +70,32 @@ export function UsersPage() {
 
   const fetchUsers = async () => {
     try {
+      console.log('[UsersPage] Fetching users from /api/users')
       const res = await fetch('/api/users')
-      if (res.ok) {
-        const data = await res.json()
-        setUsers(data)
+      console.log('[UsersPage] Response status:', res.status)
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        console.error('[UsersPage] API Error:', errorData)
+        throw new Error(errorData.error || `HTTP ${res.status}`)
       }
+      
+      const data = await res.json()
+      console.log('[UsersPage] Users fetched:', data.length)
+      setUsers(data)
     } catch (err) {
-      toast.error("Erreur lors du chargement des utilisateurs")
+      console.error('[UsersPage] Fetch error:', err)
+      toast.error(`Erreur chargement: ${err instanceof Error ? err.message : 'Inconnue'}`)
     } finally {
       setIsLoading(false)
     }
   }
 
   React.useEffect(() => {
-    fetchUsers()
-  }, [])
+    if (currentUser?.role === 'admin') {
+      fetchUsers()
+    }
+  }, [currentUser?.id])
 
   const filteredUsers = React.useMemo(() => {
     return users.filter(u => {
@@ -113,10 +127,7 @@ export function UsersPage() {
   }
 
   const handleOpenAdd = () => {
-    const pw = generatePassword()
-    setFormData({ name: "", email: "", role: "user", password: pw })
-    setTempPassword(pw)
-    setIsAddModalOpen(true)
+    onCreateUser()
   }
 
   const handleAddUser = async () => {
@@ -278,98 +289,80 @@ export function UsersPage() {
                 </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-                {paginatedUsers.length > 0 ? (
-                  paginatedUsers.map((u) => (
-                      <tr key={u.id} className={cn(
-                          "group transition-colors",
-                          u.id === currentUser?.id ? "bg-indigo-500/5" : "hover:bg-muted/30"
-                      )}>
-                          <td className="px-4 py-2">
-                              <div className="flex items-center gap-2">
-                                  <Avatar className="h-7 w-7 ring-1 ring-border">
-                                      <AvatarFallback className="bg-primary/10 text-primary font-black text-[10px]">
-                                          {u.name.substring(0, 2).toUpperCase()}
-                                      </AvatarFallback>
-                                  </Avatar>
-                                  <div>
-                                      <p className="text-[11px] font-black text-foreground uppercase tracking-tighter">
-                                          {u.name} {u.id === currentUser?.id && <span className="text-[9px] text-primary font-bold">(MOI)</span>}
-                                      </p>
-                                      <p className="text-[10px] text-muted-foreground leading-none">{u.email}</p>
-                                  </div>
-                              </div>
-                          </td>
-                          <td className="px-4 py-2">
-                              <Badge className={cn(
-                                  "text-[9px] px-1.5 py-0 h-5 font-black uppercase tracking-widest",
-                                  u.role === 'admin' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : "bg-indigo-500/10 text-indigo-600 border-indigo-500/20"
-                              )}>
-                                  {u.role === 'admin' ? 'Admin' : 'User'}
-                              </Badge>
-                          </td>
-                          <td className="px-4 py-2">
-                              {u.is_active === 1 ? (
-                                  <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[9px] px-1.5 py-0 h-5 font-black uppercase tracking-widest">
-                                      Actif
-                                  </Badge>
-                              ) : (
-                                  <Badge className="bg-gray-500/10 text-gray-600 border-gray-500/20 text-[9px] px-1.5 py-0 h-5 font-black uppercase tracking-widest">
-                                      Off
-                                  </Badge>
-                              )}
-                          </td>
-                          <td className="px-4 py-2 text-[10px] text-muted-foreground font-black uppercase tracking-tighter">
-                              {u.created_at?.split(' ')[0]}
-                          </td>
-                          <td className="px-4 py-2 text-[10px] text-muted-foreground font-bold italic">
-                              {u.last_login_at || "N/A"}
-                          </td>
-                          <td className="px-6 py-4 text-right">
-                              <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                                          <MoreVertical className="w-4 h-4" />
-                                      </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="bg-card border-border w-48">
-                                      <DropdownMenuItem onClick={() => { setSelectedUser(u); setFormData({ name: u.name, role: u.role, email: u.email, password: "" }); setIsEditModalOpen(true); }} className="gap-2">
-                                          <Edit2 className="w-4 h-4" /> Modifier
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsResetModalOpen(true); }} className="gap-2">
-                                          <Key className="w-4 h-4" /> Reset MDP
-                                      </DropdownMenuItem>
-                                      <DropdownMenuSeparator />
-                                      <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsStatusModalOpen(true); }} className={cn("gap-2", u.is_active === 1 ? "text-amber-500" : "text-emerald-500")}>
-                                          {u.is_active === 1 ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                                          {u.is_active === 1 ? "Désactiver" : "Activer"}
-                                      </DropdownMenuItem>
-                                      {u.id !== currentUser?.id && (
-                                          <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsDeleteModalOpen(true); }} className="gap-2 text-destructive focus:text-destructive">
-                                              <Trash2 className="w-4 h-4" /> Supprimer
-                                          </DropdownMenuItem>
-                                      )}
-                                  </DropdownMenuContent>
-                              </DropdownMenu>
-                          </td>
-                      </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={6} className="p-0">
-                      <Empty className="py-20 border-0 rounded-none bg-transparent">
-                        <EmptyHeader>
-                          <EmptyMedia variant="icon">
-                            <Users className="w-6 h-6 text-muted-foreground" />
-                          </EmptyMedia>
-                          <EmptyTitle>AUCUN UTILISATEUR</EmptyTitle>
-                          <EmptyDescription className="font-black uppercase tracking-widest text-[10px]">
-                            {searchQuery ? "AUCUNE CORRESPONDANCE TROUVÉE." : "AJOUTEZ DES COMPTES POUR VOS COLLABORATEURS."}
-                          </EmptyDescription>
-                        </EmptyHeader>
-                      </Empty>
-                    </td>
-                  </tr>
-                )}
+                {paginatedUsers.map((u) => (
+                    <tr key={u.id} className={cn(
+                        "group transition-colors",
+                        u.id === currentUser?.id ? "bg-indigo-500/5" : "hover:bg-muted/30"
+                    )}>
+                        <td className="px-4 py-2">
+                            <div className="flex items-center gap-2">
+                                <Avatar className="h-7 w-7 ring-1 ring-border">
+                                    <AvatarFallback className="bg-primary/10 text-primary font-black text-[10px]">
+                                        {u.name.substring(0, 2).toUpperCase()}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                    <p className="text-[11px] font-black text-foreground uppercase tracking-tighter">
+                                        {u.name} {u.id === currentUser?.id && <span className="text-[9px] text-primary font-bold">(MOI)</span>}
+                                    </p>
+                                    <p className="text-[10px] text-muted-foreground leading-none">{u.email}</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td className="px-4 py-2">
+                            <Badge className={cn(
+                                "text-[9px] px-1.5 py-0 h-5 font-black uppercase tracking-widest",
+                                u.role === 'admin' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : "bg-indigo-500/10 text-indigo-600 border-indigo-500/20"
+                            )}>
+                                {u.role === 'admin' ? 'Admin' : 'User'}
+                            </Badge>
+                        </td>
+                        <td className="px-4 py-2">
+                            {u.is_active === 1 ? (
+                                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[9px] px-1.5 py-0 h-5 font-black uppercase tracking-widest">
+                                    Actif
+                                </Badge>
+                            ) : (
+                                <Badge className="bg-gray-500/10 text-gray-600 border-gray-500/20 text-[9px] px-1.5 py-0 h-5 font-black uppercase tracking-widest">
+                                    Off
+                                </Badge>
+                            )}
+                        </td>
+                        <td className="px-4 py-2 text-[10px] text-muted-foreground font-black uppercase tracking-tighter">
+                            {u.created_at?.split(' ')[0]}
+                        </td>
+                        <td className="px-4 py-2 text-[10px] text-muted-foreground font-bold italic">
+                            {u.last_login_at || "N/A"}
+                        </td>
+                        <td className="px-6 py-4 text-right">
+                            <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                        <MoreVertical className="w-4 h-4" />
+                                    </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end" className="bg-card border-border w-48">
+                                    <DropdownMenuItem onClick={() => onEditUser(u.id)} className="gap-2">
+                                        <Edit2 className="w-4 h-4" /> Modifier
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsResetModalOpen(true); }} className="gap-2">
+                                        <Key className="w-4 h-4" /> Reset MDP
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                    <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsStatusModalOpen(true); }} className={cn("gap-2", u.is_active === 1 ? "text-amber-500" : "text-emerald-500")}>
+                                        {u.is_active === 1 ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                                        {u.is_active === 1 ? "Désactiver" : "Activer"}
+                                    </DropdownMenuItem>
+                                    {u.id !== currentUser?.id && (
+                                        <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsDeleteModalOpen(true); }} className="gap-2 text-destructive focus:text-destructive">
+                                            <Trash2 className="w-4 h-4" /> Supprimer
+                                        </DropdownMenuItem>
+                                    )}
+                                </DropdownMenuContent>
+                            </DropdownMenu>
+                        </td>
+                    </tr>
+                ))}
             </tbody>
         </table>
         <Pagination
@@ -421,7 +414,7 @@ export function UsersPage() {
           <DialogHeader>
             <DialogTitle>Modifier l'utilisateur</DialogTitle>
             <VisuallyHidden>
-              <DialogDescription>Modifiez le nom ou le rôle de cet utilisateur.</DialogDescription>
+              <DialogDescription>Formulaire de modification des informations de l'utilisateur</DialogDescription>
             </VisuallyHidden>
           </DialogHeader>
           <div className="space-y-4 py-4">
