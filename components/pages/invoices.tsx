@@ -288,9 +288,101 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {paginatedInvoices.length > 0 ? (
-          paginatedInvoices.map((invoice, index) => (
+      {viewFormat.invoices === 'table' && (
+        <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+          <table className="w-full">
+            <thead className="bg-secondary/50">
+              <tr>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Facture</th>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Client</th>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Dates</th>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Statut</th>
+                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Total</th>
+                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {paginatedInvoices.map((invoice) => (
+                <tr key={invoice.id} className="hover:bg-secondary/30 transition-colors">
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <span className="font-bold text-sm">{invoice.number}</span>
+                    </div>
+                  </td>
+                  <td className="p-4 text-sm text-muted-foreground">{invoice.clientName}</td>
+                  <td className="p-4">
+                    <div className="text-xs text-muted-foreground">
+                      <div>Émission: {invoice.date}</div>
+                      <div>Échéance: {invoice.dueDate}</div>
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(invoice.status)}
+                      {getPaymentBadge(invoice)}
+                    </div>
+                  </td>
+                  <td className="p-4 text-right font-bold text-sm">{formatCurrency(invoice.total)}</td>
+                  <td className="p-4 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+                        <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
+                          <Eye className="w-4 h-4" /> Aperçu
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
+                          <Printer className="w-4 h-4" /> Imprimer
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={() => handleDownloadPDF(invoice)}
+                          disabled={isDownloading === invoice.id}
+                        >
+                          <Download className="w-4 h-4" />
+                          {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
+                        </DropdownMenuItem>
+                        {invoice.status !== 'PAID' && user?.role === 'user' && (
+                          <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
+                            <CheckCircle2 className="w-4 h-4" /> Règlement
+                          </DropdownMenuItem>
+                        )}
+                        {user?.role === 'admin' && (
+                          <>
+                            <div className="h-px bg-border my-1" />
+                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>
+                                <Trash2 className="w-4 h-4" /> Supprimer
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {paginatedInvoices.length === 0 && (
+            <div className="p-8 text-center">
+              <EmptyState
+                icon={FileText}
+                title={searchQuery ? "Aucun résultat" : "Aucune facture"}
+                description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {viewFormat.invoices === 'horizontal' && (
+        <div className="grid grid-cols-1 gap-4">
+          {paginatedInvoices.map((invoice, index) => (
             <motion.div
               key={invoice.id}
               initial={{ opacity: 0, y: 20 }}
@@ -370,15 +462,84 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                 </CardContent>
               </Card>
             </motion.div>
-          ))
-        ) : (
-          <EmptyState
-            icon={FileText}
-            title={searchQuery ? "Aucun résultat" : "Aucune facture"}
-            description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
-          />
-        )}
-      </div>
+          ))}
+          {paginatedInvoices.length === 0 && (
+            <EmptyState
+              icon={FileText}
+              title={searchQuery ? "Aucun résultat" : "Aucune facture"}
+              description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
+            />
+          )}
+        </div>
+      )}
+
+      {viewFormat.invoices === 'block' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {paginatedInvoices.map((invoice, index) => (
+            <motion.div
+              key={invoice.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <Card className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(invoice.status)}
+                      {getPaymentBadge(invoice)}
+                    </div>
+                  </div>
+                  <h3 className="font-bold text-sm mb-1">{invoice.number}</h3>
+                  <p className="text-xs text-muted-foreground mb-2">{invoice.clientName}</p>
+                  <div className="space-y-1 mb-3">
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <Clock className="w-3 h-3" />
+                      <span>Émission: {invoice.date}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <Clock className="w-3 h-3" />
+                      <span>Échéance: {invoice.dueDate}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                    <p className="text-lg font-black text-foreground tracking-tighter">{formatCurrency(invoice.total)}</p>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40 bg-card border-border">
+                        <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
+                          <Eye className="w-4 h-4" /> Aperçu
+                        </DropdownMenuItem>
+                        {invoice.status !== 'PAID' && user?.role === 'user' && (
+                          <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
+                            <CheckCircle2 className="w-4 h-4" /> Règlement
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+          {paginatedInvoices.length === 0 && (
+            <div className="col-span-full">
+              <EmptyState
+                icon={FileText}
+                title={searchQuery ? "Aucun résultat" : "Aucune facture"}
+                description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <Pagination
         currentPage={currentPage}
