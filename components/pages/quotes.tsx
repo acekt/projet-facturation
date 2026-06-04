@@ -204,9 +204,112 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4">
-        {paginatedQuotes.length > 0 ? (
-          paginatedQuotes.map((quote, index) => (
+      {viewFormat.quotes === 'table' && (
+        <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
+          <table className="w-full">
+            <thead className="bg-secondary/50">
+              <tr>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Devis</th>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Client</th>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Dates</th>
+                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Statut</th>
+                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Total</th>
+                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border/50">
+              {paginatedQuotes.map((quote) => (
+                <tr key={quote.id} className="hover:bg-secondary/30 transition-colors">
+                  <td className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                        <FileText className="w-4 h-4" />
+                      </div>
+                      <span className="font-bold text-sm">{quote.number}</span>
+                    </div>
+                  </td>
+                  <td className="p-4 text-sm text-muted-foreground">{quote.clientName}</td>
+                  <td className="p-4">
+                    <div className="text-xs text-muted-foreground">
+                      <div>Émission: {quote.date}</div>
+                      <div>Échéance: {quote.dueDate}</div>
+                    </div>
+                  </td>
+                  <td className="p-4">{getStatusBadge(quote.status)}</td>
+                  <td className="p-4 text-right font-bold text-sm">{formatCurrency(quote.total)}</td>
+                  <td className="p-4 text-right">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+                        <DropdownMenuItem className="gap-2" onClick={() => setPreviewQuote(quote)}>
+                          <Eye className="w-4 h-4" /> Aperçu
+                        </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
+                          <Printer className="w-4 h-4" /> Imprimer
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={() => handleDownloadPDF(quote)}
+                          disabled={isDownloading === quote.id}
+                        >
+                          <Download className="w-4 h-4" />
+                          {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
+                        </DropdownMenuItem>
+                        {quote.status !== 'invoiced' && user?.role === 'user' && (
+                          <>
+                            <DropdownMenuItem
+                              className="gap-2"
+                              onClick={() => onCreateQuote(quote.id)}
+                            >
+                              <Edit2 className="w-4 h-4" /> Modifier
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="gap-2 text-primary font-medium"
+                              onClick={() => handleConvertToInvoice(quote.id)}
+                            >
+                              <CheckCircle2 className="w-4 h-4" /> Convertir
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {useStore.getState().user?.role === 'admin' && (
+                          <>
+                            <div className="h-px bg-border my-1" />
+                            <DropdownMenuItem
+                                className="gap-2 text-destructive focus:text-destructive"
+                                onClick={() => handleDelete(quote.id)}
+                            >
+                                <Trash2 className="w-4 h-4" /> Supprimer
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {paginatedQuotes.length === 0 && (
+            <div className="p-8 text-center">
+              <EmptyState
+                icon={FileText}
+                title={searchQuery ? "Aucun devis trouvé" : "Aucun devis"}
+                description={searchQuery ? "Aucun devis ne correspond à votre recherche." : "Créez votre premier devis pour commencer."}
+                actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau devis" : undefined}
+                onAction={!searchQuery && user?.role === 'user' ? () => onCreateQuote() : undefined}
+              />
+            </div>
+          )}
+        </div>
+      )}
+
+      {viewFormat.quotes === 'horizontal' && (
+        <div className="grid grid-cols-1 gap-4">
+          {paginatedQuotes.map((quote, index) => (
             <motion.div
               key={quote.id}
               initial={{ opacity: 0, y: 20 }}
@@ -298,17 +401,88 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                 </CardContent>
               </Card>
             </motion.div>
-          ))
-        ) : (
-          <EmptyState
-            icon={FileText}
-            title={searchQuery ? "Aucun résultat" : "Aucun devis"}
-            description={searchQuery ? "Aucun devis ne correspond à votre recherche actuelle." : "Commencez par créer votre premier devis professionnel pour le marché gabonais."}
-            actionLabel={!searchQuery && user?.role === 'user' ? "Créer un devis" : undefined}
-            onAction={!searchQuery && user?.role === 'user' ? () => onCreateQuote() : undefined}
-          />
-        )}
-      </div>
+          ))}
+          {paginatedQuotes.length === 0 && (
+            <EmptyState
+              icon={FileText}
+              title={searchQuery ? "Aucun devis trouvé" : "Aucun devis"}
+              description={searchQuery ? "Aucun devis ne correspond à votre recherche." : "Créez votre premier devis pour commencer."}
+              actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau devis" : undefined}
+              onAction={!searchQuery && user?.role === 'user' ? () => onCreateQuote() : undefined}
+            />
+          )}
+        </div>
+      )}
+
+      {viewFormat.quotes === 'block' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {paginatedQuotes.map((quote, index) => (
+            <motion.div
+              key={quote.id}
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <Card className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm">
+                <CardContent className="p-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                      <FileText className="w-5 h-5" />
+                    </div>
+                    {getStatusBadge(quote.status)}
+                  </div>
+                  <h3 className="font-bold text-sm mb-1">{quote.number}</h3>
+                  <p className="text-xs text-muted-foreground mb-2">{quote.clientName}</p>
+                  <div className="space-y-1 mb-3">
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <Clock className="w-3 h-3" />
+                      <span>Émission: {quote.date}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                      <Clock className="w-3 h-3" />
+                      <span>Échéance: {quote.dueDate}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between pt-3 border-t border-border/50">
+                    <p className="text-lg font-black text-foreground tracking-tighter">{formatCurrency(quote.total)}</p>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-40 bg-card border-border">
+                        <DropdownMenuItem className="gap-2" onClick={() => setPreviewQuote(quote)}>
+                          <Eye className="w-4 h-4" /> Aperçu
+                        </DropdownMenuItem>
+                        {quote.status !== 'invoiced' && user?.role === 'user' && (
+                          <DropdownMenuItem
+                            className="gap-2 text-primary font-medium"
+                            onClick={() => handleConvertToInvoice(quote.id)}
+                          >
+                            <CheckCircle2 className="w-4 h-4" /> Convertir
+                          </DropdownMenuItem>
+                        )}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          ))}
+          {paginatedQuotes.length === 0 && (
+            <div className="col-span-full">
+              <EmptyState
+                icon={FileText}
+                title={searchQuery ? "Aucun devis trouvé" : "Aucun devis"}
+                description={searchQuery ? "Aucun devis ne correspond à votre recherche." : "Créez votre premier devis pour commencer."}
+                actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau devis" : undefined}
+                onAction={!searchQuery && user?.role === 'user' ? () => onCreateQuote() : undefined}
+              />
+            </div>
+          )}
+        </div>
+      )}
 
       <Pagination
         currentPage={currentPage}
