@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Pagination } from "@/components/ui/pagination-custom"
+import { formatDate } from "@/lib/utils"
 
 export function AuditLogsPage() {
   const [logs, setLogs] = React.useState<any[]>([])
@@ -61,47 +62,47 @@ export function AuditLogsPage() {
         <CardContent>
           <div className="overflow-x-auto">
             <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Date</TableHead>
-                <TableHead>Utilisateur</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Entité</TableHead>
-                <TableHead>Détails</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((log) => (
-                <TableRow key={log.id}>
-                  <TableCell className="font-mono text-xs text-muted-foreground">
-                    {formatDate(log.createdAt)}
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <User className="w-3.5 h-3.5 text-muted-foreground" />
-                      <span>{log.userName}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={log.action === 'DELETE' ? 'destructive' : 'secondary'}>
-                      {log.action}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="capitalize">{log.entityType}</TableCell>
-                  <TableCell className="max-w-md truncate text-sm">
-                    {log.details}
-                  </TableCell>
-                </TableRow>
-              ))}
-              {logs.length === 0 && !isLoading && (
+              <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
-                    Aucun log d'audit disponible.
-                  </TableCell>
+                  <TableHead>Date</TableHead>
+                  <TableHead>Utilisateur</TableHead>
+                  <TableHead>Action</TableHead>
+                  <TableHead>Entité</TableHead>
+                  <TableHead>Détails</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+              </TableHeader>
+              <TableBody>
+                {logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((log) => (
+                  <TableRow key={log.id}>
+                    <TableCell className="font-mono text-xs text-muted-foreground">
+                      {formatDate(log.createdAt)}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <User className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span>{log.userName}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={log.action === 'DELETE' ? 'destructive' : 'secondary'}>
+                        {log.action}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="capitalize">{log.entityType}</TableCell>
+                    <TableCell className="max-w-md truncate text-sm">
+                      {log.details}
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {logs.length === 0 && !isLoading && (
+                  <TableRow>
+                    <TableCell colSpan={5} className="text-center py-10 text-muted-foreground">
+                      Aucun log d'audit disponible.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </div>
           <Pagination
             currentPage={currentPage}
