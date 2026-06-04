@@ -20,8 +20,25 @@ interface DashboardUserProps {
 }
 
 export function DashboardUser({ onNavigate }: DashboardUserProps) {
-  const [data, setData] = React.useState<any>(null)
-  const [isLoading, setIsLoading] = React.useState(true)
+  const [data, setData] = React.useState({
+    metrics: {
+      totalRevenue: 0,
+      growth: 0,
+      pendingRevenue: 0,
+      overdueRevenue: 0,
+      paidCount: 0,
+      unpaidCount: 0,
+      partiallyPaidCount: 0,
+      totalInvoicesCount: 0,
+      pendingQuotesCount: 0
+    },
+    revenueData: [],
+    paymentMethodData: [],
+    recentInvoices: [],
+    activityTimeline: [],
+    topClients: []
+  })
+  const [isLoading, setIsLoading] = React.useState(false)
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [previewData, setPreviewData] = React.useState<any>(null)
 
@@ -52,8 +69,6 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
         }
     } catch (e) {}
   }
-
-  if (isLoading) return <div className="p-12 text-center text-muted-foreground animate-pulse">Chargement de votre espace de travail...</div>
 
   const metrics = data?.metrics || {}
   const recentInvoices = data?.recentInvoices || []

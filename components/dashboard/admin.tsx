@@ -32,16 +32,11 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
       })
       .then(d => {
         setData(d)
-        setIsLoading(false)
       })
       .catch(err => {
         console.error('[Dashboard Admin] Error fetching metrics:', err)
-        setData({ metrics: {} })
-        setIsLoading(false)
       })
   }, [])
-
-  if (isLoading) return <div className="p-12 text-center text-muted-foreground animate-pulse">Chargement de la vision stratégique...</div>
 
   const metrics = data?.metrics || {}
 
@@ -282,6 +277,24 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                                 <p className="text-[10px] text-muted-foreground uppercase">{log.client}</p>
                             </div>
                         </div>
+                        <span className="text-[10px] font-mono text-muted-foreground">{log.time}</span>
+                    </div>
+                ))}
+            </div>
+         </CardContent>
+      </Card>
+
+      <div className="flex gap-4">
+         <Button className="flex-1 bg-amber-500 hover:bg-amber-600 h-14 text-lg font-black tracking-tighter" onClick={() => onNavigate('users')}>
+            <Users className="w-5 h-5 mr-2" /> AJOUTER UN UTILISATEUR
+         </Button>
+         <Button variant="secondary" className="flex-1 h-14 text-lg font-black tracking-tighter" onClick={() => onNavigate('audit')}>
+            <ScrollText className="w-5 h-5 mr-2" /> VOIR LES LOGS
+         </Button>
+      </div>
+    </div>
+  )
+}
                         <span className="text-[10px] font-mono text-muted-foreground">{log.time}</span>
                     </div>
                 ))}
