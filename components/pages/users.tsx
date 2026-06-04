@@ -34,7 +34,12 @@ import { toast } from "sonner"
 import { useStore } from "@/lib/store"
 import { Pagination } from "@/components/ui/pagination-custom"
 
-export function UsersPage() {
+interface UsersPageProps {
+  onCreateUser: () => void
+  onEditUser: (id: string) => void
+}
+
+export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   const [users, setUsers] = React.useState<any[]>([])
   const [isLoading, setIsLoading] = React.useState(true)
   const [searchQuery, setSearchQuery] = React.useState("")
@@ -65,21 +70,32 @@ export function UsersPage() {
 
   const fetchUsers = async () => {
     try {
+      console.log('[UsersPage] Fetching users from /api/users')
       const res = await fetch('/api/users')
-      if (res.ok) {
-        const data = await res.json()
-        setUsers(data)
+      console.log('[UsersPage] Response status:', res.status)
+      
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        console.error('[UsersPage] API Error:', errorData)
+        throw new Error(errorData.error || `HTTP ${res.status}`)
       }
+      
+      const data = await res.json()
+      console.log('[UsersPage] Users fetched:', data.length)
+      setUsers(data)
     } catch (err) {
-      toast.error("Erreur lors du chargement des utilisateurs")
+      console.error('[UsersPage] Fetch error:', err)
+      toast.error(`Erreur chargement: ${err instanceof Error ? err.message : 'Inconnue'}`)
     } finally {
       setIsLoading(false)
     }
   }
 
   React.useEffect(() => {
-    fetchUsers()
-  }, [])
+    if (currentUser?.role === 'admin') {
+      fetchUsers()
+    }
+  }, [currentUser?.id])
 
   const filteredUsers = React.useMemo(() => {
     return users.filter(u => {
@@ -111,10 +127,7 @@ export function UsersPage() {
   }
 
   const handleOpenAdd = () => {
-    const pw = generatePassword()
-    setFormData({ name: "", email: "", role: "user", password: pw })
-    setTempPassword(pw)
-    setIsAddModalOpen(true)
+    onCreateUser()
   }
 
   const handleAddUser = async () => {
@@ -329,7 +342,7 @@ export function UsersPage() {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="bg-card border-border w-48">
-                                    <DropdownMenuItem onClick={() => { setSelectedUser(u); setFormData({ name: u.name, role: u.role, email: u.email, password: "" }); setIsEditModalOpen(true); }} className="gap-2">
+                                    <DropdownMenuItem onClick={() => onEditUser(u.id)} className="gap-2">
                                         <Edit2 className="w-4 h-4" /> Modifier
                                     </DropdownMenuItem>
                                     <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsResetModalOpen(true); }} className="gap-2">

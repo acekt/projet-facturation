@@ -34,7 +34,7 @@ import { formatCurrency } from "@/lib/utils"
 import { toast } from "sonner"
 import { PrintableDocument } from "@/components/printable-document"
 import { DocumentPreview } from "@/components/document-preview"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"

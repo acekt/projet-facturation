@@ -15,12 +15,33 @@ export function AuditLogsPage() {
   const itemsPerPage = 10
 
   React.useEffect(() => {
-    fetch('/api/audit-logs')
-      .then(res => res.json())
-      .then(data => {
-        if (!data.error) setLogs(data);
-        setIsLoading(false);
-      });
+    const fetchLogs = async () => {
+      try {
+        console.log('[AuditLogsPage] Fetching logs from /api/audit-logs')
+        const res = await fetch('/api/audit-logs')
+        
+        if (!res.ok) {
+          const errorData = await res.json().catch(() => ({}))
+          console.error('[AuditLogsPage] API Error:', errorData)
+          if (res.status === 403) {
+            console.warn('[AuditLogsPage] Access denied - not admin')
+          }
+          throw new Error(errorData.error || `HTTP ${res.status}`)
+        }
+        
+        const data = await res.json()
+        console.log('[AuditLogsPage] Logs fetched:', data.length)
+        if (!data.error) {
+          setLogs(data)
+        }
+      } catch (err) {
+        console.error('[AuditLogsPage] Fetch error:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    
+    fetchLogs()
   }, [])
 
   return (

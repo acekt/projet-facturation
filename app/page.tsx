@@ -15,6 +15,7 @@ import { SettingsPage } from "@/components/pages/settings"
 import { CreditNotesPage } from "@/components/pages/credit-notes"
 import { AuditLogsPage } from "@/components/pages/audit-logs"
 import { UsersPage } from "@/components/pages/users"
+import { UserEditor } from "@/components/pages/user-editor"
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -48,7 +49,32 @@ export default function App() {
       case "dashboard":
         return <Dashboard onNavigate={handlePageChange} />
       case "users":
-        return <UsersPage />
+        return <UsersPage 
+          onCreateUser={() => {
+            setEditingId(null);
+            setCurrentPage("new-user");
+          }}
+          onEditUser={(id: string) => {
+            setEditingId(id);
+            setCurrentPage("edit-user");
+          }}
+        />
+      case "new-user":
+        return <UserEditor
+          onBack={() => {
+            setEditingId(null);
+            setCurrentPage("users");
+          }}
+          editingId={null}
+        />
+      case "edit-user":
+        return <UserEditor
+          onBack={() => {
+            setEditingId(null);
+            setCurrentPage("users");
+          }}
+          editingId={editingId}
+        />
       case "quotes":
         return <QuotesPage onCreateQuote={(id) => {
           setEditingId(id || null);
@@ -63,7 +89,7 @@ export default function App() {
           editingId={editingId}
         />
       case "invoices":
-        return <InvoicesPage onCreateInvoice={() => {}} />
+        return <InvoicesPage onCreateInvoice={() => {}} onEditInvoice={() => {}} />
       case "clients":
         return <ClientsPage />
       case "services":
