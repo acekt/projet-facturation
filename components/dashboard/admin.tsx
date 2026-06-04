@@ -26,9 +26,17 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
 
   React.useEffect(() => {
     fetch('/api/dashboard/metrics?range=month')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('Failed to fetch metrics')
+        return res.json()
+      })
       .then(d => {
         setData(d)
+        setIsLoading(false)
+      })
+      .catch(err => {
+        console.error('[Dashboard Admin] Error fetching metrics:', err)
+        setData({ metrics: {} })
         setIsLoading(false)
       })
   }, [])

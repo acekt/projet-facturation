@@ -23,6 +23,7 @@ import {
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
 import { DownloadCloud, Users } from "lucide-react"

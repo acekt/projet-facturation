@@ -30,7 +30,7 @@ export function DataSync() {
             const url = 'url' in res ? res.url : 'unknown';
             const status = 'status' in res ? res.status : 'unknown';
             console.error(`[DataSync] API Error: ${url} - ${status}`);
-            return { error: true };
+            return { error: true, status };
           }
           if (!('json' in res)) {
             return { error: true };
@@ -51,7 +51,17 @@ export function DataSync() {
         if (payments && !payments.error) setPayments(payments);
         if (settings && !settings.error) setSettings(settings);
         if (creditNotes && !creditNotes.error) setCreditNotes(creditNotes);
-        if (me && !me.error && me.user) setUser(me.user);
+        
+        // Handle auth/me response
+        if (me && !me.error) {
+          if (me.user) {
+            setUser(me.user);
+          } else if (me.error === 'User not found' || me.status === 404) {
+            // User not found in database, clear session and redirect to login
+            console.error('[DataSync] User not found, clearing session');
+            window.location.href = '/login';
+          }
+        }
       } catch (error) {
         console.error('[DataSync] Failed to sync data:', error);
       }
