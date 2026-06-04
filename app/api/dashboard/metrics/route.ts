@@ -172,7 +172,7 @@ export async function GET(request: Request) {
       userPerformance
     });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to compute dashboard metrics' }, { status: 500 });
+    console.error('[Dashboard Metrics API Error]', error);
+    return NextResponse.json({ error: 'Failed to compute dashboard metrics', details: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

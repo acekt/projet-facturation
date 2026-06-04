@@ -45,7 +45,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
   React.useEffect(() => {
     fetch('/api/dashboard/metrics?range=month')
       .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch metrics')
+        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
         return res.json()
       })
       .then(d => {
@@ -53,8 +53,8 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
         setIsLoading(false)
       })
       .catch(err => {
-        console.error('[Dashboard User] Error fetching metrics:', err)
-        setData({ metrics: {} })
+        console.error('[Dashboard User] Error fetching metrics:', err.message || err)
+        setData({ metrics: { totalRevenue: 0, growth: 0, pendingRevenue: 0, overdueRevenue: 0, paidCount: 0, unpaidCount: 0, partiallyPaidCount: 0, totalInvoicesCount: 0, pendingQuotesCount: 0 }, revenueData: [], recentInvoices: [], activityTimeline: [] })
         setIsLoading(false)
       })
   }, [])
