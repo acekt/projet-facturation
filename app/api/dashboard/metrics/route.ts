@@ -50,7 +50,7 @@ export async function GET(request: Request) {
     const paidCountRow = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE status = 'PAID' AND deletedAt IS NULL").get() as any;
     const unpaidCountRow = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE status = 'UNPAID' AND deletedAt IS NULL").get() as any;
     const partiallyPaidCountRow = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE status = 'PARTIALLY_PAID' AND deletedAt IS NULL").get() as any;
-    const activeInvoicesCountRow = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE deletedAt IS NULL").get() as any;
+    const activeInvoicesCountRow = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE deletedAt IS NULL AND status != 'cancelled'").get() as any;
     const totalInvoicesCount = activeInvoicesCountRow.count;
     const paidCount = paidCountRow.count;
     const unpaidCount = unpaidCountRow.count;
@@ -70,13 +70,13 @@ export async function GET(request: Request) {
       LIMIT 5
     `).all() as any[];
 
-    // 5d. User Performance (for Admin)
+    // 5d. User Performance (for Admin, exclude cancelled invoices)
     const userPerformance = db.prepare(`
       SELECT u.name,
              COUNT(i.id) as docsCount,
              COALESCE(SUM(i.total), 0) as totalRevenue
       FROM users u
-      LEFT JOIN invoices i ON i.created_by = u.id
+      LEFT JOIN invoices i ON i.created_by = u.id AND i.deletedAt IS NULL AND i.status != 'cancelled'
       WHERE u.role = 'user'
       GROUP BY u.id, u.name
     `).all() as any[];

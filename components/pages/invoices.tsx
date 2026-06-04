@@ -87,30 +87,30 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   }
 
   const handleCreateCreditNote = async (invoice: Invoice) => {
-    if (!confirm(`Voulez-vous créer un avoir pour la facture ${invoice.number} ? Cela annulera comptablement cette facture.`)) return;
+    const deleteQuote = confirm(`Voulez-vous créer un avoir pour la facture ${invoice.number} ?\n\nCela annulera comptablement cette facture.\n\nVoulez-vous également supprimer le devis associé ?\n\nOK = Oui, supprimer le devis\nAnnuler = Non, garder le devis (il deviendra brouillon)`);
+    
+    if (deleteQuote === null) return; // User cancelled
 
     try {
-      const response = await fetch('/api/credit-notes', {
-        method: 'POST',
+      const response = await fetch(`/api/invoices/${invoice.id}`, {
+        method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          invoiceId: invoice.id,
-          reason: "Annulation de facture / Retour",
-          items: invoice.items
-        }),
+        body: JSON.stringify({ deleteQuote: deleteQuote === true }),
       });
 
-      if (!response.ok) throw new Error('Failed to create credit note');
+      if (!response.ok) throw new Error('Failed to cancel invoice');
 
-      toast.success("Avoir créé avec succès");
-      const [updatedInvoices, updatedNotes] = await Promise.all([
+      toast.success("Facture annulée avec succès");
+      const [updatedInvoices, updatedQuotes, updatedNotes] = await Promise.all([
           fetch('/api/invoices').then(res => res.json()),
+          fetch('/api/quotes').then(res => res.json()),
           fetch('/api/credit-notes').then(res => res.json())
       ]);
       setInvoices(updatedInvoices);
+      setQuotes(updatedQuotes);
       setCreditNotes(updatedNotes);
     } catch (error) {
-      toast.error("Erreur lors de la création de l'avoir");
+      toast.error("Erreur lors de l'annulation de la facture");
     }
   }
 
@@ -449,7 +449,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           )}
                           {user?.role === 'user' && (
                             <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
-                              <RefreshCcw className="w-4 h-4" /> Annuler
+                              <RefreshCcw className="w-4 h-4" /> Annuler la facture
                             </DropdownMenuItem>
                           )}
                           {user?.role === 'admin' && (
