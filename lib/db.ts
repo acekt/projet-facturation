@@ -27,7 +27,6 @@ db.exec(`
     tpsRate REAL DEFAULT 9.5,
     cssRate REAL,
     defaultDueDateDays INTEGER,
-    defaultQuoteValidity INTEGER,
     sessionTimeout INTEGER,
     invoicePrefix TEXT,
     quotePrefix TEXT,
@@ -270,7 +269,7 @@ if (row.count === 0) {
     INSERT INTO settings (
       id, companyName, legalForm, nif, rccm, address, email, phone, mentionsLegales,
       bankName, bankAgency, accountNumber, swiftCode, iban,
-      tvaRate, tpsRate, cssRate, defaultDueDateDays, defaultQuoteValidity, sessionTimeout,
+      tvaRate, tpsRate, cssRate, defaultDueDateDays, sessionTimeout,
       invoicePrefix, quotePrefix, companyCode
     ) VALUES (
       1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?

@@ -69,7 +69,6 @@ export const settingsSchema = z.object({
   tpsRate: z.number().min(0).optional(),
   cssRate: z.number().min(0),
   defaultDueDateDays: z.number().min(0),
-  defaultQuoteValidity: z.number().min(0),
   sessionTimeout: z.number().min(1),
   invoicePrefix: z.string().min(1),
   quotePrefix: z.string().min(1),

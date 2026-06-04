@@ -224,7 +224,6 @@ const DEFAULT_SETTINGS: Settings = {
   tpsRate: 9.5,
   cssRate: 1,
   defaultDueDateDays: 30,
-  defaultQuoteValidity: 30,
   sessionTimeout: 30,
   invoicePrefix: "FAC",
   quotePrefix: "DEV",

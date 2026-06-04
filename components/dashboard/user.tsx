@@ -4,7 +4,7 @@ import * as React from "react"
 import { motion } from "framer-motion"
 import {
     Plus, UserPlus, FileText, Clock, AlertCircle,
-    ArrowUpRight, Eye, CheckCircle, Search, TrendingUp, Users
+    ArrowUpRight, Eye, CheckCircle, Search, TrendingUp
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
