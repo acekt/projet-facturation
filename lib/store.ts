@@ -62,6 +62,7 @@ export interface Invoice {
   payments?: Payment[];
   notes?: string;
   created_by?: string;
+  deletedAt?: string;
 }
 
 export interface Payment {
