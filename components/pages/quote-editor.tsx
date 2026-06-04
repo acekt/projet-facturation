@@ -55,7 +55,6 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
   ])
   const [quoteDate, setQuoteDate] = React.useState(new Date().toISOString().split("T")[0])
-  const [isValidityActive, setIsValidityActive] = React.useState(true)
   const [isDueDateActive, setIsDueDateActive] = React.useState(true)
   const [dueDate, setDueDate] = React.useState(() => {
     const d = new Date()
