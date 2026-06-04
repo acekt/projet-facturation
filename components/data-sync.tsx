@@ -23,7 +23,9 @@ export function DataSync() {
         // Only parse as JSON if the response is actually OK and JSON
         const results = await Promise.all(responses.map(async (res) => {
           if (!res.ok) {
-            console.error(`[DataSync] API Error: ${res.url} - ${res.status}`);
+            const url = res.url || 'unknown';
+            const status = res.status || 'unknown';
+            console.error(`[DataSync] API Error: ${url} - ${status}`);
             return { error: true };
           }
           const contentType = res.headers.get("content-type");
