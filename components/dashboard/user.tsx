@@ -54,7 +54,24 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
       })
       .catch(err => {
         console.error('[Dashboard User] Error fetching metrics:', err.message || err)
-        setData({ metrics: { totalRevenue: 0, growth: 0, pendingRevenue: 0, overdueRevenue: 0, paidCount: 0, unpaidCount: 0, partiallyPaidCount: 0, totalInvoicesCount: 0, pendingQuotesCount: 0 }, revenueData: [], recentInvoices: [], activityTimeline: [] })
+        setData({ 
+          metrics: { 
+            totalRevenue: 0, 
+            growth: 0, 
+            pendingRevenue: 0, 
+            overdueRevenue: 0, 
+            paidCount: 0, 
+            unpaidCount: 0, 
+            partiallyPaidCount: 0, 
+            totalInvoicesCount: 0, 
+            pendingQuotesCount: 0 
+          }, 
+          revenueData: [], 
+          recentInvoices: [], 
+          activityTimeline: [],
+          topClients: [],
+          userPerformance: []
+        } as any)
         setIsLoading(false)
       })
   }, [])
