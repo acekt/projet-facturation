@@ -17,7 +17,7 @@ export function DataSync() {
           fetch('/api/payments'),
           fetch('/api/settings'),
           fetch('/api/credit-notes'),
-          fetch('/api/auth/me')
+          isAuthenticated ? fetch('/api/auth/me') : Promise.resolve({ ok: false, error: true })
         ]);
 
         // Only parse as JSON if the response is actually OK and JSON
