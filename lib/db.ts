@@ -26,8 +26,6 @@ db.exec(`
     tvaRate REAL,
     tpsRate REAL DEFAULT 9.5,
     cssRate REAL,
-    defaultDueDateDays INTEGER,
-    defaultQuoteValidity INTEGER,
     sessionTimeout INTEGER,
     invoicePrefix TEXT,
     quotePrefix TEXT,
@@ -222,6 +220,9 @@ try {
     // Pre-populate email with username
     db.prepare("UPDATE users SET email = username WHERE email IS NULL").run();
   }
+  if (!usersColumns.some(c => c.name === 'created_at')) {
+    db.prepare("ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP").run();
+  }
 } catch (e) {
   console.error("Migration error on users table:", e);
 }
@@ -267,10 +268,9 @@ if (row.count === 0) {
     INSERT INTO settings (
       id, companyName, legalForm, nif, rccm, address, email, phone, mentionsLegales,
       bankName, bankAgency, accountNumber, swiftCode, iban,
-      tvaRate, tpsRate, cssRate, defaultDueDateDays, defaultQuoteValidity, sessionTimeout,
-      invoicePrefix, quotePrefix, companyCode
+      tvaRate, tpsRate, cssRate, sessionTimeout, invoicePrefix, quotePrefix, companyCode
     ) VALUES (
-      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
     )
   `).run(
     "Global Maintenance",
@@ -289,8 +289,6 @@ if (row.count === 0) {
     18,
     9.5,
     1,
-    30,
-    30,
     30,
     "FAC",
     "DEV",
