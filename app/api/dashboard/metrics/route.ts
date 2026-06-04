@@ -48,24 +48,26 @@ export async function GET(request: Request) {
 
     // 5. Total active invoices, paid invoices count, and paid invoices ratio
     const paidCountRow = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE status = 'PAID' AND deletedAt IS NULL").get() as any;
+    const unpaidCountRow = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE status = 'UNPAID' AND deletedAt IS NULL").get() as any;
+    const partiallyPaidCountRow = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE status = 'PARTIALLY_PAID' AND deletedAt IS NULL").get() as any;
     const activeInvoicesCountRow = db.prepare("SELECT COUNT(*) as count FROM invoices WHERE deletedAt IS NULL").get() as any;
     const totalInvoicesCount = activeInvoicesCountRow.count;
     const paidCount = paidCountRow.count;
+    const unpaidCount = unpaidCountRow.count;
+    const partiallyPaidCount = partiallyPaidCountRow.count;
 
-    // 5b. Pending Quotes (for Operator)
+    // 5b. Pending Quotes (quotes not converted to invoices)
     const pendingQuotesCountRow = db.prepare("SELECT COUNT(*) as count FROM quotes WHERE status NOT IN ('invoiced', 'archived') AND deletedAt IS NULL").get() as any;
     const pendingQuotesCount = pendingQuotesCountRow.count;
 
-    // 5c. Expiring Quotes (within 7 days)
-    const expiringQuotes = db.prepare(`
-      SELECT number, clientName,
-             (julianday(dueDate) - julianday('now')) as daysRemaining
-      FROM quotes
-      WHERE status NOT IN ('invoiced', 'archived')
-        AND deletedAt IS NULL
-        AND daysRemaining <= 7
-        AND daysRemaining >= 0
-      ORDER BY daysRemaining ASC
+    // 5c. Top Clients by revenue
+    const topClients = db.prepare(`
+      SELECT clientName, SUM(total) as totalRevenue
+      FROM invoices
+      WHERE deletedAt IS NULL
+      GROUP BY clientName
+      ORDER BY totalRevenue DESC
+      LIMIT 5
     `).all() as any[];
 
     // 5d. User Performance (for Admin)
@@ -157,14 +159,16 @@ export async function GET(request: Request) {
         pendingRevenue,
         overdueRevenue,
         paidCount,
+        unpaidCount,
+        partiallyPaidCount,
         totalInvoicesCount,
         pendingQuotesCount
       },
-      revenueData, // Changed from {month, revenue} to {label, value}
+      revenueData,
       paymentMethodData,
       recentInvoices,
       activityTimeline,
-      expiringQuotes,
+      topClients,
       userPerformance
     });
   } catch (error) {

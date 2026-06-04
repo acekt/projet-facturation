@@ -202,7 +202,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   const getStatusBadge = (status: Invoice['status']) => {
     switch (status) {
       case "PAID":
-        return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">Soldé</Badge>
+        return null // Handled by getPaymentBadge to avoid duplication
       case "PARTIALLY_PAID":
         return null // Handled by getPaymentBadge to avoid duplication
       case "UNPAID":

@@ -75,7 +75,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-card border-border hover:border-indigo-500/30 transition-all group shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-1">
                 <CardDescription className="uppercase text-[10px] font-bold tracking-widest">Mes Devis Actifs</CardDescription>
@@ -83,29 +83,40 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
             </CardHeader>
             <CardContent>
                 <p className="text-3xl font-black mb-0">{metrics.pendingQuotesCount}</p>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Attente validation</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Non convertis en factures</p>
+            </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border hover:border-emerald-500/30 transition-all group shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-1">
+                <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-emerald-600">Factures Payées</CardDescription>
+                <CheckCircle className="w-4 h-4 text-emerald-500 opacity-40" />
+            </CardHeader>
+            <CardContent>
+                <p className="text-3xl font-black text-emerald-600 mb-0">{metrics.paidCount}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Règlements complets</p>
+            </CardContent>
+        </Card>
+
+        <Card className="bg-card border-border hover:border-amber-500/30 transition-all group shadow-sm">
+            <CardHeader className="flex flex-row items-center justify-between pb-1">
+                <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-amber-600">Factures Partielles</CardDescription>
+                <Clock className="w-4 h-4 text-amber-500 opacity-40" />
+            </CardHeader>
+            <CardContent>
+                <p className="text-3xl font-black text-amber-600 mb-0">{metrics.partiallyPaidCount}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Acomptes reçus</p>
             </CardContent>
         </Card>
 
         <Card className="bg-card border-border hover:border-red-500/30 transition-all group shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-1">
-                <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-red-500">Relances à Faire</CardDescription>
+                <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-red-500">Factures Non Payées</CardDescription>
                 <AlertCircle className="w-4 h-4 text-red-500 opacity-40" />
             </CardHeader>
             <CardContent>
-                <p className="text-3xl font-black text-red-500 mb-0">{formatCurrency(metrics.pendingRevenue || 0)}</p>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Volume des impayés</p>
-            </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border shadow-sm border-emerald-500/10">
-            <CardHeader className="flex flex-row items-center justify-between pb-1">
-                <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-emerald-600">Paiements (Mois)</CardDescription>
-                <CheckCircle className="w-4 h-4 text-emerald-500 opacity-40" />
-            </CardHeader>
-            <CardContent>
-                <p className="text-3xl font-black text-emerald-600 mb-0">{formatCurrency(metrics.totalRevenue || 0)}</p>
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">CA encaissé</p>
+                <p className="text-3xl font-black text-red-500 mb-0">{metrics.unpaidCount}</p>
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">En attente de paiement</p>
             </CardContent>
         </Card>
       </div>
