@@ -86,7 +86,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   }
 
   const handleCreateCreditNote = async (invoice: Invoice) => {
-    if (!confirm(`Voulez-vous annuler la facture ${invoice.number} ? Cela créera un avoir comptable.`)) return;
+    if (!confirm(`Voulez-vous créer un avoir pour la facture ${invoice.number} ? Cela annulera comptablement cette facture.`)) return;
 
     try {
       const response = await fetch('/api/credit-notes', {
@@ -371,7 +371,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                         )}
                         {user?.role === 'user' && (
                           <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
-                            <RefreshCcw className="w-4 h-4" /> Créer un avoir
+                            <RefreshCcw className="w-4 h-4" /> Annuler
                           </DropdownMenuItem>
                         )}
                         {user?.role === 'admin' && (
@@ -465,7 +465,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           )}
                           {user?.role === 'user' && (
                             <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
-                              <RefreshCcw className="w-4 h-4" /> Créer un avoir
+                              <RefreshCcw className="w-4 h-4" /> Annuler
                             </DropdownMenuItem>
                           )}
                           {user?.role === 'admin' && (
@@ -556,7 +556,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                         )}
                         {user?.role === 'user' && (
                           <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
-                            <RefreshCcw className="w-4 h-4" /> Créer un avoir
+                            <RefreshCcw className="w-4 h-4" /> Annuler
                           </DropdownMenuItem>
                         )}
                         {user?.role === 'admin' && (
