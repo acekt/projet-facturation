@@ -51,7 +51,7 @@ interface InvoicesPageProps {
 }
 
 export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPageProps) {
-  const { invoices, setInvoices, setPayments, settings, setCreditNotes, user, viewFormat, setViewFormat } = useStore()
+  const { invoices, setInvoices, quotes, setQuotes, setPayments, settings, setCreditNotes, user, viewFormat, setViewFormat } = useStore()
 
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)

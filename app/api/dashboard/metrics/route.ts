@@ -60,11 +60,11 @@ export async function GET(request: Request) {
     const pendingQuotesCountRow = db.prepare("SELECT COUNT(*) as count FROM quotes WHERE status NOT IN ('invoiced', 'archived') AND deletedAt IS NULL").get() as any;
     const pendingQuotesCount = pendingQuotesCountRow.count;
 
-    // 5c. Top Clients by revenue
+    // 5c. Top Clients by revenue (exclude cancelled invoices)
     const topClients = db.prepare(`
       SELECT clientName, SUM(total) as totalRevenue
       FROM invoices
-      WHERE deletedAt IS NULL
+      WHERE deletedAt IS NULL AND status != 'cancelled'
       GROUP BY clientName
       ORDER BY totalRevenue DESC
       LIMIT 5
