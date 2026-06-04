@@ -59,7 +59,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   const [isDueDateActive, setIsDueDateActive] = React.useState(true)
   const [dueDate, setDueDate] = React.useState(() => {
     const d = new Date()
-    d.setDate(d.getDate() + settings.defaultDueDateDays)
+    d.setDate(d.getDate() + 30)
     return d.toISOString().split("T")[0]
   })
   const [discount, setDiscount] = React.useState(0)
