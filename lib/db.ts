@@ -26,8 +26,6 @@ db.exec(`
     tvaRate REAL,
     tpsRate REAL DEFAULT 9.5,
     cssRate REAL,
-    defaultDueDateDays INTEGER,
-    defaultQuoteValidity INTEGER,
     sessionTimeout INTEGER,
     invoicePrefix TEXT,
     quotePrefix TEXT,

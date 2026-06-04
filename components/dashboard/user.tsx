@@ -178,24 +178,28 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
             </CardContent>
         </Card>
 
-        <Card className="border-border bg-amber-500/[0.02] border-amber-500/10">
+        <Card className="border-border bg-indigo-500/[0.02] border-indigo-500/10">
             <CardHeader>
-                <div className="flex items-center gap-2 text-amber-600">
-                    <Clock className="w-4 h-4" />
-                    <CardTitle className="text-sm uppercase tracking-widest font-black">Expirent Bientôt</CardTitle>
+                <div className="flex items-center gap-2 text-indigo-600">
+                    <TrendingUp className="w-4 h-4" />
+                    <CardTitle className="text-sm uppercase tracking-widest font-black">Performance</CardTitle>
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
-                {(data.expiringQuotes || []).map((d: any) => (
-                    <div key={d.number} className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-amber-500/20 shadow-sm shadow-amber-500/5">
-                        <div className="flex justify-between items-start mb-1">
-                            <span className="text-xs font-bold">{d.number}</span>
-                            <Badge className="bg-amber-100 text-amber-700 text-[10px] px-1 py-0 h-4 border-amber-200">J-{Math.floor(d.daysRemaining)}</Badge>
-                        </div>
-                        <p className="text-[10px] text-muted-foreground uppercase font-bold truncate">{d.clientName}</p>
+                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-500/20 shadow-sm shadow-indigo-500/5">
+                    <div className="flex justify-between items-start mb-1">
+                        <span className="text-xs font-bold">Croissance</span>
+                        <Badge className="bg-emerald-100 text-emerald-700 text-[10px] px-1 py-0 h-4 border-emerald-200">+{metrics.growth || 0}%</Badge>
                     </div>
-                ))}
-                {recentInvoices.length === 0 && <p className="text-xs text-muted-foreground text-center py-8 italic">Aucune alerte pour le moment.</p>}
+                    <p className="text-[10px] text-muted-foreground uppercase font-black">vs mois précédent</p>
+                </div>
+                <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-500/20 shadow-sm shadow-indigo-500/5">
+                    <div className="flex justify-between items-start mb-1">
+                        <span className="text-xs font-bold">CA Encaissé</span>
+                        <Badge className="bg-indigo-100 text-indigo-700 text-[10px] px-1 py-0 h-4 border-indigo-200">Mois</Badge>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground uppercase font-black">{formatCurrency(metrics.totalRevenue || 0)}</p>
+                </div>
             </CardContent>
         </Card>
       </div>
