@@ -27,10 +27,11 @@ async function verifySignature(data: string, signature: string) {
       sigBuf = Uint8Array.from(Buffer.from(signature, 'base64'))
     } else {
       const binaryString = atob(signature)
-      sigBuf = new Uint8Array(binaryString.length)
+      const bytes = new Uint8Array(binaryString.length)
       for (let i = 0; i < binaryString.length; i++) {
-        sigBuf[i] = binaryString.charCodeAt(i)
+        bytes[i] = binaryString.charCodeAt(i)
       }
+      sigBuf = bytes
     }
 
     const dataBuf = str2ab(data)
@@ -38,7 +39,7 @@ async function verifySignature(data: string, signature: string) {
     return await crypto.subtle.verify(
       'HMAC',
       key,
-      sigBuf,
+      sigBuf.buffer,
       dataBuf
     )
   } catch (e) {
