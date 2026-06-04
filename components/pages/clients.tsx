@@ -29,13 +29,16 @@ import { DownloadCloud, Users } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 
 export function ClientsPage() {
-  const { clients, setClients, invoices, user } = useStore()
+  const { clients, setClients, invoices, user, viewFormat, setViewFormat } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 9 // Grid 3x3
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false)
+  const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
+  const [editingClient, setEditingClient] = React.useState<any>(null)
   const [newClient, setNewClient] = React.useState({
     name: "",
     email: "",
@@ -97,6 +100,28 @@ export function ClientsPage() {
       setClients(newClients)
     } catch (error) {
       toast.error("Erreur lors de la suppression")
+    }
+  }
+
+  const handleEditClient = async (e: React.FormEvent) => {
+    e.preventDefault()
+    try {
+      const response = await fetch(`/api/clients/${editingClient.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editingClient),
+      })
+
+      if (!response.ok) throw new Error('Failed to update client')
+
+      const updatedClients = await fetch('/api/clients').then(res => res.json())
+      setClients(updatedClients)
+
+      setIsEditDialogOpen(false)
+      setEditingClient(null)
+      toast.success("Client mis à jour avec succès")
+    } catch (error) {
+      toast.error("Erreur lors de la modification du client")
     }
   }
 
@@ -193,10 +218,70 @@ export function ClientsPage() {
             </DialogContent>
           </Dialog>
           )}
+
+          {/* Edit Dialog */}
+          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+            <DialogContent className="bg-card border-border">
+              <DialogHeader>
+                <DialogTitle className="text-foreground">Modifier le client</DialogTitle>
+                <VisuallyHidden>
+                  <DialogDescription>Formulaire pour modifier un client existant</DialogDescription>
+                </VisuallyHidden>
+              </DialogHeader>
+              <form onSubmit={handleEditClient} className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-name" className="text-muted-foreground">Nom complet / Raison sociale</Label>
+                  <Input
+                    id="edit-name"
+                    value={editingClient?.name || ''}
+                    onChange={(e) => setEditingClient({ ...editingClient, name: e.target.value })}
+                    placeholder="Ex: Societe Gabon Mining"
+                    className="bg-secondary border-border text-foreground"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-email" className="text-muted-foreground">Email</Label>
+                  <Input
+                    id="edit-email"
+                    type="email"
+                    value={editingClient?.email || ''}
+                    onChange={(e) => setEditingClient({ ...editingClient, email: e.target.value })}
+                    placeholder="contact@entreprise.ga"
+                    className="bg-secondary border-border text-foreground"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-phone" className="text-muted-foreground">Téléphone</Label>
+                  <Input
+                    id="edit-phone"
+                    value={editingClient?.phone || ''}
+                    onChange={(e) => setEditingClient({ ...editingClient, phone: e.target.value })}
+                    placeholder="+241 XX XX XX XX"
+                    className="bg-secondary border-border text-foreground"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-address" className="text-muted-foreground">Adresse</Label>
+                  <Input
+                    id="edit-address"
+                    value={editingClient?.address || ''}
+                    onChange={(e) => setEditingClient({ ...editingClient, address: e.target.value })}
+                    placeholder="Libreville, Gabon"
+                    className="bg-secondary border-border text-foreground"
+                  />
+                </div>
+                <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4">
+                  Enregistrer les modifications
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
-      <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
+      <div className="flex items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -206,6 +291,10 @@ export function ClientsPage() {
             className="pl-10 bg-secondary/50 border-border text-foreground w-full md:max-w-md"
           />
         </div>
+        <ViewFormatSelector
+          currentFormat={viewFormat.clients}
+          onFormatChange={(format: 'table' | 'horizontal' | 'block') => setViewFormat('clients', format)}
+        />
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -233,7 +322,13 @@ export function ClientsPage() {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40 bg-card border-border">
                         {user?.role === 'user' && (
-                          <DropdownMenuItem className="gap-2">
+                          <DropdownMenuItem 
+                            className="gap-2"
+                            onClick={() => {
+                              setEditingClient(client)
+                              setIsEditDialogOpen(true)
+                            }}
+                          >
                             <Edit2 className="w-4 h-4" /> Modifier
                           </DropdownMenuItem>
                         )}

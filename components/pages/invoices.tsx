@@ -42,6 +42,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
@@ -49,7 +50,7 @@ interface InvoicesPageProps {
 }
 
 export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPageProps) {
-  const { invoices, setInvoices, setPayments, settings, setCreditNotes, user } = useStore()
+  const { invoices, setInvoices, setPayments, settings, setCreditNotes, user, viewFormat, setViewFormat } = useStore()
 
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
@@ -185,17 +186,57 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   const getStatusBadge = (status: Invoice['status']) => {
     switch (status) {
       case "PAID":
-        return <Badge className="bg-green-100 text-green-700 hover:bg-green-100 border-green-200">Payée</Badge>
+        return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 border-emerald-200">Soldé</Badge>
       case "PARTIALLY_PAID":
-        return <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-blue-200">Acompte</Badge>
+        return <Badge className="bg-amber-100 text-amber-700 hover:bg-amber-100 border-amber-200">Partiel</Badge>
       case "UNPAID":
-        return <Badge className="bg-orange-100 text-orange-700 hover:bg-orange-100 border-orange-200">Impayée</Badge>
+        return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">Non payé</Badge>
       case "overdue":
         return <Badge className="bg-red-100 text-red-700 hover:bg-red-100 border-red-200">En retard</Badge>
       case "draft":
         return <Badge variant="secondary" className="bg-slate-100 text-slate-700">Brouillon</Badge>
       case "cancelled":
-        return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Annulée (Avoir)</Badge>
+        return <Badge className="bg-gray-100 text-gray-600 border-gray-200">Annulée</Badge>
+      default:
+        return null
+    }
+  }
+
+  const getPaymentStatus = (invoice: Invoice) => {
+    const totalPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+    const remaining = invoice.total - totalPaid
+    
+    if (totalPaid === 0) {
+      return { status: 'unpaid', paid: 0, remaining: invoice.total }
+    }
+    if (totalPaid >= invoice.total) {
+      return { status: 'paid', paid: totalPaid, remaining: 0 }
+    }
+    return { status: 'partial', paid: totalPaid, remaining }
+  }
+
+  const getPaymentBadge = (invoice: Invoice) => {
+    const paymentStatus = getPaymentStatus(invoice)
+    
+    switch (paymentStatus.status) {
+      case 'paid':
+        return (
+          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+            Soldé ({formatCurrency(paymentStatus.paid)})
+          </Badge>
+        )
+      case 'partial':
+        return (
+          <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+            Partiel - Payé: {formatCurrency(paymentStatus.paid)} | Reste: {formatCurrency(paymentStatus.remaining)}
+          </Badge>
+        )
+      case 'unpaid':
+        return (
+          <Badge className="bg-red-100 text-red-700 border-red-200">
+            Non payé - Reste: {formatCurrency(paymentStatus.remaining)}
+          </Badge>
+        )
       default:
         return null
     }
@@ -231,7 +272,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         </div>
       </div>
 
-      <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border">
+      <div className="flex items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -241,6 +282,10 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
             className="pl-10 bg-secondary/50 border-border text-foreground w-full md:max-w-md"
           />
         </div>
+        <ViewFormatSelector
+          currentFormat={viewFormat.invoices}
+          onFormatChange={(format: 'table' | 'horizontal' | 'block') => setViewFormat('invoices', format)}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4">
@@ -260,14 +305,17 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                         <FileText className="w-5 h-5" />
                       </div>
                       <div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-bold text-foreground text-sm">{invoice.number}</h3>
                           {getStatusBadge(invoice.status)}
+                          {getPaymentBadge(invoice)}
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
                           <span className="font-black text-foreground/80 uppercase tracking-tighter">{invoice.clientName}</span>
                           <span className="mx-2 opacity-30">•</span>
-                          {invoice.date}
+                          <span>Émission: {invoice.date}</span>
+                          <span className="mx-2 opacity-30">•</span>
+                          <span>Échéance: {invoice.dueDate}</span>
                         </p>
                       </div>
                     </div>

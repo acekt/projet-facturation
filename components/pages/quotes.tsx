@@ -37,6 +37,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
+import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
 
@@ -45,7 +46,7 @@ interface QuotesPageProps {
 }
 
 export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
-  const { quotes, setQuotes, settings, user } = useStore()
+  const { quotes, setQuotes, settings, user, viewFormat, setViewFormat } = useStore()
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 10
@@ -187,7 +188,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
+      <div className="flex items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
@@ -197,6 +198,10 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
             className="pl-10 bg-secondary/50 border-border text-foreground placeholder:text-muted-foreground w-full md:max-w-md"
           />
         </div>
+        <ViewFormatSelector
+          currentFormat={viewFormat.quotes}
+          onFormatChange={(format: 'table' | 'horizontal' | 'block') => setViewFormat('quotes', format)}
+        />
       </div>
 
       <div className="grid grid-cols-1 gap-4">
@@ -224,7 +229,11 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           <span className="font-black text-foreground/80 uppercase tracking-tighter">{quote.clientName}</span>
                           <span className="flex items-center gap-1 opacity-60">
                             <Clock className="w-3 h-3" />
-                            {quote.date}
+                            Émission: {quote.date}
+                          </span>
+                          <span className="flex items-center gap-1 opacity-60">
+                            <Clock className="w-3 h-3" />
+                            Échéance: {quote.dueDate}
                           </span>
                         </div>
                       </div>

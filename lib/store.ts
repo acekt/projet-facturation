@@ -177,6 +177,12 @@ const USER_PERMISSIONS: RolePermissions = {
   canDeactivateUser: false,
 };
 
+interface ViewFormat {
+  quotes: 'table' | 'horizontal' | 'block'
+  invoices: 'table' | 'horizontal' | 'block'
+  clients: 'table' | 'horizontal' | 'block'
+}
+
 interface AppState {
   user: User | null;
   permissions: RolePermissions | null;
@@ -188,6 +194,7 @@ interface AppState {
   payments: Payment[];
   creditNotes: CreditNote[];
   settings: Settings;
+  viewFormat: ViewFormat;
   setUser: (user: User | null) => void;
   setClients: (clients: Client[]) => void;
   setQuotes: (quotes: Quote[]) => void;
@@ -196,6 +203,7 @@ interface AppState {
   setPayments: (payments: Payment[]) => void;
   setCreditNotes: (creditNotes: CreditNote[]) => void;
   setSettings: (settings: Settings) => void;
+  setViewFormat: (page: keyof ViewFormat, format: ViewFormat[keyof ViewFormat]) => void;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -235,6 +243,11 @@ export const useStore = create<AppState>()(
       payments: [],
       creditNotes: [],
       settings: DEFAULT_SETTINGS,
+      viewFormat: {
+        quotes: 'table',
+        invoices: 'table',
+        clients: 'block'
+      },
 
       setUser: (user) => {
         const permissions = user
@@ -249,6 +262,9 @@ export const useStore = create<AppState>()(
       setPayments: (payments) => set({ payments }),
       setCreditNotes: (creditNotes) => set({ creditNotes }),
       setSettings: (settings) => set({ settings }),
+      setViewFormat: (page, format) => set((state) => ({
+        viewFormat: { ...state.viewFormat, [page]: format }
+      })),
     }),
     {
       name: 'letoile-storage',
@@ -257,7 +273,8 @@ export const useStore = create<AppState>()(
         user: state.user,
         permissions: state.permissions,
         isAuthenticated: state.isAuthenticated,
-        settings: state.settings
+        settings: state.settings,
+        viewFormat: state.viewFormat
       }),
     }
   )

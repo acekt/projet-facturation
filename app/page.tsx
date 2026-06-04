@@ -132,20 +132,23 @@ export default function App() {
         initial={false}
         animate={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-        className="pt-24 pb-8 px-8"
+        className="fixed top-16 right-0 bottom-0 pt-8 pb-8 px-8 overflow-hidden"
+        style={{ left: 0 }}
       >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentPage}
-            variants={pageVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-          >
-            {renderPage()}
-          </motion.div>
-        </AnimatePresence>
+        <div className="h-full overflow-y-auto">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={currentPage}
+              variants={pageVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            >
+              {renderPage()}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </motion.main>
     </div>
   )
