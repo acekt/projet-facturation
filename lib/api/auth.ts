@@ -39,7 +39,7 @@ async function verifySignature(data: string, signature: string) {
     return await crypto.subtle.verify(
       'HMAC',
       key,
-      sigBuf.buffer,
+      sigBuf.buffer as ArrayBuffer,
       dataBuf
     )
   } catch (e) {
