@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { useStore, type Quote } from "@/lib/store"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { DocumentPreview } from "@/components/document-preview"
 import { PrintableDocument } from "@/components/printable-document"
@@ -231,8 +231,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                   <td className="p-4 text-sm text-muted-foreground">{quote.clientName}</td>
                   <td className="p-4">
                     <div className="text-xs text-muted-foreground">
-                      <div>Émission: {quote.date}</div>
-                      <div>Échéance: {quote.dueDate}</div>
+                      <div>Émission: {formatDate(quote.date)}</div>
+                      <div>Échéance: {formatDate(quote.dueDate)}</div>
                     </div>
                   </td>
                   <td className="p-4">{getStatusBadge(quote.status)}</td>
@@ -265,13 +265,13 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                               className="gap-2"
                               onClick={() => onCreateQuote(quote.id)}
                             >
-                              <Edit2 className="w-4 h-4" /> Modifier
+                              <Edit2 className="w-4 h-4" /> Modifier le devis
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="gap-2 text-primary font-medium"
                               onClick={() => handleConvertToInvoice(quote.id)}
                             >
-                              <CheckCircle2 className="w-4 h-4" /> Convertir
+                              <CheckCircle2 className="w-4 h-4" /> Convertir en facture
                             </DropdownMenuItem>
                           </>
                         )}
@@ -332,11 +332,11 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           <span className="font-black text-foreground/80 uppercase tracking-tighter">{quote.clientName}</span>
                           <span className="flex items-center gap-1 opacity-60">
                             <Clock className="w-3 h-3" />
-                            Émission: {quote.date}
+                            Émission: {formatDate(quote.date)}
                           </span>
                           <span className="flex items-center gap-1 opacity-60">
                             <Clock className="w-3 h-3" />
-                            Échéance: {quote.dueDate}
+                            Échéance: {formatDate(quote.dueDate)}
                           </span>
                         </div>
                       </div>
@@ -436,11 +436,11 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                   <div className="space-y-1 mb-3">
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <Clock className="w-3 h-3" />
-                      <span>Émission: {quote.date}</span>
+                      <span>Émission: {formatDate(quote.date)}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <Clock className="w-3 h-3" />
-                      <span>Échéance: {quote.dueDate}</span>
+                      <span>Échéance: {formatDate(quote.dueDate)}</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-border/50">
@@ -451,17 +451,47 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40 bg-card border-border">
+                      <DropdownMenuContent align="end" className="w-48 bg-card border-border">
                         <DropdownMenuItem className="gap-2" onClick={() => setPreviewQuote(quote)}>
                           <Eye className="w-4 h-4" /> Aperçu
                         </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
+                          <Printer className="w-4 h-4" /> Imprimer
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={() => handleDownloadPDF(quote)}
+                          disabled={isDownloading === quote.id}
+                        >
+                          <Download className="w-4 h-4" />
+                          {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
+                        </DropdownMenuItem>
                         {quote.status !== 'invoiced' && user?.role === 'user' && (
-                          <DropdownMenuItem
-                            className="gap-2 text-primary font-medium"
-                            onClick={() => handleConvertToInvoice(quote.id)}
-                          >
-                            <CheckCircle2 className="w-4 h-4" /> Convertir
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuItem
+                              className="gap-2"
+                              onClick={() => onCreateQuote(quote.id)}
+                            >
+                              <Edit2 className="w-4 h-4" /> Modifier le devis
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              className="gap-2 text-primary font-medium"
+                              onClick={() => handleConvertToInvoice(quote.id)}
+                            >
+                              <CheckCircle2 className="w-4 h-4" /> Convertir en facture
+                            </DropdownMenuItem>
+                          </>
+                        )}
+                        {useStore.getState().user?.role === 'admin' && (
+                          <>
+                            <div className="h-px bg-border my-1" />
+                            <DropdownMenuItem
+                                className="gap-2 text-destructive focus:text-destructive"
+                                onClick={() => handleDelete(quote.id)}
+                            >
+                                <Trash2 className="w-4 h-4" /> Supprimer
+                            </DropdownMenuItem>
+                          </>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>

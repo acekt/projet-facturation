@@ -30,7 +30,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Badge } from "@/components/ui/badge"
 import { useStore, type Invoice, type Payment } from "@/lib/store"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { PrintableDocument } from "@/components/printable-document"
 import { DocumentPreview } from "@/components/document-preview"
@@ -331,8 +331,8 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                   <td className="p-4 text-sm text-muted-foreground">{invoice.clientName}</td>
                   <td className="p-4">
                     <div className="text-xs text-muted-foreground">
-                      <div>Émission: {invoice.date}</div>
-                      <div>Échéance: {invoice.dueDate}</div>
+                      <div>Émission: {formatDate(invoice.date)}</div>
+                      <div>Échéance: {formatDate(invoice.dueDate)}</div>
                     </div>
                   </td>
                   <td className="p-4">
@@ -366,7 +366,12 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                         </DropdownMenuItem>
                         {invoice.status !== 'PAID' && user?.role === 'user' && (
                           <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
-                            <CheckCircle2 className="w-4 h-4" /> Règlement
+                            <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
+                          </DropdownMenuItem>
+                        )}
+                        {user?.role === 'user' && (
+                          <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
+                            <RefreshCcw className="w-4 h-4" /> Créer un avoir
                           </DropdownMenuItem>
                         )}
                         {user?.role === 'admin' && (
@@ -421,9 +426,9 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                         <p className="text-[11px] text-muted-foreground mt-0.5">
                           <span className="font-black text-foreground/80 uppercase tracking-tighter">{invoice.clientName}</span>
                           <span className="mx-2 opacity-30">•</span>
-                          <span>Émission: {invoice.date}</span>
+                          <span>Émission: {formatDate(invoice.date)}</span>
                           <span className="mx-2 opacity-30">•</span>
-                          <span>Échéance: {invoice.dueDate}</span>
+                          <span>Échéance: {formatDate(invoice.dueDate)}</span>
                         </p>
                       </div>
                     </div>
@@ -514,11 +519,11 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                   <div className="space-y-1 mb-3">
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <Clock className="w-3 h-3" />
-                      <span>Émission: {invoice.date}</span>
+                      <span>Émission: {formatDate(invoice.date)}</span>
                     </div>
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <Clock className="w-3 h-3" />
-                      <span>Échéance: {invoice.dueDate}</span>
+                      <span>Échéance: {formatDate(invoice.dueDate)}</span>
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-border/50">
@@ -529,14 +534,38 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40 bg-card border-border">
+                      <DropdownMenuContent align="end" className="w-48 bg-card border-border">
                         <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
                           <Eye className="w-4 h-4" /> Aperçu
                         </DropdownMenuItem>
+                        <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
+                          <Printer className="w-4 h-4" /> Imprimer
+                        </DropdownMenuItem>
+                        <DropdownMenuItem
+                          className="gap-2"
+                          onClick={() => handleDownloadPDF(invoice)}
+                          disabled={isDownloading === invoice.id}
+                        >
+                          <Download className="w-4 h-4" />
+                          {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
+                        </DropdownMenuItem>
                         {invoice.status !== 'PAID' && user?.role === 'user' && (
                           <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
-                            <CheckCircle2 className="w-4 h-4" /> Règlement
+                            <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                           </DropdownMenuItem>
+                        )}
+                        {user?.role === 'user' && (
+                          <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
+                            <RefreshCcw className="w-4 h-4" /> Créer un avoir
+                          </DropdownMenuItem>
+                        )}
+                        {user?.role === 'admin' && (
+                          <>
+                            <div className="h-px bg-border my-1" />
+                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>
+                                <Trash2 className="w-4 h-4" /> Supprimer
+                            </DropdownMenuItem>
+                          </>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>

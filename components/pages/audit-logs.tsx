@@ -73,7 +73,7 @@ export function AuditLogsPage() {
               {logs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((log) => (
                 <TableRow key={log.id}>
                   <TableCell className="font-mono text-xs text-muted-foreground">
-                    {new Date(log.createdAt).toLocaleString('fr-FR')}
+                    {formatDate(log.createdAt)}
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
