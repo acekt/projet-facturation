@@ -86,7 +86,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   }
 
   const handleCreateCreditNote = async (invoice: Invoice) => {
-    if (!confirm(`Voulez-vous créer un avoir pour la facture ${invoice.number} ? Cela annulera comptablement cette facture.`)) return;
+    if (!confirm(`Voulez-vous annuler la facture ${invoice.number} ? Cela créera un avoir comptable.`)) return;
 
     try {
       const response = await fetch('/api/credit-notes', {
