@@ -30,12 +30,6 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json().catch(() => ({}));
-    const { deleteQuote = false } = body;
-
-    // Get invoice details
-    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id);
-    if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
 
     // RULE 5: Enforce Soft Delete to maintain fiscal audit trail
     const result = db.prepare("UPDATE invoices SET deletedAt = datetime('now'), status = 'cancelled' WHERE id = ?").run(id);
@@ -43,17 +37,6 @@ export async function DELETE(
     if (result.changes === 0) {
       return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
-
-    // Convert linked quote back to draft status
-    if (invoice.quoteId) {
-      db.prepare("UPDATE quotes SET status = 'draft' WHERE id = ?").run(invoice.quoteId);
-
-      // If user chose to delete the quote as well, soft delete it
-      if (deleteQuote) {
-        db.prepare("UPDATE quotes SET deletedAt = datetime('now') WHERE id = ?").run(invoice.quoteId);
-      }
-    }
-
     return NextResponse.json({ success: true });
   } catch (error) {
     return NextResponse.json({ error: 'Failed to delete invoice' }, { status: 500 });

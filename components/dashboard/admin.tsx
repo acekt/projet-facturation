@@ -26,17 +26,14 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
 
   React.useEffect(() => {
     fetch('/api/dashboard/metrics?range=month')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch metrics')
-        return res.json()
-      })
+      .then(res => res.json())
       .then(d => {
         setData(d)
-      })
-      .catch(err => {
-        console.error('[Dashboard Admin] Error fetching metrics:', err)
+        setIsLoading(false)
       })
   }, [])
+
+  if (isLoading) return <div className="p-12 text-center text-muted-foreground animate-pulse">Chargement de la vision stratégique...</div>
 
   const metrics = data?.metrics || {}
 
@@ -52,52 +49,46 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="pb-2">
             <CardDescription className="uppercase text-[10px] font-bold tracking-widest flex items-center gap-2">
-                <FileText className="w-3 h-3 text-indigo-500" /> Factures Payées
+                <FileText className="w-3 h-3 text-indigo-500" /> Documents Actifs
             </CardDescription>
-            <CardTitle className="text-3xl font-black text-emerald-600">{metrics.paidCount}</CardTitle>
+            <CardTitle className="text-3xl font-black">{metrics.totalInvoicesCount}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Règlements complets</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Factures & Devis en base</p>
           </CardContent>
         </Card>
 
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="pb-2">
-            <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-amber-600 flex items-center gap-2">
-                <Clock className="w-3 h-3" /> Factures Partielles
+            <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-emerald-600 flex items-center gap-2">
+                <TrendingUp className="w-3 h-3" /> Volume Financier (Mois)
             </CardDescription>
-            <CardTitle className="text-3xl font-black text-amber-600">{metrics.partiallyPaidCount}</CardTitle>
+            <CardTitle className="text-3xl font-black text-emerald-600">
+                {formatCurrency(metrics.totalRevenue || 0)}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Acomptes reçus</p>
+            <p className="text-[10px] text-emerald-500 font-black uppercase tracking-tighter">
+                +{metrics.growth || 0}% vs mois dernier
+            </p>
           </CardContent>
         </Card>
 
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="pb-2">
             <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-red-500 flex items-center gap-2">
-                <AlertCircle className="w-3 h-3" /> Factures Non Payées
+                <AlertCircle className="w-3 h-3" /> Créances Globales
             </CardDescription>
-            <CardTitle className="text-3xl font-black text-red-500">{metrics.unpaidCount}</CardTitle>
+            <CardTitle className="text-3xl font-black text-red-500">
+                {formatCurrency(metrics.pendingRevenue || 0)}
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">En attente de paiement</p>
-          </CardContent>
-        </Card>
-
-        <Card className="bg-card border-border shadow-sm">
-          <CardHeader className="pb-2">
-            <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-blue-500 flex items-center gap-2">
-                <ScrollText className="w-3 h-3" /> Devis En Attente
-            </CardDescription>
-            <CardTitle className="text-3xl font-black text-blue-500">{metrics.pendingQuotesCount}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Non convertis en factures</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Toutes factures confondues</p>
           </CardContent>
         </Card>
       </div>
@@ -200,7 +191,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             <CardContent>
                 <div className="space-y-3">
                     {(data.userPerformance || []).map((u: any) => (
-                        <div key={u.id || u.name} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
+                        <div key={u.name} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500 font-bold text-xs">
                                     {u.name[0]}
@@ -219,34 +210,33 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             </CardContent>
         </Card>
 
-        <Card className="border-border shadow-sm">
-            <CardHeader className="flex flex-row items-center justify-between">
-                <div>
-                    <CardTitle className="text-md font-bold">Top Clients</CardTitle>
-                    <CardDescription className="text-[10px] uppercase font-bold tracking-widest">Par chiffre d'affaires</CardDescription>
-                </div>
-                <Users className="w-5 h-5 text-muted-foreground opacity-20" />
+        <Card className="border-border">
+            <CardHeader>
+                <CardTitle className="text-lg">Santé Système</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
                 <div className="space-y-3">
-                    {(data.topClients || []).map((client: any, index: number) => (
-                        <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
-                            <div className="flex items-center gap-3">
-                                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500 font-bold text-xs">
-                                    {index + 1}
-                                </div>
-                                <div>
-                                    <span className="text-xs font-bold block">{client.clientName}</span>
-                                </div>
-                            </div>
-                            <div className="text-right">
-                                <p className="text-xs font-black">{formatCurrency(client.totalRevenue)}</p>
-                            </div>
-                        </div>
-                    ))}
-                    {(!data.topClients || data.topClients.length === 0) && (
-                        <p className="text-xs text-muted-foreground italic text-center py-4">Aucun client</p>
-                    )}
+                    <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Version App</span>
+                        <Badge variant="outline">v4.0.0-prod</Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Base de données</span>
+                        <span className="flex items-center gap-1 font-medium"><Database className="w-3 h-3" /> SQLite (Local)</span>
+                    </div>
+                    <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">Dernier Backup</span>
+                        <span className="text-emerald-500 font-bold">Aujourd'hui 04:00</span>
+                    </div>
+                </div>
+                <div className="pt-4 border-t border-border">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground mb-4">
+                        <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                        Environnement sécurisé
+                    </div>
+                    <Button variant="outline" className="w-full text-xs h-8" onClick={() => onNavigate('settings')}>
+                        Maintenance
+                    </Button>
                 </div>
             </CardContent>
         </Card>

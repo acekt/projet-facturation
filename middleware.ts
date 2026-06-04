@@ -6,42 +6,25 @@ import type { NextRequest } from 'next/server'
 
 const SESSION_SECRET = process.env.SESSION_SECRET || 'letoile-secret-key-2026-signing'
 
-// Helper to convert string to ArrayBuffer using TextEncoder (Edge Runtime compatible)
+// Helper to convert string to ArrayBuffer
 function str2ab(str: string) {
-  const encoder = new TextEncoder()
-  return encoder.encode(str)
+  const buf = new ArrayBuffer(str.length);
+  const bufView = new Uint8Array(buf);
+  for (let i = 0, strLen = str.length; i < strLen; i++) {
+    bufView[i] = str.charCodeAt(i);
+  }
+  return buf;
 }
 
-// Helper to convert ArrayBuffer to string using TextDecoder (Edge Runtime compatible)
-function ab2str(buf: ArrayBuffer) {
-  const decoder = new TextDecoder()
-  return decoder.decode(buf)
-}
-
-// Helper to convert Base64 to Uint8Array with Buffer fallback
-function base64ToUint8Array(base64: string) {
-  if (typeof Buffer !== 'undefined') {
-    return Uint8Array.from(Buffer.from(base64, 'base64'))
-  }
-  const binaryString = atob(base64)
-  const bytes = new Uint8Array(binaryString.length)
-  for (let i = 0; i < binaryString.length; i++) {
-    bytes[i] = binaryString.charCodeAt(i)
-  }
-  return bytes
-}
-
-// Helper to convert Uint8Array to Base64 with Buffer fallback
-function uint8ArrayToBase64(bytes: Uint8Array) {
-  if (typeof Buffer !== 'undefined') {
-    return Buffer.from(bytes).toString('base64')
-  }
-  let binary = ''
-  const len = bytes.byteLength
+// Helper to convert ArrayBuffer to Base64
+function ab2base64(buf: ArrayBuffer) {
+  let binary = '';
+  const bytes = new Uint8Array(buf);
+  const len = bytes.byteLength;
   for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i])
+    binary += String.fromCharCode(bytes[i]);
   }
-  return btoa(binary)
+  return btoa(binary);
 }
 
 async function verifySignature(data: string, signature: string) {
@@ -54,7 +37,7 @@ async function verifySignature(data: string, signature: string) {
       ['verify']
     );
 
-    const sigBuf = base64ToUint8Array(signature);
+    const sigBuf = Uint8Array.from(atob(signature), c => c.charCodeAt(0));
     const dataBuf = str2ab(data);
 
     return await crypto.subtle.verify(
@@ -92,15 +75,8 @@ export async function middleware(request: NextRequest) {
   const isApiAuth = pathname.startsWith('/api/auth')
   const isPublicAsset = pathname.startsWith('/_next') || pathname.includes('.')
 
-  // Allow read-only access to GET requests on quotes/invoices/services/clients APIs
-  const isReadOnlyApi = (pathname.startsWith('/api/quotes') ||
-                         pathname.startsWith('/api/invoices') ||
-                         pathname.startsWith('/api/services') ||
-                         pathname.startsWith('/api/clients')) &&
-                        request.method === 'GET'
-
   // 1. Check Authentication
-  if (!sessionCookie && !isLoginPage && !isApiAuth && !isPublicAsset && !isReadOnlyApi) {
+  if (!sessionCookie && !isLoginPage && !isApiAuth && !isPublicAsset) {
     if (pathname.startsWith('/api')) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -149,7 +125,7 @@ export async function middleware(request: NextRequest) {
       if (isBusinessRoute) {
         return NextResponse.redirect(new URL('/?error=admin_restricted', request.url))
       }
-      if (isBusinessApi && request.method !== 'GET') {
+      if (isBusinessApi) {
         return new NextResponse(JSON.stringify({ error: 'Accès interdit aux administrateurs' }), {
           status: 403,
           headers: { 'content-type': 'application/json' },

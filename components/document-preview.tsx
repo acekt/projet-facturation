@@ -75,8 +75,8 @@ export function DocumentPreview({ open, onOpenChange, type, data }: DocumentPrev
                   <p className="font-medium">{data.date}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-500 uppercase font-semibold tracking-wider">Émission</p>
-                  <p className="font-medium">{data.date}</p>
+                  <p className="text-sm text-gray-500 uppercase font-semibold tracking-wider">Échéance</p>
+                  <p className="font-medium">{data.dueDate}</p>
                 </div>
               </div>
             </div>

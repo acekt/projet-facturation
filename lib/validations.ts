@@ -68,6 +68,8 @@ export const settingsSchema = z.object({
   tvaRate: z.number().min(0),
   tpsRate: z.number().min(0).optional(),
   cssRate: z.number().min(0),
+  defaultDueDateDays: z.number().min(0),
+  defaultQuoteValidity: z.number().min(0),
   sessionTimeout: z.number().min(1),
   invoicePrefix: z.string().min(1),
   quotePrefix: z.string().min(1),
@@ -81,24 +83,4 @@ export const serviceSchema = z.object({
   description: z.string().optional(),
   category: z.string().optional(),
   unitPrice: z.number().min(0, "Le prix ne peut pas être négatif"),
-});
-
-export const userCreateSchema = z.object({
-  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
-  email: z.string().email("Adresse email invalide"),
-  phone: z.string().optional(),
-  role: z.enum(['admin', 'user']),
-  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
-  force_password_change: z.boolean().default(true),
-  is_active: z.boolean().default(true),
-});
-
-export const userUpdateSchema = z.object({
-  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
-  email: z.string().email("Adresse email invalide"),
-  phone: z.string().optional(),
-  role: z.enum(['admin', 'user']),
-  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères").optional(),
-  force_password_change: z.boolean().optional(),
-  is_active: z.boolean().optional(),
 });

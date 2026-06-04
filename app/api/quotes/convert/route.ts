@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
     const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(quoteId) as any[];
 
-    const settings = db.prepare('SELECT invoicePrefix, companyCode FROM settings WHERE id = 1').get() as any;
+    const settings = db.prepare('SELECT invoicePrefix, companyCode, defaultDueDateDays FROM settings WHERE id = 1').get() as any;
     const invoiceId = crypto.randomUUID();
 
     const convert = db.transaction(() => {
@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         quote.clientName,
         quote.clientEmail,
         new Date().toISOString().split('T')[0],
-        new Date().toISOString().split('T')[0],
+        new Date(Date.now() + settings.defaultDueDateDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         Math.round(quote.subtotal),
         Math.round(quote.discount),
         Math.round(quote.taxBase),

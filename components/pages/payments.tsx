@@ -33,7 +33,7 @@ import {
 } from "recharts"
 
 import { useStore } from "@/lib/store"
-import { formatCurrency, formatShortCurrency, formatDate } from "@/lib/utils"
+import { formatCurrency, formatShortCurrency } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
 
 export function PaymentsPage() {
@@ -217,7 +217,7 @@ export function PaymentsPage() {
                 <Wallet className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-muted-foreground text-sm">Chiffre d'Affaires Annuel</p>
+                <p className="text-muted-foreground text-sm">CA Annuel (Encaissé)</p>
                 <p className="text-2xl font-bold text-foreground">
                     {formatShortCurrency(invoices
                         .filter(i => i.status === 'PAID' && i.date?.startsWith(currentYear))
@@ -358,7 +358,7 @@ export function PaymentsPage() {
                             {p.paymentMethod || 'Cash'}
                           </span>
                         </div>
-                        <p className="text-muted-foreground text-xs">Facture {invoice?.number || 'N/A'} • {formatDate(p.date)}</p>
+                        <p className="text-muted-foreground text-xs">Facture {invoice?.number || 'N/A'} • {p.date}</p>
                       </div>
                       </div>
                     <div className="flex items-center gap-4">
