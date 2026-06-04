@@ -621,7 +621,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                 </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="payment-amount" className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Montant encaissé (XAF)</Label>
+              <Label htmlFor="payment-amount" className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Montant du paiement (XAF)</Label>
               <Input
                 id="payment-amount"
                 type="number"

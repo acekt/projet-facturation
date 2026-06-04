@@ -508,7 +508,7 @@ export function ClientsPage() {
                     </div>
                   </div>
                   <div className="bg-secondary/30 px-4 py-2 border-t border-border/50 flex items-center justify-between">
-                    <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-black">CA Encaissé</div>
+                    <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-black">Chiffre d'Affaires</div>
                     <div className="font-black text-foreground text-sm tracking-tighter">
                       {formatCurrency(useStore.getState().invoices
                         ?.filter(inv => inv.clientId === client.id && inv.status === 'PAID')

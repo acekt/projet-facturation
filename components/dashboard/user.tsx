@@ -195,7 +195,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
                 </div>
                 <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-500/20 shadow-sm shadow-indigo-500/5">
                     <div className="flex justify-between items-start mb-1">
-                        <span className="text-xs font-bold">CA Encaissé</span>
+                        <span className="text-xs font-bold">Chiffre d'Affaires</span>
                         <Badge className="bg-indigo-100 text-indigo-700 text-[10px] px-1 py-0 h-4 border-indigo-200">Mois</Badge>
                     </div>
                     <p className="text-[10px] text-muted-foreground uppercase font-black">{formatCurrency(metrics.totalRevenue || 0)}</p>

@@ -217,7 +217,7 @@ export function PaymentsPage() {
                 <Wallet className="w-5 h-5 text-primary" />
               </div>
               <div>
-                <p className="text-muted-foreground text-sm">CA Annuel (Encaissé)</p>
+                <p className="text-muted-foreground text-sm">Chiffre d'Affaires Annuel</p>
                 <p className="text-2xl font-bold text-foreground">
                     {formatShortCurrency(invoices
                         .filter(i => i.status === 'PAID' && i.date?.startsWith(currentYear))
