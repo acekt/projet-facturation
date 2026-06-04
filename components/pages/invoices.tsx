@@ -78,8 +78,10 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   }
 
   const markAsPaid = (invoice: Invoice) => {
+      const totalPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+      const remaining = invoice.total - totalPaid
       setPaymentInvoice(invoice);
-      setPaymentAmount(invoice.total.toString());
+      setPaymentAmount(remaining.toString());
       setPaymentDialogOpen(true);
   }
 
@@ -134,13 +136,27 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
 
   const confirmPayment = async () => {
       if (paymentInvoice) {
+          const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+          const remaining = paymentInvoice.total - totalPaid
+          const amount = parseFloat(paymentAmount)
+          
+          if (amount <= 0) {
+              toast.error("Le montant doit être supérieur à 0")
+              return
+          }
+          
+          if (amount > remaining) {
+              toast.error(`Le montant ne peut pas dépasser le reste à payer (${formatCurrency(remaining)})`)
+              return
+          }
+          
           try {
             const response = await fetch('/api/payments', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
                   invoiceId: paymentInvoice.id,
-                  amount: parseFloat(paymentAmount),
+                  amount: amount,
                   paymentMethod,
                   date: new Date().toISOString().split('T')[0]
               }),
@@ -581,7 +597,11 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                 <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Type de règlement</Label>
                 <Select value={paymentType} onValueChange={(val) => {
                     setPaymentType(val);
-                    if (val === 'full' && paymentInvoice) setPaymentAmount(paymentInvoice.total.toString());
+                    if (val === 'full' && paymentInvoice) {
+                        const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+                        const remaining = paymentInvoice.total - totalPaid
+                        setPaymentAmount(remaining.toString());
+                    }
                 }}>
                     <SelectTrigger className="bg-secondary border-border text-foreground h-11">
                         <SelectValue placeholder="Sélectionner..." />
@@ -598,10 +618,26 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                 id="payment-amount"
                 type="number"
                 value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
+                onChange={(e) => {
+                    const value = parseFloat(e.target.value) || 0
+                    if (paymentInvoice) {
+                        const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+                        const remaining = paymentInvoice.total - totalPaid
+                        if (value <= remaining) {
+                            setPaymentAmount(e.target.value)
+                        }
+                    } else {
+                        setPaymentAmount(e.target.value)
+                    }
+                }}
                 className="bg-secondary border-border h-11 font-bold text-lg"
                 disabled={paymentType === 'full'}
               />
+              {paymentInvoice && (
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                      Reste à payer: {formatCurrency(paymentInvoice.total - (paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0))}
+                  </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Mode de règlement</Label>
