@@ -70,9 +70,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
 
   const fetchUsers = async () => {
     try {
-      console.log('[UsersPage] Fetching users from /api/users')
       const res = await fetch('/api/users')
-      console.log('[UsersPage] Response status:', res.status)
       
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}))
@@ -81,7 +79,6 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
       }
       
       const data = await res.json()
-      console.log('[UsersPage] Users fetched:', data.length)
       setUsers(data)
     } catch (err) {
       console.error('[UsersPage] Fetch error:', err)

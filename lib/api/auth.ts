@@ -53,26 +53,22 @@ export async function getSession() {
   const sessionCookie = cookieStore.get('auth_session')
 
   if (!sessionCookie) {
-    console.log('[Auth] No session cookie found')
     return null
   }
 
   const [data, signature] = sessionCookie.value.split('.')
   if (!data || !signature) {
-    console.log('[Auth] Invalid session cookie format')
     return null
   }
 
   const isValid = await verifySignature(data, signature)
   if (!isValid) {
-    console.log('[Auth] Invalid session signature')
     return null
   }
 
   try {
     const decoded = atob(data)
     const session = JSON.parse(decoded)
-    console.log('[Auth] Session valid for user:', session.userId || session.id)
     return session
   } catch (e) {
     console.error('[Auth] Failed to decode session:', e)

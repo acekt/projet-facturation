@@ -18,7 +18,6 @@ export function AuditLogsPage() {
   React.useEffect(() => {
     const fetchLogs = async () => {
       try {
-        console.log('[AuditLogsPage] Fetching logs from /api/audit-logs')
         const res = await fetch('/api/audit-logs')
         
         if (!res.ok) {
@@ -31,7 +30,6 @@ export function AuditLogsPage() {
         }
         
         const data = await res.json()
-        console.log('[AuditLogsPage] Logs fetched:', data.length)
         if (!data.error) {
           setLogs(data)
         }

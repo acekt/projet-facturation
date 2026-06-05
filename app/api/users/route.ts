@@ -10,16 +10,12 @@ function hashPassword(password: string) {
 
 export async function GET() {
     try {
-        console.log('[API Users] Fetching users...')
         const session = await getSession();
         if (!session || session.role !== 'admin') {
-            console.log('[API Users] Access denied - not admin or no session')
             return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
         }
 
-        console.log('[API Users] Session valid, querying database...')
         const users = db.prepare('SELECT id, name, email, role, is_active, created_at, last_login_at FROM users').all();
-        console.log('[API Users] Users fetched:', users.length);
         return NextResponse.json(users);
     } catch (error) {
         console.error('[API Users] Error:', error);
