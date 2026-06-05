@@ -18,7 +18,6 @@ import { UsersPage } from "@/components/pages/users"
 import { UserEditor } from "@/components/pages/user-editor"
 import { useStore } from "@/lib/store"
 import { useRouter } from "next/navigation"
-import { useEffect } from "react"
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -33,14 +32,19 @@ export default function App() {
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
   const [commandOpen, setCommandOpen] = React.useState(false)
+  const [isClient, setIsClient] = React.useState(false)
 
-  useEffect(() => {
-    if (!user) {
+  React.useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  React.useEffect(() => {
+    if (isClient && !user) {
       router.push('/login')
     }
-  }, [user, router])
+  }, [user, router, isClient])
 
-  if (!user) {
+  if (!isClient || !user) {
     return null
   }
 
