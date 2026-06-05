@@ -55,8 +55,20 @@ export default function App() {
     return () => document.removeEventListener("keydown", down)
   }, [])
 
-  if (!isClient || !user) {
-    return null
+  if (!isClient) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Chargement...</div>
+      </div>
+    )
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Redirection vers la connexion...</div>
+      </div>
+    )
   }
 
   const handlePageChange = (page: string) => {
