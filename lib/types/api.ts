@@ -254,3 +254,111 @@ export interface DbInvoiceItem {
   unitPrice: number;
   total: number;
 }
+
+// ============================================================================
+// CREDIT NOTE TYPES
+// ============================================================================
+
+export interface CreditNoteItem {
+  id: string;
+  creditNoteId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface CreditNoteCreateRequest {
+  invoiceId: string;
+  reason: string;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
+}
+
+export interface CreditNoteResponse {
+  id: string;
+  number: string;
+  invoiceId: string;
+  clientId: string;
+  clientName: string;
+  date: string;
+  reason: string;
+  subtotal: number;
+  taxBase: number;
+  tvaAmount: number;
+  tpsAmount?: number;
+  cssAmount: number;
+  total: number;
+  status: 'open' | 'applied' | 'cancelled';
+  items: CreditNoteItem[];
+  deletedAt?: string;
+  createdAt: string;
+}
+
+export interface DbCreditNote {
+  id: string;
+  number: string;
+  invoiceId: string;
+  clientId: string;
+  clientName: string;
+  date: string;
+  reason: string;
+  subtotal: number;
+  taxBase: number;
+  tvaAmount: number;
+  tpsAmount?: number;
+  cssAmount: number;
+  total: number;
+  status: 'open' | 'applied' | 'cancelled';
+  deletedAt?: string;
+  createdAt: string;
+}
+
+export interface DbCreditNoteItem {
+  id: string;
+  creditNoteId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+// ============================================================================
+// DASHBOARD METRICS TYPES
+// ============================================================================
+
+export interface DashboardQueryParams {
+  range?: 'month' | 'quarter' | 'year';
+}
+
+export interface DashboardMetricsResponse {
+  totalRevenue: number;
+  growth: string;
+  pendingRevenue: number;
+  overdueRevenue: number;
+  paidCount: number;
+  unpaidCount: number;
+  partiallyPaidCount: number;
+  totalInvoicesCount: number;
+  pendingQuotesCount: number;
+  topClients: Array<{
+    clientName: string;
+    totalRevenue: number;
+  }>;
+  userPerformance: Array<{
+    name: string;
+    docsCount: number;
+    totalRevenue: number;
+  }>;
+  revenueData?: Array<{
+    date: string;
+    revenue: number;
+  }>;
+  paymentMethodData?: Array<{
+    method: string;
+    amount: number;
+  }>;
+}

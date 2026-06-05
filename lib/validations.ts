@@ -128,3 +128,27 @@ export const paymentCreateSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)"),
   reference: z.string().optional(),
 });
+
+// ============================================================================
+// CREDIT NOTE SCHEMAS
+// ============================================================================
+
+export const creditNoteItemSchema = z.object({
+  description: z.string().min(1, "La description est requise"),
+  quantity: z.number().min(0.01, "La quantité doit être supérieure à 0"),
+  unitPrice: z.number().min(0, "Le prix unitaire ne peut pas être négatif"),
+});
+
+export const creditNoteCreateSchema = z.object({
+  invoiceId: z.string().min(1, "L'ID de la facture est requis"),
+  reason: z.string().min(1, "La raison est requise"),
+  items: z.array(creditNoteItemSchema).min(1, "Au moins un article est requis"),
+});
+
+// ============================================================================
+// DASHBOARD SCHEMAS
+// ============================================================================
+
+export const dashboardMetricsQuerySchema = z.object({
+  range: z.enum(['month', 'quarter', 'year']).optional(),
+});
