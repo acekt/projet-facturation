@@ -7,6 +7,13 @@ export const clientSchema = z.object({
   address: z.string().optional().refine(val => !val || val.length >= 5, "L'adresse doit contenir au moins 5 caractères"),
 });
 
+export const clientUpdateSchema = z.object({
+  name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
+  email: z.string().email("Adresse email invalide"),
+  phone: z.string().optional().refine(val => !val || val.length >= 6, "Numéro de téléphone invalide"),
+  address: z.string().optional().refine(val => !val || val.length >= 5, "L'adresse doit contenir au moins 5 caractères"),
+});
+
 export const invoiceItemSchema = z.object({
   id: z.string(),
   description: z.string().min(1, "La description est requise"),
@@ -84,6 +91,13 @@ export const settingsSchema = z.object({
 });
 
 export const serviceSchema = z.object({
+  name: z.string().min(1, "Le nom est requis"),
+  description: z.string().optional(),
+  category: z.string().optional(),
+  unitPrice: z.number().min(0, "Le prix ne peut pas être négatif"),
+});
+
+export const serviceUpdateSchema = z.object({
   name: z.string().min(1, "Le nom est requis"),
   description: z.string().optional(),
   category: z.string().optional(),

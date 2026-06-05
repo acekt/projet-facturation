@@ -473,3 +473,132 @@ export interface QuoteDuplicateResponse {
   quoteId: string;
   quoteNumber: string;
 }
+
+// ============================================================================
+// CLIENT TYPES
+// ============================================================================
+
+export interface ClientCreateRequest {
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface ClientUpdateRequest {
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+}
+
+export interface ClientResponse {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  deletedAt?: string;
+  createdAt?: string;
+}
+
+export interface DbClient {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  address?: string;
+  deletedAt?: string;
+  createdAt?: string;
+}
+
+// ============================================================================
+// SERVICE TYPES
+// ============================================================================
+
+export interface ServiceCreateRequest {
+  name: string;
+  description?: string;
+  category?: string;
+  unitPrice: number;
+}
+
+export interface ServiceUpdateRequest {
+  name: string;
+  description?: string;
+  category?: string;
+  unitPrice: number;
+}
+
+export interface ServiceResponse {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  unitPrice: number;
+  deletedAt?: string;
+  createdAt?: string;
+}
+
+export interface DbService {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  unitPrice: number;
+  deletedAt?: string;
+  createdAt?: string;
+}
+
+// ============================================================================
+// SETTINGS TYPES
+// ============================================================================
+
+export interface SettingsUpdateRequest {
+  companyName?: string;
+  legalForm?: string;
+  nif?: string;
+  rccm?: string;
+  address?: string;
+  email?: string;
+  phone?: string;
+  bankName?: string;
+  bankAgency?: string;
+  accountNumber?: string;
+  swiftCode?: string;
+  iban?: string;
+  tvaRate?: number;
+  tpsRate?: number;
+  cssRate?: number;
+  sessionTimeout?: number;
+  invoicePrefix?: string;
+  quotePrefix?: string;
+  companyCode?: string;
+  mentionsLegales?: string | null;
+  logo?: string | null;
+}
+
+export interface SettingsResponse {
+  id: number;
+  companyName: string;
+  legalForm: string;
+  nif: string;
+  rccm: string;
+  address: string;
+  email: string;
+  phone: string;
+  bankName: string;
+  bankAgency: string;
+  accountNumber: string;
+  swiftCode: string;
+  iban: string;
+  tvaRate: number;
+  tpsRate?: number;
+  cssRate: number;
+  sessionTimeout: number;
+  invoicePrefix: string;
+  quotePrefix: string;
+  companyCode: string;
+  mentionsLegales?: string | null;
+  logo?: string | null;
+}

@@ -3,42 +3,78 @@ import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
 import { clientSchema } from '@/lib/validations';
 import crypto from 'crypto';
+import type { ClientCreateRequest, ClientResponse, ErrorResponse, DbClient } from '@/lib/types/api';
 
+/**
+ * GET /api/clients
+ * Fetch all clients
+ * @returns {ClientResponse[]} Array of clients
+ */
 export async function GET() {
   try {
-    const clients = db.prepare('SELECT * FROM clients ORDER BY name ASC').all();
+    const clients = db.prepare('SELECT * FROM clients WHERE deletedAt IS NULL ORDER BY name ASC').all() as DbClient[];
     return NextResponse.json(clients);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch clients' }, { status: 500 });
+    console.error('[API Clients GET] Error:', error);
+    const errorResponse: ErrorResponse = {
+      error: 'Failed to fetch clients',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
   }
 }
 
+/**
+ * POST /api/clients
+ * Create a new client
+ * @param {ClientCreateRequest} body - Client data
+ * @returns {ClientResponse} Created client
+ */
 export async function POST(request: Request) {
   try {
     // RBAC Check
     const session = await getSession();
-    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session?.userId) as any;
-    if (!user || user.role !== 'user') {
-      return NextResponse.json({ error: 'Unauthorized: Only Users can create clients' }, { status: 403 });
+    if (!session) {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Authentication required',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
     }
 
-    const body = await request.json();
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session.userId) as { role: string } | undefined;
+    if (!user || user.role !== 'user') {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Only Users can create clients',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
+    }
 
+    const body: unknown = await request.json();
+
+    // Validate request payload with Zod
     const validation = clientSchema.safeParse(body);
     if (!validation.success) {
-      return NextResponse.json({ error: validation.error.format() }, { status: 400 });
+      const errorResponse: ErrorResponse = {
+        error: 'Données invalides',
+        details: {
+          fieldErrors: validation.error.flatten().fieldErrors,
+        },
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    const { name, email, phone, address } = validation.data;
+    const { name, email, phone, address }: ClientCreateRequest = validation.data;
     const id = crypto.randomUUID();
 
     db.prepare('INSERT INTO clients (id, name, email, phone, address) VALUES (?, ?, ?, ?, ?)')
       .run(id, name, email, phone, address);
 
-    const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
+    const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id) as DbClient;
     return NextResponse.json(client);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to create client' }, { status: 500 });
+    console.error('[API Clients POST] Error:', error);
+    const errorResponse: ErrorResponse = {
+      error: 'Failed to create client',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
   }
 }
