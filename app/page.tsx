@@ -27,22 +27,44 @@ const pageVariants = {
 
 export default function App() {
   const router = useRouter()
-  const { user } = useStore()
+  const { user, setUser } = useStore()
   const [currentPage, setCurrentPage] = React.useState("dashboard")
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
   const [commandOpen, setCommandOpen] = React.useState(false)
   const [isClient, setIsClient] = React.useState(false)
+  const [isLoadingSession, setIsLoadingSession] = React.useState(true)
 
   React.useEffect(() => {
     setIsClient(true)
   }, [])
 
   React.useEffect(() => {
-    if (isClient && !user) {
+    // Fetch user session on mount
+    const fetchSession = async () => {
+      try {
+        const response = await fetch('/api/auth/me')
+        if (response.ok) {
+          const data = await response.json()
+          setUser(data.user)
+        }
+      } catch (error) {
+        console.error('Failed to fetch session:', error)
+      } finally {
+        setIsLoadingSession(false)
+      }
+    }
+
+    if (isClient) {
+      fetchSession()
+    }
+  }, [isClient, setUser])
+
+  React.useEffect(() => {
+    if (isClient && !isLoadingSession && !user) {
       router.push('/login')
     }
-  }, [user, router, isClient])
+  }, [user, router, isClient, isLoadingSession])
 
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
@@ -59,6 +81,14 @@ export default function App() {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-muted-foreground">Chargement...</div>
+      </div>
+    )
+  }
+
+  if (isLoadingSession) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-muted-foreground">Vérification de la session...</div>
       </div>
     )
   }
