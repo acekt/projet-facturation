@@ -112,35 +112,41 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                 <Activity className="w-5 h-5 text-muted-foreground opacity-20" />
             </CardHeader>
             <CardContent className="h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={data.revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                        <defs>
-                            <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                                <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                            </linearGradient>
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888820" />
-                        <XAxis
-                            dataKey="label"
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fontSize: 10, fontWeight: 700 }}
-                            dy={10}
-                        />
-                        <YAxis
-                            axisLine={false}
-                            tickLine={false}
-                            tick={{ fontSize: 10, fontWeight: 700 }}
-                            tickFormatter={(val) => `${val/1000}k`}
-                        />
-                        <Tooltip
-                            contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
-                            formatter={(val: any) => [formatCurrency(val), 'Revenu']}
-                        />
-                        <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                    </AreaChart>
-                </ResponsiveContainer>
+                {data?.revenueData ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={data.revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                            <defs>
+                                <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888820" />
+                            <XAxis
+                                dataKey="label"
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 10, fontWeight: 700 }}
+                                dy={10}
+                            />
+                            <YAxis
+                                axisLine={false}
+                                tickLine={false}
+                                tick={{ fontSize: 10, fontWeight: 700 }}
+                                tickFormatter={(val) => `${val/1000}k`}
+                            />
+                            <Tooltip
+                                contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                                formatter={(val: any) => [formatCurrency(val), 'Revenu']}
+                            />
+                            <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                        </AreaChart>
+                    </ResponsiveContainer>
+                ) : (
+                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+                        Chargement des données...
+                    </div>
+                )}
             </CardContent>
         </Card>
 
@@ -153,7 +159,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                 <PieIcon className="w-4 h-4 text-muted-foreground opacity-30" />
             </CardHeader>
             <CardContent className="h-[300px] flex items-center justify-center">
-                {data.paymentMethodData.length > 0 ? (
+                {data?.paymentMethodData && data.paymentMethodData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                             <Pie
