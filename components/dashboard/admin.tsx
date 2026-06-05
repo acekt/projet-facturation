@@ -205,7 +205,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
-                    {(data.userPerformance || []).map((u: any) => (
+                    {(data?.userPerformance || []).map((u: any) => (
                         <div key={u.id || u.name} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500 font-bold text-xs">
@@ -221,6 +221,9 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                             </div>
                         </div>
                     ))}
+                    {(!data?.userPerformance || data.userPerformance.length === 0) && (
+                        <p className="text-xs text-muted-foreground italic text-center py-4">Aucune donnée disponible</p>
+                    )}
                 </div>
             </CardContent>
         </Card>
@@ -235,7 +238,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
-                    {(data.topClients || []).map((client: any, index: number) => (
+                    {(data?.topClients || []).map((client: any, index: number) => (
                         <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500 font-bold text-xs">
@@ -250,7 +253,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                             </div>
                         </div>
                     ))}
-                    {(!data.topClients || data.topClients.length === 0) && (
+                    {(!data?.topClients || data.topClients.length === 0) && (
                         <p className="text-xs text-muted-foreground italic text-center py-4">Aucun client</p>
                     )}
                 </div>
