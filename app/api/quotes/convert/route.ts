@@ -3,34 +3,83 @@ import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
 import crypto from 'crypto';
 import { getNextNumber } from '@/lib/api/numbering';
+import { quoteConvertSchema } from '@/lib/validations';
+import type { QuoteConvertRequest, QuoteConvertResponse, ErrorResponse, DbQuote, DbQuoteItem, DbSettings, DbSequence } from '@/lib/types/api';
 
+/**
+ * POST /api/quotes/convert
+ * Convert a quote to an invoice
+ * Business rule: Quote status transition to 'invoiced' is atomic
+ * @param {QuoteConvertRequest} body - Quote ID to convert
+ * @returns {QuoteConvertResponse} Created invoice ID and number
+ */
 export async function POST(request: Request) {
   try {
     // RBAC Check
     const session = await getSession();
-    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session?.userId) as any;
-    if (!user || user.role !== 'user') {
-      return NextResponse.json({ error: 'Unauthorized: Only Users can convert quotes' }, { status: 403 });
+    if (!session) {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Authentication required',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
     }
 
-    const { quoteId } = await request.json();
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session.userId) as { role: string } | undefined;
+    if (!user || user.role !== 'user') {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Only Users can convert quotes',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
+    }
 
-    const quote = db.prepare('SELECT * FROM quotes WHERE id = ?').get(quoteId) as any;
+    const body: unknown = await request.json();
+
+    // Validate request payload with Zod
+    const validation = quoteConvertSchema.safeParse(body);
+    if (!validation.success) {
+      const errorResponse: ErrorResponse = {
+        error: 'Données invalides',
+        details: {
+          fieldErrors: validation.error.flatten().fieldErrors,
+        },
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
+
+    const { quoteId }: QuoteConvertRequest = validation.data;
+
+    const quote = db.prepare('SELECT * FROM quotes WHERE id = ?').get(quoteId) as DbQuote | undefined;
     if (!quote) {
-      return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
+      const errorResponse: ErrorResponse = {
+        error: 'Quote not found',
+      };
+      return NextResponse.json(errorResponse, { status: 404 });
     }
 
     if (quote.deletedAt !== null) {
-      return NextResponse.json({ error: 'Cannot convert a deleted quote' }, { status: 400 });
+      const errorResponse: ErrorResponse = {
+        error: 'Cannot convert a deleted quote',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
     if (quote.status === 'invoiced') {
-      return NextResponse.json({ error: 'Quote already invoiced' }, { status: 400 });
+      const errorResponse: ErrorResponse = {
+        error: 'Quote already invoiced',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(quoteId) as any[];
+    const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(quoteId) as DbQuoteItem[];
 
-    const settings = db.prepare('SELECT invoicePrefix, companyCode FROM settings WHERE id = 1').get() as any;
+    const settings = db.prepare('SELECT invoicePrefix, companyCode FROM settings WHERE id = 1').get() as DbSettings | undefined;
+    if (!settings) {
+      const errorResponse: ErrorResponse = {
+        error: 'Settings not found',
+      };
+      return NextResponse.json(errorResponse, { status: 500 });
+    }
+
     const invoiceId = crypto.randomUUID();
 
     const convert = db.transaction(() => {
@@ -79,16 +128,24 @@ export async function POST(request: Request) {
         );
       }
 
-      // Update quote status
+      // Atomic status transition: quote -> invoiced
       db.prepare("UPDATE quotes SET status = 'invoiced' WHERE id = ?").run(quoteId);
 
-      return { id: invoiceId, number };
+      const response: QuoteConvertResponse = {
+        invoiceId,
+        invoiceNumber: number,
+        quoteId,
+      };
+      return response;
     });
 
     const result = convert();
     return NextResponse.json(result);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Conversion failed' }, { status: 500 });
+    console.error('[API Quotes Convert POST] Error:', error);
+    const errorResponse: ErrorResponse = {
+      error: 'Conversion failed',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
   }
 }

@@ -15,6 +15,13 @@ export const invoiceItemSchema = z.object({
   total: z.number(),
 });
 
+export const quoteItemSchema = z.object({
+  description: z.string().min(1, "La description est requise"),
+  quantity: z.number().min(0.01, "La quantité doit être supérieure à 0"),
+  unitPrice: z.number().min(0, "Le prix unitaire ne peut pas être négatif"),
+  total: z.number(),
+});
+
 export const invoiceSchema = z.object({
   clientId: z.string().min(1, "Client requis"),
   clientName: z.string(),
@@ -48,7 +55,7 @@ export const quoteSchema = z.object({
   status: z.enum(['draft', 'sent', 'invoiced', 'rejected']),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide"),
   dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date d'échéance invalide"),
-  items: z.array(invoiceItemSchema).min(1, "Au moins un article est requis"),
+  items: z.array(quoteItemSchema).min(1, "Au moins un article est requis"),
   notes: z.string().optional(),
 });
 
@@ -151,4 +158,16 @@ export const creditNoteCreateSchema = z.object({
 
 export const dashboardMetricsQuerySchema = z.object({
   range: z.enum(['month', 'quarter', 'year']).optional(),
+});
+
+// ============================================================================
+// QUOTE MUTATION SCHEMAS
+// ============================================================================
+
+export const quoteConvertSchema = z.object({
+  quoteId: z.string().min(1, "L'ID du devis est requis"),
+});
+
+export const quoteDuplicateSchema = z.object({
+  quoteId: z.string().min(1, "L'ID du devis est requis"),
 });

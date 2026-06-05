@@ -5,7 +5,13 @@ import { quoteSchema } from '@/lib/validations';
 import crypto from 'crypto';
 import { logAudit } from '@/lib/api/audit';
 import { getNextNumber } from '@/lib/api/numbering';
+import type { QuoteCreateRequest, QuoteResponse, QuoteItem, ErrorResponse, DbQuote, DbQuoteItem } from '@/lib/types/api';
 
+/**
+ * GET /api/quotes
+ * Fetch all quotes with their items
+ * @returns {QuoteResponse[]} Array of quotes with items
+ */
 export async function GET() {
   try {
     const quotes = db.prepare(`
@@ -20,36 +26,63 @@ export async function GET() {
       FROM quotes q
       WHERE q.deletedAt IS NULL
       ORDER BY createdAt DESC
-    `).all();
+    `).all() as (DbQuote & { items: string })[];
 
-    const formattedQuotes = quotes.map((q: any) => ({
+    const formattedQuotes: QuoteResponse[] = quotes.map((q): QuoteResponse => ({
       ...q,
-      items: JSON.parse(q.items)
+      items: JSON.parse(q.items || '[]') as QuoteItem[],
     }));
 
     return NextResponse.json(formattedQuotes);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch quotes' }, { status: 500 });
+    console.error('[API Quotes GET] Error:', error);
+    const errorResponse: ErrorResponse = {
+      error: 'Failed to fetch quotes',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
   }
 }
 
+/**
+ * POST /api/quotes
+ * Create a new quote with items
+ * @param {QuoteCreateRequest} body - Quote data with items
+ * @returns {{ id: string, number: string }} Created quote ID and number
+ */
 export async function POST(request: Request) {
   try {
     // RBAC Check
     const session = await getSession();
-    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session?.userId) as any;
-    if (!user || user.role !== 'user') {
-      return NextResponse.json({ error: 'Unauthorized: Only Users can create quotes' }, { status: 403 });
+    if (!session) {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Authentication required',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
     }
 
-    const body = await request.json();
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session.userId) as { role: string } | undefined;
+    if (!user || user.role !== 'user') {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Only Users can create quotes',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
+    }
 
+    const body: unknown = await request.json();
+
+    // Validate request payload with Zod
     const validation = quoteSchema.safeParse(body);
     if (!validation.success) {
-      return NextResponse.json({ error: validation.error.format() }, { status: 400 });
+      const errorResponse: ErrorResponse = {
+        error: 'Données invalides',
+        details: {
+          fieldErrors: validation.error.flatten().fieldErrors,
+        },
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    const data = validation.data;
+    const data: QuoteCreateRequest = validation.data;
     const id = crypto.randomUUID();
 
     const insertQuote = db.transaction((quoteData) => {
@@ -90,7 +123,10 @@ export async function POST(request: Request) {
     const result = insertQuote(data);
     return NextResponse.json(result);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to create quote' }, { status: 500 });
+    console.error('[API Quotes POST] Error:', error);
+    const errorResponse: ErrorResponse = {
+      error: 'Failed to create quote',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
   }
 }

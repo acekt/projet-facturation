@@ -362,3 +362,114 @@ export interface DashboardMetricsResponse {
     amount: number;
   }>;
 }
+
+// ============================================================================
+// QUOTE TYPES
+// ============================================================================
+
+export interface QuoteItem {
+  id: string;
+  quoteId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface QuoteCreateRequest {
+  clientId: string;
+  clientName: string;
+  clientEmail: string;
+  date: string;
+  dueDate: string;
+  subtotal: number;
+  discount: number;
+  taxBase: number;
+  tvaAmount: number;
+  tpsAmount?: number;
+  cssAmount: number;
+  total: number;
+  notes?: string;
+  status: 'draft' | 'sent' | 'invoiced' | 'rejected';
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+    total: number;
+  }>;
+}
+
+export interface QuoteResponse {
+  id: string;
+  number: string;
+  clientId: string;
+  clientName: string;
+  clientEmail: string;
+  date: string;
+  dueDate: string;
+  subtotal: number;
+  discount: number;
+  taxBase: number;
+  tvaAmount: number;
+  tpsAmount?: number;
+  cssAmount: number;
+  total: number;
+  notes?: string;
+  status: 'draft' | 'sent' | 'invoiced' | 'rejected';
+  items: QuoteItem[];
+  deletedAt?: string;
+  createdAt: string;
+}
+
+export interface DbQuote {
+  id: string;
+  number: string;
+  clientId: string;
+  clientName: string;
+  clientEmail: string;
+  date: string;
+  dueDate: string;
+  subtotal: number;
+  discount: number;
+  taxBase: number;
+  tvaAmount: number;
+  tpsAmount?: number;
+  cssAmount: number;
+  total: number;
+  notes?: string;
+  status: 'draft' | 'sent' | 'invoiced' | 'rejected';
+  deletedAt?: string;
+  createdAt: string;
+}
+
+export interface DbQuoteItem {
+  id: string;
+  quoteId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+// ============================================================================
+// QUOTE MUTATION TYPES
+// ============================================================================
+
+export interface QuoteConvertRequest {
+  quoteId: string;
+}
+
+export interface QuoteConvertResponse {
+  invoiceId: string;
+  invoiceNumber: string;
+  quoteId: string;
+}
+
+export interface QuoteDuplicateRequest {
+  quoteId: string;
+}
+
+export interface QuoteDuplicateResponse {
+  quoteId: string;
+  quoteNumber: string;
+}
