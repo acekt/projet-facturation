@@ -2,15 +2,17 @@ import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
+import { loginSchema } from '@/lib/validations';
+import type { LoginRequest, SessionResponse, ErrorResponse, DbUser, DbCount } from '@/lib/types/api';
 
 const SALT = process.env.PASSWORD_SALT || 'letoile-gabon-2026';
 const SESSION_SECRET = process.env.SESSION_SECRET || 'letoile-secret-key-2026-signing';
 
-function hashPassword(password: string) {
+function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password + SALT).digest('hex');
 }
 
-async function signSession(data: string) {
+async function signSession(data: string): Promise<string> {
   // Use SubtleCrypto for compatibility with middleware (Web Crypto API)
   const key = await crypto.webcrypto.subtle.importKey(
     'raw',
@@ -32,23 +34,42 @@ async function signSession(data: string) {
 
 export async function POST(request: Request) {
   try {
-    const { username, password } = await request.json();
+    const body: unknown = await request.json();
+
+    // Validate request payload with Zod
+    const validation = loginSchema.safeParse(body);
+    if (!validation.success) {
+      const errorResponse: ErrorResponse = {
+        error: 'Données de connexion invalides',
+        details: {
+          fieldErrors: validation.error.flatten().fieldErrors,
+        },
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
+
+    const { username, password }: LoginRequest = validation.data;
     const hashedPassword = hashPassword(password);
 
-    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
+    // Check if users table is empty (first-time setup)
+    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as DbCount;
     if (userCount.count === 0) {
       const id = crypto.randomUUID();
       db.prepare('INSERT INTO users (id, username, password, name, role) VALUES (?, ?, ?, ?, ?)')
         .run(id, username, hashedPassword, 'Administrateur', 'admin');
     }
 
-    const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, hashedPassword) as any;
+    // Authenticate user
+    const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, hashedPassword) as DbUser | undefined;
 
     if (!user) {
-      return NextResponse.json({ error: 'Identifiants invalides' }, { status: 401 });
+      const errorResponse: ErrorResponse = {
+        error: 'Identifiants invalides',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
     }
 
-    // Session Data
+    // Create session data
     const sessionData = JSON.stringify({
       userId: user.id,
       name: user.name,
@@ -66,9 +87,27 @@ export async function POST(request: Request) {
       path: '/',
     });
 
-    return NextResponse.json({ success: true, user: { id: user.id, name: user.name, role: user.role } });
+    const response: SessionResponse = {
+      success: true,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        role: user.role,
+        is_active: user.is_active,
+        created_at: user.created_at,
+        last_login_at: user.last_login_at,
+        phone: user.phone,
+      },
+    };
+
+    return NextResponse.json(response);
   } catch (error) {
     console.error('[Login] Error:', error);
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
+    const errorResponse: ErrorResponse = {
+      error: 'Erreur serveur',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
   }
 }

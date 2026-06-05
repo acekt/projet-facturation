@@ -83,12 +83,26 @@ export const serviceSchema = z.object({
   unitPrice: z.number().min(0, "Le prix ne peut pas être négatif"),
 });
 
+// ============================================================================
+// AUTHENTICATION SCHEMAS
+// ============================================================================
+
+export const loginSchema = z.object({
+  username: z.string().min(1, "L'identifiant est requis"),
+  password: z.string().min(1, "Le mot de passe est requis"),
+});
+
+// ============================================================================
+// USER SCHEMAS
+// ============================================================================
+
 export const userCreateSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
   email: z.string().email("Adresse email invalide"),
-  phone: z.string().optional(),
+  username: z.string().min(1, "L'identifiant est requis"),
   role: z.enum(['admin', 'user']),
   password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+  phone: z.string().optional(),
   force_password_change: z.boolean().default(true),
   is_active: z.boolean().default(true),
 });
@@ -96,9 +110,9 @@ export const userCreateSchema = z.object({
 export const userUpdateSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
   email: z.string().email("Adresse email invalide"),
-  phone: z.string().optional(),
   role: z.enum(['admin', 'user']),
   password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères").optional(),
+  phone: z.string().optional(),
   force_password_change: z.boolean().optional(),
   is_active: z.boolean().optional(),
 });

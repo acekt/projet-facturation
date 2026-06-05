@@ -2,53 +2,108 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
 import crypto from 'crypto';
+import { userCreateSchema } from '@/lib/validations';
+import type { UserCreateRequest, UserResponse, ErrorResponse, DbUser } from '@/lib/types/api';
 
 const SALT = 'letoile-gabon-2026';
-function hashPassword(password: string) {
+
+function hashPassword(password: string): string {
   return crypto.createHash('sha256').update(password + SALT).digest('hex');
 }
 
 export async function GET() {
-    try {
-        const session = await getSession();
-        if (!session || session.role !== 'admin') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        }
-
-        const users = db.prepare('SELECT id, name, email, role, is_active, created_at, last_login_at FROM users').all();
-        return NextResponse.json(users);
-    } catch (error) {
-        console.error('[API Users] Error:', error);
-        return NextResponse.json({ error: 'Failed to fetch users' }, { status: 500 });
+  try {
+    const session = await getSession();
+    if (!session || session.role !== 'admin') {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
     }
+
+    const users = db.prepare('SELECT id, name, email, username, role, is_active, created_at, last_login_at, phone FROM users').all() as DbUser[];
+    const userResponses: UserResponse[] = users.map((user): UserResponse => ({
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+      is_active: user.is_active,
+      created_at: user.created_at,
+      last_login_at: user.last_login_at,
+      phone: user.phone,
+    }));
+
+    return NextResponse.json(userResponses);
+  } catch (error) {
+    console.error('[API Users] Error:', error);
+    const errorResponse: ErrorResponse = {
+      error: 'Failed to fetch users',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
+  }
 }
 
 export async function POST(request: Request) {
-    try {
-        const session = await getSession();
-        if (!session || session.role !== 'admin') {
-            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-        }
-
-        const { name, email, role, password } = await request.json();
-
-        if (!name || !email || !role || !password) {
-            return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
-        }
-
-        const id = crypto.randomUUID();
-        const hashedPassword = hashPassword(password);
-
-        db.prepare(`
-            INSERT INTO users (id, name, email, username, password, role, is_active, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-        `).run(id, name, email, email, hashedPassword, role, session.userId);
-
-        return NextResponse.json({ id, name, email, role });
-    } catch (error: any) {
-        if (error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-            return NextResponse.json({ error: 'Cet email est déjà utilisé' }, { status: 400 });
-        }
-        return NextResponse.json({ error: 'Failed to create user' }, { status: 500 });
+  try {
+    const session = await getSession();
+    if (!session || session.role !== 'admin') {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
     }
+
+    const body: unknown = await request.json();
+
+    // Validate request payload with Zod
+    const validation = userCreateSchema.safeParse(body);
+    if (!validation.success) {
+      const errorResponse: ErrorResponse = {
+        error: 'Données invalides',
+        details: {
+          fieldErrors: validation.error.flatten().fieldErrors,
+        },
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
+
+    const { name, email, username, role, password, phone, force_password_change, is_active }: UserCreateRequest = validation.data;
+
+    const id = crypto.randomUUID();
+    const hashedPassword = hashPassword(password);
+
+    db.prepare(`
+      INSERT INTO users (id, name, email, username, password, role, is_active, created_by, phone)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, name, email, username, hashedPassword, role, is_active ? 1 : 0, session.userId, phone || null);
+
+    const userResponse: UserResponse = {
+      id,
+      name,
+      email,
+      username,
+      role,
+      is_active: is_active ? 1 : 0,
+      created_at: new Date().toISOString(),
+      phone,
+    };
+
+    return NextResponse.json(userResponse);
+  } catch (error: unknown) {
+    console.error('[API Users] Error:', error);
+    
+    // Handle SQLite constraint errors
+    if (error instanceof Error && 'code' in error && error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
+      const errorResponse: ErrorResponse = {
+        error: 'Cet email ou identifiant est déjà utilisé',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
+
+    const errorResponse: ErrorResponse = {
+      error: 'Failed to create user',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
+  }
 }
