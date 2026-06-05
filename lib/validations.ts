@@ -116,3 +116,15 @@ export const userUpdateSchema = z.object({
   force_password_change: z.boolean().optional(),
   is_active: z.boolean().optional(),
 });
+
+// ============================================================================
+// PAYMENT SCHEMAS
+// ============================================================================
+
+export const paymentCreateSchema = z.object({
+  invoiceId: z.string().min(1, "L'ID de la facture est requis"),
+  amount: z.number().min(0.01, "Le montant doit être supérieur à 0"),
+  paymentMethod: z.string().min(1, "La méthode de paiement est requise"),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)"),
+  reference: z.string().optional(),
+});

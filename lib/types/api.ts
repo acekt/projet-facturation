@@ -148,3 +148,109 @@ export interface DbSequence {
 export interface DbCount {
   count: number;
 }
+
+export interface DbTotal {
+  total: number;
+}
+
+// ============================================================================
+// PAYMENT TYPES
+// ============================================================================
+
+export interface PaymentCreateRequest {
+  invoiceId: string;
+  amount: number;
+  paymentMethod: string;
+  date: string;
+  reference?: string;
+}
+
+export interface PaymentResponse {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  paymentMethod: string;
+  date: string;
+  reference?: string;
+  createdAt: string;
+  deletedAt?: string;
+}
+
+export interface DbPayment {
+  id: string;
+  invoiceId: string;
+  amount: number;
+  paymentMethod: string;
+  date: string;
+  reference?: string;
+  createdAt: string;
+  deletedAt?: string;
+}
+
+// ============================================================================
+// INVOICE TYPES
+// ============================================================================
+
+export interface InvoiceItem {
+  id: string;
+  invoiceId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+export interface InvoiceResponse {
+  id: string;
+  number: string;
+  quoteId?: string;
+  clientId: string;
+  clientName: string;
+  clientEmail: string;
+  date: string;
+  dueDate: string;
+  subtotal: number;
+  discount: number;
+  taxBase: number;
+  tvaAmount: number;
+  tpsAmount?: number;
+  cssAmount: number;
+  total: number;
+  notes?: string;
+  status: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'overdue' | 'draft' | 'cancelled' | 'pending';
+  items: InvoiceItem[];
+  payments: PaymentResponse[];
+  deletedAt?: string;
+  createdAt: string;
+}
+
+export interface DbInvoice {
+  id: string;
+  number: string;
+  quoteId?: string;
+  clientId: string;
+  clientName: string;
+  clientEmail: string;
+  date: string;
+  dueDate: string;
+  subtotal: number;
+  discount: number;
+  taxBase: number;
+  tvaAmount: number;
+  tpsAmount?: number;
+  cssAmount: number;
+  total: number;
+  notes?: string;
+  status: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'overdue' | 'draft' | 'cancelled' | 'pending';
+  deletedAt?: string;
+  createdAt: string;
+}
+
+export interface DbInvoiceItem {
+  id: string;
+  invoiceId: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}

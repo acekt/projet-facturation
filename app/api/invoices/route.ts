@@ -3,6 +3,7 @@ import db from '@/lib/db';
 import { invoiceSchema } from '@/lib/validations';
 import crypto from 'crypto';
 import { logAudit } from '@/lib/api/audit';
+import type { InvoiceResponse, InvoiceItem, PaymentResponse, ErrorResponse, DbInvoice, DbInvoiceItem, DbPayment, DbSettings, DbSequence } from '@/lib/types/api';
 
 export async function GET() {
   try {
@@ -20,59 +21,88 @@ export async function GET() {
                'amount', amount,
                'paymentMethod', paymentMethod,
                'date', date
-             )) FROM payments WHERE invoiceId = i.id) as payments
+             )) FROM payments WHERE invoiceId = i.id AND deletedAt IS NULL) as payments
       FROM invoices i
       WHERE i.deletedAt IS NULL
       ORDER BY createdAt DESC
-    `).all();
+    `).all() as (DbInvoice & { items: string; payments: string })[];
 
-    const formattedInvoices = invoices.map((i: any) => ({
+    const formattedInvoices: InvoiceResponse[] = invoices.map((i): InvoiceResponse => ({
       ...i,
-      items: JSON.parse(i.items),
-      payments: JSON.parse(i.payments)
+      items: JSON.parse(i.items || '[]') as InvoiceItem[],
+      payments: JSON.parse(i.payments || '[]') as PaymentResponse[],
     }));
 
     return NextResponse.json(formattedInvoices);
   } catch (error) {
-    return NextResponse.json({ error: 'Failed to fetch invoices' }, { status: 500 });
+    console.error('[API Invoices GET] Error:', error);
+    const errorResponse: ErrorResponse = {
+      error: 'Failed to fetch invoices',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const body: unknown = await request.json();
 
     const validation = invoiceSchema.safeParse(body);
     if (!validation.success) {
-      return NextResponse.json({ error: validation.error.format() }, { status: 400 });
+      const errorResponse: ErrorResponse = {
+        error: 'Données invalides',
+        details: {
+          fieldErrors: validation.error.flatten().fieldErrors,
+        },
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
     const data = validation.data;
 
     // RULE 1: quoteId is strictly mandatory to create an invoice
     if (!data.quoteId) {
-      return NextResponse.json({ error: 'Une facture doit être associée à un devis existant.' }, { status: 400 });
+      const errorResponse: ErrorResponse = {
+        error: 'Une facture doit être associée à un devis existant.',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
     // Validate the quote exists, is not soft-deleted, and has not been converted yet
-    const quote = db.prepare('SELECT status, deletedAt FROM quotes WHERE id = ?').get(data.quoteId) as any;
+    const quote = db.prepare('SELECT status, deletedAt FROM quotes WHERE id = ?').get(data.quoteId) as { status: string; deletedAt: string | null } | undefined;
     if (!quote) {
-      return NextResponse.json({ error: 'Devis introuvable.' }, { status: 400 });
+      const errorResponse: ErrorResponse = {
+        error: 'Devis introuvable.',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
     if (quote.deletedAt !== null) {
-      return NextResponse.json({ error: 'Le devis associé a été supprimé.' }, { status: 400 });
+      const errorResponse: ErrorResponse = {
+        error: 'Le devis associé a été supprimé.',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
     if (quote.status === 'invoiced') {
-      return NextResponse.json({ error: 'Ce devis a déjà été converti en facture.' }, { status: 400 });
+      const errorResponse: ErrorResponse = {
+        error: 'Ce devis a déjà été converti en facture.',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    const settings = db.prepare('SELECT invoicePrefix, companyCode FROM settings WHERE id = 1').get() as any;
+    const settings = db.prepare('SELECT invoicePrefix, companyCode FROM settings WHERE id = 1').get() as DbSettings | undefined;
+    if (!settings) {
+      const errorResponse: ErrorResponse = {
+        error: 'Settings not found',
+      };
+      return NextResponse.json(errorResponse, { status: 500 });
+    }
+
     const year = new Date().getFullYear();
     const id = crypto.randomUUID();
 
     const insertInvoice = db.transaction((invData) => {
       db.prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = 'invoice'").run();
-      const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'invoice'").get() as any;
+      const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'invoice'").get() as DbSequence;
       const number = `${String(sequence.current_value).padStart(3, '0')}/${settings.companyCode}/${year}`;
 
       db.prepare(`
@@ -113,7 +143,10 @@ export async function POST(request: Request) {
     const result = insertInvoice(data);
     return NextResponse.json(result);
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: 'Failed to create invoice' }, { status: 500 });
+    console.error('[API Invoices POST] Error:', error);
+    const errorResponse: ErrorResponse = {
+      error: 'Failed to create invoice',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
   }
 }
