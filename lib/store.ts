@@ -116,8 +116,6 @@ export interface Settings {
   tvaRate: number;
   tpsRate: number;
   cssRate: number;
-  defaultDueDateDays: number;
-  defaultQuoteValidity: number;
   sessionTimeout: number;
   invoicePrefix: string;
   quotePrefix: string;
@@ -222,8 +220,6 @@ const DEFAULT_SETTINGS: Settings = {
   tvaRate: 18,
   tpsRate: 9.5,
   cssRate: 1,
-  defaultDueDateDays: 30,
-  defaultQuoteValidity: 30,
   sessionTimeout: 30,
   invoicePrefix: "FAC",
   quotePrefix: "DEV",
