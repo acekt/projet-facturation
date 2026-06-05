@@ -26,8 +26,6 @@ db.exec(`
     tvaRate REAL,
     tpsRate REAL DEFAULT 9.5,
     cssRate REAL,
-    defaultDueDateDays INTEGER,
-    defaultQuoteValidity INTEGER,
     sessionTimeout INTEGER,
     invoicePrefix TEXT,
     quotePrefix TEXT,
@@ -221,6 +219,9 @@ try {
     db.prepare("ALTER TABLE users ADD COLUMN email TEXT").run();
     // Pre-populate email with username
     db.prepare("UPDATE users SET email = username WHERE email IS NULL").run();
+  }
+  if (!usersColumns.some(c => c.name === 'created_at')) {
+    db.prepare("ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP").run();
   }
 } catch (e) {
   console.error("Migration error on users table:", e);

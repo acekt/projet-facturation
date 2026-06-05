@@ -179,6 +179,7 @@ interface ViewFormat {
   quotes: 'table' | 'horizontal' | 'block'
   invoices: 'table' | 'horizontal' | 'block'
   clients: 'table' | 'horizontal' | 'block'
+  services: 'table' | 'horizontal' | 'block'
 }
 
 interface AppState {
@@ -242,7 +243,8 @@ export const useStore = create<AppState>()(
       viewFormat: {
         quotes: 'table',
         invoices: 'table',
-        clients: 'block'
+        clients: 'block',
+        services: 'block'
       },
 
       setUser: (user) => {

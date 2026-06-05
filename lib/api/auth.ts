@@ -21,16 +21,29 @@ async function verifySignature(data: string, signature: string) {
       ['verify']
     )
 
-    const sigBuf = Uint8Array.from(atob(signature), c => c.charCodeAt(0))
+    // Use Buffer fallback for Node.js or manual decoding for Edge Runtime
+    let sigBuf: Uint8Array
+    if (typeof Buffer !== 'undefined') {
+      sigBuf = Uint8Array.from(Buffer.from(signature, 'base64'))
+    } else {
+      const binaryString = atob(signature)
+      const bytes = new Uint8Array(binaryString.length)
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i)
+      }
+      sigBuf = bytes
+    }
+
     const dataBuf = str2ab(data)
 
     return await crypto.subtle.verify(
       'HMAC',
       key,
-      sigBuf,
+      sigBuf.buffer as ArrayBuffer,
       dataBuf
     )
   } catch (e) {
+    console.error('[Auth] Signature verification failed:', e)
     return false
   }
 }
@@ -39,18 +52,30 @@ export async function getSession() {
   const cookieStore = await cookies()
   const sessionCookie = cookieStore.get('auth_session')
 
-  if (!sessionCookie) return null
+  if (!sessionCookie) {
+    console.log('[Auth] No session cookie found')
+    return null
+  }
 
   const [data, signature] = sessionCookie.value.split('.')
-  if (!data || !signature) return null
+  if (!data || !signature) {
+    console.log('[Auth] Invalid session cookie format')
+    return null
+  }
 
   const isValid = await verifySignature(data, signature)
-  if (!isValid) return null
+  if (!isValid) {
+    console.log('[Auth] Invalid session signature')
+    return null
+  }
 
   try {
     const decoded = atob(data)
-    return JSON.parse(decoded)
+    const session = JSON.parse(decoded)
+    console.log('[Auth] Session valid for user:', session.userId || session.id)
+    return session
   } catch (e) {
+    console.error('[Auth] Failed to decode session:', e)
     return null
   }
 }

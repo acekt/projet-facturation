@@ -4,7 +4,7 @@ import * as React from "react"
 import { useStore } from "@/lib/store"
 
 export function DataSync() {
-  const { setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser } = useStore()
+  const { setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser, isAuthenticated } = useStore()
 
   React.useEffect(() => {
     const fetchData = async () => {
@@ -17,12 +17,24 @@ export function DataSync() {
           fetch('/api/payments'),
           fetch('/api/settings'),
           fetch('/api/credit-notes'),
-          fetch('/api/auth/me')
+          isAuthenticated ? fetch('/api/auth/me') : Promise.resolve({ ok: false, error: true })
         ]);
 
         // Only parse as JSON if the response is actually OK and JSON
         const results = await Promise.all(responses.map(async (res) => {
-          if (!res.ok) return { error: true };
+          if (!res.ok) {
+            // Don't log error for mock response (when not authenticated)
+            if (!('url' in res) && !('status' in res)) {
+              return { error: true };
+            }
+            const url = 'url' in res ? res.url : 'unknown';
+            const status = 'status' in res ? res.status : 'unknown';
+            console.error(`[DataSync] API Error: ${url} - ${status}`);
+            return { error: true, status };
+          }
+          if (!('json' in res)) {
+            return { error: true };
+          }
           const contentType = res.headers.get("content-type");
           if (contentType && contentType.indexOf("application/json") !== -1) {
             return res.json();
@@ -39,14 +51,30 @@ export function DataSync() {
         if (payments && !payments.error) setPayments(payments);
         if (settings && !settings.error) setSettings(settings);
         if (creditNotes && !creditNotes.error) setCreditNotes(creditNotes);
-        if (me && !me.error && me.user) setUser(me.user);
+        
+        // Handle auth/me response
+        if (me && !me.error) {
+          if (me.user) {
+            setUser(me.user);
+          } else if (me.status === 404 || me.error === 'User not found') {
+            // User not found in database, clear session and redirect to login
+            console.error('[DataSync] User not found in database, clearing session and redirecting to login');
+            document.cookie = 'auth_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+            window.location.href = '/login';
+          }
+        } else if (me && me.status === 401) {
+          // Session invalid, redirect to login
+          console.error('[DataSync] Session invalid, redirecting to login');
+          document.cookie = 'auth_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
+          window.location.href = '/login';
+        }
       } catch (error) {
-        console.error('Failed to sync data:', error);
+        console.error('[DataSync] Failed to sync data:', error);
       }
     };
 
     fetchData();
-  }, [setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser]);
+  }, [setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser, isAuthenticated]);
 
   return null;
 }

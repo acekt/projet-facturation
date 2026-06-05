@@ -92,8 +92,15 @@ export async function middleware(request: NextRequest) {
   const isApiAuth = pathname.startsWith('/api/auth')
   const isPublicAsset = pathname.startsWith('/_next') || pathname.includes('.')
 
+  // Allow read-only access to GET requests on quotes/invoices/services/clients APIs
+  const isReadOnlyApi = (pathname.startsWith('/api/quotes') ||
+                         pathname.startsWith('/api/invoices') ||
+                         pathname.startsWith('/api/services') ||
+                         pathname.startsWith('/api/clients')) &&
+                        request.method === 'GET'
+
   // 1. Check Authentication
-  if (!sessionCookie && !isLoginPage && !isApiAuth && !isPublicAsset) {
+  if (!sessionCookie && !isLoginPage && !isApiAuth && !isPublicAsset && !isReadOnlyApi) {
     if (pathname.startsWith('/api')) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,
@@ -142,7 +149,7 @@ export async function middleware(request: NextRequest) {
       if (isBusinessRoute) {
         return NextResponse.redirect(new URL('/?error=admin_restricted', request.url))
       }
-      if (isBusinessApi) {
+      if (isBusinessApi && request.method !== 'GET') {
         return new NextResponse(JSON.stringify({ error: 'Accès interdit aux administrateurs' }), {
           status: 403,
           headers: { 'content-type': 'application/json' },

@@ -33,6 +33,7 @@ async function signSession(data: string) {
 export async function POST(request: Request) {
   try {
     const { username, password } = await request.json();
+    console.log('[Login] Attempting login for username:', username);
     const hashedPassword = hashPassword(password);
 
     const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number };
@@ -45,8 +46,11 @@ export async function POST(request: Request) {
     const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, hashedPassword) as any;
 
     if (!user) {
+      console.log('[Login] User not found or invalid password');
       return NextResponse.json({ error: 'Identifiants invalides' }, { status: 401 });
     }
+
+    console.log('[Login] User found:', user.id, user.name, user.role);
 
     // Session Data
     const sessionData = JSON.stringify({
@@ -68,7 +72,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ success: true, user: { id: user.id, name: user.name, role: user.role } });
   } catch (error) {
-    console.error(error);
+    console.error('[Login] Error:', error);
     return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 });
   }
 }
