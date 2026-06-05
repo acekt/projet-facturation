@@ -44,14 +44,6 @@ export default function App() {
     }
   }, [user, router, isClient])
 
-  if (!isClient || !user) {
-    return null
-  }
-
-  const handlePageChange = (page: string) => {
-    setCurrentPage(page)
-  }
-
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -62,6 +54,14 @@ export default function App() {
     document.addEventListener("keydown", down)
     return () => document.removeEventListener("keydown", down)
   }, [])
+
+  if (!isClient || !user) {
+    return null
+  }
+
+  const handlePageChange = (page: string) => {
+    setCurrentPage(page)
+  }
 
   const renderPage = () => {
     switch (currentPage) {
