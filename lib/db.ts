@@ -41,7 +41,8 @@ db.exec(`
     phone TEXT,
     address TEXT,
     status TEXT DEFAULT 'active',
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deletedAt DATETIME
   );
 
   CREATE TABLE IF NOT EXISTS quotes (
@@ -120,6 +121,7 @@ db.exec(`
     date TEXT NOT NULL,
     reference TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deletedAt DATETIME,
     FOREIGN KEY (invoiceId) REFERENCES invoices(id) ON DELETE CASCADE
   );
 
@@ -138,7 +140,8 @@ db.exec(`
     description TEXT,
     category TEXT,
     unitPrice REAL DEFAULT 0,
-    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
+    createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+    deletedAt DATETIME
   );
 
   -- New User Table Schema (v4.0)
@@ -173,6 +176,7 @@ db.exec(`
     status TEXT DEFAULT 'open', -- open, closed
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     created_by TEXT,
+    deletedAt DATETIME,
     FOREIGN KEY (invoiceId) REFERENCES invoices(id),
     FOREIGN KEY (clientId) REFERENCES clients(id)
   );
@@ -256,6 +260,26 @@ try {
   const cnColumns = db.prepare("PRAGMA table_info(credit_notes)").all() as Array<{ name: string }>;
   if (!cnColumns.some(c => c.name === 'tpsAmount')) {
     db.prepare("ALTER TABLE credit_notes ADD COLUMN tpsAmount REAL DEFAULT 0").run();
+  }
+
+  // Soft Delete Migrations for Phase 3
+  const clientsColumns = db.prepare("PRAGMA table_info(clients)").all() as Array<{ name: string }>;
+  if (!clientsColumns.some(c => c.name === 'deletedAt')) {
+    db.prepare("ALTER TABLE clients ADD COLUMN deletedAt DATETIME").run();
+  }
+
+  const servicesColumns = db.prepare("PRAGMA table_info(services)").all() as Array<{ name: string }>;
+  if (!servicesColumns.some(c => c.name === 'deletedAt')) {
+    db.prepare("ALTER TABLE services ADD COLUMN deletedAt DATETIME").run();
+  }
+
+  if (!cnColumns.some(c => c.name === 'deletedAt')) {
+    db.prepare("ALTER TABLE credit_notes ADD COLUMN deletedAt DATETIME").run();
+  }
+
+  const paymentsColumns = db.prepare("PRAGMA table_info(payments)").all() as Array<{ name: string }>;
+  if (!paymentsColumns.some(c => c.name === 'deletedAt')) {
+    db.prepare("ALTER TABLE payments ADD COLUMN deletedAt DATETIME").run();
   }
 } catch (e) {
   console.error("Migration error:", e);
