@@ -16,6 +16,9 @@ import { CreditNotesPage } from "@/components/pages/credit-notes"
 import { AuditLogsPage } from "@/components/pages/audit-logs"
 import { UsersPage } from "@/components/pages/users"
 import { UserEditor } from "@/components/pages/user-editor"
+import { useStore } from "@/lib/store"
+import { useRouter } from "next/navigation"
+import { useEffect } from "react"
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -24,10 +27,22 @@ const pageVariants = {
 }
 
 export default function App() {
+  const router = useRouter()
+  const { user } = useStore()
   const [currentPage, setCurrentPage] = React.useState("dashboard")
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
   const [commandOpen, setCommandOpen] = React.useState(false)
+
+  useEffect(() => {
+    if (!user) {
+      router.push('/login')
+    }
+  }, [user, router])
+
+  if (!user) {
+    return null
+  }
 
   const handlePageChange = (page: string) => {
     setCurrentPage(page)

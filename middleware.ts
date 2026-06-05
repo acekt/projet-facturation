@@ -144,24 +144,16 @@ export async function middleware(request: NextRequest) {
                           pathname.startsWith('/api/customers') ||
                           pathname.startsWith('/api/services')
 
-    // Admin Restrictions
+    // Admin Restrictions - Admins can access everything
     if (role === 'admin') {
-      if (isBusinessRoute) {
-        return NextResponse.redirect(new URL('/?error=admin_restricted', request.url))
-      }
-      if (isBusinessApi && request.method !== 'GET') {
-        return new NextResponse(JSON.stringify({ error: 'Accès interdit aux administrateurs' }), {
-          status: 403,
-          headers: { 'content-type': 'application/json' },
-        })
-      }
+      // Admins have full access, no restrictions
     }
 
-    // User Restrictions
+    // User/Operator Restrictions
     const isAdminOnlyRoute = pathname.startsWith('/audit') || pathname.startsWith('/users')
     const isAdminOnlyApi = pathname.startsWith('/api/audit-logs') || pathname.startsWith('/api/users')
 
-    if (role === 'user') {
+    if (role === 'user' || role === 'operator') {
       if (isAdminOnlyRoute) {
         return NextResponse.redirect(new URL('/?error=user_restricted', request.url))
       }
