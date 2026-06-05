@@ -32,6 +32,7 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { useStore } from "@/lib/store"
+import { cn } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
 
 interface UsersPageProps {
