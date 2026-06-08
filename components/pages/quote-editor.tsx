@@ -203,7 +203,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="space-y-6"
+      className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6"
     >
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
@@ -263,8 +263,8 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   <div className="flex items-center justify-between mb-1">
                     <Label className="text-muted-foreground text-sm">Date de validité</Label>
                     <Switch
-                      checked={isValidityActive}
-                      onCheckedChange={setIsValidityActive}
+                      checked={isDueDateActive}
+                      onCheckedChange={setIsDueDateActive}
                       className="scale-75"
                     />
                   </div>
@@ -274,9 +274,9 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                     onChange={(e) => setDueDate(e.target.value)}
                     className={cn(
                       "bg-secondary border-border text-foreground transition-opacity",
-                      !isValidityActive && "opacity-50 pointer-events-none"
+                      !isDueDateActive && "opacity-50 pointer-events-none"
                     )}
-                    disabled={!isValidityActive}
+                    disabled={!isDueDateActive}
                   />
                 </div>
               </div>

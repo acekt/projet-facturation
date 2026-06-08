@@ -10,7 +10,7 @@ const nextConfig = {
   compress: true,
   productionBrowserSourceMaps: false,
   experimental: {
-    optimizeCss: true,
+    optimizeCss: false,
   },
 }
 

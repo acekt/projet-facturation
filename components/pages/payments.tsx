@@ -168,7 +168,7 @@ export function PaymentsPage() {
       variants={containerVariants}
       initial="hidden"
       animate="visible"
-      className="space-y-6"
+      className="flex-1 flex flex-col overflow-hidden space-y-6"
     >
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -311,8 +311,8 @@ export function PaymentsPage() {
       </motion.div>
 
       {/* Transactions */}
-      <motion.div variants={itemVariants}>
-        <Card className="bg-card border-border">
+      <motion.div variants={itemVariants} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <Card className="flex-1 flex flex-col min-h-0 overflow-hidden bg-card border-border">
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -335,8 +335,8 @@ export function PaymentsPage() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
+          <CardContent className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-2">
               {paginatedTransactions.length > 0 ? (
               paginatedTransactions.map((p, index) => {
                 const invoice = invoices.find(i => i.id === p.invoiceId);
@@ -387,11 +387,13 @@ export function PaymentsPage() {
                 </div>
               )}
             </div>
-            <Pagination
-                currentPage={currentPage}
-                totalPages={totalPages}
-                onPageChange={setCurrentPage}
-            />
+            <div className="pt-4">
+              <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+              />
+            </div>
           </CardContent>
         </Card>
       </motion.div>

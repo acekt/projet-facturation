@@ -223,7 +223,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 flex flex-col overflow-hidden space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Gestion des utilisateurs</h1>
@@ -274,8 +274,9 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         )}
       </div>
 
-      <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm">
-        <table className="w-full text-left border-collapse">
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-card rounded-xl border border-border shadow-sm">
+        <div className="flex-1 overflow-auto min-h-0">
+          <table className="w-full text-left border-collapse">
             <thead>
                 <tr className="bg-secondary/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     <th className="px-6 py-4">Utilisateur</th>
@@ -362,12 +363,15 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
                     </tr>
                 ))}
             </tbody>
-        </table>
-        <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-        />
+          </table>
+        </div>
+        <div className="pt-4 p-4 border-t border-border/50">
+          <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+          />
+        </div>
       </div>
 
       {/* MODALS */}

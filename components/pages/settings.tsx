@@ -93,7 +93,7 @@ export function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6 max-w-4xl">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Paramètres</h1>

@@ -44,21 +44,21 @@ export function AuditLogsPage() {
   }, [])
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 flex flex-col overflow-hidden space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-foreground tracking-tight">Journal d'Audit</h1>
         <p className="text-muted-foreground mt-1">Traçabilité des actions critiques du système</p>
       </div>
 
-      <Card className="bg-card border-border">
+      <Card className="flex-1 flex flex-col min-h-0 overflow-hidden bg-card border-border">
         <CardHeader>
           <div className="flex items-center gap-2">
             <ShieldCheck className="w-5 h-5 text-primary" />
             <CardTitle className="text-lg">Événements récents</CardTitle>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
+        <CardContent className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="flex-1 overflow-auto min-h-0">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -102,11 +102,13 @@ export function AuditLogsPage() {
               </TableBody>
             </Table>
           </div>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={Math.ceil(logs.length / itemsPerPage)}
-            onPageChange={setCurrentPage}
-          />
+          <div className="pt-4">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={Math.ceil(logs.length / itemsPerPage)}
+              onPageChange={setCurrentPage}
+            />
+          </div>
         </CardContent>
       </Card>
     </div>

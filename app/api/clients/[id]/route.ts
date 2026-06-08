@@ -16,6 +16,15 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
+    // RBAC Check
+    const session = await getSession();
+    if (!session) {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Authentication required',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
+    }
+
     const { id } = await params;
     const client = db.prepare('SELECT * FROM clients WHERE id = ? AND deletedAt IS NULL').get(id) as DbClient | undefined;
     if (!client) {
@@ -46,6 +55,15 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    // RBAC Check
+    const session = await getSession();
+    if (!session) {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Authentication required',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
+    }
+
     const { id } = await params;
     const body: unknown = await request.json();
 

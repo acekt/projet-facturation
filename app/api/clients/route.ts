@@ -12,6 +12,15 @@ import type { ClientCreateRequest, ClientResponse, ErrorResponse, DbClient } fro
  */
 export async function GET() {
   try {
+    // RBAC Check
+    const session = await getSession();
+    if (!session) {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Authentication required',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
+    }
+
     const clients = db.prepare('SELECT * FROM clients WHERE deletedAt IS NULL ORDER BY name ASC').all() as DbClient[];
     return NextResponse.json(clients);
   } catch (error) {

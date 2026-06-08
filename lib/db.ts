@@ -201,6 +201,22 @@ db.exec(`
     details TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
+
+  CREATE INDEX IF NOT EXISTS idx_clients_deletedAt ON clients(deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_quotes_deletedAt ON quotes(deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_quotes_clientId ON quotes(clientId);
+  CREATE INDEX IF NOT EXISTS idx_invoices_deletedAt ON invoices(deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_invoices_clientId ON invoices(clientId);
+  CREATE INDEX IF NOT EXISTS idx_invoices_quoteId ON invoices(quoteId);
+  CREATE INDEX IF NOT EXISTS idx_payments_deletedAt ON payments(deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_payments_invoiceId ON payments(invoiceId);
+  CREATE INDEX IF NOT EXISTS idx_credit_notes_deletedAt ON credit_notes(deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_credit_notes_invoiceId ON credit_notes(invoiceId);
+  CREATE INDEX IF NOT EXISTS idx_credit_notes_clientId ON credit_notes(clientId);
+  CREATE INDEX IF NOT EXISTS idx_services_deletedAt ON services(deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_quote_items_quoteId ON quote_items(quoteId);
+  CREATE INDEX IF NOT EXISTS idx_invoice_items_invoiceId ON invoice_items(invoiceId);
+  CREATE INDEX IF NOT EXISTS idx_credit_note_items_creditNoteId ON credit_note_items(creditNoteId);
 `);
 
 // MIGRATION LOGIC FOR USERS (v3 to v4)

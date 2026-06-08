@@ -1,5 +1,5 @@
 import * as React from "react"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { formatCurrency } from "@/lib/utils"
 import { InvoiceItem } from "@/lib/store"
 import { useStore } from "@/lib/store"
@@ -36,6 +36,9 @@ export function DocumentPreview({ open, onOpenChange, type, data }: DocumentPrev
           <DialogTitle className="text-foreground">
             Aperçu du {type === 'Quote' ? 'Devis' : 'Facture'} {data.number ? `- ${data.number}` : '(Brouillon)'}
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            Aperçu complet du document financier avant validation ou impression
+          </DialogDescription>
         </DialogHeader>
 
         <div className="bg-white text-black p-4 md:p-8 rounded-lg shadow-sm font-sans space-y-8 mx-auto w-full max-w-[800px]" id="printable-document">

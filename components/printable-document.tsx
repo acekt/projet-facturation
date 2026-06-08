@@ -4,7 +4,7 @@ import * as React from "react"
 import { useStore, type Quote, type Invoice } from "@/lib/store"
 import { formatCurrency } from "@/lib/utils"
 
-function generateDocumentHash(doc: any, type: string) {
+function generateDocumentHash(doc: Quote | Invoice, type: string) {
   const inputStr = `${type}-${doc.number || ''}-${doc.date || ''}-${doc.total || 0}-${doc.clientId || ''}-${doc.subtotal || 0}`;
   let hash = 0;
   for (let i = 0; i < inputStr.length; i++) {
@@ -23,6 +23,7 @@ interface PrintableDocumentProps {
 
 export function PrintableDocument({ document, type }: PrintableDocumentProps) {
   const { settings } = useStore()
+  const payments = 'payments' in document ? (document as Invoice).payments || [] : []
 
   return (
     <div className="printable-document p-4 md:p-8 bg-white text-black font-sans min-h-[297mm] w-full max-w-[210mm] mx-auto text-[10pt] md:text-[11pt] leading-normal shadow-sm">
@@ -104,21 +105,21 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
             <p className="font-bold text-xs">{formatCurrency(document.tvaAmount).replace(' XAF', '')}</p>
         </div>
         <div className="p-2 text-center bg-gray-50">
-            <p className="text-[7pt] font-black uppercase mb-1">{(document as any).payments?.length > 0 ? "TOTAL TTC" : "NET A PAYER"}</p>
+            <p className="text-[7pt] font-black uppercase mb-1">{payments.length > 0 ? "TOTAL TTC" : "NET A PAYER"}</p>
             <p className="font-black text-sm">{formatCurrency(document.total).replace(' XAF', '')}</p>
         </div>
       </div>
 
-      {(document as any).payments?.length > 0 && (
+      {payments.length > 0 && (
           <div className="flex justify-end mb-8">
               <div className="w-1/3 border border-black p-4 space-y-2">
                 <div className="flex justify-between text-xs">
                     <span>Montant déjà réglé:</span>
-                    <span className="font-bold">{formatCurrency((document as any).payments.reduce((sum: number, p: any) => sum + p.amount, 0)).replace(' XAF', '')}</span>
+                    <span className="font-bold">{formatCurrency(payments.reduce((sum, p) => sum + p.amount, 0)).replace(' XAF', '')}</span>
                 </div>
                 <div className="flex justify-between text-sm border-t border-black pt-2 text-red-600">
                     <span className="font-bold">RESTE À PAYER:</span>
-                    <span className="font-black underline">{formatCurrency(document.total - (document as any).payments.reduce((sum: number, p: any) => sum + p.amount, 0)).replace(' XAF', '')}</span>
+                    <span className="font-black underline">{formatCurrency(document.total - payments.reduce((sum, p) => sum + p.amount, 0)).replace(' XAF', '')}</span>
                 </div>
               </div>
           </div>

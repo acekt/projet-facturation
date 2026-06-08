@@ -127,7 +127,7 @@ export function ClientsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 flex flex-col overflow-hidden space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Clients</h1>
@@ -299,7 +299,7 @@ export function ClientsPage() {
       </div>
 
       {viewFormat.clients === 'table' && (
-        <div className="bg-card rounded-xl border border-border overflow-x-auto shadow-sm">
+        <div className="flex-1 min-h-0 bg-card rounded-xl border border-border overflow-auto shadow-sm">
           <table className="w-full min-w-[600px]">
             <thead className="bg-secondary/50">
               <tr>
@@ -379,7 +379,8 @@ export function ClientsPage() {
       )}
 
       {viewFormat.clients === 'horizontal' && (
-        <div className="space-y-3">
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+          <div className="space-y-3">
           {paginatedClients.map((client) => (
             <Card key={client.id} className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm">
               <CardContent className="p-4">
@@ -442,10 +443,12 @@ export function ClientsPage() {
             />
           )}
         </div>
+        </div>
       )}
 
       {viewFormat.clients === 'block' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {paginatedClients.map((client, index) => (
             <motion.div
               key={client.id}
@@ -530,6 +533,7 @@ export function ClientsPage() {
               />
             </div>
           )}
+        </div>
         </div>
       )}
 

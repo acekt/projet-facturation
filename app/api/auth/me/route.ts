@@ -2,6 +2,13 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
 
+interface DbAuthUser {
+  id: string;
+  name: string;
+  role: 'admin' | 'user';
+  username: string;
+}
+
 export async function GET() {
     try {
         const session = await getSession();
@@ -9,7 +16,7 @@ export async function GET() {
             return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
         }
 
-        const user = db.prepare('SELECT id, name, role, username FROM users WHERE id = ?').get(session.userId) as any;
+        const user = db.prepare('SELECT id, name, role, username FROM users WHERE id = ?').get(session.userId) as DbAuthUser | undefined;
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }

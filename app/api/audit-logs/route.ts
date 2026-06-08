@@ -6,7 +6,7 @@ export async function GET() {
     try {
         // RBAC Check
         const session = await getSession();
-        const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session?.userId) as any;
+        const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session?.userId) as { role: string } | undefined;
         if (!user || user.role !== 'admin') {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
         }

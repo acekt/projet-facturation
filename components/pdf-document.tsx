@@ -2,7 +2,9 @@
 
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Image, Font } from '@react-pdf/renderer';
-import { type Quote, type Invoice, type Settings } from '@/lib/store';
+import { type Quote, type Invoice, type Settings, type CreditNote } from '@/lib/store';
+
+type DocumentData = Quote | Invoice | CreditNote;
 
 // Register a clean font if possible, otherwise use standard fonts
 // Font.register({ family: 'Helvetica', ... });
@@ -258,7 +260,7 @@ function formatCurrencyPDF(amount: number) {
   }).format(Math.round(amount)).replace(/\u00a0/g, ' ') + ' FCFA';
 }
 
-function generateHash(doc: any, type: string) {
+function generateHash(doc: DocumentData, type: string) {
   const inputStr = `${type}-${doc.number || ''}-${doc.date || ''}-${doc.total || 0}`;
   let hash = 0;
   for (let i = 0; i < inputStr.length; i++) {
@@ -270,7 +272,7 @@ function generateHash(doc: any, type: string) {
 }
 
 interface PDFDocumentProps {
-  document: Quote | Invoice | any;
+  document: DocumentData;
   type: 'devis' | 'facture' | 'avoir';
   settings: Settings;
 }

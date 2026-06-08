@@ -75,7 +75,7 @@ export function CreditNotesPage() {
   const format = viewFormat.creditNotes || 'list'
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 flex flex-col overflow-hidden space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-black text-foreground tracking-tight">Avoirs</h1>
@@ -84,7 +84,7 @@ export function CreditNotesPage() {
         <div className="flex items-center gap-2">
           <ViewFormatSelector
             currentFormat={format}
-            onFormatChange={(f: 'list' | 'grid') => setViewFormat('creditNotes' as any, f)}
+            onFormatChange={(f: 'list' | 'grid') => setViewFormat('creditNotes', f)}
           />
         </div>
       </div>
@@ -102,7 +102,8 @@ export function CreditNotesPage() {
       </div>
 
       {format === 'list' ? (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+          <div className="grid grid-cols-1 gap-4">
           {paginated.length > 0 ? (
             paginated.map((note, index) => (
               <motion.div
@@ -153,8 +154,10 @@ export function CreditNotesPage() {
             </div>
           )}
         </div>
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {paginated.length > 0 ? (
             paginated.map((note, index) => (
               <motion.div
@@ -205,6 +208,7 @@ export function CreditNotesPage() {
               <p className="text-muted-foreground mt-1">Créez un avoir depuis le menu d'une facture pour l'annuler.</p>
             </div>
           )}
+        </div>
         </div>
       )}
 

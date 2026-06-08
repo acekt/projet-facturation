@@ -7,6 +7,8 @@ export function DataSync() {
   const { setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser, isAuthenticated } = useStore()
 
   React.useEffect(() => {
+    let isMounted = true;
+
     const fetchData = async () => {
       try {
         const responses = await Promise.all([
@@ -20,27 +22,38 @@ export function DataSync() {
           isAuthenticated ? fetch('/api/auth/me') : Promise.resolve({ ok: false, error: true })
         ]);
 
+        if (!isMounted) return;
+
         // Only parse as JSON if the response is actually OK and JSON
         const results = await Promise.all(responses.map(async (res) => {
-          if (!res.ok) {
-            // Don't log error for mock response (when not authenticated)
-            if (!('url' in res) && !('status' in res)) {
+          try {
+            if (!res.ok) {
+              // Don't log error for mock response (when not authenticated)
+              if (!('url' in res) && !('status' in res)) {
+                return { error: true };
+              }
+              const url = 'url' in res ? res.url : 'unknown';
+              const status = 'status' in res ? res.status : 'unknown';
+              console.error(`[DataSync] API Error: ${url} - ${status}`);
+              return { error: true, status };
+            }
+            if (!('json' in res)) {
+              console.error('[DataSync] Response does not have a json parser function');
               return { error: true };
             }
-            const url = 'url' in res ? res.url : 'unknown';
-            const status = 'status' in res ? res.status : 'unknown';
-            console.error(`[DataSync] API Error: ${url} - ${status}`);
-            return { error: true, status };
-          }
-          if (!('json' in res)) {
+            const contentType = res.headers.get("content-type");
+            if (contentType && contentType.indexOf("application/json") !== -1) {
+              return await res.json();
+            }
+            console.error(`[DataSync] Content type is not JSON: ${contentType}`);
+            return { error: true };
+          } catch (parseError) {
+            console.error('[DataSync] Failed to parse JSON response:', parseError);
             return { error: true };
           }
-          const contentType = res.headers.get("content-type");
-          if (contentType && contentType.indexOf("application/json") !== -1) {
-            return res.json();
-          }
-          return { error: true };
         }));
+
+        if (!isMounted) return;
 
         const [clients, quotes, invoices, services, payments, settings, creditNotes, me] = results;
 
@@ -74,6 +87,10 @@ export function DataSync() {
     };
 
     fetchData();
+
+    return () => {
+      isMounted = false;
+    };
   }, [setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser, isAuthenticated]);
 
   return null;

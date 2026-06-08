@@ -12,6 +12,15 @@ import type { ServiceCreateRequest, ServiceResponse, ErrorResponse, DbService } 
  */
 export async function GET() {
   try {
+    // RBAC Check
+    const session = await getSession();
+    if (!session) {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Authentication required',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
+    }
+
     const services = db.prepare('SELECT * FROM services WHERE deletedAt IS NULL ORDER BY name ASC').all() as DbService[];
     return NextResponse.json(services);
   } catch (error) {

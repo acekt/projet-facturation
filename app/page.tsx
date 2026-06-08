@@ -169,7 +169,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="h-screen bg-background overflow-hidden flex flex-col">
       {/* Sidebar */}
       <Sidebar
         currentPage={currentPage}
@@ -193,7 +193,7 @@ export default function App() {
         initial={false}
         animate={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-        className="pt-20 px-8 pb-8"
+        className="h-screen pt-16 flex flex-col overflow-hidden"
       >
         <AnimatePresence mode="wait">
           <motion.div
@@ -203,6 +203,7 @@ export default function App() {
             animate="animate"
             exit="exit"
             transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+            className="flex-1 flex flex-col overflow-hidden px-8 py-6"
           >
             {renderPage()}
           </motion.div>

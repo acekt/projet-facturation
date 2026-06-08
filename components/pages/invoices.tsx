@@ -246,7 +246,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   }
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 flex flex-col overflow-hidden space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Factures</h1>
@@ -292,7 +292,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       </div>
 
       {viewFormat.invoices === 'table' && (
-        <div className="bg-card rounded-xl border border-border overflow-x-auto shadow-sm">
+        <div className="flex-1 min-h-0 bg-card rounded-xl border border-border overflow-auto shadow-sm">
           <table className="w-full min-w-[600px]">
             <thead className="bg-secondary/50">
               <tr>
@@ -386,7 +386,8 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       )}
 
       {viewFormat.invoices === 'horizontal' && (
-        <div className="grid grid-cols-1 gap-4">
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+          <div className="grid grid-cols-1 gap-4">
           {paginatedInvoices.map((invoice, index) => (
             <motion.div
               key={invoice.id}
@@ -476,10 +477,12 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
             />
           )}
         </div>
+        </div>
       )}
 
       {viewFormat.invoices === 'block' && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {paginatedInvoices.map((invoice, index) => (
             <motion.div
               key={invoice.id}
@@ -563,6 +566,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
             </div>
           )}
         </div>
+        </div>
       )}
 
       <Pagination
@@ -575,6 +579,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
           <VisuallyHidden>
             <DialogTitle>Impression de la facture {selectedInvoice?.number}</DialogTitle>
+            <DialogDescription>Aperçu de la facture avant impression physique ou PDF</DialogDescription>
           </VisuallyHidden>
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
             <h2 className="font-bold text-black">Aperçu avant impression</h2>

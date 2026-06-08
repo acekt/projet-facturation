@@ -14,13 +14,34 @@ import { DocumentPreview } from "@/components/document-preview"
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
+import { type Invoice } from "@/lib/store"
 
 interface DashboardUserProps {
   onNavigate: (page: string) => void
 }
 
+interface UserDashboardState {
+  metrics: {
+    totalRevenue: number;
+    growth: number | string;
+    pendingRevenue: number;
+    overdueRevenue: number;
+    paidCount: number;
+    unpaidCount: number;
+    partiallyPaidCount: number;
+    totalInvoicesCount: number;
+    pendingQuotesCount: number;
+  };
+  revenueData: Array<{ label: string; value: number }>;
+  paymentMethodData: Array<{ method: string; amount: number }>;
+  recentInvoices: Invoice[];
+  activityTimeline: Array<{ id: string; action: string; client: string; time: string }>;
+  topClients: Array<{ clientName: string; totalRevenue: number }>;
+  userPerformance?: any[];
+}
+
 export function DashboardUser({ onNavigate }: DashboardUserProps) {
-  const [data, setData] = React.useState({
+  const [data, setData] = React.useState<UserDashboardState>({
     metrics: {
       totalRevenue: 0,
       growth: 0,
@@ -36,11 +57,12 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
     paymentMethodData: [],
     recentInvoices: [],
     activityTimeline: [],
-    topClients: []
+    topClients: [],
+    userPerformance: []
   })
   const [isLoading, setIsLoading] = React.useState(false)
   const [previewOpen, setPreviewOpen] = React.useState(false)
-  const [previewData, setPreviewData] = React.useState<any>(null)
+  const [previewData, setPreviewData] = React.useState<Invoice | null>(null)
 
   React.useEffect(() => {
     fetch('/api/dashboard/metrics?range=month')
@@ -67,16 +89,17 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
             pendingQuotesCount: 0 
           }, 
           revenueData: [], 
+          paymentMethodData: [],
           recentInvoices: [], 
           activityTimeline: [],
           topClients: [],
           userPerformance: []
-        } as any)
+        })
         setIsLoading(false)
       })
   }, [])
 
-  const handlePreview = async (invoice: any) => {
+  const handlePreview = async (invoice: Invoice | { id: string }) => {
     try {
         const res = await fetch(`/api/invoices/${invoice.id}`)
         if (res.ok) {
@@ -91,7 +114,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
   const recentInvoices = data?.recentInvoices || []
 
   return (
-    <div className="space-y-8">
+    <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
             <h1 className="text-2xl font-black text-foreground tracking-tighter">Tableau de Bord</h1>

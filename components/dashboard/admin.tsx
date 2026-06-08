@@ -20,8 +20,31 @@ interface DashboardAdminProps {
   onNavigate: (page: string) => void
 }
 
+interface DashboardAdminData {
+  metrics: {
+    paidCount?: number;
+    partiallyPaidCount?: number;
+    unpaidCount?: number;
+    pendingQuotesCount?: number;
+    growth?: number | string;
+    totalRevenue?: number;
+  };
+  revenueData?: Array<{ label: string; value: number }>;
+  paymentMethodData?: Array<{ method: string; amount: number; color?: string }>;
+  userPerformance?: Array<{ id?: string; name: string; docsCount: number; totalRevenue: number }>;
+  topClients?: Array<{ clientName: string; totalRevenue: number }>;
+  activityTimeline?: Array<{ id: string; action: string; client: string; time: string }>;
+}
+
 export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
-  const [data, setData] = React.useState<any>(null)
+  const [data, setData] = React.useState<DashboardAdminData>({
+    metrics: {},
+    revenueData: [],
+    paymentMethodData: [],
+    userPerformance: [],
+    topClients: [],
+    activityTimeline: []
+  })
   const [isLoading, setIsLoading] = React.useState(true)
 
   React.useEffect(() => {
@@ -32,16 +55,18 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
       })
       .then(d => {
         setData(d)
+        setIsLoading(false)
       })
       .catch(err => {
         console.error('[Dashboard Admin] Error fetching metrics:', err)
+        setIsLoading(false)
       })
   }, [])
 
-  const metrics = data?.metrics || {}
+  const metrics = data.metrics || {}
 
   return (
-    <div className="space-y-6">
+    <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6">
       <div className="flex items-center justify-between">
         <div>
             <h1 className="text-2xl font-black text-foreground tracking-tighter">Tableau de Bord</h1>

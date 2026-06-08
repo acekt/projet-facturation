@@ -1,13 +1,26 @@
 import db from '@/lib/db';
 
+interface DbSettings {
+  companyCode: string;
+}
+
+interface DbSequence {
+  current_value: number;
+  last_year: number;
+}
+
+interface DbPragmaColumn {
+  name: string;
+}
+
 export function getNextNumber(type: 'quote' | 'invoice') {
-  const settings = db.prepare('SELECT companyCode FROM settings WHERE id = 1').get() as any;
+  const settings = db.prepare('SELECT companyCode FROM settings WHERE id = 1').get() as DbSettings | undefined;
   const now = new Date();
   const year = now.getFullYear();
 
   // Ensure last_year column exists in sequences table
   try {
-      const columns = db.prepare(`PRAGMA table_info(sequences)`).all() as any[];
+      const columns = db.prepare(`PRAGMA table_info(sequences)`).all() as DbPragmaColumn[];
       if (!columns.find(c => c.name === 'last_year')) {
           db.prepare(`ALTER TABLE sequences ADD COLUMN last_year INTEGER`).run();
           db.prepare(`UPDATE sequences SET last_year = ?`).run(year);
@@ -16,7 +29,11 @@ export function getNextNumber(type: 'quote' | 'invoice') {
       // Column might already exist or table doesn't exist yet
   }
 
-  const sequence = db.prepare('SELECT current_value, last_year FROM sequences WHERE name = ?').get(type) as any;
+  const sequence = db.prepare('SELECT current_value, last_year FROM sequences WHERE name = ?').get(type) as DbSequence | undefined;
+
+  if (!settings) {
+      throw new Error('Company settings not found');
+  }
 
   if (!sequence) {
       // Should not happen as sequences are initialized in db.ts, but for safety:

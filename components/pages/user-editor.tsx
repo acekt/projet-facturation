@@ -161,7 +161,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="space-y-6"
+      className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6"
     >
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={onBack}>
