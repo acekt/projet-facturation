@@ -13,7 +13,7 @@ import type { ClientUpdateRequest, ClientResponse, ErrorResponse, DbClient } fro
  */
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // RBAC Check
@@ -52,7 +52,7 @@ export async function GET(
  */
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     // RBAC Check
@@ -111,18 +111,18 @@ export async function PATCH(
  */
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
 
-    // RBAC Check - Only Admin can delete clients
+    // RBAC Check - Authenticated users (admin & operator) can soft-delete clients
     const session = await getSession();
-    if (!session || session.role !== 'admin') {
+    if (!session) {
       const errorResponse: ErrorResponse = {
-        error: 'Forbidden: Only Admin can delete clients',
+        error: 'Unauthorized: Authentication required',
       };
-      return NextResponse.json(errorResponse, { status: 403 });
+      return NextResponse.json(errorResponse, { status: 401 });
     }
 
     const client = db.prepare('SELECT name FROM clients WHERE id = ? AND deletedAt IS NULL').get(id) as DbClient | undefined;

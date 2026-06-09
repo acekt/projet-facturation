@@ -33,7 +33,12 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 
 export function ClientsPage() {
-  const { clients, setClients, invoices, user, viewFormat, setViewFormat } = useStore()
+  const clients = useStore(state => state.clients)
+  const setClients = useStore(state => state.setClients)
+  const invoices = useStore(state => state.invoices)
+  const user = useStore(state => state.user)
+  const viewFormat = useStore(state => state.viewFormat)
+  const setViewFormat = useStore(state => state.setViewFormat)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 9 // Grid 3x3
@@ -316,7 +321,7 @@ export function ClientsPage() {
                   <td className="p-4">
                     <div className="flex items-center gap-3">
                       <Avatar className="w-8 h-8 ring-1 ring-border">
-                        <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground text-xs font-black">
+                        <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground text-xs font-semibold">
                           {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -349,7 +354,7 @@ export function ClientsPage() {
                             <Edit2 className="w-4 h-4" /> Modifier
                           </DropdownMenuItem>
                         )}
-                        {user?.role === 'admin' && (
+                        {(user?.role === 'admin' || user?.role === 'user') && (
                           <DropdownMenuItem
                             className="gap-2 text-destructive focus:text-destructive"
                             onClick={() => handleDelete(client.id)}
@@ -387,7 +392,7 @@ export function ClientsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <Avatar className="w-10 h-10 ring-1 ring-border">
-                      <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground text-sm font-black">
+                      <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground text-sm font-semibold">
                         {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -418,7 +423,7 @@ export function ClientsPage() {
                             <Edit2 className="w-4 h-4" /> Modifier
                           </DropdownMenuItem>
                         )}
-                        {user?.role === 'admin' && (
+                        {(user?.role === 'admin' || user?.role === 'user') && (
                           <DropdownMenuItem
                             className="gap-2 text-destructive focus:text-destructive"
                             onClick={() => handleDelete(client.id)}
@@ -461,7 +466,7 @@ export function ClientsPage() {
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <Avatar className="w-10 h-10 ring-1 ring-border">
-                        <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground text-sm font-black">
+                        <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground text-sm font-semibold">
                           {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
@@ -483,7 +488,7 @@ export function ClientsPage() {
                               <Edit2 className="w-4 h-4" /> Modifier
                             </DropdownMenuItem>
                           )}
-                          {user?.role === 'admin' && (
+                          {(user?.role === 'admin' || user?.role === 'user') && (
                             <DropdownMenuItem
                               className="gap-2 text-destructive focus:text-destructive"
                               onClick={() => handleDelete(client.id)}
@@ -494,7 +499,7 @@ export function ClientsPage() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    <h3 className="font-black text-foreground text-sm mb-1 truncate uppercase tracking-tighter">{client.name}</h3>
+                    <h3 className="font-semibold text-foreground text-sm mb-1 truncate uppercase tracking-tighter">{client.name}</h3>
                     <div className="space-y-1.5 mt-3">
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                         <Mail className="w-3.5 h-3.5 text-primary/40" />
@@ -511,8 +516,8 @@ export function ClientsPage() {
                     </div>
                   </div>
                   <div className="bg-secondary/30 px-4 py-2 border-t border-border/50 flex items-center justify-between">
-                    <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-black">Chiffre d'Affaires</div>
-                    <div className="font-black text-foreground text-sm tracking-tighter">
+                    <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Chiffre d'Affaires</div>
+                    <div className="font-semibold text-foreground text-sm tracking-tighter">
                       {formatCurrency(useStore.getState().invoices
                         ?.filter(inv => inv.clientId === client.id && inv.status === 'PAID')
                         .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0))}

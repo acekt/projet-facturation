@@ -105,8 +105,8 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
             <p className="font-bold text-xs">{formatCurrency(document.tvaAmount).replace(' XAF', '')}</p>
         </div>
         <div className="p-2 text-center bg-gray-50">
-            <p className="text-[7pt] font-black uppercase mb-1">{payments.length > 0 ? "TOTAL TTC" : "NET A PAYER"}</p>
-            <p className="font-black text-sm">{formatCurrency(document.total).replace(' XAF', '')}</p>
+            <p className="text-[7pt] font-semibold uppercase mb-1">{payments.length > 0 ? "TOTAL TTC" : "NET A PAYER"}</p>
+            <p className="font-semibold text-sm">{formatCurrency(document.total).replace(' XAF', '')}</p>
         </div>
       </div>
 
@@ -119,7 +119,7 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
                 </div>
                 <div className="flex justify-between text-sm border-t border-black pt-2 text-red-600">
                     <span className="font-bold">RESTE À PAYER:</span>
-                    <span className="font-black underline">{formatCurrency(document.total - payments.reduce((sum, p) => sum + p.amount, 0)).replace(' XAF', '')}</span>
+                    <span className="font-semibold underline">{formatCurrency(document.total - payments.reduce((sum, p) => sum + p.amount, 0)).replace(' XAF', '')}</span>
                 </div>
               </div>
           </div>

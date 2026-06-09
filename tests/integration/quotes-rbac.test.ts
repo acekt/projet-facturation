@@ -118,7 +118,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString()
       );
 
@@ -126,7 +126,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         method: 'GET',
       });
 
-      const params = await Promise.resolve({ id: quoteId });
+      const params = Promise.resolve({ id: quoteId });
       const response = await GETQuoteById(request, { params });
       const data = await response.json();
 
@@ -157,7 +157,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString()
       );
 
@@ -165,7 +165,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         method: 'GET',
       });
 
-      const params = await Promise.resolve({ id: quoteId });
+      const params = Promise.resolve({ id: quoteId });
       const response = await GETQuoteById(request, { params });
       const data = await response.json();
 
@@ -197,7 +197,7 @@ describe('API RBAC Tests - Quotes Module', () => {
           tpsAmount: 960,
           cssAmount: 100,
           total: 12878,
-          status: 'draft',
+          status: 'EN_ATTENTE',
           items: [
             {
               description: 'Test item',
@@ -239,7 +239,7 @@ describe('API RBAC Tests - Quotes Module', () => {
           tpsAmount: 960,
           cssAmount: 100,
           total: 12878,
-          status: 'draft',
+          status: 'EN_ATTENTE',
           items: [
             {
               description: 'Test item',
@@ -279,7 +279,7 @@ describe('API RBAC Tests - Quotes Module', () => {
           tpsAmount: 960,
           cssAmount: 100,
           total: 12878,
-          status: 'draft',
+          status: 'EN_ATTENTE',
           items: [
             {
               description: 'Test item',
@@ -323,7 +323,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString()
       );
 
@@ -331,7 +331,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: quoteId });
+      const params = Promise.resolve({ id: quoteId });
       const response = await DELETEQuote(request, { params });
       const data = await response.json();
 
@@ -362,7 +362,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString()
       );
 
@@ -370,7 +370,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: quoteId });
+      const params = Promise.resolve({ id: quoteId });
       const response = await DELETEQuote(request, { params });
       const data: ErrorResponse = await response.json();
 
@@ -400,7 +400,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString()
       );
 
@@ -408,7 +408,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: quoteId });
+      const params = Promise.resolve({ id: quoteId });
       const response = await DELETEQuote(request, { params });
       const data: ErrorResponse = await response.json();
 
@@ -439,7 +439,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'invoiced',
+        'CONVERTI',
         new Date().toISOString()
       );
 
@@ -447,7 +447,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: quoteId });
+      const params = Promise.resolve({ id: quoteId });
       const response = await DELETEQuote(request, { params });
       const data: ErrorResponse = await response.json();
 
@@ -465,7 +465,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: quoteId });
+      const params = Promise.resolve({ id: quoteId });
       const response = await DELETEQuote(request, { params });
       const data: ErrorResponse = await response.json();
 
@@ -496,7 +496,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString(),
         new Date().toISOString()
       );
@@ -505,7 +505,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: quoteId });
+      const params = Promise.resolve({ id: quoteId });
       const response = await DELETEQuote(request, { params });
       const data: ErrorResponse = await response.json();
 
@@ -538,7 +538,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString()
       );
 
@@ -598,7 +598,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString()
       );
 
@@ -641,7 +641,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString()
       );
 
@@ -685,7 +685,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'invoiced',
+        'CONVERTI',
         new Date().toISOString()
       );
 
@@ -703,7 +703,7 @@ describe('API RBAC Tests - Quotes Module', () => {
       const data: ErrorResponse = await response.json();
 
       expect(response.status).toBe(400);
-      expect(data.error).toBe('Quote already invoiced');
+      expect(data.error).toBe('Quote already converted');
     });
 
     it('should reject conversion of a deleted quote', async () => {
@@ -729,7 +729,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString(),
         new Date().toISOString()
       );
@@ -776,7 +776,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString()
       );
 
@@ -836,7 +836,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString()
       );
 
@@ -879,7 +879,7 @@ describe('API RBAC Tests - Quotes Module', () => {
         960,
         100,
         12878,
-        'draft',
+        'EN_ATTENTE',
         new Date().toISOString()
       );
 

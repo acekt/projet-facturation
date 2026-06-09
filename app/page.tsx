@@ -8,6 +8,7 @@ import { Dashboard } from "@/components/pages/dashboard"
 import { InvoicesPage } from "@/components/pages/invoices"
 import { QuotesPage } from "@/components/pages/quotes"
 import { QuoteEditor } from "@/components/pages/quote-editor"
+import { InvoiceEditor } from "@/components/pages/invoice-editor"
 import { ClientsPage } from "@/components/pages/clients"
 import { ServicesPage } from "@/components/pages/services"
 import { PaymentsPage } from "@/components/pages/payments"
@@ -17,7 +18,6 @@ import { AuditLogsPage } from "@/components/pages/audit-logs"
 import { UsersPage } from "@/components/pages/users"
 import { UserEditor } from "@/components/pages/user-editor"
 import { useStore } from "@/lib/store"
-import { useRouter } from "next/navigation"
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -26,46 +26,13 @@ const pageVariants = {
 }
 
 export default function App() {
-  const router = useRouter()
-  const { user, setUser } = useStore()
+  const { user, isDataLoaded } = useStore()
   const [currentPage, setCurrentPage] = React.useState("dashboard")
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
   const [commandOpen, setCommandOpen] = React.useState(false)
-  const [isClient, setIsClient] = React.useState(false)
-  const [isLoadingSession, setIsLoadingSession] = React.useState(true)
 
-  React.useEffect(() => {
-    setIsClient(true)
-  }, [])
-
-  React.useEffect(() => {
-    // Fetch user session on mount
-    const fetchSession = async () => {
-      try {
-        const response = await fetch('/api/auth/me')
-        if (response.ok) {
-          const data = await response.json()
-          setUser(data.user)
-        }
-      } catch (error) {
-        console.error('Failed to fetch session:', error)
-      } finally {
-        setIsLoadingSession(false)
-      }
-    }
-
-    if (isClient) {
-      fetchSession()
-    }
-  }, [isClient, setUser])
-
-  React.useEffect(() => {
-    if (isClient && !isLoadingSession && !user) {
-      router.push('/login')
-    }
-  }, [user, router, isClient, isLoadingSession])
-
+  // Raccourci clavier Cmd/Ctrl+K pour la palette de commandes
   React.useEffect(() => {
     const down = (e: KeyboardEvent) => {
       if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
@@ -77,32 +44,24 @@ export default function App() {
     return () => document.removeEventListener("keydown", down)
   }, [])
 
-  if (!isClient) {
+  // DataSync gère la redirection vers /login si non authentifié.
+  // Pendant que Zustand hydrate depuis sessionStorage, user peut être null.
+  // On affiche un skeleton minimaliste pour éviter le flash blanc et on attend la fin du chargement.
+  if (!user || !isDataLoaded) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Chargement...</div>
-      </div>
-    )
-  }
-
-  if (isLoadingSession) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Vérification de la session...</div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-muted-foreground">Redirection vers la connexion...</div>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 animate-pulse" />
+          <div className="w-24 h-2 bg-secondary rounded animate-pulse" />
+        </div>
       </div>
     )
   }
 
   const handlePageChange = (page: string) => {
-    setCurrentPage(page)
+    React.startTransition(() => {
+      setCurrentPage(page)
+    })
   }
 
   const renderPage = () => {
@@ -150,7 +109,32 @@ export default function App() {
           editingId={editingId}
         />
       case "invoices":
-        return <InvoicesPage onCreateInvoice={() => {}} onEditInvoice={() => {}} />
+        return <InvoicesPage 
+          onCreateInvoice={() => {
+            setEditingId(null);
+            handlePageChange("new-invoice");
+          }} 
+          onEditInvoice={(id) => {
+            setEditingId(id);
+            handlePageChange("edit-invoice");
+          }} 
+        />
+      case "new-invoice":
+        return <InvoiceEditor
+          onBack={() => {
+            setEditingId(null);
+            handlePageChange("invoices");
+          }}
+          editingId={null}
+        />
+      case "edit-invoice":
+        return <InvoiceEditor
+          onBack={() => {
+            setEditingId(null);
+            handlePageChange("invoices");
+          }}
+          editingId={editingId}
+        />
       case "clients":
         return <ClientsPage />
       case "services":

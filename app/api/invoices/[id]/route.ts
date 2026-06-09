@@ -5,7 +5,7 @@ import type { InvoiceResponse, InvoiceItem, PaymentResponse, ErrorResponse, DbIn
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
@@ -62,7 +62,7 @@ export async function PUT() {
 
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
@@ -100,7 +100,7 @@ export async function DELETE(
 
     // Convert linked quote back to draft status
     if (invoice.quoteId) {
-      db.prepare("UPDATE quotes SET status = 'draft' WHERE id = ?").run(invoice.quoteId);
+      db.prepare("UPDATE quotes SET status = 'EN_ATTENTE' WHERE id = ?").run(invoice.quoteId);
 
       // If user chose to delete the quote as well, soft delete it
       if (deleteQuote) {

@@ -51,7 +51,16 @@ interface InvoicesPageProps {
 }
 
 export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPageProps) {
-  const { invoices, setInvoices, quotes, setQuotes, setPayments, settings, setCreditNotes, user, viewFormat, setViewFormat } = useStore()
+  const invoices = useStore(state => state.invoices)
+  const setInvoices = useStore(state => state.setInvoices)
+  const quotes = useStore(state => state.quotes)
+  const setQuotes = useStore(state => state.setQuotes)
+  const setPayments = useStore(state => state.setPayments)
+  const settings = useStore(state => state.settings)
+  const setCreditNotes = useStore(state => state.setCreditNotes)
+  const user = useStore(state => state.user)
+  const viewFormat = useStore(state => state.viewFormat)
+  const setViewFormat = useStore(state => state.setViewFormat)
 
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
@@ -256,8 +265,8 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           <Button
             variant="outline"
             onClick={() => {
-              const headers = ["Numero", "Client", "Date", "Echeance", "Total", "Statut"];
-              const rows = invoices.map(i => [i.number, i.clientName, i.date, i.dueDate, i.total, i.status]);
+              const headers = ["Numero", "Client", "Date", "Total", "Statut"];
+              const rows = invoices.map(i => [i.number, i.clientName, i.date, i.total, i.status]);
               const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
               const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
               const link = document.createElement("a");
@@ -271,6 +280,13 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           >
             <DownloadCloud className="w-4 h-4" />
             Export CSV
+          </Button>
+          <Button
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+            onClick={() => onCreateInvoice()}
+          >
+            <Plus className="w-4 h-4" />
+            Nouvelle Facture
           </Button>
         </div>
       </div>
@@ -319,7 +335,6 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                   <td className="p-4">
                     <div className="text-xs text-muted-foreground">
                       <div>Émission: {formatDate(invoice.date)}</div>
-                      <div>Échéance: {formatDate(invoice.dueDate)}</div>
                     </div>
                   </td>
                   <td className="p-4">
@@ -409,18 +424,16 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           {getPaymentBadge(invoice)}
                         </div>
                         <p className="text-[11px] text-muted-foreground mt-0.5">
-                          <span className="font-black text-foreground/80 uppercase tracking-tighter">{invoice.clientName}</span>
+                          <span className="font-semibold text-foreground/80 uppercase tracking-tighter">{invoice.clientName}</span>
                           <span className="mx-2 opacity-30">•</span>
                           <span>Émission: {formatDate(invoice.date)}</span>
-                          <span className="mx-2 opacity-30">•</span>
-                          <span>Échéance: {formatDate(invoice.dueDate)}</span>
                         </p>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 md:gap-6">
                       <div className="text-right hidden sm:block">
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black">Total TTC</p>
-                        <p className="text-lg font-black text-foreground tracking-tighter">{formatCurrency(invoice.total)}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Total TTC</p>
+                        <p className="text-lg font-semibold text-foreground tracking-tighter">{formatCurrency(invoice.total)}</p>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -509,7 +522,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                    <p className="text-lg font-black text-foreground tracking-tighter">{formatCurrency(invoice.total)}</p>
+                    <p className="text-lg font-semibold text-foreground tracking-tighter">{formatCurrency(invoice.total)}</p>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
@@ -583,9 +596,14 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           </VisuallyHidden>
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
             <h2 className="font-bold text-black">Aperçu avant impression</h2>
-            <Button onClick={() => {
-                if ((window as any).electron) {
-                    (window as any).electron.print();
+            <Button onClick={async () => {
+                if (window.electron) {
+                    try {
+                        await window.electron.print();
+                    } catch (err) {
+                        console.error('[Print] IPC error:', err);
+                        toast.error("Erreur lors du lancement de l'impression");
+                    }
                 } else {
                     window.print();
                 }
@@ -659,9 +677,11 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                   <SelectValue placeholder="Sélectionner..." />
                 </SelectTrigger>
                 <SelectContent className="bg-card border-border">
-                    <SelectItem value="cash">Espèces / Cash</SelectItem>
-                    <SelectItem value="cheque">Chèques</SelectItem>
-                  <SelectItem value="virement">Virement Bancaire</SelectItem>
+                    <SelectItem value="Espèces">Espèces</SelectItem>
+                    <SelectItem value="Airtel Money">Airtel Money</SelectItem>
+                    <SelectItem value="Moov Money">Moov Money</SelectItem>
+                    <SelectItem value="Virement Bancaire">Virement Bancaire</SelectItem>
+                    <SelectItem value="Chèque">Chèque</SelectItem>
                 </SelectContent>
               </Select>
             </div>

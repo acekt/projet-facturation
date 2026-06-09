@@ -31,7 +31,7 @@ interface UserEditorProps {
 export function UserEditor({ onBack, editingId }: UserEditorProps) {
   const { user: currentUser } = useStore()
   const [isLoading, setIsLoading] = React.useState(!!editingId)
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [isSubmitting, startSubmitTransition] = React.useTransition()
   const [showPassword, setShowPassword] = React.useState(false)
 
   const [formData, setFormData] = React.useState({
@@ -97,7 +97,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
     return true
   }
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
     if (!validateForm()) {
@@ -105,48 +105,50 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
       return
     }
 
-    setIsSubmitting(true)
-    try {
-      const url = editingId ? `/api/users/${editingId}` : '/api/users'
-      const method = editingId ? 'PATCH' : 'POST'
-      
-      const payload = editingId 
-        ? {
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            role: formData.role,
-            ...(formData.password ? { password: formData.password, force_password_change: 1 } : {}),
-            is_active: formData.is_active ? 1 : 0,
-          }
-        : {
-            name: formData.name,
-            email: formData.email,
-            phone: formData.phone,
-            role: formData.role,
-            password: formData.password,
-            force_password_change: formData.force_password_change ? 1 : 0,
-            is_active: formData.is_active ? 1 : 0,
-          }
+    startSubmitTransition(async () => {
+      try {
+        const url = editingId ? `/api/users/${editingId}` : '/api/users'
+        const method = editingId ? 'PATCH' : 'POST'
+        
+        const payload = editingId 
+          ? {
+              username: formData.email,
+              name: formData.name,
+              email: formData.email,
+              phone: formData.phone,
+              role: formData.role,
+              ...(formData.password ? { password: formData.password, force_password_change: 1 } : {}),
+              is_active: formData.is_active ? 1 : 0,
+            }
+          : {
+              username: formData.email,
+              name: formData.name,
+              email: formData.email,
+              phone: formData.phone,
+              role: formData.role,
+              password: formData.password,
+              force_password_change: formData.force_password_change ? 1 : 0,
+              is_active: formData.is_active ? 1 : 0,
+            }
 
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+        const res = await fetch(url, {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
 
-      if (res.ok) {
-        toast.success(editingId ? "Utilisateur mis à jour" : "Utilisateur créé avec succès")
-        onBack()
-      } else {
-        const data = await res.json()
-        toast.error(data.error || "Erreur lors de l'opération")
+        if (res.ok) {
+          toast.success(editingId ? "Utilisateur mis à jour" : "Utilisateur créé avec succès")
+          onBack()
+        } else {
+          const data = await res.json()
+          toast.error(data.error || "Erreur lors de l'opération")
+        }
+      } catch (err) {
+        console.error('[UserEditor] handleSubmit error:', err)
+        toast.error("Erreur réseau")
       }
-    } catch (err) {
-      toast.error("Erreur réseau")
-    } finally {
-      setIsSubmitting(false)
-    }
+    })
   }
 
   if (isLoading) {

@@ -41,14 +41,14 @@ interface UsersPageProps {
 }
 
 export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
-  const [users, setUsers] = React.useState<any[]>([])
+  const { users, setUsers, addUser, updateUser, removeUser } = useStore();
   const [isLoading, setIsLoading] = React.useState(true)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [roleFilter, setRoleFilter] = React.useState("all")
   const [statusFilter, setStatusFilter] = React.useState("all")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 10
-  const { user: currentUser } = useStore()
+  const currentUser = useStore(state => state.user)
 
   // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
@@ -133,15 +133,16 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         const res = await fetch('/api/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
+            body: JSON.stringify({ ...formData, username: formData.email })
         })
+        const data = await res.json()
         if (res.ok) {
             toast.success("Utilisateur créé avec succès")
+            // Optimistic UI (Optionnel, on reload fetchUsers pour avoir la date exacte et l'ID)
+            fetchUsers()
             setIsAddModalOpen(false)
             setIsPasswordDisplayOpen(true)
-            fetchUsers()
         } else {
-            const data = await res.json()
             toast.error(data.error || "Erreur lors de la création")
         }
     } catch (e) {
@@ -158,8 +159,11 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         })
         if (res.ok) {
             toast.success("Utilisateur mis à jour")
+            updateUser(selectedUser.id, { name: formData.name, role: formData.role })
             setIsEditModalOpen(false)
-            fetchUsers()
+        } else {
+            const data = await res.json()
+            toast.error(data.error || "Erreur")
         }
     } catch (e) {
         toast.error("Erreur réseau")
@@ -168,15 +172,16 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
 
   const handleToggleStatus = async () => {
     try {
+        const newStatus = selectedUser.is_active === 1 ? 0 : 1;
         const res = await fetch(`/api/users/${selectedUser.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ is_active: selectedUser.is_active === 1 ? 0 : 1 })
+            body: JSON.stringify({ is_active: newStatus })
         })
         if (res.ok) {
-            toast.success(selectedUser.is_active === 1 ? "Compte désactivé" : "Compte réactivé")
+            toast.success(newStatus === 0 ? "Compte désactivé" : "Compte réactivé")
+            updateUser(selectedUser.id, { is_active: newStatus, deletedAt: newStatus === 1 ? null : new Date().toISOString() })
             setIsStatusModalOpen(false)
-            fetchUsers()
         } else {
             const data = await res.json()
             toast.error(data.error)
@@ -195,9 +200,12 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         const res = await fetch(`/api/users/${selectedUser.id}`, { method: 'DELETE' })
         if (res.ok) {
             toast.success("Utilisateur supprimé")
+            removeUser(selectedUser.id)
             setIsDeleteModalOpen(false)
             setDeleteConfirmName("")
-            fetchUsers()
+        } else {
+            const data = await res.json()
+            toast.error(data.error || "Erreur")
         }
     } catch (e) {
         toast.error("Erreur réseau")
@@ -228,7 +236,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Gestion des utilisateurs</h1>
           <p className="text-muted-foreground mt-1">
-            {users.filter(u => u.is_active === 1).length} actifs — {users.filter(u => u.is_active === 0).length} inactifs
+            {users.filter(u => u.is_active === 1 && !u.deletedAt).length} actifs — {users.filter(u => u.is_active === 0 || u.deletedAt).length} inactifs
           </p>
         </div>
         <Button onClick={handleOpenAdd} className="gap-2 bg-primary shadow-lg shadow-primary/20">
@@ -288,20 +296,23 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
                 </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
-                {paginatedUsers.map((u) => (
+                {paginatedUsers.map((u) => {
+                    const isInactive = u.is_active === 0 || u.deletedAt !== null;
+                    return (
                     <tr key={u.id} className={cn(
                         "group transition-colors",
-                        u.id === currentUser?.id ? "bg-indigo-500/5" : "hover:bg-muted/30"
+                        u.id === currentUser?.id ? "bg-indigo-500/5" : "hover:bg-muted/30",
+                        isInactive ? "opacity-60 grayscale" : ""
                     )}>
                         <td className="px-4 py-2">
                             <div className="flex items-center gap-2">
                                 <Avatar className="h-7 w-7 ring-1 ring-border">
-                                    <AvatarFallback className="bg-primary/10 text-primary font-black text-[10px]">
+                                    <AvatarFallback className="bg-primary/10 text-primary font-semibold text-[10px]">
                                         {u.name.substring(0, 2).toUpperCase()}
                                     </AvatarFallback>
                                 </Avatar>
                                 <div>
-                                    <p className="text-[11px] font-black text-foreground uppercase tracking-tighter">
+                                    <p className="text-[11px] font-semibold text-foreground uppercase tracking-tighter">
                                         {u.name} {u.id === currentUser?.id && <span className="text-[9px] text-primary font-bold">(MOI)</span>}
                                     </p>
                                     <p className="text-[10px] text-muted-foreground leading-none">{u.email}</p>
@@ -310,24 +321,24 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
                         </td>
                         <td className="px-4 py-2">
                             <Badge className={cn(
-                                "text-[9px] px-1.5 py-0 h-5 font-black uppercase tracking-widest",
+                                "text-[9px] px-1.5 py-0 h-5 font-semibold uppercase tracking-widest",
                                 u.role === 'admin' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : "bg-indigo-500/10 text-indigo-600 border-indigo-500/20"
                             )}>
                                 {u.role === 'admin' ? 'Admin' : 'User'}
                             </Badge>
                         </td>
                         <td className="px-4 py-2">
-                            {u.is_active === 1 ? (
-                                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[9px] px-1.5 py-0 h-5 font-black uppercase tracking-widest">
+                            {!isInactive ? (
+                                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[9px] px-1.5 py-0 h-5 font-semibold uppercase tracking-widest">
                                     Actif
                                 </Badge>
                             ) : (
-                                <Badge className="bg-gray-500/10 text-gray-600 border-gray-500/20 text-[9px] px-1.5 py-0 h-5 font-black uppercase tracking-widest">
-                                    Off
+                                <Badge className="bg-gray-500/10 text-gray-600 border-gray-500/20 text-[9px] px-1.5 py-0 h-5 font-semibold uppercase tracking-widest">
+                                    INACTIF
                                 </Badge>
                             )}
                         </td>
-                        <td className="px-4 py-2 text-[10px] text-muted-foreground font-black uppercase tracking-tighter">
+                        <td className="px-4 py-2 text-[10px] text-muted-foreground font-semibold uppercase tracking-tighter">
                             {u.created_at?.split(' ')[0]}
                         </td>
                         <td className="px-4 py-2 text-[10px] text-muted-foreground font-bold italic">
@@ -341,18 +352,22 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
                                     </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end" className="bg-card border-border w-48">
-                                    <DropdownMenuItem onClick={() => onEditUser(u.id)} className="gap-2">
-                                        <Edit2 className="w-4 h-4" /> Modifier
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsResetModalOpen(true); }} className="gap-2">
-                                        <Key className="w-4 h-4" /> Reset MDP
-                                    </DropdownMenuItem>
+                                    {!isInactive && (
+                                        <DropdownMenuItem onClick={() => onEditUser(u.id)} className="gap-2">
+                                            <Edit2 className="w-4 h-4" /> Modifier
+                                        </DropdownMenuItem>
+                                    )}
+                                    {!isInactive && (
+                                        <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsResetModalOpen(true); }} className="gap-2">
+                                            <Key className="w-4 h-4" /> Reset MDP
+                                        </DropdownMenuItem>
+                                    )}
                                     <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsStatusModalOpen(true); }} className={cn("gap-2", u.is_active === 1 ? "text-amber-500" : "text-emerald-500")}>
-                                        {u.is_active === 1 ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                                        {u.is_active === 1 ? "Désactiver" : "Activer"}
+                                    <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsStatusModalOpen(true); }} className={cn("gap-2", !isInactive ? "text-amber-500" : "text-emerald-500")}>
+                                        {!isInactive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                                        {!isInactive ? "Désactiver" : "Réactiver"}
                                     </DropdownMenuItem>
-                                    {u.id !== currentUser?.id && (
+                                    {u.id !== currentUser?.id && !isInactive && (
                                         <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsDeleteModalOpen(true); }} className="gap-2 text-destructive focus:text-destructive">
                                             <Trash2 className="w-4 h-4" /> Supprimer
                                         </DropdownMenuItem>
@@ -361,7 +376,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
                             </DropdownMenu>
                         </td>
                     </tr>
-                ))}
+                )})}
             </tbody>
           </table>
         </div>

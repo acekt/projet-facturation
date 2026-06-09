@@ -5,7 +5,8 @@ import { motion } from "framer-motion"
 import {
     Users, FileText, TrendingUp, DollarSign, AlertCircle,
     ArrowUpRight, Plus, ScrollText, Activity, ShieldCheck,
-    Smartphone, Database, LayoutDashboard, Clock, PieChart as PieIcon
+    Smartphone, Database, LayoutDashboard, Clock, PieChart as PieIcon,
+    BarChart2, Inbox
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -21,24 +22,33 @@ interface DashboardAdminProps {
 }
 
 interface DashboardAdminData {
-  metrics: {
-    paidCount?: number;
-    partiallyPaidCount?: number;
-    unpaidCount?: number;
-    pendingQuotesCount?: number;
-    growth?: number | string;
-    totalRevenue?: number;
-  };
-  revenueData?: Array<{ label: string; value: number }>;
-  paymentMethodData?: Array<{ method: string; amount: number; color?: string }>;
-  userPerformance?: Array<{ id?: string; name: string; docsCount: number; totalRevenue: number }>;
-  topClients?: Array<{ clientName: string; totalRevenue: number }>;
-  activityTimeline?: Array<{ id: string; action: string; client: string; time: string }>;
+  paidCount: number;
+  partiallyPaidCount: number;
+  unpaidCount: number;
+  pendingQuotesCount: number;
+  totalRevenue: number;
+  growth: number | string;
+  pendingRevenue: number;
+  overdueRevenue: number;
+  totalInvoicesCount: number;
+  revenueData: Array<{ label: string; value: number }>;
+  paymentMethodData: Array<{ method: string; amount: number }>;
+  userPerformance: Array<{ name: string; docsCount: number; totalRevenue: number }>;
+  topClients: Array<{ clientName: string; totalRevenue: number }>;
+  activityTimeline: Array<{ id: string; action: string; client: string; time: string }>;
 }
 
 export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
   const [data, setData] = React.useState<DashboardAdminData>({
-    metrics: {},
+    paidCount: 0,
+    partiallyPaidCount: 0,
+    unpaidCount: 0,
+    pendingQuotesCount: 0,
+    totalRevenue: 0,
+    growth: 0,
+    pendingRevenue: 0,
+    overdueRevenue: 0,
+    totalInvoicesCount: 0,
     revenueData: [],
     paymentMethodData: [],
     userPerformance: [],
@@ -53,7 +63,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
         if (!res.ok) throw new Error('Failed to fetch metrics')
         return res.json()
       })
-      .then(d => {
+      .then((d: DashboardAdminData) => {
         setData(d)
         setIsLoading(false)
       })
@@ -63,13 +73,13 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
       })
   }, [])
 
-  const metrics = data.metrics || {}
+  const PIE_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444']
 
   return (
     <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6">
       <div className="flex items-center justify-between">
         <div>
-            <h1 className="text-2xl font-black text-foreground tracking-tighter">Tableau de Bord</h1>
+            <h1 className="text-2xl font-semibold text-foreground tracking-tighter">Tableau de Bord</h1>
             <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1">Vision stratégique admin</p>
         </div>
         <div className="flex items-center gap-2">
@@ -83,7 +93,9 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             <CardDescription className="uppercase text-[10px] font-bold tracking-widest flex items-center gap-2">
                 <FileText className="w-3 h-3 text-indigo-500" /> Factures Payées
             </CardDescription>
-            <CardTitle className="text-3xl font-black text-emerald-600">{metrics.paidCount}</CardTitle>
+            <CardTitle className="text-3xl font-semibold text-emerald-600">
+              {isLoading ? <span className="inline-block w-10 h-8 bg-secondary animate-pulse rounded"/> : data.paidCount}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Règlements complets</p>
@@ -95,7 +107,9 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-amber-600 flex items-center gap-2">
                 <Clock className="w-3 h-3" /> Factures Partielles
             </CardDescription>
-            <CardTitle className="text-3xl font-black text-amber-600">{metrics.partiallyPaidCount}</CardTitle>
+            <CardTitle className="text-3xl font-semibold text-amber-600">
+              {isLoading ? <span className="inline-block w-10 h-8 bg-secondary animate-pulse rounded"/> : data.partiallyPaidCount}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Acomptes reçus</p>
@@ -107,7 +121,9 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-red-500 flex items-center gap-2">
                 <AlertCircle className="w-3 h-3" /> Factures Non Payées
             </CardDescription>
-            <CardTitle className="text-3xl font-black text-red-500">{metrics.unpaidCount}</CardTitle>
+            <CardTitle className="text-3xl font-semibold text-red-500">
+              {isLoading ? <span className="inline-block w-10 h-8 bg-secondary animate-pulse rounded"/> : data.unpaidCount}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">En attente de paiement</p>
@@ -119,7 +135,9 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-blue-500 flex items-center gap-2">
                 <ScrollText className="w-3 h-3" /> Devis En Attente
             </CardDescription>
-            <CardTitle className="text-3xl font-black text-blue-500">{metrics.pendingQuotesCount}</CardTitle>
+            <CardTitle className="text-3xl font-semibold text-blue-500">
+              {isLoading ? <span className="inline-block w-10 h-8 bg-secondary animate-pulse rounded"/> : data.pendingQuotesCount}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Non convertis en factures</p>
@@ -137,7 +155,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                 <Activity className="w-5 h-5 text-muted-foreground opacity-20" />
             </CardHeader>
             <CardContent className="h-[300px]">
-                {data?.revenueData ? (
+                {data.revenueData.length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                         <AreaChart data={data.revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                             <defs>
@@ -162,14 +180,17 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                             />
                             <Tooltip
                                 contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
-                                formatter={(val: any) => [formatCurrency(val), 'Revenu']}
+                                formatter={(val: number) => [formatCurrency(val), 'Revenu']}
                             />
                             <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
                         </AreaChart>
                     </ResponsiveContainer>
                 ) : (
-                    <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
-                        Chargement des données...
+                    <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
+                        <BarChart2 className="w-10 h-10 text-muted-foreground opacity-20" />
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
+                          {isLoading ? 'Chargement des revenus...' : 'Aucun paiement ce mois-ci'}
+                        </p>
                     </div>
                 )}
             </CardContent>
@@ -194,14 +215,16 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                                 innerRadius={60}
                                 outerRadius={80}
                                 paddingAngle={5}
-                                dataKey="value"
+                                dataKey="amount"
+                                nameKey="method"
                             >
-                                {data.paymentMethodData.map((entry: any, index: number) => (
-                                    <Cell key={`cell-${index}`} fill={entry.color} />
+                                {data.paymentMethodData.map((_entry, index: number) => (
+                                    <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
                                 ))}
                             </Pie>
                             <Tooltip
                                 contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                                formatter={(val: number) => [`${val}%`, 'Part']}
                             />
                             <Legend
                                 iconType="circle"
@@ -213,7 +236,9 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                         </PieChart>
                     </ResponsiveContainer>
                 ) : (
-                    <p className="text-xs text-muted-foreground italic">Aucune donnée disponible</p>
+                    <p className="text-xs text-muted-foreground italic">
+                      {isLoading ? 'Chargement...' : 'Aucun paiement enregistré'}
+                    </p>
                 )}
             </CardContent>
         </Card>
@@ -230,19 +255,19 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
-                    {(data?.userPerformance || []).map((u: any) => (
-                        <div key={u.id || u.name} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
+                    {(data?.userPerformance || []).map((u) => (
+                        <div key={u.name} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500 font-bold text-xs">
                                     {u.name[0]}
                                 </div>
                                 <div>
                                     <span className="text-xs font-bold block">{u.name}</span>
-                                    <span className="text-[9px] text-muted-foreground uppercase font-black">{u.docsCount} DOCUMENTS</span>
+                                    <span className="text-[9px] text-muted-foreground uppercase font-semibold">{u.docsCount} DOCUMENTS</span>
                                 </div>
                             </div>
                             <div className="text-right">
-                                <p className="text-xs font-black">{formatCurrency(u.totalRevenue)}</p>
+                                <p className="text-xs font-semibold">{formatCurrency(u.totalRevenue)}</p>
                             </div>
                         </div>
                     ))}
@@ -263,7 +288,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
-                    {(data?.topClients || []).map((client: any, index: number) => (
+                    {(data?.topClients || []).map((client, index: number) => (
                         <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50">
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center text-indigo-500 font-bold text-xs">
@@ -274,7 +299,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                                 </div>
                             </div>
                             <div className="text-right">
-                                <p className="text-xs font-black">{formatCurrency(client.totalRevenue)}</p>
+                                <p className="text-xs font-semibold">{formatCurrency(client.totalRevenue)}</p>
                             </div>
                         </div>
                     ))}
@@ -300,7 +325,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
          </CardHeader>
          <CardContent className="p-0">
             <div className="divide-y divide-border/50">
-                {(data.activityTimeline || []).slice(0, 5).map((log: any) => (
+                {(data.activityTimeline || []).slice(0, 5).map((log) => (
                     <div key={log.id} className="flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors">
                         <div className="flex items-center gap-4">
                             <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
@@ -314,15 +339,21 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                         <span className="text-[10px] font-mono text-muted-foreground">{log.time}</span>
                     </div>
                 ))}
+                {data.activityTimeline.length === 0 && !isLoading && (
+                    <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
+                        <Inbox className="w-10 h-10 text-muted-foreground opacity-20" />
+                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Journal vide — aucune action enregistrée</p>
+                    </div>
+                )}
             </div>
          </CardContent>
       </Card>
 
       <div className="flex gap-4">
-         <Button className="flex-1 bg-amber-500 hover:bg-amber-600 h-14 text-lg font-black tracking-tighter" onClick={() => onNavigate('users')}>
+         <Button className="flex-1 bg-amber-500 hover:bg-amber-600 h-14 text-lg font-semibold tracking-tighter" onClick={() => onNavigate('users')}>
             <Users className="w-5 h-5 mr-2" /> AJOUTER UN UTILISATEUR
          </Button>
-         <Button variant="secondary" className="flex-1 h-14 text-lg font-black tracking-tighter" onClick={() => onNavigate('audit')}>
+         <Button variant="secondary" className="flex-1 h-14 text-lg font-semibold tracking-tighter" onClick={() => onNavigate('audit')}>
             <ScrollText className="w-5 h-5 mr-2" /> VOIR LES LOGS
          </Button>
       </div>

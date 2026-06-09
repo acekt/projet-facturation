@@ -39,7 +39,7 @@ function updateInvoiceStatus(invoiceId: string): 'UNPAID' | 'PARTIALLY_PAID' | '
   return newStatus;
 }
 
-export async function GET() {
+export async function GET(_request: Request) {
   try {
     const payments = db.prepare('SELECT * FROM payments WHERE deletedAt IS NULL ORDER BY createdAt DESC').all() as DbPayment[];
     const paymentResponses: PaymentResponse[] = payments.map((payment): PaymentResponse => ({

@@ -18,6 +18,7 @@ interface DocumentPreviewProps {
     subtotal: number
     discount: number
     taxBase: number
+    tpsAmount?: number
     tvaAmount: number
     cssAmount: number
     total: number

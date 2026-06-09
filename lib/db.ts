@@ -1,7 +1,21 @@
 import Database from 'better-sqlite3';
 import path from 'path';
 
-const dbPath = path.join(process.cwd(), 'database.sqlite');
+/**
+ * Résolution du chemin de la base de données.
+ *
+ * ┌──────────────────────────────────────────────────────────────────────┐
+ * │  RÈGLE CRITIQUE ELECTRON :                                           │
+ * │  En mode packagé (.exe / .dmg / .AppImage), process.cwd() pointe    │
+ * │  vers app.asar — un archive en LECTURE SEULE. Écrire un fichier     │
+ * │  SQLite là-dedans provoque un crash immédiat au premier INSERT.       │
+ * │                                                                      │
+ * │  Solution : utiliser ELECTRON_USERDATA_PATH si défini (injecté par   │
+ * │  main.js), sinon fallback sur process.cwd() (dev Next.js uniquement).│
+ * └──────────────────────────────────────────────────────────────────────┘
+ */
+const userDataPath = process.env.ELECTRON_USERDATA_PATH || process.cwd();
+const dbPath = path.join(userDataPath, 'database.sqlite');
 const db = new Database(dbPath);
 
 // Enable foreign keys
@@ -52,7 +66,6 @@ db.exec(`
     clientName TEXT,
     clientEmail TEXT,
     date TEXT NOT NULL,
-    dueDate TEXT,
     subtotal REAL DEFAULT 0,
     discount REAL DEFAULT 0,
     taxBase REAL DEFAULT 0,
@@ -60,7 +73,7 @@ db.exec(`
     tvaAmount REAL DEFAULT 0,
     cssAmount REAL DEFAULT 0,
     total REAL DEFAULT 0,
-    status TEXT DEFAULT 'draft', -- draft, sent, invoiced, rejected
+    status TEXT DEFAULT 'EN_ATTENTE', -- EN_ATTENTE, CONVERTI
     notes TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     deletedAt DATETIME,
@@ -86,7 +99,6 @@ db.exec(`
     clientName TEXT,
     clientEmail TEXT,
     date TEXT NOT NULL,
-    dueDate TEXT,
     subtotal REAL DEFAULT 0,
     discount REAL DEFAULT 0,
     taxBase REAL DEFAULT 0,
@@ -156,7 +168,9 @@ db.exec(`
     force_password_change INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     last_login_at DATETIME,
-    created_by TEXT
+    created_by TEXT,
+    phone TEXT,
+    deletedAt DATETIME
   );
 
   CREATE TABLE IF NOT EXISTS credit_notes (
@@ -202,22 +216,11 @@ db.exec(`
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 
-  CREATE INDEX IF NOT EXISTS idx_clients_deletedAt ON clients(deletedAt);
-  CREATE INDEX IF NOT EXISTS idx_quotes_deletedAt ON quotes(deletedAt);
-  CREATE INDEX IF NOT EXISTS idx_quotes_clientId ON quotes(clientId);
-  CREATE INDEX IF NOT EXISTS idx_invoices_deletedAt ON invoices(deletedAt);
-  CREATE INDEX IF NOT EXISTS idx_invoices_clientId ON invoices(clientId);
-  CREATE INDEX IF NOT EXISTS idx_invoices_quoteId ON invoices(quoteId);
-  CREATE INDEX IF NOT EXISTS idx_payments_deletedAt ON payments(deletedAt);
-  CREATE INDEX IF NOT EXISTS idx_payments_invoiceId ON payments(invoiceId);
-  CREATE INDEX IF NOT EXISTS idx_credit_notes_deletedAt ON credit_notes(deletedAt);
-  CREATE INDEX IF NOT EXISTS idx_credit_notes_invoiceId ON credit_notes(invoiceId);
-  CREATE INDEX IF NOT EXISTS idx_credit_notes_clientId ON credit_notes(clientId);
-  CREATE INDEX IF NOT EXISTS idx_services_deletedAt ON services(deletedAt);
-  CREATE INDEX IF NOT EXISTS idx_quote_items_quoteId ON quote_items(quoteId);
-  CREATE INDEX IF NOT EXISTS idx_invoice_items_invoiceId ON invoice_items(invoiceId);
-  CREATE INDEX IF NOT EXISTS idx_credit_note_items_creditNoteId ON credit_note_items(creditNoteId);
 `);
+
+// --- Migrations begin ---
+// Note: Indices are created after migrations to prevent "no such column" errors
+// when the table already exists but the column hasn't been added by migration yet.
 
 // MIGRATION LOGIC FOR USERS (v3 to v4)
 try {
@@ -242,6 +245,12 @@ try {
   }
   if (!usersColumns.some(c => c.name === 'created_at')) {
     db.prepare("ALTER TABLE users ADD COLUMN created_at DATETIME DEFAULT CURRENT_TIMESTAMP").run();
+  }
+  if (!usersColumns.some(c => c.name === 'phone')) {
+    db.prepare("ALTER TABLE users ADD COLUMN phone TEXT").run();
+  }
+  if (!usersColumns.some(c => c.name === 'deletedAt')) {
+    db.prepare("ALTER TABLE users ADD COLUMN deletedAt DATETIME").run();
   }
 } catch (e) {
   console.error("Migration error on users table:", e);
@@ -300,6 +309,29 @@ try {
 } catch (e) {
   console.error("Migration error:", e);
 }
+
+// Create Indices AFTER all columns are ensured to exist
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_clients_deletedAt ON clients(deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_quotes_deletedAt ON quotes(deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_quotes_clientId ON quotes(clientId);
+  CREATE INDEX IF NOT EXISTS idx_invoices_deletedAt ON invoices(deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_invoices_clientId ON invoices(clientId);
+  CREATE INDEX IF NOT EXISTS idx_invoices_quoteId ON invoices(quoteId);
+  CREATE INDEX IF NOT EXISTS idx_payments_deletedAt ON payments(deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_payments_invoiceId ON payments(invoiceId);
+  CREATE INDEX IF NOT EXISTS idx_credit_notes_deletedAt ON credit_notes(deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_credit_notes_invoiceId ON credit_notes(invoiceId);
+  CREATE INDEX IF NOT EXISTS idx_credit_notes_clientId ON credit_notes(clientId);
+  CREATE INDEX IF NOT EXISTS idx_services_deletedAt ON services(deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_quote_items_quoteId ON quote_items(quoteId);
+  CREATE INDEX IF NOT EXISTS idx_invoice_items_invoiceId ON invoice_items(invoiceId);
+  CREATE INDEX IF NOT EXISTS idx_credit_note_items_creditNoteId ON credit_note_items(creditNoteId);
+  
+  -- Users optimizations
+  CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
+  CREATE INDEX IF NOT EXISTS idx_users_deletedAt ON users(deletedAt);
+`);
 
 // Insert default settings
 const row = db.prepare('SELECT COUNT(*) as count FROM settings').get() as { count: number };

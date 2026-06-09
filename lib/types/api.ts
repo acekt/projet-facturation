@@ -72,6 +72,7 @@ export interface UserResponse {
   created_at: string;
   last_login_at?: string;
   phone?: string;
+  deletedAt?: string;
 }
 
 export interface UserPasswordResetRequest {
@@ -112,6 +113,7 @@ export interface DbUser {
   last_login_at?: string;
   created_by?: string;
   phone?: string;
+  deletedAt?: string;
 }
 
 export interface DbSettings {
@@ -356,10 +358,18 @@ export interface DashboardMetricsResponse {
   revenueData?: Array<{
     date: string;
     revenue: number;
+    label?: string;
+    value?: number;
   }>;
   paymentMethodData?: Array<{
     method: string;
     amount: number;
+  }>;
+  activityTimeline?: Array<{
+    id: string;
+    action: string;
+    client: string;
+    time: string;
   }>;
 }
 

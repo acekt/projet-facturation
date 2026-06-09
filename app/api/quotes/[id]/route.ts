@@ -11,7 +11,7 @@ import type { QuoteResponse, QuoteItem, ErrorResponse, DbQuote, DbQuoteItem } fr
  */
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
@@ -56,7 +56,7 @@ export async function GET(
  */
 export async function DELETE(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
@@ -79,7 +79,7 @@ export async function DELETE(
     }
 
     // Business rule: A quote cannot be deleted if it has already been converted to an invoice
-    if (quote.status === 'invoiced') {
+    if (quote.status === 'CONVERTI') {
       const errorResponse: ErrorResponse = {
         error: 'Impossible de supprimer un devis déjà converti en facture.',
       };

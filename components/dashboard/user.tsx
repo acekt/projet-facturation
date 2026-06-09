@@ -117,7 +117,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
     <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-8">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
-            <h1 className="text-2xl font-black text-foreground tracking-tighter">Tableau de Bord</h1>
+            <h1 className="text-2xl font-semibold text-foreground tracking-tighter">Tableau de Bord</h1>
             <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1">Espace Opérateur</p>
         </div>
         <div className="flex gap-2">
@@ -137,7 +137,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
                 <FileText className="w-4 h-4 text-indigo-500 opacity-40" />
             </CardHeader>
             <CardContent>
-                <p className="text-3xl font-black mb-0">{metrics.pendingQuotesCount}</p>
+                <p className="text-3xl font-semibold mb-0">{metrics.pendingQuotesCount}</p>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Non convertis en factures</p>
             </CardContent>
         </Card>
@@ -148,7 +148,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
                 <CheckCircle className="w-4 h-4 text-emerald-500 opacity-40" />
             </CardHeader>
             <CardContent>
-                <p className="text-3xl font-black text-emerald-600 mb-0">{metrics.paidCount}</p>
+                <p className="text-3xl font-semibold text-emerald-600 mb-0">{metrics.paidCount}</p>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Règlements complets</p>
             </CardContent>
         </Card>
@@ -159,7 +159,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
                 <Clock className="w-4 h-4 text-amber-500 opacity-40" />
             </CardHeader>
             <CardContent>
-                <p className="text-3xl font-black text-amber-600 mb-0">{metrics.partiallyPaidCount}</p>
+                <p className="text-3xl font-semibold text-amber-600 mb-0">{metrics.partiallyPaidCount}</p>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Acomptes reçus</p>
             </CardContent>
         </Card>
@@ -170,7 +170,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
                 <AlertCircle className="w-4 h-4 text-red-500 opacity-40" />
             </CardHeader>
             <CardContent>
-                <p className="text-3xl font-black text-red-500 mb-0">{metrics.unpaidCount}</p>
+                <p className="text-3xl font-semibold text-red-500 mb-0">{metrics.unpaidCount}</p>
                 <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">En attente de paiement</p>
             </CardContent>
         </Card>
@@ -222,7 +222,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
             <CardHeader>
                 <div className="flex items-center gap-2 text-indigo-600">
                     <TrendingUp className="w-4 h-4" />
-                    <CardTitle className="text-sm uppercase tracking-widest font-black">Performance</CardTitle>
+                    <CardTitle className="text-sm uppercase tracking-widest font-semibold">Performance</CardTitle>
                 </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -231,14 +231,14 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
                         <span className="text-xs font-bold">Croissance</span>
                         <Badge className="bg-emerald-100 text-emerald-700 text-[10px] px-1 py-0 h-4 border-emerald-200">+{metrics.growth || 0}%</Badge>
                     </div>
-                    <p className="text-[10px] text-muted-foreground uppercase font-black">vs mois précédent</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">vs mois précédent</p>
                 </div>
                 <div className="p-3 rounded-xl bg-white dark:bg-slate-900 border border-indigo-500/20 shadow-sm shadow-indigo-500/5">
                     <div className="flex justify-between items-start mb-1">
                         <span className="text-xs font-bold">Chiffre d'Affaires</span>
                         <Badge className="bg-indigo-100 text-indigo-700 text-[10px] px-1 py-0 h-4 border-indigo-200">Mois</Badge>
                     </div>
-                    <p className="text-[10px] text-muted-foreground uppercase font-black">{formatCurrency(metrics.totalRevenue || 0)}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase font-semibold">{formatCurrency(metrics.totalRevenue || 0)}</p>
                 </div>
             </CardContent>
         </Card>
@@ -250,7 +250,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
                     <CardTitle className="text-md font-bold">Activité Récente</CardTitle>
                     <CardDescription className="text-[10px] uppercase font-bold tracking-widest">Derniers documents émis</CardDescription>
                 </div>
-                <Button variant="ghost" size="sm" className="text-indigo-600 font-black text-[10px] uppercase tracking-tighter" onClick={() => onNavigate('invoices')}>
+                <Button variant="ghost" size="sm" className="text-indigo-600 font-semibold text-[10px] uppercase tracking-tighter" onClick={() => onNavigate('invoices')}>
                     TOUT VOIR <ArrowUpRight className="w-3 h-3 ml-1" />
                 </Button>
             </CardHeader>
@@ -264,7 +264,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
                                 </div>
                                 <div>
                                     <p className="text-xs font-bold">{log.action}</p>
-                                    <p className="text-[9px] text-muted-foreground uppercase font-black">{log.client}</p>
+                                    <p className="text-[9px] text-muted-foreground uppercase font-semibold">{log.client}</p>
                                 </div>
                             </div>
                             <span className="text-[9px] font-bold text-muted-foreground">{log.time}</span>

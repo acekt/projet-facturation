@@ -58,7 +58,7 @@ describe('Integration Test - End-to-End Financial Flow', () => {
       tpsAmount: 960,  // 9.5% of 10100 -> Math.round(959.5) = 960
       cssAmount: 100,
       total: 12978,    // 10100 + 1818 + 960 + 100 = 12978
-      status: 'draft',
+      status: 'EN_ATTENTE',
       items: [
         {
           description: 'Web development services',
@@ -85,7 +85,7 @@ describe('Integration Test - End-to-End Financial Flow', () => {
     // Verify quote in DB
     const dbQuote = testDb.prepare('SELECT * FROM quotes WHERE id = ?').get(quoteId) as any;
     expect(dbQuote).toBeDefined();
-    expect(dbQuote.status).toBe('draft');
+    expect(dbQuote.status).toBe('EN_ATTENTE');
 
     // 2. Convert quote to invoice
     const convertReq = new Request('http://localhost/api/quotes/convert', {
@@ -101,9 +101,9 @@ describe('Integration Test - End-to-End Financial Flow', () => {
     const invoiceId = convertData.invoiceId;
     expect(invoiceId).toBeDefined();
 
-    // Verify quote status changed to 'invoiced'
+    // Verify quote status changed to 'CONVERTI'
     const dbQuoteInvoiced = testDb.prepare('SELECT status FROM quotes WHERE id = ?').get(quoteId) as any;
-    expect(dbQuoteInvoiced.status).toBe('invoiced');
+    expect(dbQuoteInvoiced.status).toBe('CONVERTI');
 
     // Verify invoice created in DB
     const dbInvoice = testDb.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceId) as any;
@@ -152,7 +152,7 @@ describe('Integration Test - End-to-End Financial Flow', () => {
     const adminSession = createAuthenticatedSession('admin');
     vi.mocked(getSession).mockResolvedValue(adminSession);
 
-    const params = await Promise.resolve({ id: paymentId });
+    const params = Promise.resolve({ id: paymentId });
     const deletePaymentRes = await DELETEPayment(deletePaymentReq, { params });
     const deletePaymentData = await deletePaymentRes.json();
 

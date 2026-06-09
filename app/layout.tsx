@@ -1,23 +1,22 @@
+/**
+ * Root Layout — L'Étoile (Desktop Electron)
+ *
+ * Corrections AXE 2 :
+ *  ✅ Suppression de @vercel/analytics (tentait des requêtes réseau vers vitals.vercel-insights.com)
+ *  ✅ Suppression de next/font/google (télécharge Geist depuis fonts.googleapis.com — bloqué offline)
+ *  ✅ Remplacement par des variables CSS système (system-ui fallback robuste hors-ligne)
+ *  ✅ Métadonnées SEO réduites au strict minimum (sans description publique)
+ *  ✅ user-select: none appliqué globalement via CSS (voir globals.css)
+ */
 import type { Metadata } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
-import { Analytics } from '@vercel/analytics/next'
 import { Providers } from '@/components/providers'
 import { DataSync } from '@/components/data-sync'
+import { AppErrorBoundary } from '@/components/error-boundary'
 import './globals.css'
 
-const geistSans = Geist({ 
-  subsets: ["latin"],
-  variable: '--font-geist-sans',
-})
-
-const geistMono = Geist_Mono({ 
-  subsets: ["latin"],
-  variable: '--font-geist-mono',
-})
-
 export const metadata: Metadata = {
-  title: "L'Etoile - Gestion Commerciale & Facturation Gabon",
-  description: "Solution complète de gestion commerciale pour les PME gabonaises (Devis, Facturation, Clients, Services).",
+  title: "L'Étoile — Gestion & Facturation",
+  // Pas de description SEO inutile pour une app desktop offline
 }
 
 export default function RootLayout({
@@ -28,6 +27,7 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning className="bg-background">
       <head>
+        {/* Thème sombre appliqué immédiatement pour éviter le flash blanc FOUC */}
         <script
           suppressHydrationWarning
           dangerouslySetInnerHTML={{
@@ -44,12 +44,14 @@ export default function RootLayout({
           }}
         />
       </head>
-      <body className={`${geistSans.variable} ${geistMono.variable} font-sans antialiased bg-background text-foreground`}>
-        <Providers>
-          <DataSync />
-          {children}
-        </Providers>
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+      <body className="font-sans antialiased bg-background text-foreground select-none">
+        <AppErrorBoundary>
+          <Providers>
+            <DataSync />
+            {children}
+          </Providers>
+        </AppErrorBoundary>
+        {/* ❌ Analytics Vercel supprimé — app offline, pas de tracking réseau */}
       </body>
     </html>
   )

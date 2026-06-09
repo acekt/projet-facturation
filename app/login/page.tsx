@@ -49,7 +49,7 @@ export default function LoginPage() {
           <div className="mx-auto w-16 h-16 bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-2">
             <Lock className="w-8 h-8" />
           </div>
-          <CardTitle className="text-3xl font-black text-primary tracking-tighter">L'ÉTOILE</CardTitle>
+          <CardTitle className="text-3xl font-semibold text-primary tracking-tighter">L'ÉTOILE</CardTitle>
           <CardDescription>
             Gestion Commerciale & Facturation (Gabon)
             <br />

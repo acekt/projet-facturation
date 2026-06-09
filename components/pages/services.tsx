@@ -193,7 +193,7 @@ export function ServicesPage() {
                             <Edit2 className="w-4 h-4" /> Modifier
                           </DropdownMenuItem>
                         )}
-                        {user?.role === 'admin' && (
+                        {(user?.role === 'admin' || user?.role === 'user') && (
                           <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(service.id)}>
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>
@@ -260,7 +260,7 @@ export function ServicesPage() {
                             <Edit2 className="w-4 h-4" /> Modifier
                           </DropdownMenuItem>
                         )}
-                        {user?.role === 'admin' && (
+                        {(user?.role === 'admin' || user?.role === 'user') && (
                           <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(service.id)}>
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>
@@ -323,7 +323,7 @@ export function ServicesPage() {
                               <Edit2 className="w-4 h-4" /> Modifier
                             </DropdownMenuItem>
                           )}
-                          {user?.role === 'admin' && (
+                          {(user?.role === 'admin' || user?.role === 'user') && (
                             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(service.id)}>
                               <Trash2 className="w-4 h-4" /> Supprimer
                             </DropdownMenuItem>
@@ -331,18 +331,18 @@ export function ServicesPage() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    <h3 className="font-black text-foreground text-sm mb-1 truncate uppercase tracking-tighter">{service.name}</h3>
+                    <h3 className="font-semibold text-foreground text-sm mb-1 truncate uppercase tracking-tighter">{service.name}</h3>
                     <div className="flex items-center gap-2 mb-2">
                       <Tag className="w-3 h-3 text-primary/40" />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">{service.category || 'Non classé'}</span>
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">{service.category || 'Non classé'}</span>
                     </div>
                     <p className="text-[11px] text-muted-foreground line-clamp-2 h-8 mb-3 leading-relaxed">
                       {service.description || "Aucune description fournie."}
                     </p>
                   </div>
                   <div className="bg-secondary/30 px-4 py-2 border-t border-border/50 flex items-center justify-between">
-                    <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-black">Tarif Standard</div>
-                    <div className="font-black text-foreground text-sm tracking-tighter">{formatCurrency(service.unitPrice)}</div>
+                    <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Tarif Standard</div>
+                    <div className="font-semibold text-foreground text-sm tracking-tighter">{formatCurrency(service.unitPrice)}</div>
                   </div>
                 </CardContent>
               </Card>

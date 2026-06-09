@@ -3,6 +3,29 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ═══════════════════════════════════════════════════════════
+   APPLICATION DESKTOP — RÈGLES NATIVES
+   Empêche la sélection de texte comme sur un site web.
+   Les inputs/textareas conservent user-select: text.
+   ═══════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+/* Réautoriser la sélection uniquement dans les champs de saisie */
+input, textarea, [contenteditable='true'], [contenteditable=''] {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+/* Liens et boutons : curseur pointeur natif */
+a, button, [role='button'], label {
+  cursor: pointer;
+}
+
 /* Light Mode - Clean, Professional, Premium */
 :root {
   --background: #fafafa;
@@ -101,8 +124,9 @@
 }
 
 @theme inline {
-  --font-sans: 'Geist', 'Geist Fallback', system-ui, sans-serif;
-  --font-mono: 'Geist Mono', 'Geist Mono Fallback', monospace;
+  /* Police système robuste — fonctionne 100% hors-ligne, sans Google Fonts */
+  --font-sans: 'Segoe UI', 'Helvetica Neue', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Code', 'Consolas', 'SF Mono', ui-monospace, monospace;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

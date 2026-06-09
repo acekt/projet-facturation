@@ -11,7 +11,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ onNavigate }: DashboardProps) {
-  const { user } = useStore()
+  const user = useStore(state => state.user)
 
   if (!user) {
     return <DashboardSkeleton />

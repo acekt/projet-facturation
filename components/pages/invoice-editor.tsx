@@ -33,20 +33,20 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
-import { useStore, type InvoiceItem, type Quote } from "@/lib/store"
+import { useStore, type InvoiceItem, type Invoice } from "@/lib/store"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 import { DocumentPreview } from "@/components/document-preview"
 
-interface QuoteEditorProps {
+interface InvoiceEditorProps {
   onBack: () => void
   editingId?: string | null
 }
 
-export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
+export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   const clients = useStore((state) => state.clients)
   const settings = useStore((state) => state.settings)
-  const setQuotes = useStore((state) => state.setQuotes)
+  const setInvoices = useStore((state) => state.setInvoices)
   const services = useStore((state) => state.services)
   const [selectedClient, setSelectedClient] = React.useState<typeof clients[0] | null>(null)
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false)
@@ -54,17 +54,17 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   const [items, setItems] = React.useState<InvoiceItem[]>([
     { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
   ])
-  const [quoteDate, setQuoteDate] = React.useState(new Date().toISOString().split("T")[0])
+  const [invoiceDate, setInvoiceDate] = React.useState(new Date().toISOString().split("T")[0])
   const [discount, setDiscount] = React.useState(0)
   const [notes, setNotes] = React.useState(settings.mentionsLegales || "")
-  const [status, setStatus] = React.useState<Quote['status']>('EN_ATTENTE')
+  const [isDraft, setIsDraft] = React.useState(true)
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [isSubmitting, startSubmitTransition] = React.useTransition()
   const [isLoading, setIsLoading] = React.useState(!!editingId)
 
   React.useEffect(() => {
     if (editingId) {
-      fetch(`/api/quotes/${editingId}`)
+      fetch(`/api/invoices/${editingId}`)
         .then(res => res.json())
         .then(data => {
           setSelectedClient(clients.find(c => c.id === data.clientId) || {
@@ -74,14 +74,14 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             phone: '', address: '', status: 'active'
           });
           setItems(data.items);
-          setQuoteDate(data.date);
+          setInvoiceDate(data.date);
           setDiscount(data.discount);
           setNotes(data.notes || "");
-          setStatus(data.status);
+          setIsDraft(data.status === 'draft');
           setIsLoading(false);
         })
         .catch(() => {
-          toast.error("Impossible de charger le devis");
+          toast.error("Impossible de charger la facture");
           onBack();
         });
     }
@@ -144,7 +144,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   const tvaAmount = Math.round(taxBase * TAX_RATE)
   const total = netHT + cssAmount + tpsAmount + tvaAmount
 
-  const handleSave = (status: Quote['status']) => {
+  const handleSave = (status: Invoice['status']) => {
     if (!selectedClient) {
       toast.error("Veuillez sélectionner un client")
       return
@@ -155,14 +155,9 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
       return
     }
 
-    if (status === 'CONVERTI') {
-      toast.error("Ce devis a été converti en facture. L'édition est verrouillée.")
-      return
-    }
-
     startSubmitTransition(async () => {
       try {
-        const url = editingId ? `/api/quotes/${editingId}` : '/api/quotes'
+        const url = editingId ? `/api/invoices/${editingId}` : '/api/invoices'
         const method = editingId ? 'PUT' : 'POST'
         const response = await fetch(url, {
           method,
@@ -171,7 +166,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             clientId: selectedClient.id,
             clientName: selectedClient.name,
             clientEmail: selectedClient.email,
-            date: quoteDate,
+            date: invoiceDate,
             items,
             notes,
             discount,
@@ -185,16 +180,16 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
           }),
         })
 
-        if (!response.ok) throw new Error('Failed to save quote')
+        if (!response.ok) throw new Error('Failed to save invoice')
 
-        const newQuotes = await fetch('/api/quotes').then(res => res.json())
-        setQuotes(newQuotes)
+        const newInvoices = await fetch('/api/invoices').then(res => res.json())
+        setInvoices(newInvoices)
 
-        toast.success("Devis enregistré avec succès")
+        toast.success(status === 'draft' ? "Facture enregistrée en brouillon" : "Facture créée avec succès")
         onBack()
       } catch (error) {
-        console.error('[QuoteEditor] handleSave error:', error)
-        toast.error("Erreur lors de l'enregistrement du devis")
+        console.error('[InvoiceEditor] handleSave error:', error)
+        toast.error("Erreur lors de l'enregistrement de la facture")
       }
     })
   }
@@ -217,8 +212,8 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             Retour
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Nouveau Devis</h1>
-            <p className="text-muted-foreground mt-1">Créez une proposition commerciale professionnelle</p>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Nouvelle Facture</h1>
+            <p className="text-muted-foreground mt-1">Créez une facture commerciale (sans devis associé)</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
@@ -231,18 +226,13 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             <Eye className="w-4 h-4" />
             Aperçu
           </Button>
-          {status === 'CONVERTI' && (
-            <div className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-sm font-semibold">
-              Devis Converti (Lecture seule)
-            </div>
-          )}
           <Button
             className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-            onClick={() => handleSave('EN_ATTENTE')}
-            disabled={isSubmitting || status === 'CONVERTI'}
+            onClick={() => handleSave(isDraft ? 'draft' : 'UNPAID')}
+            disabled={isSubmitting}
           >
-            <Save className="w-4 h-4" />
-            Enregistrer
+            {isDraft ? <Save className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+            {isDraft ? "Enregistrer" : "Finaliser & Envoyer"}
           </Button>
         </div>
       </div>
@@ -251,7 +241,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         <div className="lg:col-span-2 space-y-6">
           <Card className="bg-card border-border">
             <CardHeader className="pb-4">
-              <CardTitle className="text-foreground font-semibold text-base">Informations du Devis</CardTitle>
+              <CardTitle className="text-foreground font-semibold text-base">Informations de la Facture</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -259,10 +249,9 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   <Label className="text-muted-foreground text-sm">Date d'émission</Label>
                   <Input
                     type="date"
-                    value={quoteDate}
-                    onChange={(e) => setQuoteDate(e.target.value)}
+                    value={invoiceDate}
+                    onChange={(e) => setInvoiceDate(e.target.value)}
                     className="bg-secondary border-border text-foreground"
-                    disabled={status === 'CONVERTI'}
                   />
                 </div>
               </div>
@@ -292,7 +281,6 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                     variant="ghost"
                     size="sm"
                     onClick={() => setSelectedClient(null)}
-                    disabled={status === 'CONVERTI'}
                   >
                     Changer
                   </Button>
@@ -316,7 +304,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                     <DialogHeader>
                       <DialogTitle className="text-foreground">Rechercher un client</DialogTitle>
                       <VisuallyHidden>
-                        <DialogDescription>Sélectionnez un client dans votre base de données pour ce devis</DialogDescription>
+                        <DialogDescription>Sélectionnez un client dans votre base de données pour cette facture</DialogDescription>
                       </VisuallyHidden>
                     </DialogHeader>
                     <div className="mt-4 space-y-4">
@@ -411,7 +399,6 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                         value={item.quantity}
                         onChange={(e) => updateItem(item.id, "quantity", parseFloat(e.target.value) || 0)}
                         className="text-right"
-                        disabled={status === 'CONVERTI'}
                       />
                     </div>
                     <div className="col-span-4 md:col-span-2">
@@ -420,7 +407,6 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                         value={item.unitPrice}
                         onChange={(e) => updateItem(item.id, "unitPrice", parseFloat(e.target.value) || 0)}
                         className="text-right"
-                        disabled={status === 'CONVERTI'}
                       />
                     </div>
                     <div className="col-span-3 md:col-span-1 text-right pt-2 font-medium">
@@ -432,7 +418,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                         size="sm"
                         onClick={() => removeItem(item.id)}
                         className="text-muted-foreground hover:text-destructive"
-                        disabled={items.length === 1 || status === 'CONVERTI'}
+                        disabled={items.length === 1}
                       >
                         <Trash2 className="w-4 h-4" />
                       </Button>
@@ -464,7 +450,6 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                       className="w-24 h-7 text-right text-sm"
                       value={discount}
                       onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
-                      disabled={status === 'CONVERTI'}
                     />
                   </div>
                 </div>
@@ -507,13 +492,20 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
               </div>
 
                 <div className="pt-4 space-y-3">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border border-border">
+                    <div className="space-y-0.5">
+                        <Label className="text-sm font-medium">Mode Brouillon</Label>
+                        <p className="text-[10px] text-muted-foreground">La facture pourra être modifiée plus tard</p>
+                    </div>
+                    <Switch checked={isDraft} onCheckedChange={setIsDraft} />
+                  </div>
                 <Button
-                    onClick={() => handleSave('EN_ATTENTE')}
+                    onClick={() => handleSave(isDraft ? 'draft' : 'UNPAID')}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12"
-                  disabled={isSubmitting || status === 'CONVERTI'}
+                  disabled={isSubmitting}
                 >
-                    <Save className="w-4 h-4 mr-2" />
-                    {status === 'CONVERTI' ? "Devis Converti (Lecture seule)" : "Enregistrer le Devis"}
+                    {isDraft ? <Save className="w-4 h-4 mr-2" /> : <Send className="w-4 h-4 mr-2" />}
+                    {isDraft ? "Enregistrer en brouillon" : "Générer la Facture"}
                 </Button>
               </div>
             </CardContent>
@@ -525,11 +517,11 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         <DocumentPreview
           open={previewOpen}
           onOpenChange={setPreviewOpen}
-          type="Quote"
+          type="Invoice"
           data={{
             clientName: selectedClient.name,
             clientEmail: selectedClient.email,
-            date: quoteDate,
+            date: invoiceDate,
             items: items,
             subtotal: subtotal,
             discount: discount,

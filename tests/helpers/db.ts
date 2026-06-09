@@ -17,6 +17,7 @@ interface DbUser {
   created_at: string;
   last_login_at: string | null;
   created_by: string | null;
+  phone: string | null;
 }
 
 interface DbClient {
@@ -124,7 +125,8 @@ export function createTestDatabase(): Database.Database {
       force_password_change INTEGER NOT NULL DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       last_login_at DATETIME,
-      created_by TEXT
+      created_by TEXT,
+      phone TEXT
     );
 
     CREATE TABLE IF NOT EXISTS clients (
@@ -316,8 +318,8 @@ export function getTestDatabase(): Database.Database {
  * Seed test data into the database
  * Creates: 1 admin user, 1 regular user, 1 test client, 1 test invoice
  */
-export function seedTestData(): void {
-  const db = getTestDatabase();
+export function seedTestData(db?: Database.Database): void {
+  if (!db) db = getTestDatabase();
 
   // Insert admin user (using INSERT OR REPLACE to handle duplicates)
   const adminId = crypto.randomUUID();

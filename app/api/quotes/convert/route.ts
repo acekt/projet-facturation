@@ -63,9 +63,9 @@ export async function POST(request: Request) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    if (quote.status === 'invoiced') {
+    if (quote.status === 'CONVERTI') {
       const errorResponse: ErrorResponse = {
-        error: 'Quote already invoiced',
+        error: 'Quote already converted',
       };
       return NextResponse.json(errorResponse, { status: 400 });
     }
@@ -88,9 +88,9 @@ export async function POST(request: Request) {
       // Create invoice
       db.prepare(`
         INSERT INTO invoices (
-          id, number, quoteId, clientId, clientName, clientEmail, date, dueDate,
+          id, number, quoteId, clientId, clientName, clientEmail, date,
           subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         invoiceId,
         number,
@@ -98,7 +98,6 @@ export async function POST(request: Request) {
         quote.clientId,
         quote.clientName,
         quote.clientEmail,
-        new Date().toISOString().split('T')[0],
         new Date().toISOString().split('T')[0],
         Math.round(quote.subtotal),
         Math.round(quote.discount),
@@ -128,8 +127,8 @@ export async function POST(request: Request) {
         );
       }
 
-      // Atomic status transition: quote -> invoiced
-      db.prepare("UPDATE quotes SET status = 'invoiced' WHERE id = ?").run(quoteId);
+      // Atomic status transition: quote -> CONVERTI
+      db.prepare("UPDATE quotes SET status = 'CONVERTI' WHERE id = ?").run(quoteId);
 
       const response: QuoteConvertResponse = {
         invoiceId,

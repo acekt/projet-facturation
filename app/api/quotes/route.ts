@@ -12,7 +12,7 @@ import type { QuoteCreateRequest, QuoteResponse, QuoteItem, ErrorResponse, DbQuo
  * Fetch all quotes with their items
  * @returns {QuoteResponse[]} Array of quotes with items
  */
-export async function GET() {
+export async function GET(_request: Request) {
   try {
     const quotes = db.prepare(`
       SELECT q.*,
@@ -90,11 +90,11 @@ export async function POST(request: Request) {
 
       db.prepare(`
         INSERT INTO quotes (
-          id, number, clientId, clientName, clientEmail, date, dueDate,
+          id, number, clientId, clientName, clientEmail, date,
           subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, notes, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        id, number, quoteData.clientId, quoteData.clientName, quoteData.clientEmail, quoteData.date, quoteData.dueDate,
+        id, number, quoteData.clientId, quoteData.clientName, quoteData.clientEmail, quoteData.date,
         Math.round(quoteData.subtotal), Math.round(quoteData.discount), Math.round(quoteData.taxBase),
         Math.round(quoteData.tvaAmount), Math.round(quoteData.tpsAmount || 0), Math.round(quoteData.cssAmount),
         Math.round(quoteData.total), quoteData.notes, quoteData.status

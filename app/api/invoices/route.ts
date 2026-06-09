@@ -60,33 +60,18 @@ export async function POST(request: Request) {
 
     const data = validation.data;
 
-    // RULE 1: quoteId is strictly mandatory to create an invoice
-    if (!data.quoteId) {
-      const errorResponse: ErrorResponse = {
-        error: 'Une facture doit être associée à un devis existant.',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
-
-    // Validate the quote exists, is not soft-deleted, and has not been converted yet
-    const quote = db.prepare('SELECT status, deletedAt FROM quotes WHERE id = ?').get(data.quoteId) as { status: string; deletedAt: string | null } | undefined;
-    if (!quote) {
-      const errorResponse: ErrorResponse = {
-        error: 'Devis introuvable.',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
-    if (quote.deletedAt !== null) {
-      const errorResponse: ErrorResponse = {
-        error: 'Le devis associé a été supprimé.',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
-    }
-    if (quote.status === 'invoiced') {
-      const errorResponse: ErrorResponse = {
-        error: 'Ce devis a déjà été converti en facture.',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
+    // Validate quote if provided
+    if (data.quoteId) {
+      const quote = db.prepare('SELECT status, deletedAt FROM quotes WHERE id = ?').get(data.quoteId) as { status: string; deletedAt: string | null } | undefined;
+      if (!quote) {
+        return NextResponse.json({ error: 'Devis introuvable.' } as ErrorResponse, { status: 400 });
+      }
+      if (quote.deletedAt !== null) {
+        return NextResponse.json({ error: 'Le devis associé a été supprimé.' } as ErrorResponse, { status: 400 });
+      }
+      if (quote.status === 'invoiced') {
+        return NextResponse.json({ error: 'Ce devis a déjà été converti en facture.' } as ErrorResponse, { status: 400 });
+      }
     }
 
     const settings = db.prepare('SELECT invoicePrefix, companyCode FROM settings WHERE id = 1').get() as DbSettings | undefined;
@@ -107,14 +92,13 @@ export async function POST(request: Request) {
 
       db.prepare(`
         INSERT INTO invoices (
-          id, number, quoteId, clientId, clientName, clientEmail, date, dueDate,
-          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, notes, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          id, number, quoteId, clientId, clientName, clientEmail, date,
+          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        id, number, invData.quoteId, invData.clientId, invData.clientName, invData.clientEmail, invData.date, invData.dueDate,
+        id, number, invData.quoteId, invData.clientId, invData.clientName, invData.clientEmail, invData.date,
         Math.round(invData.subtotal), Math.round(invData.discount), Math.round(invData.taxBase),
-        Math.round(invData.tvaAmount), Math.round(invData.tpsAmount || 0), Math.round(invData.cssAmount), Math.round(invData.total), invData.notes,
-        invData.status === 'pending' ? 'UNPAID' : invData.status
+        Math.round(invData.tvaAmount), Math.round(invData.tpsAmount || 0), Math.round(invData.cssAmount), Math.round(invData.total), invData.status === 'pending' ? 'UNPAID' : invData.status, invData.notes
       );
 
       const insertItem = db.prepare(`
@@ -133,8 +117,10 @@ export async function POST(request: Request) {
         );
       }
 
-      // Automatically update the quote status to 'invoiced'
-      db.prepare("UPDATE quotes SET status = 'invoiced' WHERE id = ?").run(invData.quoteId);
+      // Automatically update the quote status to 'invoiced' if associated
+      if (invData.quoteId) {
+        db.prepare("UPDATE quotes SET status = 'invoiced' WHERE id = ?").run(invData.quoteId);
+      }
 
       logAudit('CREATE', 'invoice', id, `Nouvelle facture créée: ${number}`);
       return { id, number };

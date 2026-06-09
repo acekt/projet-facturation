@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import type { UserResponse } from '@/lib/types/api';
 
 export interface Client {
   id: string;
@@ -180,13 +181,14 @@ interface ViewFormat {
   invoices: 'table' | 'horizontal' | 'block'
   clients: 'table' | 'horizontal' | 'block'
   services: 'table' | 'horizontal' | 'block'
-  creditNotes: 'list' | 'grid'
+  creditNotes: 'table' | 'horizontal' | 'block'
 }
 
 interface AppState {
   user: User | null;
   permissions: RolePermissions | null;
   isAuthenticated: boolean;
+  isDataLoaded: boolean;
   clients: Client[];
   quotes: Quote[];
   invoices: Invoice[];
@@ -195,6 +197,8 @@ interface AppState {
   creditNotes: CreditNote[];
   settings: Settings;
   viewFormat: ViewFormat;
+  users: UserResponse[];
+  setIsDataLoaded: (loaded: boolean) => void;
   setUser: (user: User | null) => void;
   setClients: (clients: Client[]) => void;
   setQuotes: (quotes: Quote[]) => void;
@@ -204,6 +208,10 @@ interface AppState {
   setCreditNotes: (creditNotes: CreditNote[]) => void;
   setSettings: (settings: Settings) => void;
   setViewFormat: (page: keyof ViewFormat, format: ViewFormat[keyof ViewFormat]) => void;
+  setUsers: (users: UserResponse[]) => void;
+  addUser: (user: UserResponse) => void;
+  updateUser: (id: string, updates: Partial<UserResponse>) => void;
+  removeUser: (id: string) => void;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -234,6 +242,7 @@ export const useStore = create<AppState>()(
       user: null,
       permissions: null,
       isAuthenticated: false,
+      isDataLoaded: false,
       clients: [],
       quotes: [],
       invoices: [],
@@ -241,14 +250,16 @@ export const useStore = create<AppState>()(
       payments: [],
       creditNotes: [],
       settings: DEFAULT_SETTINGS,
+      users: [],
       viewFormat: {
         quotes: 'table',
         invoices: 'table',
         clients: 'block',
         services: 'block',
-        creditNotes: 'list'
+        creditNotes: 'horizontal'
       },
 
+      setIsDataLoaded: (isDataLoaded) => set({ isDataLoaded }),
       setUser: (user) => {
         const permissions = user
           ? (user.role === 'admin' ? ADMIN_PERMISSIONS : USER_PERMISSIONS)
@@ -264,6 +275,14 @@ export const useStore = create<AppState>()(
       setSettings: (settings) => set({ settings }),
       setViewFormat: (page, format) => set((state) => ({
         viewFormat: { ...state.viewFormat, [page]: format }
+      })),
+      setUsers: (users) => set({ users }),
+      addUser: (user) => set((state) => ({ users: [...state.users, user] })),
+      updateUser: (id, updates) => set((state) => ({
+        users: state.users.map((u) => (u.id === id ? { ...u, ...updates } : u)),
+      })),
+      removeUser: (id) => set((state) => ({
+        users: state.users.map((u) => u.id === id ? { ...u, is_active: 0, deletedAt: new Date().toISOString() } : u),
       })),
     }),
     {

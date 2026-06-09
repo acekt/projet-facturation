@@ -84,7 +84,7 @@ describe('Integration Test - RBAC Limits', () => {
       960,
       100,
       12878,
-      'draft',
+      'EN_ATTENTE',
       new Date().toISOString()
     );
 
@@ -92,7 +92,7 @@ describe('Integration Test - RBAC Limits', () => {
       method: 'DELETE',
     });
 
-    const params = await Promise.resolve({ id: quoteId });
+    const params = Promise.resolve({ id: quoteId });
     const response = await DELETEQuote(request, { params });
     const data = await response.json();
 
@@ -132,7 +132,7 @@ describe('Integration Test - RBAC Limits', () => {
       method: 'DELETE',
     });
 
-    const params = await Promise.resolve({ id: invoiceId });
+    const params = Promise.resolve({ id: invoiceId });
     const response = await DELETEInvoice(request, { params });
     const data = await response.json();
 
@@ -187,7 +187,7 @@ describe('Integration Test - RBAC Limits', () => {
       method: 'DELETE',
     });
 
-    const params = await Promise.resolve({ id: paymentId });
+    const params = Promise.resolve({ id: paymentId });
     const response = await DELETEPayment(request, { params });
     const data = await response.json();
 

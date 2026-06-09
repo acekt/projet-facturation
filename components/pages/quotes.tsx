@@ -34,7 +34,7 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { DocumentPreview } from "@/components/document-preview"
 import { PrintableDocument } from "@/components/printable-document"
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
@@ -47,7 +47,12 @@ interface QuotesPageProps {
 }
 
 export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
-  const { quotes, setQuotes, settings, user, viewFormat, setViewFormat } = useStore()
+  const quotes = useStore(state => state.quotes)
+  const setQuotes = useStore(state => state.setQuotes)
+  const settings = useStore(state => state.settings)
+  const user = useStore(state => state.user)
+  const viewFormat = useStore(state => state.viewFormat)
+  const setViewFormat = useStore(state => state.setViewFormat)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 10
@@ -75,14 +80,10 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
 
   const getStatusBadge = (status: Quote['status']) => {
     switch (status) {
-      case "draft":
-        return <Badge variant="secondary" className="bg-slate-100 text-slate-700 border-slate-200">Brouillon</Badge>
-      case "sent":
-        return <Badge variant="secondary" className="bg-blue-100 text-blue-700 border-blue-200">Envoyé</Badge>
-      case "invoiced":
-        return <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">Facturé</Badge>
-      case "rejected":
-        return <Badge variant="secondary" className="bg-red-100 text-red-700 border-red-200">Refusé</Badge>
+      case "EN_ATTENTE":
+        return <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-200">En Attente</Badge>
+      case "CONVERTI":
+        return <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">Converti</Badge>
       default:
         return null
     }
@@ -90,14 +91,12 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
 
   const getStatusIcon = (status: Quote['status']) => {
     switch (status) {
-      case "draft":
-        return <Clock className="w-4 h-4 text-slate-500" />
-      case "sent":
-        return <AlertCircle className="w-4 h-4 text-blue-500" />
-      case "invoiced":
+      case "EN_ATTENTE":
+        return <Clock className="w-4 h-4 text-amber-500" />
+      case "CONVERTI":
         return <CheckCircle2 className="w-4 h-4 text-green-500" />
-      case "rejected":
-        return <XCircle className="w-4 h-4 text-red-500" />
+      default:
+        return null
     }
   }
 
@@ -180,7 +179,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
         </div>
         {user?.role === 'user' && (
           <Button
-            onClick={onCreateQuote}
+            onClick={() => onCreateQuote()}
             className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
           >
             <Plus className="w-4 h-4" />
@@ -259,7 +258,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           <Download className="w-4 h-4" />
                           {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
                         </DropdownMenuItem>
-                        {quote.status !== 'invoiced' && user?.role === 'user' && (
+                        {quote.status !== 'CONVERTI' && user?.role === 'user' && (
                           <>
                             <DropdownMenuItem
                               className="gap-2"
@@ -330,22 +329,18 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           {getStatusBadge(quote.status)}
                         </div>
                         <div className="flex flex-col md:flex-row md:items-center gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-muted-foreground">
-                          <span className="font-black text-foreground/80 uppercase tracking-tighter">{quote.clientName}</span>
+                          <span className="font-semibold text-foreground/80 uppercase tracking-tighter">{quote.clientName}</span>
                           <span className="flex items-center gap-1 opacity-60">
                             <Clock className="w-3 h-3" />
                             Émission: {formatDate(quote.date)}
-                          </span>
-                          <span className="flex items-center gap-1 opacity-60">
-                            <Clock className="w-3 h-3" />
-                            Échéance: {formatDate(quote.dueDate)}
                           </span>
                         </div>
                       </div>
                     </div>
                     <div className="flex items-center gap-4 md:gap-6">
                       <div className="text-right hidden sm:block">
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-black">Total TTC</p>
-                        <p className="text-lg font-black text-foreground tracking-tighter">{formatCurrency(quote.total)}</p>
+                        <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Total TTC</p>
+                        <p className="text-lg font-semibold text-foreground tracking-tighter">{formatCurrency(quote.total)}</p>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -368,7 +363,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                             <Download className="w-4 h-4" />
                             {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
                           </DropdownMenuItem>
-                          {quote.status !== 'invoiced' && user?.role === 'user' && (
+                          {quote.status !== 'CONVERTI' && user?.role === 'user' && (
                             <>
                             <DropdownMenuItem
                               className="gap-2"
@@ -443,7 +438,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                    <p className="text-lg font-black text-foreground tracking-tighter">{formatCurrency(quote.total)}</p>
+                    <p className="text-lg font-semibold text-foreground tracking-tighter">{formatCurrency(quote.total)}</p>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
@@ -465,7 +460,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           <Download className="w-4 h-4" />
                           {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
                         </DropdownMenuItem>
-                        {quote.status !== 'invoiced' && user?.role === 'user' && (
+                        {quote.status !== 'CONVERTI' && user?.role === 'user' && (
                           <>
                             <DropdownMenuItem
                               className="gap-2"
@@ -537,9 +532,14 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
           </VisuallyHidden>
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
             <h2 className="font-bold text-black">Aperçu avant impression</h2>
-            <Button onClick={() => {
-                if ((window as any).electron) {
-                    (window as any).electron.print();
+            <Button onClick={async () => {
+                if (window.electron) {
+                    try {
+                        await window.electron.print();
+                    } catch (err) {
+                        console.error('[Print] IPC error:', err);
+                        toast.error("Erreur lors du lancement de l'impression");
+                    }
                 } else {
                     window.print();
                 }

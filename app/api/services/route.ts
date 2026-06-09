@@ -49,14 +49,6 @@ export async function POST(request: Request) {
       return NextResponse.json(errorResponse, { status: 401 });
     }
 
-    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session.userId) as { role: string } | undefined;
-    if (!user || user.role !== 'user') {
-      const errorResponse: ErrorResponse = {
-        error: 'Unauthorized: Only Users can manage services',
-      };
-      return NextResponse.json(errorResponse, { status: 403 });
-    }
-
     const body: unknown = await request.json();
 
     // Validate request payload with Zod

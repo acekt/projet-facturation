@@ -307,7 +307,7 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
         {/* Client Info */}
         <View style={{ marginBottom: 30, fontSize: 10 }}>
           <Text style={{ fontWeight: 'bold' }}>Client: {document.clientName}</Text>
-          <Text>Objet: {document.notes || "Prestations de services"}</Text>
+          <Text>Objet: {('notes' in document ? (document as any).notes : null) || "Prestations de services"}</Text>
           <Text>NIF:</Text>
           <Text>BC:</Text>
         </View>
@@ -340,7 +340,7 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
             </View>
             <View style={styles.totalCol}>
               <Text style={styles.totalLabel}>Remise</Text>
-              <Text style={styles.totalVal}>{formatCurrencyPDF(document.discount)}</Text>
+              <Text style={styles.totalVal}>{formatCurrencyPDF('discount' in document ? (document as any).discount : 0)}</Text>
             </View>
             <View style={styles.totalCol}>
               <Text style={styles.totalLabel}>Net HT</Text>

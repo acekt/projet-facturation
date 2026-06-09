@@ -74,9 +74,9 @@ export async function POST(request: Request) {
 
       db.prepare(`
         INSERT INTO quotes (
-          id, number, clientId, clientName, clientEmail, date, dueDate,
+          id, number, clientId, clientName, clientEmail, date,
           subtotal, discount, taxBase, tvaAmount, cssAmount, total, notes, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         newId,
         number,
@@ -84,7 +84,6 @@ export async function POST(request: Request) {
         quote.clientName,
         quote.clientEmail,
         new Date().toISOString().split('T')[0],
-        quote.dueDate,
         quote.subtotal,
         quote.discount,
         quote.taxBase,
@@ -92,7 +91,7 @@ export async function POST(request: Request) {
         quote.cssAmount,
         quote.total,
         quote.notes,
-        'draft'
+        'EN_ATTENTE'
       );
 
       const insertItem = db.prepare(`

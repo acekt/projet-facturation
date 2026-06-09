@@ -42,7 +42,6 @@ export const invoiceSchema = z.object({
   total: z.number().min(0),
   status: z.enum(['PAID', 'PARTIALLY_PAID', 'UNPAID', 'overdue', 'draft', 'cancelled', 'pending']),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide"),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date d'échéance invalide"),
   items: z.array(invoiceItemSchema).min(1, "Au moins un article est requis"),
   notes: z.string().optional(),
   quoteId: z.string().optional(),
@@ -59,9 +58,8 @@ export const quoteSchema = z.object({
   tvaAmount: z.number().min(0),
   cssAmount: z.number().min(0),
   total: z.number().min(0),
-  status: z.enum(['draft', 'sent', 'invoiced', 'rejected']),
+  status: z.enum(['EN_ATTENTE', 'CONVERTI']),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide"),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date d'échéance invalide"),
   items: z.array(quoteItemSchema).min(1, "Au moins un article est requis"),
   notes: z.string().optional(),
 });
@@ -122,7 +120,9 @@ export const userCreateSchema = z.object({
   email: z.string().email("Adresse email invalide"),
   username: z.string().min(1, "L'identifiant est requis"),
   role: z.enum(['admin', 'user']),
-  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères"),
+  password: z.string()
+    .min(8, "Le mot de passe doit contenir au moins 8 caractères")
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre"),
   phone: z.string().optional(),
   force_password_change: z.boolean().default(true),
   is_active: z.boolean().default(true),
@@ -132,7 +132,10 @@ export const userUpdateSchema = z.object({
   name: z.string().min(2, "Le nom doit contenir au moins 2 caractères"),
   email: z.string().email("Adresse email invalide"),
   role: z.enum(['admin', 'user']),
-  password: z.string().min(8, "Le mot de passe doit contenir au moins 8 caractères").optional(),
+  password: z.string()
+    .min(8, "Le mot de passe doit contenir au moins 8 caractères")
+    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre")
+    .optional(),
   phone: z.string().optional(),
   force_password_change: z.boolean().optional(),
   is_active: z.boolean().optional(),

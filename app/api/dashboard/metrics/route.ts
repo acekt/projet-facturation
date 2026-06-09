@@ -34,16 +34,35 @@ export async function GET(request: Request) {
     }
 
     // 1. Total Revenue within range (exclude soft-deleted payments)
-    const totalRevenueRow = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE ${dateFilter} AND deletedAt IS NULL`).get() as DbTotal;
+    const totalRevenueRow = db.prepare(`
+      SELECT COALESCE(SUM(p.amount), 0) as total 
+      FROM payments p
+      JOIN invoices i ON p.invoiceId = i.id
+      WHERE ${dateFilter.replace(/date/g, 'p.date')} AND p.deletedAt IS NULL AND i.deletedAt IS NULL AND i.status = 'PAID'
+    `).get() as DbTotal;
     const totalRevenue = totalRevenueRow.total;
 
     // 2. Growth calculation
-    const currentRevRow = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE ${dateFilter} AND deletedAt IS NULL`).get() as DbTotal;
-    const prevRevRow = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE ${prevDateFilter} AND deletedAt IS NULL`).get() as DbTotal;
+    const currentRevRow = db.prepare(`
+      SELECT COALESCE(SUM(p.amount), 0) as total 
+      FROM payments p
+      JOIN invoices i ON p.invoiceId = i.id
+      WHERE ${dateFilter.replace(/date/g, 'p.date')} AND p.deletedAt IS NULL AND i.deletedAt IS NULL AND i.status = 'PAID'
+    `).get() as DbTotal;
+    
+    const prevRevRow = db.prepare(`
+      SELECT COALESCE(SUM(p.amount), 0) as total 
+      FROM payments p
+      JOIN invoices i ON p.invoiceId = i.id
+      WHERE ${prevDateFilter.replace(/date/g, 'p.date')} AND p.deletedAt IS NULL AND i.deletedAt IS NULL AND i.status = 'PAID'
+    `).get() as DbTotal;
 
     const growth = prevRevRow.total > 0
       ? ((currentRevRow.total - prevRevRow.total) / prevRevRow.total * 100).toFixed(1)
       : (currentRevRow.total > 0 ? "100.0" : "0.0");
+
+    // Yield to Event Loop
+    await new Promise(resolve => setImmediate(resolve));
 
     // 3. Pending Revenue (Sum of remaining totals of active invoices, exclude soft-deleted payments)
     const pendingRevenueRow = db.prepare(`
@@ -72,6 +91,9 @@ export async function GET(request: Request) {
     const unpaidCount = unpaidCountRow.count;
     const partiallyPaidCount = partiallyPaidCountRow.count;
 
+    // Yield to Event Loop
+    await new Promise(resolve => setImmediate(resolve));
+
     // 5b. Pending Quotes (quotes not converted to invoices)
     const pendingQuotesCountRow = db.prepare("SELECT COUNT(*) as count FROM quotes WHERE status NOT IN ('invoiced', 'archived') AND deletedAt IS NULL").get() as DbCount;
     const pendingQuotesCount = pendingQuotesCountRow.count;
@@ -97,48 +119,129 @@ export async function GET(request: Request) {
       GROUP BY u.id, u.name
     `).all() as Array<{ name: string; docsCount: number; totalRevenue: number }>;
 
-    // 6. Dynamic Revenue Data based on range
-    let revenueData: Array<{ date: string; revenue: number }> = [];
+    // Yield to Event Loop
+    await new Promise(resolve => setImmediate(resolve));
+
+    // 6. Dynamic Revenue Data based on range (Optimized single database queries)
+    let revenueData: Array<{ date: string; revenue: number; label: string; value: number }> = [];
     if (validatedRange === 'month') {
-      // Last 30 days
+      // Last 30 days - optimized single query grouping by date
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - 29);
+      const startDateStr = startDate.toISOString().split('T')[0];
+
+      const paymentsGrouped = db.prepare(`
+        SELECT p.date, SUM(p.amount) as total 
+        FROM payments p
+        JOIN invoices i ON p.invoiceId = i.id
+        WHERE p.date >= ? AND p.deletedAt IS NULL AND i.deletedAt IS NULL AND i.status = 'PAID'
+        GROUP BY p.date
+      `).all(startDateStr) as Array<{ date: string; total: number }>;
+
+      const paymentsMap = new Map(paymentsGrouped.map(p => [p.date, p.total]));
+
       for (let i = 29; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
-        const row = db.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE date = ? AND deletedAt IS NULL").get(dateStr) as DbTotal;
-        revenueData.push({ date: dateStr, revenue: row.total });
+        const revenue = paymentsMap.get(dateStr) || 0;
+        
+        // Format date label (e.g., "08 juin")
+        const label = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
+        
+        revenueData.push({
+          date: dateStr,
+          revenue,
+          label,
+          value: revenue
+        });
       }
     } else {
-      // Monthly for current year
+      // Monthly for current year - optimized single query grouping by month
+      const paymentsGrouped = db.prepare(`
+        SELECT strftime('%m', p.date) as monthStr, SUM(p.amount) as total 
+        FROM payments p
+        JOIN invoices i ON p.invoiceId = i.id
+        WHERE strftime('%Y', p.date) = strftime('%Y', 'now') AND p.deletedAt IS NULL AND i.deletedAt IS NULL AND i.status = 'PAID'
+        GROUP BY monthStr
+      `).all() as Array<{ monthStr: string; total: number }>;
+
+      const paymentsMap = new Map(paymentsGrouped.map(p => [p.monthStr, p.total]));
+
       const months = ["Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec"];
       revenueData = months.map((m, i) => {
         const monthStr = String(i + 1).padStart(2, '0');
-        const row = db.prepare(`
-          SELECT COALESCE(SUM(amount), 0) as total FROM payments
-          WHERE strftime('%Y', date) = strftime('%Y', 'now')
-          AND strftime('%m', date) = ?
-          AND deletedAt IS NULL
-        `).get(monthStr) as DbTotal;
-        return { date: `${i + 1}/${new Date().getFullYear()}`, revenue: row.total };
+        const revenue = paymentsMap.get(monthStr) || 0;
+        return {
+          date: `${i + 1}/${new Date().getFullYear()}`,
+          revenue,
+          label: m,
+          value: revenue
+        };
       });
     }
 
-    // 7. Payment methods distribution percentages (exclude soft-deleted payments)
-    const totalPaymentsCountRow = db.prepare("SELECT COUNT(*) as count FROM payments WHERE deletedAt IS NULL").get() as DbCount;
+    // Yield to Event Loop
+    await new Promise(resolve => setImmediate(resolve));
+
+    const totalPaymentsCountRow = db.prepare(`
+      SELECT COUNT(*) as count 
+      FROM payments p
+      JOIN invoices i ON p.invoiceId = i.id
+      WHERE p.deletedAt IS NULL AND i.deletedAt IS NULL AND i.status = 'PAID'
+    `).get() as DbCount;
     const totalPaymentsCount = totalPaymentsCountRow.count || 1;
 
+    const paymentsGroupedByMethod = db.prepare(`
+      SELECT p.paymentMethod, COUNT(*) as count 
+      FROM payments p
+      JOIN invoices i ON p.invoiceId = i.id
+      WHERE p.deletedAt IS NULL AND i.deletedAt IS NULL AND i.status = 'PAID'
+      GROUP BY p.paymentMethod
+    `).all() as Array<{ paymentMethod: string; count: number }>;
+
+    const paymentCountsMap = new Map(paymentsGroupedByMethod.map(p => [p.paymentMethod, p.count]));
+
     const paymentMethodData = [
-      { name: "Airtel Money", key: "airtel", color: "#ef4444" },
-      { name: "Moov Money", key: "moov", color: "#3b82f6" },
-      { name: "Virement", key: "virement", color: "#10b981" },
-      { name: "Autre/Cash", key: "cash", color: "#64748b" },
+      { name: "Airtel Money", key: "Airtel Money" },
+      { name: "Moov Money", key: "Moov Money" },
+      { name: "Virement", key: "Virement Bancaire" },
+      { name: "Espèces", key: "Espèces" },
+      { name: "Chèque", key: "Chèque" },
     ].map(m => {
-      const countRow = db.prepare("SELECT COUNT(*) as count FROM payments WHERE paymentMethod = ? AND deletedAt IS NULL").get(m.key) as DbCount;
+      const count = paymentCountsMap.get(m.key) || 0;
       return {
         method: m.name,
-        amount: Math.round((countRow.count / totalPaymentsCount) * 100),
+        amount: Math.round((count / totalPaymentsCount) * 100),
       };
     }).filter(m => m.amount > 0);
+
+    // 8. Recent activity timeline from audit logs
+    const recentLogs = db.prepare(`
+      SELECT id, action, details, createdAt, userName
+      FROM audit_logs
+      ORDER BY createdAt DESC
+      LIMIT 5
+    `).all() as Array<{ id: string; action: string; details: string; createdAt: string; userName: string | null }>;
+
+    const activityTimeline = recentLogs.map(log => {
+      const dateVal = new Date(log.createdAt);
+      // Format time as "HH:MM DD/MM"
+      const timeStr = dateVal.toLocaleTimeString('fr-FR', {
+        hour: '2-digit',
+        minute: '2-digit'
+      }) + ' ' + dateVal.toLocaleDateString('fr-FR', {
+        day: '2-digit',
+        month: '2-digit'
+      });
+
+      return {
+        id: log.id,
+        action: log.details || log.action,
+        client: log.userName || 'Système',
+        time: timeStr
+      };
+    });
 
     const response: DashboardMetricsResponse = {
       totalRevenue,
@@ -154,6 +257,7 @@ export async function GET(request: Request) {
       userPerformance,
       revenueData,
       paymentMethodData,
+      activityTimeline,
     };
 
     return NextResponse.json(response);

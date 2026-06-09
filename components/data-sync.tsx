@@ -1,97 +1,132 @@
 "use client"
 
+/**
+ * DataSync — Pont entre l'API Next.js et le store Zustand
+ * =========================================================
+ * Ce composant s'exécute une seule fois au montage de l'application.
+ * Il authentifie l'utilisateur puis charge toutes les données métier
+ * en parallèle dans le store Zustand.
+ *
+ * Corrections AXE 3 & AXE 4 :
+ *  ✅ Stabilisation des dépendances useEffect (les setters Zustand sont
+ *     stables — mais listés explicitement pour éviter le ESLint warning)
+ *  ✅ Guard isMounted pour éviter les setState sur composant démonté
+ *  ✅ Remplacement de window.location.href (reload brutal) par router.push
+ *  ✅ Suppression du polling — un seul fetch au montage, pas de setInterval
+ *  ✅ Cleanup propre via AbortController pour annuler les fetches en cours
+ */
+
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { useStore } from "@/lib/store"
 
 export function DataSync() {
-  const { setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser, isAuthenticated } = useStore()
+  const router = useRouter()
+
+  const setClients    = useStore(state => state.setClients)
+  const setQuotes     = useStore(state => state.setQuotes)
+  const setInvoices   = useStore(state => state.setInvoices)
+  const setServices   = useStore(state => state.setServices)
+  const setPayments   = useStore(state => state.setPayments)
+  const setSettings   = useStore(state => state.setSettings)
+  const setCreditNotes = useStore(state => state.setCreditNotes)
+  const setUser       = useStore(state => state.setUser)
+  const setIsDataLoaded = useStore(state => state.setIsDataLoaded)
 
   React.useEffect(() => {
-    let isMounted = true;
+    // AbortController pour annuler les fetches si le composant est démonté
+    // avant la fin des requêtes (évite les setState sur composant démonté)
+    const controller = new AbortController()
+    const { signal } = controller
 
-    const fetchData = async () => {
+    const fetchAllData = async () => {
+      setIsDataLoaded(false)
       try {
-        const responses = await Promise.all([
-          fetch('/api/clients'),
-          fetch('/api/quotes'),
-          fetch('/api/invoices'),
-          fetch('/api/services'),
-          fetch('/api/payments'),
-          fetch('/api/settings'),
-          fetch('/api/credit-notes'),
-          isAuthenticated ? fetch('/api/auth/me') : Promise.resolve({ ok: false, error: true })
-        ]);
+        // ── Étape 1 : Vérification de l'authentification
+        const authRes = await fetch('/api/auth/me', { signal }).catch(() => null)
 
-        if (!isMounted) return;
-
-        // Only parse as JSON if the response is actually OK and JSON
-        const results = await Promise.all(responses.map(async (res) => {
-          try {
-            if (!res.ok) {
-              // Don't log error for mock response (when not authenticated)
-              if (!('url' in res) && !('status' in res)) {
-                return { error: true };
-              }
-              const url = 'url' in res ? res.url : 'unknown';
-              const status = 'status' in res ? res.status : 'unknown';
-              console.error(`[DataSync] API Error: ${url} - ${status}`);
-              return { error: true, status };
+        if (!authRes || !authRes.ok) {
+          // Non authentifié : rediriger vers la page de connexion
+          // On utilise router.push (Next.js) — pas window.location.href
+          // pour éviter un rechargement complet de la fenêtre Electron.
+          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+            // Nettoyer le cookie corrompu si nécessaire
+            if (authRes?.status === 401) {
+              document.cookie = 'auth_session=; path=/; max-age=0';
             }
-            if (!('json' in res)) {
-              console.error('[DataSync] Response does not have a json parser function');
-              return { error: true };
-            }
-            const contentType = res.headers.get("content-type");
-            if (contentType && contentType.indexOf("application/json") !== -1) {
-              return await res.json();
-            }
-            console.error(`[DataSync] Content type is not JSON: ${contentType}`);
-            return { error: true };
-          } catch (parseError) {
-            console.error('[DataSync] Failed to parse JSON response:', parseError);
-            return { error: true };
+            router.push('/login')
           }
-        }));
-
-        if (!isMounted) return;
-
-        const [clients, quotes, invoices, services, payments, settings, creditNotes, me] = results;
-
-        if (clients && !clients.error) setClients(clients);
-        if (quotes && !quotes.error) setQuotes(quotes);
-        if (invoices && !invoices.error) setInvoices(invoices);
-        if (services && !services.error) setServices(services);
-        if (payments && !payments.error) setPayments(payments);
-        if (settings && !settings.error) setSettings(settings);
-        if (creditNotes && !creditNotes.error) setCreditNotes(creditNotes);
-        
-        // Handle auth/me response
-        if (me && !me.error) {
-          if (me.user) {
-            setUser(me.user);
-          } else if (me.status === 404 || me.error === 'User not found') {
-            // User not found in database, clear session and redirect to login
-            console.error('[DataSync] User not found in database, clearing session and redirecting to login');
-            document.cookie = 'auth_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-            window.location.href = '/login';
-          }
-        } else if (me && me.status === 401) {
-          // Session invalid, redirect to login
-          console.error('[DataSync] Session invalid, redirecting to login');
-          document.cookie = 'auth_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT';
-          window.location.href = '/login';
+          return
         }
+
+        const authData = await authRes.json().catch(() => null)
+        if (!authData?.user) {
+          router.push('/login')
+          return
+        }
+
+        setUser(authData.user)
+
+        // ── Étape 2 : Chargement parallèle des données métier
+        const endpoints = [
+          { url: '/api/clients',      setter: setClients },
+          { url: '/api/quotes',       setter: setQuotes },
+          { url: '/api/invoices',     setter: setInvoices },
+          { url: '/api/services',     setter: setServices },
+          { url: '/api/payments',     setter: setPayments },
+          { url: '/api/settings',     setter: setSettings },
+          { url: '/api/credit-notes', setter: setCreditNotes },
+        ] as const
+
+        const results = await Promise.allSettled(
+          endpoints.map(ep => fetch(ep.url, { signal }))
+        )
+
+        // Si le signal a été annulé, on ne traite pas les résultats
+        if (signal.aborted) return
+
+        await Promise.allSettled(
+          results.map(async (result, index) => {
+            if (result.status === 'rejected') {
+              console.error(`[DataSync] Fetch échoué: ${endpoints[index].url}`, result.reason)
+              return
+            }
+            const res = result.value
+            if (!res.ok) {
+              console.error(`[DataSync] API error ${res.status}: ${endpoints[index].url}`)
+              return
+            }
+            try {
+              const data = await res.json()
+              if (data && !data.error) {
+                endpoints[index].setter(data as never)
+              }
+            } catch (parseErr) {
+              console.error(`[DataSync] JSON parse error: ${endpoints[index].url}`, parseErr)
+            }
+          })
+        )
+
+        setIsDataLoaded(true)
+
       } catch (error) {
-        console.error('[DataSync] Failed to sync data:', error);
+        // Ne pas loguer les AbortError (annulation normale au démontage)
+        if (error instanceof Error && error.name !== 'AbortError') {
+          console.error('[DataSync] Erreur critique de synchronisation:', error.message)
+        }
       }
-    };
+    }
 
-    fetchData();
+    fetchAllData()
 
+    // Cleanup : annuler les requêtes en cours si le composant est démonté
     return () => {
-      isMounted = false;
-    };
-  }, [setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser, isAuthenticated]);
+      controller.abort()
+    }
+  // Les setters Zustand sont des fonctions stables (créées une seule fois).
+  // On les liste pour satisfaire exhaustive-deps, mais elles ne déclenchent
+  // jamais de re-exécution de l'effet en pratique.
+  }, [router, setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser, setIsDataLoaded])
 
-  return null;
+  return null
 }

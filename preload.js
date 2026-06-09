@@ -1,5 +1,46 @@
+/**
+ * preload.js — Script de Préchargement Electron "L'Étoile"
+ * ==========================================================
+ * RÈGLES DE SÉCURITÉ (contextIsolation = true) :
+ *  ✅ Exposer uniquement des fonctions sûres via contextBridge
+ *  ❌ NE JAMAIS exposer `require`, `process`, `ipcRenderer` brut
+ *  ❌ NE JAMAIS exposer __dirname ou des accès système non contrôlés
+ *
+ * Le renderer accède à ces méthodes via : window.electron.xxx()
+ */
+
+'use strict';
+
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electron', {
-  print: () => ipcRenderer.send('print-to-pdf'),
+  /**
+   * Déclenche la boîte de dialogue d'impression native.
+   * @returns {Promise<{ success: boolean }>}
+   */
+  print: () => ipcRenderer.invoke('print-to-pdf'),
+
+  /**
+   * Récupère la version de l'application (depuis package.json via main).
+   * @returns {Promise<string>} — ex: "4.0.0"
+   */
+  getVersion: () => ipcRenderer.invoke('app:get-version'),
+
+  /**
+   * Récupère le chemin du dossier userData (pour debug dans l'UI Paramètres).
+   * @returns {Promise<string>} — ex: "C:\\Users\\User\\AppData\\Roaming\\L'Etoile"
+   */
+  getUserDataPath: () => ipcRenderer.invoke('app:get-userData-path'),
+
+  /**
+   * Identifiant de la plateforme OS — lecture seule, pas d'invoke réseau.
+   * @type {'win32' | 'darwin' | 'linux'}
+   */
+  platform: process.platform,
+
+  /**
+   * Indique si l'app tourne dans Electron (utile pour les composants UI
+   * qui adaptent leur comportement Desktop vs. navigateur web).
+   */
+  isElectron: true,
 });

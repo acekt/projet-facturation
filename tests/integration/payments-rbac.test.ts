@@ -285,7 +285,7 @@ describe('API RBAC Tests - Payments Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: paymentId });
+      const params = Promise.resolve({ id: paymentId });
       const response = await DELETEPayment(request, { params });
       const data = await response.json();
 
@@ -339,7 +339,7 @@ describe('API RBAC Tests - Payments Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: paymentId });
+      const params = Promise.resolve({ id: paymentId });
       const response = await DELETEPayment(request, { params });
       const data: ErrorResponse = await response.json();
 
@@ -391,7 +391,7 @@ describe('API RBAC Tests - Payments Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: paymentId });
+      const params = Promise.resolve({ id: paymentId });
       const response = await DELETEPayment(request, { params });
       const data: ErrorResponse = await response.json();
 
@@ -409,7 +409,7 @@ describe('API RBAC Tests - Payments Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: paymentId });
+      const params = Promise.resolve({ id: paymentId });
       const response = await DELETEPayment(request, { params });
       const data: ErrorResponse = await response.json();
 
@@ -463,7 +463,7 @@ describe('API RBAC Tests - Payments Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: paymentId });
+      const params = Promise.resolve({ id: paymentId });
       const response = await DELETEPayment(request, { params });
       const data: ErrorResponse = await response.json();
 
@@ -516,7 +516,7 @@ describe('API RBAC Tests - Payments Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: paymentId });
+      const params = Promise.resolve({ id: paymentId });
       const response = await DELETEPayment(request, { params });
       const data = await response.json();
 
@@ -587,7 +587,7 @@ describe('API RBAC Tests - Payments Module', () => {
         method: 'DELETE',
       });
 
-      const params = await Promise.resolve({ id: paymentId1 });
+      const params = Promise.resolve({ id: paymentId1 });
       const response = await DELETEPayment(request, { params });
       const data = await response.json();
 

@@ -1,15 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
-import crypto from 'crypto';
+import bcrypt from 'bcryptjs';
 import { userCreateSchema } from '@/lib/validations';
 import type { UserCreateRequest, UserResponse, ErrorResponse, DbUser } from '@/lib/types/api';
 
-const SALT = 'letoile-gabon-2026';
-
-function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password + SALT).digest('hex');
-}
+const SALT_ROUNDS = 10;
 
 export async function GET() {
   try {
@@ -21,7 +17,7 @@ export async function GET() {
       return NextResponse.json(errorResponse, { status: 403 });
     }
 
-    const users = db.prepare('SELECT id, name, email, username, role, is_active, created_at, last_login_at, phone FROM users').all() as DbUser[];
+    const users = db.prepare('SELECT id, name, email, username, role, is_active, created_at, last_login_at, phone, deletedAt FROM users').all() as DbUser[];
     const userResponses: UserResponse[] = users.map((user): UserResponse => ({
       id: user.id,
       name: user.name,
@@ -32,6 +28,7 @@ export async function GET() {
       created_at: user.created_at,
       last_login_at: user.last_login_at,
       phone: user.phone,
+      deletedAt: user.deletedAt,
     }));
 
     return NextResponse.json(userResponses);
@@ -71,7 +68,7 @@ export async function POST(request: Request) {
     const { name, email, username, role, password, phone, force_password_change, is_active }: UserCreateRequest = validation.data;
 
     const id = crypto.randomUUID();
-    const hashedPassword = hashPassword(password);
+    const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     db.prepare(`
       INSERT INTO users (id, name, email, username, password, role, is_active, created_by, phone)

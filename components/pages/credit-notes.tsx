@@ -8,7 +8,10 @@ import {
   Search,
   RefreshCcw,
   MoreVertical,
+  LayoutList,
+  Grid3x3,
 } from "lucide-react"
+import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -25,7 +28,7 @@ import { toast } from "sonner"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
 import { Pagination } from "@/components/ui/pagination-custom"
-import { ViewFormatSelector } from "@/components/ui/view-format-selector"
+import { cn } from "@/lib/utils"
 
 export function CreditNotesPage() {
   const { creditNotes, settings, viewFormat, setViewFormat } = useStore()
@@ -72,21 +75,19 @@ export function CreditNotesPage() {
     }
   }
 
-  const format = viewFormat.creditNotes || 'list'
+  const format = viewFormat.creditNotes || 'horizontal'
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-black text-foreground tracking-tight">Avoirs</h1>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Avoirs</h1>
           <p className="text-muted-foreground mt-1">Consultez les notes d'avoir émises (annulations)</p>
         </div>
-        <div className="flex items-center gap-2">
-          <ViewFormatSelector
-            currentFormat={format}
-            onFormatChange={(f: 'list' | 'grid') => setViewFormat('creditNotes', f)}
-          />
-        </div>
+        <ViewFormatSelector
+          currentFormat={format as 'table' | 'horizontal' | 'block'}
+          onFormatChange={(f: 'table' | 'horizontal' | 'block') => setViewFormat('creditNotes', f)}
+        />
       </div>
 
       <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border">
@@ -101,7 +102,52 @@ export function CreditNotesPage() {
         </div>
       </div>
 
-      {format === 'list' ? (
+      {format === 'table' ? (
+        <div className="flex-1 overflow-auto bg-card rounded-xl border border-border shadow-sm">
+          <table className="w-full text-sm text-left">
+            <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10">
+              <tr>
+                <th className="px-6 py-4 font-medium">Numéro</th>
+                <th className="px-6 py-4 font-medium">Client</th>
+                <th className="px-6 py-4 font-medium text-right">Montant</th>
+                <th className="px-6 py-4 font-medium">Date</th>
+                <th className="px-6 py-4 font-medium text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {paginated.map((note) => (
+                <tr key={note.id} className="hover:bg-muted/50 transition-colors">
+                  <td className="px-6 py-4 font-medium whitespace-nowrap">{note.number}</td>
+                  <td className="px-6 py-4 whitespace-nowrap">{note.clientName}</td>
+                  <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-primary">
+                    {formatCurrency(note.total)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
+                    {formatDate(note.date)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="text-muted-foreground hover:text-foreground"
+                      onClick={() => handleDownloadPDF(note)}
+                      disabled={isDownloading === note.id}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      PDF
+                    </Button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {paginated.length === 0 && (
+            <div className="p-8 text-center text-muted-foreground">
+              Aucun avoir émis.
+            </div>
+          )}
+        </div>
+      ) : format === 'horizontal' ? (
         <div className="flex-1 overflow-y-auto min-h-0 pr-1">
           <div className="grid grid-cols-1 gap-4">
           {paginated.length > 0 ? (
@@ -149,13 +195,13 @@ export function CreditNotesPage() {
             ))
           ) : (
             <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border">
-              <h3 className="text-lg font-black text-foreground tracking-tight uppercase">Aucun avoir émis</h3>
+              <h3 className="text-lg font-semibold text-foreground tracking-tight uppercase">Aucun avoir émis</h3>
               <p className="text-muted-foreground mt-1">Créez un avoir depuis le menu d'une facture pour l'annuler.</p>
             </div>
           )}
         </div>
         </div>
-      ) : (
+      ) : format === 'block' ? (
         <div className="flex-1 overflow-y-auto min-h-0 pr-1">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {paginated.length > 0 ? (
@@ -195,7 +241,7 @@ export function CreditNotesPage() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                      <p className="text-lg font-black text-foreground tracking-tighter">{formatCurrency(note.total)}</p>
+                      <p className="text-lg font-semibold text-foreground tracking-tighter">{formatCurrency(note.total)}</p>
                       <Badge className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0 h-5 border-orange-200">Avoir</Badge>
                     </div>
                   </CardContent>
@@ -204,13 +250,13 @@ export function CreditNotesPage() {
             ))
           ) : (
             <div className="col-span-full text-center py-20 bg-card rounded-2xl border border-dashed border-border">
-              <h3 className="text-lg font-black text-foreground tracking-tight uppercase">Aucun avoir émis</h3>
+              <h3 className="text-lg font-semibold text-foreground tracking-tight uppercase">Aucun avoir émis</h3>
               <p className="text-muted-foreground mt-1">Créez un avoir depuis le menu d'une facture pour l'annuler.</p>
             </div>
           )}
         </div>
         </div>
-      )}
+      ) : null}
 
       <Pagination
         currentPage={currentPage}
