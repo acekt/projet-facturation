@@ -24,13 +24,23 @@ import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { Badge } from "@/components/ui/badge"
-import { useStore } from "@/lib/store"
+import { useStore, type Client } from "@/lib/store"
 import { toast } from "sonner"
 import { DownloadCloud, Users } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ViewFormatSelector } from "@/components/ui/view-format-selector"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export function ClientsPage() {
   const clients = useStore(state => state.clients)
@@ -39,12 +49,14 @@ export function ClientsPage() {
   const user = useStore(state => state.user)
   const viewFormat = useStore(state => state.viewFormat)
   const setViewFormat = useStore(state => state.setViewFormat)
+  const isDataLoaded = useStore(state => state.isDataLoaded)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 9 // Grid 3x3
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
-  const [editingClient, setEditingClient] = React.useState<any>(null)
+  const [editingClient, setEditingClient] = React.useState<Client | null>(null)
+  const [clientToDeleteId, setClientToDeleteId] = React.useState<string | null>(null)
   const [newClient, setNewClient] = React.useState({
     name: "",
     email: "",
@@ -70,64 +82,102 @@ export function ClientsPage() {
     setCurrentPage(1)
   }, [searchQuery])
 
+  if (!isDataLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Chargement des clients...</p>
+        </div>
+      </div>
+    )
+  }
+
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault()
+    const tempId = crypto.randomUUID()
+    const clientToCreate: Client = {
+      id: tempId,
+      name: newClient.name,
+      email: newClient.email,
+      phone: newClient.phone,
+      address: newClient.address,
+      status: 'active'
+    }
+
+    const previousClients = [...clients]
+
+    // Optimistic Update
+    setClients([...clients, clientToCreate])
+    setIsAddDialogOpen(false)
+    setNewClient({ name: "", email: "", phone: "", address: "" })
+    toast.success("Client ajouté avec succès")
+
     try {
       const response = await fetch('/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newClient),
+        body: JSON.stringify(clientToCreate),
       })
 
       if (!response.ok) throw new Error('Failed to add client')
 
-      const updatedClients = await fetch('/api/clients').then(res => res.json())
-      setClients(updatedClients)
-
-      setIsAddDialogOpen(false)
-      setNewClient({ name: "", email: "", phone: "", address: "" })
-      toast.success("Client ajouté avec succès")
+      const createdClient = await response.json()
+      // Replace temporary client with the one from the server (containing real metadata)
+      setClients(previousClients.concat(createdClient))
     } catch (error) {
+      // Rollback on failure
+      setClients(previousClients)
       toast.error("Erreur lors de l'ajout du client")
     }
   }
 
   const handleDelete = async (id: string) => {
+    const previousClients = [...clients]
+
+    // Optimistic Update
+    setClients(clients.filter(c => c.id !== id))
+    toast.success("Client supprimé avec succès")
+    setClientToDeleteId(null)
+
     try {
       const response = await fetch(`/api/clients/${id}`, {
         method: 'DELETE',
       })
 
       if (!response.ok) throw new Error('Failed to delete client')
-
-      toast.success("Client supprimé avec succès")
-
-      const newClients = await fetch('/api/clients').then(res => res.json())
-      setClients(newClients)
     } catch (error) {
-      toast.error("Erreur lors de la suppression")
+      // Rollback on failure
+      setClients(previousClients)
+      toast.error("Erreur lors de la suppression du client. Restauration.")
     }
   }
 
   const handleEditClient = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!editingClient) return
+
+    const previousClients = [...clients]
+
+    // [QA-Phase 1] Optimistic Update : mise à jour immédiate du store et fermeture de la modale
+    setClients(clients.map(c => c.id === editingClient.id ? editingClient : c))
+    setIsEditDialogOpen(false)
+    const clientToSave = editingClient
+    setEditingClient(null)
+    toast.success("Client mis à jour avec succès")
+
     try {
-      const response = await fetch(`/api/clients/${editingClient.id}`, {
+      const response = await fetch(`/api/clients/${clientToSave.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingClient),
+        body: JSON.stringify(clientToSave),
       })
 
       if (!response.ok) throw new Error('Failed to update client')
-
-      const updatedClients = await fetch('/api/clients').then(res => res.json())
-      setClients(updatedClients)
-
-      setIsEditDialogOpen(false)
-      setEditingClient(null)
-      toast.success("Client mis à jour avec succès")
     } catch (error) {
-      toast.error("Erreur lors de la modification du client")
+      // Rollback en cas d'échec
+      setClients(previousClients)
+      toast.error("Erreur lors de la modification du client. Restauration.")
     }
   }
 
@@ -240,7 +290,7 @@ export function ClientsPage() {
                   <Input
                     id="edit-name"
                     value={editingClient?.name || ''}
-                    onChange={(e) => setEditingClient({ ...editingClient, name: e.target.value })}
+                    onChange={(e) => editingClient && setEditingClient({ ...editingClient, name: e.target.value })}
                     placeholder="Ex: Societe Gabon Mining"
                     className="bg-secondary border-border text-foreground"
                     required
@@ -252,7 +302,7 @@ export function ClientsPage() {
                     id="edit-email"
                     type="email"
                     value={editingClient?.email || ''}
-                    onChange={(e) => setEditingClient({ ...editingClient, email: e.target.value })}
+                    onChange={(e) => editingClient && setEditingClient({ ...editingClient, email: e.target.value })}
                     placeholder="contact@entreprise.ga"
                     className="bg-secondary border-border text-foreground"
                     required
@@ -263,7 +313,7 @@ export function ClientsPage() {
                   <Input
                     id="edit-phone"
                     value={editingClient?.phone || ''}
-                    onChange={(e) => setEditingClient({ ...editingClient, phone: e.target.value })}
+                    onChange={(e) => editingClient && setEditingClient({ ...editingClient, phone: e.target.value })}
                     placeholder="+241 XX XX XX XX"
                     className="bg-secondary border-border text-foreground"
                   />
@@ -273,7 +323,7 @@ export function ClientsPage() {
                   <Input
                     id="edit-address"
                     value={editingClient?.address || ''}
-                    onChange={(e) => setEditingClient({ ...editingClient, address: e.target.value })}
+                    onChange={(e) => editingClient && setEditingClient({ ...editingClient, address: e.target.value })}
                     placeholder="Libreville, Gabon"
                     className="bg-secondary border-border text-foreground"
                   />
@@ -308,11 +358,11 @@ export function ClientsPage() {
           <table className="w-full min-w-[600px]">
             <thead className="bg-secondary/50">
               <tr>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Client</th>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Email</th>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Téléphone</th>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Statut</th>
-                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
+                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client</th>
+                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email</th>
+                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Téléphone</th>
+                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Statut</th>
+                <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -329,7 +379,9 @@ export function ClientsPage() {
                     </div>
                   </td>
                   <td className="p-4 text-sm text-muted-foreground">{client.email}</td>
-                  <td className="p-4 text-sm text-muted-foreground">{client.phone}</td>
+                  <td className="p-4 text-sm text-muted-foreground">
+                    {client.phone || <span className="text-muted-foreground/30">—</span>}
+                  </td>
                   <td className="p-4">
                     <Badge variant={client.status === 'active' ? 'default' : client.status === 'warning' ? 'secondary' : 'outline'}>
                       {client.status === 'active' ? 'Actif' : client.status === 'warning' ? 'Attention' : 'Inactif'}
@@ -398,7 +450,10 @@ export function ClientsPage() {
                     </Avatar>
                     <div>
                       <h3 className="font-bold text-sm">{client.name}</h3>
-                      <p className="text-xs text-muted-foreground">{client.email} • {client.phone}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {client.email}
+                        {client.phone && <span className="text-muted-foreground/50"> • {client.phone}</span>}
+                      </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
@@ -510,15 +565,17 @@ export function ClientsPage() {
                         <span className="font-medium">{client.phone || 'Non renseigné'}</span>
                       </div>
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                        <MapPin className="w-3.5 h-3.5 text-primary/40" />
-                        <span className="truncate font-medium">{client.address || 'Libreville, Gabon'}</span>
+                        <MapPin className="w-3.5 h-3.5 text-muted-foreground" />
+                        <span className="truncate font-medium">
+                          {client.address || <span className="text-muted-foreground/30">—</span>}
+                        </span>
                       </div>
                     </div>
                   </div>
                   <div className="bg-secondary/30 px-4 py-2 border-t border-border/50 flex items-center justify-between">
                     <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Chiffre d'Affaires</div>
                     <div className="font-semibold text-foreground text-sm tracking-tighter">
-                      {formatCurrency(useStore.getState().invoices
+                      {formatCurrency(invoices
                         ?.filter(inv => inv.clientId === client.id && inv.status === 'PAID')
                         .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0))}
                     </div>
@@ -547,6 +604,26 @@ export function ClientsPage() {
         totalPages={totalPages}
         onPageChange={setCurrentPage}
       />
+
+      <AlertDialog open={clientToDeleteId !== null} onOpenChange={(open) => !open && setClientToDeleteId(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer ce client ? Cette action appliquera un Soft Delete pour conserver l'historique de facturation.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => clientToDeleteId && handleDelete(clientToDeleteId)}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
+import { updateInvoiceStatus } from '@/lib/api/invoice-logic';
 import type { CreditNoteResponse, CreditNoteItem, ErrorResponse, DbCreditNote, DbCreditNoteItem } from '@/lib/types/api';
 
 export async function GET(
@@ -66,19 +67,33 @@ export async function DELETE(
       return NextResponse.json(errorResponse, { status: 404 });
     }
 
-    // Soft delete the credit note
-    const result = db.prepare("UPDATE credit_notes SET deletedAt = datetime('now'), status = 'cancelled' WHERE id = ?").run(id);
+    // AN-6 FIX: Soft delete the credit note inside a transaction,
+    // then recalculate invoice status from ACTUAL payments instead of forcing 'UNPAID'.
+    const deleteResult = db.transaction(() => {
+      const result = db.prepare("UPDATE credit_notes SET deletedAt = datetime('now'), status = 'cancelled' WHERE id = ?").run(id);
 
-    if (result.changes === 0) {
-      const errorResponse: ErrorResponse = {
-        error: 'Credit note not found',
-      };
+      if (result.changes === 0) {
+        return null;
+      }
+
+      // Recalculate invoice status based on sum of remaining (non-deleted) payments.
+      // This correctly handles the case where the invoice had partial payments before the avoir:
+      // instead of resetting to 'UNPAID', it transitions to the accurate state.
+      if (note.invoiceId) {
+        try {
+          updateInvoiceStatus(note.invoiceId);
+        } catch {
+          // Invoice may have been soft-deleted independently; this is non-blocking.
+          console.warn(`[Credit Notes DELETE] Could not recalculate status for invoice: ${note.invoiceId}`);
+        }
+      }
+
+      return { success: true };
+    })();
+
+    if (!deleteResult) {
+      const errorResponse: ErrorResponse = { error: 'Credit note not found' };
       return NextResponse.json(errorResponse, { status: 404 });
-    }
-
-    // Optionally restore the linked invoice status if needed
-    if (note.invoiceId) {
-      db.prepare("UPDATE invoices SET status = 'UNPAID' WHERE id = ?").run(note.invoiceId);
     }
 
     return NextResponse.json({ success: true });

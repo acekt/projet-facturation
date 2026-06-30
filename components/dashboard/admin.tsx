@@ -1,7 +1,7 @@
 "use client"
 
-import * as React from "react"
-import { motion } from "framer-motion"
+import { useState, useEffect } from "react"
+import { useStore } from "@/lib/store"
 import {
     Users, FileText, TrendingUp, DollarSign, AlertCircle,
     ArrowUpRight, Plus, ScrollText, Activity, ShieldCheck,
@@ -39,7 +39,10 @@ interface DashboardAdminData {
 }
 
 export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
-  const [data, setData] = React.useState<DashboardAdminData>({
+  const [isMounted, setIsMounted] = useState(false)
+  const isDataLoaded = useStore(state => state.isDataLoaded)
+
+  const [data, setData] = useState<DashboardAdminData>({
     paidCount: 0,
     partiallyPaidCount: 0,
     unpaidCount: 0,
@@ -55,9 +58,10 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
     topClients: [],
     activityTimeline: []
   })
-  const [isLoading, setIsLoading] = React.useState(true)
+  const [isLoading, setIsLoading] = useState(true)
 
-  React.useEffect(() => {
+  useEffect(() => {
+    setIsMounted(true)
     fetch('/api/dashboard/metrics?range=month')
       .then(res => {
         if (!res.ok) throw new Error('Failed to fetch metrics')
@@ -73,134 +77,160 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
       })
   }, [])
 
+  // LE GUARD CLAUSE OBLIGATOIRE (Anti-Flash)
+  if (!isMounted || !isDataLoaded) {
+    return (
+      <div className="flex h-64 items-center justify-center text-muted-foreground font-medium">
+        Chargement sécurisé de votre espace...
+      </div>
+    )
+  }
+
   const PIE_COLORS = ['#6366f1', '#f59e0b', '#10b981', '#ef4444']
+  const totalRevenu = data.totalRevenue ?? 0
+
+  // Formateur intelligent pour l'axe Y (Recharts)
+  const formatYAxis = (val: number) => {
+    if (val === 0) return '0';
+    if (val >= 1000) {
+      return new Intl.NumberFormat('fr-FR', {
+        notation: 'compact',
+        compactDisplay: 'short',
+        maximumFractionDigits: 1
+      }).format(val);
+    }
+    return val.toString();
+  }
 
   return (
     <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6">
       <div className="flex items-center justify-between">
         <div>
             <h1 className="text-2xl font-semibold text-foreground tracking-tighter">Tableau de Bord</h1>
-            <p className="text-muted-foreground text-xs font-bold uppercase tracking-widest mt-1">Vision stratégique admin</p>
+            <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest mt-1">Vision stratégique admin</p>
         </div>
         <div className="flex items-center gap-2">
             <Badge variant="outline" className="h-8 border-amber-500/20 text-amber-600 bg-amber-500/5 px-3">SANTÉ OPTIMALE</Badge>
         </div>
       </div>
 
+      {/* Cartes KPI */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="pb-2">
-            <CardDescription className="uppercase text-[10px] font-bold tracking-widest flex items-center gap-2">
+            <CardDescription className="uppercase text-[10px] font-medium tracking-widest flex items-center gap-2">
                 <FileText className="w-3 h-3 text-indigo-500" /> Factures Payées
             </CardDescription>
             <CardTitle className="text-3xl font-semibold text-emerald-600">
-              {isLoading ? <span className="inline-block w-10 h-8 bg-secondary animate-pulse rounded"/> : data.paidCount}
+              {data.paidCount ?? 0}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Règlements complets</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-tighter">Règlements complets</p>
           </CardContent>
         </Card>
 
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="pb-2">
-            <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-amber-600 flex items-center gap-2">
+            <CardDescription className="uppercase text-[10px] font-medium tracking-widest text-amber-600 flex items-center gap-2">
                 <Clock className="w-3 h-3" /> Factures Partielles
             </CardDescription>
             <CardTitle className="text-3xl font-semibold text-amber-600">
-              {isLoading ? <span className="inline-block w-10 h-8 bg-secondary animate-pulse rounded"/> : data.partiallyPaidCount}
+              {data.partiallyPaidCount ?? 0}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Acomptes reçus</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-tighter">Acomptes reçus</p>
           </CardContent>
         </Card>
 
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="pb-2">
-            <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-red-500 flex items-center gap-2">
+            <CardDescription className="uppercase text-[10px] font-medium tracking-widest text-red-500 flex items-center gap-2">
                 <AlertCircle className="w-3 h-3" /> Factures Non Payées
             </CardDescription>
             <CardTitle className="text-3xl font-semibold text-red-500">
-              {isLoading ? <span className="inline-block w-10 h-8 bg-secondary animate-pulse rounded"/> : data.unpaidCount}
+              {data.unpaidCount ?? 0}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">En attente de paiement</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-tighter">En attente de paiement</p>
           </CardContent>
         </Card>
 
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="pb-2">
-            <CardDescription className="uppercase text-[10px] font-bold tracking-widest text-blue-500 flex items-center gap-2">
+            <CardDescription className="uppercase text-[10px] font-medium tracking-widest text-blue-500 flex items-center gap-2">
                 <ScrollText className="w-3 h-3" /> Devis En Attente
             </CardDescription>
             <CardTitle className="text-3xl font-semibold text-blue-500">
-              {isLoading ? <span className="inline-block w-10 h-8 bg-secondary animate-pulse rounded"/> : data.pendingQuotesCount}
+              {data.pendingQuotesCount ?? 0}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Non convertis en factures</p>
+            <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-tighter">Non convertis en factures</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border-border shadow-sm">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {/* Graphique avec rendu conditionnel strict */}
+        <Card className="md:col-span-2 border-border shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle className="text-md font-bold">Évolution Commerciale</CardTitle>
-                    <CardDescription className="text-[10px] uppercase font-bold tracking-widest">Revenus perçus par mois (XAF)</CardDescription>
+                    <CardTitle className="text-md font-semibold">Évolution Commerciale</CardTitle>
+                    <CardDescription className="text-[10px] uppercase font-medium tracking-widest">Revenus perçus par mois (XAF)</CardDescription>
                 </div>
                 <Activity className="w-5 h-5 text-muted-foreground opacity-20" />
             </CardHeader>
             <CardContent className="h-[300px]">
-                {data.revenueData.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={data.revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                            <defs>
-                                <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
-                                    <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888820" />
-                            <XAxis
-                                dataKey="label"
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fontSize: 10, fontWeight: 700 }}
-                                dy={10}
-                            />
-                            <YAxis
-                                axisLine={false}
-                                tickLine={false}
-                                tick={{ fontSize: 10, fontWeight: 700 }}
-                                tickFormatter={(val) => `${val/1000}k`}
-                            />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
-                                formatter={(val: number) => [formatCurrency(val), 'Revenu']}
-                            />
-                            <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                {totalRevenu === 0 ? (
+                  <div className="flex flex-col items-center justify-center h-[300px] border border-dashed rounded-lg text-muted-foreground text-center">
+                    <BarChart2 className="w-8 h-8 text-muted-foreground/20 mb-2" />
+                    <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/50">
+                      Aucune donnée financière générée sur cette période.
+                    </p>
+                  </div>
                 ) : (
-                    <div className="flex flex-col items-center justify-center h-full gap-3 text-center">
-                        <BarChart2 className="w-10 h-10 text-muted-foreground opacity-20" />
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                          {isLoading ? 'Chargement des revenus...' : 'Aucun paiement ce mois-ci'}
-                        </p>
-                    </div>
+                  <ResponsiveContainer width="100%" height={350}>
+                      <AreaChart data={data.revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <defs>
+                              <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1}/>
+                                  <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                              </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888820" />
+                          <XAxis
+                              dataKey="label"
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{ fontSize: 10, fontWeight: 700 }}
+                              dy={10}
+                          />
+                          <YAxis
+                              axisLine={false}
+                              tickLine={false}
+                              tick={{ fontSize: 10, fontWeight: 700 }}
+                              tickFormatter={formatYAxis}
+                          />
+                          <Tooltip
+                              contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '12px' }}
+                              formatter={(val: number) => [formatCurrency(val), 'Revenu']}
+                          />
+                          <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
+                      </AreaChart>
+                  </ResponsiveContainer>
                 )}
             </CardContent>
         </Card>
 
+        {/* Modes de paiement */}
         <Card className="border-border shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle className="text-md font-bold">Modes de Paiement</CardTitle>
-                    <CardDescription className="text-[10px] uppercase font-bold tracking-widest">Répartition en %</CardDescription>
+                    <CardTitle className="text-md font-semibold">Modes de Paiement</CardTitle>
+                    <CardDescription className="text-[10px] uppercase font-medium tracking-widest">Répartition en %</CardDescription>
                 </div>
                 <PieIcon className="w-4 h-4 text-muted-foreground opacity-30" />
             </CardHeader>
@@ -237,19 +267,20 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                     </ResponsiveContainer>
                 ) : (
                     <p className="text-xs text-muted-foreground italic">
-                      {isLoading ? 'Chargement...' : 'Aucun paiement enregistré'}
+                      Aucun paiement enregistré
                     </p>
                 )}
             </CardContent>
         </Card>
       </div>
 
+      {/* Reste de la page */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 border-border shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle className="text-md font-bold">Performance Opérateurs</CardTitle>
-                    <CardDescription className="text-[10px] uppercase font-bold tracking-widest">Volume et Revenus par compte</CardDescription>
+                    <CardTitle className="text-md font-semibold">Performance Opérateurs</CardTitle>
+                    <CardDescription className="text-[10px] uppercase font-medium tracking-widest">Volume et Revenus par compte</CardDescription>
                 </div>
                 <Users className="w-5 h-5 text-muted-foreground opacity-20" />
             </CardHeader>
@@ -281,10 +312,10 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
         <Card className="border-border shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle className="text-md font-bold">Top Clients</CardTitle>
-                    <CardDescription className="text-[10px] uppercase font-bold tracking-widest">Par chiffre d'affaires</CardDescription>
+                    <CardTitle className="text-md font-semibold">Top Clients</CardTitle>
+                    <CardDescription className="text-[10px] uppercase font-medium tracking-widest">Contributeurs majeurs au CA</CardDescription>
                 </div>
-                <Users className="w-5 h-5 text-muted-foreground opacity-20" />
+                <ShieldCheck className="w-5 h-5 text-muted-foreground opacity-20" />
             </CardHeader>
             <CardContent>
                 <div className="space-y-3">
@@ -339,7 +370,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
                         <span className="text-[10px] font-mono text-muted-foreground">{log.time}</span>
                     </div>
                 ))}
-                {data.activityTimeline.length === 0 && !isLoading && (
+                {data.activityTimeline.length === 0 && (
                     <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
                         <Inbox className="w-10 h-10 text-muted-foreground opacity-20" />
                         <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Journal vide — aucune action enregistrée</p>

@@ -47,7 +47,37 @@ export function PaymentsPage() {
   const [mounted, setMounted] = React.useState(false)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
+  const [isRefreshing, setIsRefreshing] = React.useState(false)
   const itemsPerPage = 10
+
+  // [P1-B] Re-fetch ciblé des données de paiements et factures.
+  // Remplace l'anti-pattern window.location.reload() qui détruisait l'état
+  // Zustand et provoquait un flash blanc dans la fenêtre Electron.
+  const handleRefresh = React.useCallback(async () => {
+    if (isRefreshing) return
+    setIsRefreshing(true)
+    try {
+      const [paymentsRes, invoicesRes] = await Promise.all([
+        fetch('/api/payments'),
+        fetch('/api/invoices'),
+      ])
+
+      if (paymentsRes.ok) {
+        const paymentsData = await paymentsRes.json()
+        if (Array.isArray(paymentsData)) setPayments(paymentsData)
+      }
+      if (invoicesRes.ok) {
+        const invoicesData = await invoicesRes.json()
+        if (Array.isArray(invoicesData)) setInvoices(invoicesData)
+      }
+      toast.success('Données actualisées')
+    } catch {
+      toast.error('Erreur lors de l\'actualisation')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }, [isRefreshing, setPayments, setInvoices])
+
 
   const sortedPayments = React.useMemo(() =>
     [...payments].sort((a, b) => b.date.localeCompare(a.date)),
@@ -176,8 +206,15 @@ export function PaymentsPage() {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Paiements</h1>
           <p className="text-muted-foreground mt-1">Suivez vos encaissements et flux de trésorerie réels</p>
         </div>
-        <Button variant="outline" size="sm" onClick={() => window.location.reload()} className="gap-2">
-          <RefreshCw className="w-4 h-4" /> Actualiser
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleRefresh}
+          disabled={isRefreshing}
+          className="gap-2"
+        >
+          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+          {isRefreshing ? 'Actualisation...' : 'Actualiser'}
         </Button>
       </div>
 

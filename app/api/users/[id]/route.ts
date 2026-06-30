@@ -39,11 +39,13 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         }
 
         if (is_active !== undefined) {
+            // SQLite stores booleans as 0/1 integers
+            const isActiveInt = is_active ? 1 : 0;
             // Prevent self-deactivation
-            if (id === session.userId && is_active === 0) {
+            if (id === session.userId && isActiveInt === 0) {
                 return NextResponse.json({ error: 'Impossible de désactiver votre propre compte' }, { status: 400 });
             }
-            if (is_active === 1) {
+            if (isActiveInt === 1) {
                 db.prepare('UPDATE users SET is_active = 1, deletedAt = NULL WHERE id = ?').run(id);
             } else {
                 db.prepare('UPDATE users SET is_active = 0 WHERE id = ?').run(id);

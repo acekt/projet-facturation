@@ -1,41 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
-import type { ErrorResponse, DbPayment, DbInvoice, DbTotal } from '@/lib/types/api';
-
-/**
- * CRITICAL: Update invoice status based on exact remaining balance calculation
- * Uses Math.round() on all amounts to ensure precise decimal handling
- * Excludes soft-deleted payments (deletedAt IS NOT NULL) from calculations
- * Status transition: UNPAID (0) → PARTIALLY_PAID (0 < x < total) → PAID (x >= total)
- */
-function updateInvoiceStatus(invoiceId: string): 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' {
-  // Get invoice total (excluding soft-deleted invoices)
-  const invoice = db.prepare('SELECT total FROM invoices WHERE id = ? AND deletedAt IS NULL').get(invoiceId) as DbInvoice | undefined;
-  if (!invoice) {
-    throw new Error('Invoice not found');
-  }
-
-  // Get sum of payments, EXCLUDING soft-deleted payments
-  const paymentsResult = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoiceId = ? AND deletedAt IS NULL').get(invoiceId) as DbTotal;
-  
-  // Apply Math.round() to ensure exact decimal handling
-  const totalTTC = Math.round(invoice.total);
-  const totalPaid = Math.round(paymentsResult.total || 0);
-
-  // Strict status transition logic
-  let newStatus: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
-  if (totalPaid === 0) {
-    newStatus = 'UNPAID';
-  } else if (totalPaid < totalTTC) {
-    newStatus = 'PARTIALLY_PAID';
-  } else {
-    newStatus = 'PAID';
-  }
-
-  db.prepare('UPDATE invoices SET status = ? WHERE id = ?').run(newStatus, invoiceId);
-  return newStatus;
-}
+import { updateInvoiceStatus } from '@/lib/api/invoice-logic';
+import type { ErrorResponse, DbPayment } from '@/lib/types/api';
 
 export async function DELETE(
   request: Request,

@@ -3,25 +3,28 @@
 /**
  * DataSync — Pont entre l'API Next.js et le store Zustand
  * =========================================================
- * Ce composant s'exécute une seule fois au montage de l'application.
- * Il authentifie l'utilisateur puis charge toutes les données métier
- * en parallèle dans le store Zustand.
+ * Ce composant s'exécute au montage et à chaque changement d'état d'authentification.
+ * Il authentifie l'utilisateur puis charge toutes les données métier en parallèle.
  *
- * Corrections AXE 3 & AXE 4 :
- *  ✅ Stabilisation des dépendances useEffect (les setters Zustand sont
- *     stables — mais listés explicitement pour éviter le ESLint warning)
- *  ✅ Guard isMounted pour éviter les setState sur composant démonté
- *  ✅ Remplacement de window.location.href (reload brutal) par router.push
- *  ✅ Suppression du polling — un seul fetch au montage, pas de setInterval
- *  ✅ Cleanup propre via AbortController pour annuler les fetches en cours
+ * Résolution de la boucle infinie (Phase 3-bis) :
+ *  ✅ Utilisation d'une ref `fetchedUserIdRef` pour suivre l'ID utilisateur traité
+ *     et empêcher toute exécution dupliquée ou boucle de rendus.
+ *  ✅ Suppression de la dépendance à `router` ou `pathname` pour éviter les déclenchements
+ *     lors des navigations.
+ *  ✅ Appel systématique de `setIsDataLoaded(true)` lors des échecs d'authentification (401)
+ *     pour débloquer l'UI de manière propre.
  */
 
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { useStore } from "@/lib/store"
+import { toast } from "sonner"
 
 export function DataSync() {
   const router = useRouter()
+
+  const user = useStore(state => state.user)
+  const userId = user?.id
 
   const setClients    = useStore(state => state.setClients)
   const setQuotes     = useStore(state => state.setQuotes)
@@ -33,39 +36,58 @@ export function DataSync() {
   const setUser       = useStore(state => state.setUser)
   const setIsDataLoaded = useStore(state => state.setIsDataLoaded)
 
+  // Réf pour mémoriser le dernier userId pour lequel on a effectué la synchronisation.
+  // Permet d'éviter les boucles infinies et les requêtes réseaux superflues.
+  const fetchedUserIdRef = React.useRef<string | null | undefined>(null)
+
   React.useEffect(() => {
-    // AbortController pour annuler les fetches si le composant est démonté
-    // avant la fin des requêtes (évite les setState sur composant démonté)
+    // Si la synchronisation a déjà été faite pour cet utilisateur (ou absence d'utilisateur), on ignore.
+    if (fetchedUserIdRef.current === userId) {
+      return
+    }
+    fetchedUserIdRef.current = userId
+
     const controller = new AbortController()
     const { signal } = controller
 
     const fetchAllData = async () => {
       setIsDataLoaded(false)
       try {
-        // ── Étape 1 : Vérification de l'authentification
-        const authRes = await fetch('/api/auth/me', { signal }).catch(() => null)
+        let currentUser = user
 
-        if (!authRes || !authRes.ok) {
-          // Non authentifié : rediriger vers la page de connexion
-          // On utilise router.push (Next.js) — pas window.location.href
-          // pour éviter un rechargement complet de la fenêtre Electron.
-          if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
-            // Nettoyer le cookie corrompu si nécessaire
-            if (authRes?.status === 401) {
-              document.cookie = 'auth_session=; path=/; max-age=0';
+        // ── Étape 1 : Vérification de l'authentification (si non présente dans le store)
+        if (!currentUser) {
+          const authRes = await fetch('/api/auth/me', { signal }).catch(() => null)
+
+          if (!authRes || !authRes.ok) {
+            setUser(null)
+            setIsDataLoaded(true)
+            
+            if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+              if (authRes?.status === 401) {
+                document.cookie = 'auth_session=; path=/; max-age=0'
+              }
+              router.push('/login')
             }
-            router.push('/login')
+            return
           }
+
+          const authData = await authRes.json().catch(() => null)
+          if (!authData?.user) {
+            setUser(null)
+            setIsDataLoaded(true)
+            if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+              router.push('/login')
+            }
+            return
+          }
+
+          currentUser = authData.user
+          setUser(currentUser)
+          // Le changement d'utilisateur va déclencher une nouvelle passe de l'effet
+          // avec le bon `userId`, nous pouvons donc nous arrêter ici pour ce cycle.
           return
         }
-
-        const authData = await authRes.json().catch(() => null)
-        if (!authData?.user) {
-          router.push('/login')
-          return
-        }
-
-        setUser(authData.user)
 
         // ── Étape 2 : Chargement parallèle des données métier
         const endpoints = [
@@ -82,7 +104,6 @@ export function DataSync() {
           endpoints.map(ep => fetch(ep.url, { signal }))
         )
 
-        // Si le signal a été annulé, on ne traite pas les résultats
         if (signal.aborted) return
 
         await Promise.allSettled(
@@ -110,23 +131,35 @@ export function DataSync() {
         setIsDataLoaded(true)
 
       } catch (error) {
-        // Ne pas loguer les AbortError (annulation normale au démontage)
         if (error instanceof Error && error.name !== 'AbortError') {
           console.error('[DataSync] Erreur critique de synchronisation:', error.message)
+          toast.error(
+            "Erreur de synchronisation des données. Veuillez vérifier le serveur local.",
+            { id: 'datasync-error', duration: 6000 }
+          )
         }
+        setIsDataLoaded(true)
       }
     }
 
     fetchAllData()
 
-    // Cleanup : annuler les requêtes en cours si le composant est démonté
     return () => {
       controller.abort()
     }
-  // Les setters Zustand sont des fonctions stables (créées une seule fois).
-  // On les liste pour satisfaire exhaustive-deps, mais elles ne déclenchent
-  // jamais de re-exécution de l'effet en pratique.
-  }, [router, setClients, setQuotes, setInvoices, setServices, setPayments, setSettings, setCreditNotes, setUser, setIsDataLoaded])
-
+  }, [
+    userId,
+    user,
+    router,
+    setClients,
+    setQuotes,
+    setInvoices,
+    setServices,
+    setPayments,
+    setSettings,
+    setCreditNotes,
+    setUser,
+    setIsDataLoaded
+  ])
   return null
 }

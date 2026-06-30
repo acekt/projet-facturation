@@ -39,9 +39,12 @@ interface UsersPageProps {
   onCreateUser: () => void
   onEditUser: (id: string) => void
 }
-
 export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
-  const { users, setUsers, addUser, updateUser, removeUser } = useStore();
+  const users = useStore(state => state.users)
+  const setUsers = useStore(state => state.setUsers)
+  const addUser = useStore(state => state.addUser)
+  const updateUser = useStore(state => state.updateUser)
+  const removeUser = useStore(state => state.removeUser)
   const [isLoading, setIsLoading] = React.useState(true)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [roleFilter, setRoleFilter] = React.useState("all")
@@ -159,7 +162,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         })
         if (res.ok) {
             toast.success("Utilisateur mis à jour")
-            updateUser(selectedUser.id, { name: formData.name, role: formData.role })
+            updateUser(selectedUser.id, { name: formData.name, role: formData.role as 'admin' | 'user' })
             setIsEditModalOpen(false)
         } else {
             const data = await res.json()
@@ -180,7 +183,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         })
         if (res.ok) {
             toast.success(newStatus === 0 ? "Compte désactivé" : "Compte réactivé")
-            updateUser(selectedUser.id, { is_active: newStatus, deletedAt: newStatus === 1 ? null : new Date().toISOString() })
+            updateUser(selectedUser.id, { is_active: newStatus, deletedAt: newStatus === 1 ? undefined : new Date().toISOString() })
             setIsStatusModalOpen(false)
         } else {
             const data = await res.json()

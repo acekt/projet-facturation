@@ -48,16 +48,30 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   const settings = useStore((state) => state.settings)
   const setQuotes = useStore((state) => state.setQuotes)
   const services = useStore((state) => state.services)
-  const [selectedClient, setSelectedClient] = React.useState<typeof clients[0] | null>(null)
+  // Zustand Draft Connection
+  const draft = useStore((state) => state.quoteDraft)
+  const setQuoteDraft = useStore((state) => state.setQuoteDraft)
+  const clearQuoteDraft = useStore((state) => state.clearQuoteDraft)
+
+  const selectedClient = draft.selectedClient
+  const items = draft.items
+  const quoteDate = draft.quoteDate
+  const discount = draft.discount
+  const notes = draft.notes
+  const status = draft.status
+
+  const setSelectedClient = (client: typeof clients[0] | null) => setQuoteDraft({ selectedClient: client })
+  const setDiscount = (val: number) => setQuoteDraft({ discount: val })
+  const setNotes = (val: string) => setQuoteDraft({ notes: val })
+  const setQuoteDate = (val: string) => setQuoteDraft({ quoteDate: val })
+  const setStatus = (val: Quote['status']) => setQuoteDraft({ status: val })
+  const setItems = (newItems: InvoiceItem[] | ((prev: InvoiceItem[]) => InvoiceItem[])) => {
+    const updatedItems = typeof newItems === 'function' ? newItems(draft.items) : newItems
+    setQuoteDraft({ items: updatedItems })
+  }
+
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false)
   const [clientSearch, setClientSearch] = React.useState("")
-  const [items, setItems] = React.useState<InvoiceItem[]>([
-    { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
-  ])
-  const [quoteDate, setQuoteDate] = React.useState(new Date().toISOString().split("T")[0])
-  const [discount, setDiscount] = React.useState(0)
-  const [notes, setNotes] = React.useState(settings.mentionsLegales || "")
-  const [status, setStatus] = React.useState<Quote['status']>('EN_ATTENTE')
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [isSubmitting, startSubmitTransition] = React.useTransition()
   const [isLoading, setIsLoading] = React.useState(!!editingId)
@@ -87,9 +101,9 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     }
   }, [editingId]);
 
-  const TAX_RATE = settings.tvaRate / 100
-  const TPS_RATE = settings.tpsRate / 100 || 0.095
-  const CSS_RATE = settings.cssRate / 100
+  const TAX_RATE = (settings.tvaRate ?? 0) / 100
+  const TPS_RATE = (settings.tpsRate ?? 9.5) / 100
+  const CSS_RATE = (settings.cssRate ?? 0) / 100
 
   const filteredClients = clients.filter(
     (client) =>
@@ -191,6 +205,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         setQuotes(newQuotes)
 
         toast.success("Devis enregistré avec succès")
+        clearQuoteDraft()
         onBack()
       } catch (error) {
         console.error('[QuoteEditor] handleSave error:', error)

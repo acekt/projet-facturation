@@ -22,7 +22,7 @@ interface PrintableDocumentProps {
 }
 
 export function PrintableDocument({ document, type }: PrintableDocumentProps) {
-  const { settings } = useStore()
+  const settings = useStore((state) => state.settings)
   const payments = 'payments' in document ? (document as Invoice).payments || [] : []
 
   return (

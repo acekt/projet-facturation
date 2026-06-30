@@ -13,7 +13,7 @@ interface DbPragmaColumn {
   name: string;
 }
 
-export function getNextNumber(type: 'quote' | 'invoice') {
+export function getNextNumber(type: 'quote' | 'invoice' | 'credit_note') {
   const settings = db.prepare('SELECT companyCode FROM settings WHERE id = 1').get() as DbSettings | undefined;
   const now = new Date();
   const year = now.getFullYear();

@@ -4,22 +4,79 @@ import path from 'path';
 /**
  * Résolution du chemin de la base de données.
  *
- * ┌──────────────────────────────────────────────────────────────────────┐
- * │  RÈGLE CRITIQUE ELECTRON :                                           │
+ * ┌──────────────────────────────────────────────────────────────────────┤
+ * │  RÈGLE CRITIQUE ELECTRON (P0-A) :                                     │
  * │  En mode packagé (.exe / .dmg / .AppImage), process.cwd() pointe    │
- * │  vers app.asar — un archive en LECTURE SEULE. Écrire un fichier     │
+ * │  vers app.asar — une archive en LECTURE SEULE. Écrire un fichier     │
  * │  SQLite là-dedans provoque un crash immédiat au premier INSERT.       │
  * │                                                                      │
- * │  Solution : utiliser ELECTRON_USERDATA_PATH si défini (injecté par   │
- * │  main.js), sinon fallback sur process.cwd() (dev Next.js uniquement).│
+ * │  Solution (Phase 3) : ELECTRON_USERDATA_PATH est passé EXPLICITEMENT │
+ * │  par main.js dans l'objet env de spawn() du serveur Next.js enfant.  │
+ * │  Ce mécanisme traverse la barrière de processus de façon garantie     │
+ * │  sous Windows, contrairement à l'héritage implicite de process.env.  │
+ * │                                                                      │
+ * │  En développement (NODE_ENV=development), fallback sur process.cwd()  │
+ * │  — c'est le répertoire racine du projet où database.sqlite est créé. │
  * └──────────────────────────────────────────────────────────────────────┘
  */
-const userDataPath = process.env.ELECTRON_USERDATA_PATH || process.cwd();
-const dbPath = path.join(userDataPath, 'database.sqlite');
-const db = new Database(dbPath);
+const isProduction = process.env.NODE_ENV === 'production';
+const electronUserDataPath = process.env.ELECTRON_USERDATA_PATH;
 
-// Enable foreign keys
+if (isProduction && !electronUserDataPath) {
+  // Crash immédiat et explicite plutôt qu'une écriture silencieuse dans app.asar
+  throw new Error(
+    '[db] FATAL: ELECTRON_USERDATA_PATH is not defined in production mode. ' +
+    'The Next.js server must be spawned by Electron main.js with this env var ' +
+    'explicitly set in the spawn() call. Check main.js → startNextServer().'
+  );
+}
+
+const userDataPath = electronUserDataPath ?? process.cwd();
+const dbPath = path.join(userDataPath, 'database.sqlite');
+const db = new Database(dbPath, { timeout: 5000 });
+
+// [QA-Phase 2] Configuration de la base de données pour la concurrence et la robustesse
 db.pragma('foreign_keys = ON');
+db.pragma('journal_mode = WAL');
+db.pragma('synchronous = NORMAL');
+
+// [QA-Phase 2] Fermeture propre de la base de données lors de l'arrêt du processus
+const closeDb = () => {
+  try {
+    if (db && db.open) {
+      db.close();
+      console.log('[db] Connexion SQLite fermée proprement.');
+    }
+  } catch (err) {
+    console.error('[db] Erreur lors de la fermeture de la base de données:', err);
+  }
+};
+
+process.on('exit', closeDb);
+process.on('SIGINT', () => {
+  closeDb();
+  process.exit(0);
+});
+process.on('SIGTERM', () => {
+  closeDb();
+  process.exit(0);
+});
+
+// Cache global pour les requêtes préparées (Statement Cache)
+const statementCache = new Map<string, ReturnType<typeof db.prepare>>();
+
+/**
+ * Récupère une requête préparée mise en cache ou la compile si elle n'existe pas.
+ * Évite de recompiler le SQL à chaque requête HTTP Next.js.
+ */
+export function prepareCached(sql: string) {
+  let stmt = statementCache.get(sql);
+  if (!stmt) {
+    stmt = db.prepare(sql);
+    statementCache.set(sql, stmt);
+  }
+  return stmt;
+}
 
 // Initialize database
 db.exec(`
@@ -369,4 +426,19 @@ if (row.count === 0) {
   );
 }
 
-export default db;
+// [QA-Phase 2] Proxy transparent pour intercepter tous les appels db.prepare
+// et utiliser automatiquement le Statement Cache global.
+const dbProxy = new Proxy(db, {
+  get(target, prop, receiver) {
+    if (prop === 'prepare') {
+      return prepareCached;
+    }
+    const value = Reflect.get(target, prop, receiver);
+    if (typeof value === 'function') {
+      return value.bind(target);
+    }
+    return value;
+  }
+});
+
+export default dbProxy;

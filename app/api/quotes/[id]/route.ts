@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
+import { quoteSchema } from '@/lib/validations';
+import { computeTotals, getTaxRates } from '@/lib/api/invoice-logic';
+import crypto from 'crypto';
+import { logAudit } from '@/lib/api/audit';
 import type { QuoteResponse, QuoteItem, ErrorResponse, DbQuote, DbQuoteItem } from '@/lib/types/api';
 
 /**
@@ -27,6 +31,7 @@ export async function GET(
 
     const response: QuoteResponse = {
       ...quote,
+      deletedAt: quote.deletedAt ?? undefined,
       items: items.map((item): QuoteItem => ({
         id: item.id,
         quoteId: item.quoteId,
@@ -42,6 +47,130 @@ export async function GET(
     console.error('[API Quotes GET by ID] Error:', error);
     const errorResponse: ErrorResponse = {
       error: 'Failed to fetch quote',
+    };
+    return NextResponse.json(errorResponse, { status: 500 });
+  }
+}
+
+/**
+ * PUT /api/quotes/[id]
+ * Update an existing quote. Recalculates all totals server-side.
+ * Business rule: Cannot update a quote that has been converted to an invoice.
+ */
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    // RBAC Check - Only 'user' (Opérateur) can edit quotes
+    const session = await getSession();
+    if (!session) {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Authentication required',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
+    }
+
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session.userId) as { role: string } | undefined;
+    if (!user || user.role !== 'user') {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Only Users can update quotes',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
+    }
+
+    // Fetch existing quote
+    const existingQuote = db.prepare('SELECT status, deletedAt FROM quotes WHERE id = ?').get(id) as DbQuote | undefined;
+    if (!existingQuote || existingQuote.deletedAt !== null) {
+      const errorResponse: ErrorResponse = {
+        error: 'Quote not found',
+      };
+      return NextResponse.json(errorResponse, { status: 404 });
+    }
+
+    if (existingQuote.status === 'CONVERTI') {
+      const errorResponse: ErrorResponse = {
+        error: 'Impossible de modifier un devis déjà converti en facture.',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
+
+    const body: unknown = await request.json();
+
+    // Validate with Zod
+    const validation = quoteSchema.safeParse(body);
+    if (!validation.success) {
+      const errorResponse: ErrorResponse = {
+        error: 'Données invalides',
+        details: {
+          fieldErrors: validation.error.flatten().fieldErrors,
+        },
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
+
+    const data = validation.data;
+
+    // Recalculate totals server-side
+    const rates = getTaxRates();
+    const computed = computeTotals(data.items, data.discount, rates);
+
+    const updateQuoteTx = db.transaction(() => {
+      // Update quote header
+      db.prepare(`
+        UPDATE quotes
+        SET clientId = ?, clientName = ?, clientEmail = ?, date = ?,
+            subtotal = ?, discount = ?, taxBase = ?, tvaAmount = ?, tpsAmount = ?, cssAmount = ?,
+            total = ?, notes = ?
+        WHERE id = ?
+      `).run(
+        data.clientId,
+        data.clientName,
+        data.clientEmail,
+        data.date,
+        computed.subtotal,
+        computed.discount,
+        computed.taxBase,
+        computed.tvaAmount,
+        computed.tpsAmount,
+        computed.cssAmount,
+        computed.total,
+        data.notes ?? null,
+        id
+      );
+
+      // Clear existing items
+      db.prepare('DELETE FROM quote_items WHERE quoteId = ?').run(id);
+
+      // Insert new items
+      const insertItem = db.prepare(`
+        INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const item of data.items) {
+        insertItem.run(
+          crypto.randomUUID(),
+          id,
+          item.description,
+          item.quantity,
+          Math.round(item.unitPrice),
+          Math.round(item.quantity * item.unitPrice)
+        );
+      }
+
+      logAudit('UPDATE', 'quote', id, `Devis modifié: ${id}`);
+      return { id };
+    });
+
+    const result = updateQuoteTx();
+    return NextResponse.json(result);
+  } catch (error) {
+    console.error('[API Quotes PUT] Error:', error);
+    const errorResponse: ErrorResponse = {
+      error: 'Failed to update quote',
     };
     return NextResponse.json(errorResponse, { status: 500 });
   }
@@ -86,8 +215,10 @@ export async function DELETE(
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    // Soft delete
-    db.prepare("UPDATE quotes SET deletedAt = datetime('now'), status = 'rejected' WHERE id = ?").run(id);
+    // AN-3 FIX: Soft delete using deletedAt as the sole marker of deletion.
+    // The original status (EN_ATTENTE) is preserved for fiscal audit purposes.
+    // 'rejected' was a phantom status from a legacy version — removed.
+    db.prepare("UPDATE quotes SET deletedAt = datetime('now') WHERE id = ?").run(id);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[API Quotes DELETE] Error:', error);

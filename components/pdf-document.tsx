@@ -332,7 +332,7 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
         </View>
 
         {/* Totals Grid */}
-        <View style={styles.totalsSection}>
+        <View style={styles.totalsSection} wrap={false}>
           <View style={styles.totalsContainer}>
             <View style={styles.totalCol}>
               <Text style={styles.totalLabel}>Brut HT</Text>
@@ -362,7 +362,7 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
         </View>
 
         {/* Bank */}
-        <View style={styles.bankSection}>
+        <View style={styles.bankSection} wrap={false}>
           <Text style={styles.bankTitle}>Coordonnées pour Virement Bancaire</Text>
           <View style={styles.bankGrid}>
             <Text style={{ fontSize: 8 }}><Text style={{ fontWeight: 'bold' }}>Banque:</Text> {settings.bankName}</Text>
@@ -370,7 +370,7 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
           </View>
         </View>
 
-        <View style={{ marginBottom: 40, fontSize: 10 }}>
+        <View style={{ marginBottom: 40, fontSize: 10 }} wrap={false}>
            <Text style={{ fontWeight: 'bold', marginBottom: 10 }}>
              Arrêter {type === 'devis' ? 'Le Présent devis' : 'La Présente facture'} à la Somme totale de : ... FCFA TTC
            </Text>
@@ -379,7 +379,7 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
            <Text style={{ color: 'red', fontSize: 9 }}>- Les délais de règlement: *Au Comptant;</Text>
         </View>
 
-        <View style={{ alignItems: 'flex-end', marginBottom: 60 }}>
+        <View style={{ alignItems: 'flex-end', marginBottom: 60 }} wrap={false}>
           <Text style={{ fontWeight: 'bold', marginRight: 40 }}>La Direction</Text>
         </View>
 

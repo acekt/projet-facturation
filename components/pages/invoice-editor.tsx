@@ -48,16 +48,28 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   const settings = useStore((state) => state.settings)
   const setInvoices = useStore((state) => state.setInvoices)
   const services = useStore((state) => state.services)
-  const [selectedClient, setSelectedClient] = React.useState<typeof clients[0] | null>(null)
+  // Zustand Draft Connection
+  const draft = useStore((state) => state.invoiceDraft)
+  const setInvoiceDraft = useStore((state) => state.setInvoiceDraft)
+  const clearInvoiceDraft = useStore((state) => state.clearInvoiceDraft)
+
+  const selectedClient = draft.selectedClient
+  const items = draft.items
+  const invoiceDate = draft.invoiceDate
+  const discount = draft.discount
+  const notes = draft.notes
+
+  const setSelectedClient = (client: typeof clients[0] | null) => setInvoiceDraft({ selectedClient: client })
+  const setDiscount = (val: number) => setInvoiceDraft({ discount: val })
+  const setNotes = (val: string) => setInvoiceDraft({ notes: val })
+  const setInvoiceDate = (val: string) => setInvoiceDraft({ invoiceDate: val })
+  const setItems = (newItems: InvoiceItem[] | ((prev: InvoiceItem[]) => InvoiceItem[])) => {
+    const updatedItems = typeof newItems === 'function' ? newItems(draft.items) : newItems
+    setInvoiceDraft({ items: updatedItems })
+  }
+
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false)
   const [clientSearch, setClientSearch] = React.useState("")
-  const [items, setItems] = React.useState<InvoiceItem[]>([
-    { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
-  ])
-  const [invoiceDate, setInvoiceDate] = React.useState(new Date().toISOString().split("T")[0])
-  const [discount, setDiscount] = React.useState(0)
-  const [notes, setNotes] = React.useState(settings.mentionsLegales || "")
-  const [isDraft, setIsDraft] = React.useState(true)
   const [previewOpen, setPreviewOpen] = React.useState(false)
   const [isSubmitting, startSubmitTransition] = React.useTransition()
   const [isLoading, setIsLoading] = React.useState(!!editingId)
@@ -77,7 +89,6 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
           setInvoiceDate(data.date);
           setDiscount(data.discount);
           setNotes(data.notes || "");
-          setIsDraft(data.status === 'draft');
           setIsLoading(false);
         })
         .catch(() => {
@@ -87,9 +98,9 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     }
   }, [editingId]);
 
-  const TAX_RATE = settings.tvaRate / 100
-  const TPS_RATE = settings.tpsRate / 100 || 0.095
-  const CSS_RATE = settings.cssRate / 100
+  const TAX_RATE = (settings.tvaRate ?? 0) / 100
+  const TPS_RATE = (settings.tpsRate ?? 9.5) / 100
+  const CSS_RATE = (settings.cssRate ?? 0) / 100
 
   const filteredClients = clients.filter(
     (client) =>
@@ -185,7 +196,8 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         const newInvoices = await fetch('/api/invoices').then(res => res.json())
         setInvoices(newInvoices)
 
-        toast.success(status === 'draft' ? "Facture enregistrée en brouillon" : "Facture créée avec succès")
+        toast.success("Facture créée avec succès")
+        clearInvoiceDraft()
         onBack()
       } catch (error) {
         console.error('[InvoiceEditor] handleSave error:', error)
@@ -228,11 +240,11 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
           </Button>
           <Button
             className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-            onClick={() => handleSave(isDraft ? 'draft' : 'UNPAID')}
+            onClick={() => handleSave('UNPAID')}
             disabled={isSubmitting}
           >
-            {isDraft ? <Save className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-            {isDraft ? "Enregistrer" : "Finaliser & Envoyer"}
+            <Send className="w-4 h-4" />
+            Créer la Facture
           </Button>
         </div>
       </div>
@@ -492,20 +504,13 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
               </div>
 
                 <div className="pt-4 space-y-3">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border border-border">
-                    <div className="space-y-0.5">
-                        <Label className="text-sm font-medium">Mode Brouillon</Label>
-                        <p className="text-[10px] text-muted-foreground">La facture pourra être modifiée plus tard</p>
-                    </div>
-                    <Switch checked={isDraft} onCheckedChange={setIsDraft} />
-                  </div>
                 <Button
-                    onClick={() => handleSave(isDraft ? 'draft' : 'UNPAID')}
+                    onClick={() => handleSave('UNPAID')}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12"
                   disabled={isSubmitting}
                 >
-                    {isDraft ? <Save className="w-4 h-4 mr-2" /> : <Send className="w-4 h-4 mr-2" />}
-                    {isDraft ? "Enregistrer en brouillon" : "Générer la Facture"}
+                    <Send className="w-4 h-4 mr-2" />
+                    Générer la Facture
                 </Button>
               </div>
             </CardContent>

@@ -44,6 +44,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ViewFormatSelector } from "@/components/ui/view-format-selector"
+import { Switch } from "@/components/ui/switch"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
@@ -61,6 +72,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   const user = useStore(state => state.user)
   const viewFormat = useStore(state => state.viewFormat)
   const setViewFormat = useStore(state => state.setViewFormat)
+  const isDataLoaded = useStore(state => state.isDataLoaded)
 
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
@@ -73,43 +85,48 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   const [paymentMethod, setPaymentMethod] = React.useState("cash")
   const [paymentAmount, setPaymentAmount] = React.useState("")
   const [paymentType, setPaymentType] = React.useState("full")
+  const [invoiceToDeleteId, setInvoiceToDeleteId] = React.useState<string | null>(null)
+  const [invoiceToCancel, setInvoiceToCancel] = React.useState<Invoice | null>(null)
+  const [deleteAssociatedQuote, setDeleteAssociatedQuote] = React.useState(false)
+  // [P2-A] Protège le bouton d'impression contre le double-clic accidentel
+  const [isPrinting, setIsPrinting] = React.useState(false)
+  // [QA-Phase 1] Protection contre le double-clic et les actions concurrentes
+  const [isDeleting, setIsDeleting] = React.useState(false)
+  const [isCancelling, setIsCancelling] = React.useState(false)
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Voulez-vous vraiment supprimer cette facture ?")) return
+    if (isDeleting) return
+    setIsDeleting(true)
     try {
       const response = await fetch(`/api/invoices/${id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('Delete failed')
       toast.success("Facture supprimée")
+      setInvoiceToDeleteId(null)
       const updatedInvoices = await fetch('/api/invoices').then(res => res.json())
       setInvoices(updatedInvoices)
     } catch (error) {
       toast.error("Erreur lors de la suppression")
+    } finally {
+      setIsDeleting(false)
     }
   }
 
-  const markAsPaid = (invoice: Invoice) => {
-      const totalPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
-      const remaining = invoice.total - totalPaid
-      setPaymentInvoice(invoice);
-      setPaymentAmount(remaining.toString());
-      setPaymentDialogOpen(true);
-  }
-
-  const handleCreateCreditNote = async (invoice: Invoice) => {
-    const deleteQuote = confirm(`Voulez-vous créer un avoir pour la facture ${invoice.number} ?\n\nCela annulera comptablement cette facture.\n\nVoulez-vous également supprimer le devis associé ?\n\nOK = Oui, supprimer le devis\nAnnuler = Non, garder le devis (il deviendra brouillon)`);
-    
-    if (deleteQuote === null) return; // User cancelled
-
+  const confirmCancelInvoice = async () => {
+    if (!invoiceToCancel || isCancelling) return
+    setIsCancelling(true)
     try {
-      const response = await fetch(`/api/invoices/${invoice.id}`, {
+      const response = await fetch(`/api/invoices/${invoiceToCancel.id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deleteQuote: deleteQuote === true }),
+        body: JSON.stringify({ deleteQuote: deleteAssociatedQuote }),
       });
 
       if (!response.ok) throw new Error('Failed to cancel invoice');
 
       toast.success("Facture annulée avec succès");
+      setInvoiceToCancel(null);
+      setDeleteAssociatedQuote(false);
+
       const [updatedInvoices, updatedQuotes, updatedNotes] = await Promise.all([
           fetch('/api/invoices').then(res => res.json()),
           fetch('/api/quotes').then(res => res.json()),
@@ -120,7 +137,17 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       setCreditNotes(updatedNotes);
     } catch (error) {
       toast.error("Erreur lors de l'annulation de la facture");
+    } finally {
+      setIsCancelling(false)
     }
+  }
+
+  const markAsPaid = (invoice: Invoice) => {
+      const totalPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+      const remaining = invoice.total - totalPaid
+      setPaymentInvoice(invoice);
+      setPaymentAmount(remaining.toString());
+      setPaymentDialogOpen(true);
   }
 
   const handleDownloadPDF = async (invoice: Invoice) => {
@@ -209,8 +236,18 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     setCurrentPage(1)
   }, [searchQuery])
 
+  if (!isDataLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Chargement des factures...</p>
+        </div>
+      </div>
+    )
+  }
+
   const getStatusBadge = (status: Invoice['status']) => {
-    // Not used anymore - replaced by getPaymentBadge for better detail
     return null
   }
 
@@ -233,19 +270,19 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     switch (paymentStatus.status) {
       case 'paid':
         return (
-          <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200">
+          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
             Soldé ({formatCurrency(paymentStatus.paid)})
           </Badge>
         )
       case 'partial':
         return (
-          <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+          <Badge className="bg-amber-50 text-amber-700 border-amber-200">
             Partiel - Payé: {formatCurrency(paymentStatus.paid)} | Reste: {formatCurrency(paymentStatus.remaining)}
           </Badge>
         )
       case 'unpaid':
         return (
-          <Badge className="bg-red-100 text-red-700 border-red-200">
+          <Badge className="bg-red-50 text-red-700 border-red-200">
             Non payé - Reste: {formatCurrency(paymentStatus.remaining)}
           </Badge>
         )
@@ -258,8 +295,8 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Factures</h1>
-          <p className="text-muted-foreground mt-1">Gérez vos factures et suivez vos paiements</p>
+          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Factures</h1>
+          <p className="text-muted-foreground mt-1 text-sm">Gérez vos factures et suivez vos paiements</p>
         </div>
         <div className="flex items-center gap-2">
           <Button
@@ -282,7 +319,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
             Export CSV
           </Button>
           <Button
-            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
             onClick={() => onCreateInvoice()}
           >
             <Plus className="w-4 h-4" />
@@ -291,14 +328,14 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border">
+      <div className="flex items-center justify-between gap-4 bg-card p-4 rounded-lg border border-border">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             placeholder="Rechercher une facture..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-secondary/50 border-border text-foreground w-full md:max-w-md"
+            className="pl-10 bg-transparent border-border text-sm w-full md:max-w-md"
           />
         </div>
         <ViewFormatSelector
@@ -308,16 +345,16 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       </div>
 
       {viewFormat.invoices === 'table' && (
-        <div className="flex-1 min-h-0 bg-card rounded-xl border border-border overflow-auto shadow-sm">
+        <div className="flex-1 min-h-0 bg-card rounded-lg border border-border overflow-auto shadow-sm">
           <table className="w-full min-w-[600px]">
-            <thead className="bg-secondary/50">
+            <thead className="bg-secondary/30">
               <tr>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Facture</th>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Client</th>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Dates</th>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Statut</th>
-                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Total</th>
-                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
+                <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Facture</th>
+                <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Client</th>
+                <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Dates</th>
+                <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Statut</th>
+                <th className="text-right p-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total</th>
+                <th className="text-right p-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -325,22 +362,24 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                 <tr key={invoice.id} className="hover:bg-secondary/30 transition-colors">
                   <td className="p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                      <div className="w-8 h-8 rounded-md bg-primary/5 flex items-center justify-center text-primary">
                         <FileText className="w-4 h-4" />
                       </div>
-                      <span className="font-bold text-sm">{invoice.number}</span>
+                      <span className="font-medium text-sm">{invoice.number}</span>
                     </div>
                   </td>
-                  <td className="p-4 text-sm text-muted-foreground">{invoice.clientName}</td>
+                  <td className="p-4 text-sm text-muted-foreground max-w-[200px] sm:max-w-[300px] truncate" title={invoice.clientName}>
+                    {invoice.clientName}
+                  </td>
                   <td className="p-4">
                     <div className="text-xs text-muted-foreground">
-                      <div>Émission: {formatDate(invoice.date)}</div>
+                      <div>{formatDate(invoice.date)}</div>
                     </div>
                   </td>
                   <td className="p-4">
                     {getPaymentBadge(invoice)}
                   </td>
-                  <td className="p-4 text-right font-bold text-sm">{formatCurrency(invoice.total)}</td>
+                  <td className="p-4 text-right font-medium text-sm">{formatCurrency(invoice.total)}</td>
                   <td className="p-4 text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
@@ -348,7 +387,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+                      <DropdownMenuContent align="end" className="w-48">
                         <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
                           <Eye className="w-4 h-4" /> Aperçu
                         </DropdownMenuItem>
@@ -369,14 +408,17 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           </DropdownMenuItem>
                         )}
                         {user?.role === 'user' && (
-                          <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
-                            <RefreshCcw className="w-4 h-4" /> Annuler
-                          </DropdownMenuItem>
+                           <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
+                             setInvoiceToCancel(invoice)
+                             setDeleteAssociatedQuote(false)
+                           }}>
+                             <RefreshCcw className="w-4 h-4" /> Annuler la facture
+                           </DropdownMenuItem>
                         )}
                         {user?.role === 'admin' && (
                           <>
                             <div className="h-px bg-border my-1" />
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>
+                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setInvoiceToDeleteId(invoice.id)}>
                                 <Trash2 className="w-4 h-4" /> Supprimer
                             </DropdownMenuItem>
                           </>
@@ -406,34 +448,33 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           {paginatedInvoices.map((invoice, index) => (
             <motion.div
               key={invoice.id}
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-              <Card className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm">
+              <Card className="bg-card border-border hover:border-border/80 transition-all group shadow-sm">
                 <CardContent className="p-3 md:p-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+                      <div className="w-9 h-9 rounded-md bg-primary/5 flex items-center justify-center text-primary">
                         <FileText className="w-5 h-5" />
                       </div>
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-bold text-foreground text-sm">{invoice.number}</h3>
-                          {getStatusBadge(invoice.status)}
+                          <h3 className="font-medium text-sm">{invoice.number}</h3>
                           {getPaymentBadge(invoice)}
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
-                          <span className="font-semibold text-foreground/80 uppercase tracking-tighter">{invoice.clientName}</span>
+                        <p className="text-[12px] text-muted-foreground mt-0.5">
+                          <span className="font-medium text-foreground">{invoice.clientName}</span>
                           <span className="mx-2 opacity-30">•</span>
-                          <span>Émission: {formatDate(invoice.date)}</span>
+                          <span>{formatDate(invoice.date)}</span>
                         </p>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 md:gap-6">
+                    <div className="flex items-center gap-4">
                       <div className="text-right hidden sm:block">
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Total TTC</p>
-                        <p className="text-lg font-semibold text-foreground tracking-tighter">{formatCurrency(invoice.total)}</p>
+                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Total</p>
+                        <p className="text-base font-semibold">{formatCurrency(invoice.total)}</p>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -441,7 +482,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                             <MoreVertical className="w-5 h-5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+                        <DropdownMenuContent align="end" className="w-48">
                           <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
                             <Eye className="w-4 h-4" /> Aperçu
                           </DropdownMenuItem>
@@ -462,14 +503,17 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                             </DropdownMenuItem>
                           )}
                           {user?.role === 'user' && (
-                            <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
-                              <RefreshCcw className="w-4 h-4" /> Annuler la facture
-                            </DropdownMenuItem>
+                             <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
+                               setInvoiceToCancel(invoice)
+                               setDeleteAssociatedQuote(false)
+                             }}>
+                               <RefreshCcw className="w-4 h-4" /> Annuler la facture
+                             </DropdownMenuItem>
                           )}
                           {user?.role === 'admin' && (
                             <>
                             <div className="h-px bg-border my-1" />
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>
+                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setInvoiceToDeleteId(invoice.id)}>
                                 <Trash2 className="w-4 h-4" /> Supprimer
                             </DropdownMenuItem>
                             </>
@@ -550,14 +594,17 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           </DropdownMenuItem>
                         )}
                         {user?.role === 'user' && (
-                          <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => handleCreateCreditNote(invoice)}>
+                          <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
+                            setInvoiceToCancel(invoice)
+                            setDeleteAssociatedQuote(false)
+                          }}>
                             <RefreshCcw className="w-4 h-4" /> Annuler
                           </DropdownMenuItem>
                         )}
                         {user?.role === 'admin' && (
                           <>
                             <div className="h-px bg-border my-1" />
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(invoice.id)}>
+                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setInvoiceToDeleteId(invoice.id)}>
                                 <Trash2 className="w-4 h-4" /> Supprimer
                             </DropdownMenuItem>
                           </>
@@ -596,19 +643,27 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           </VisuallyHidden>
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
             <h2 className="font-bold text-black">Aperçu avant impression</h2>
-            <Button onClick={async () => {
-                if (window.electron) {
-                    try {
-                        await window.electron.print();
-                    } catch (err) {
-                        console.error('[Print] IPC error:', err);
-                        toast.error("Erreur lors du lancement de l'impression");
-                    }
-                } else {
-                    window.print();
+            <Button
+              disabled={isPrinting}
+              onClick={async () => {
+                setIsPrinting(true)
+                try {
+                  if (window.electron) {
+                    await window.electron.print()
+                  } else {
+                    window.print()
+                  }
+                } catch (err) {
+                  console.error('[Print] IPC error:', err)
+                  toast.error("Erreur lors du lancement de l'impression")
+                } finally {
+                  setIsPrinting(false)
                 }
-            }} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Printer className="w-4 h-4" /> Lancer l'impression
+              }}
+              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              <Printer className={`w-4 h-4 ${isPrinting ? 'animate-spin' : ''}`} />
+              {isPrinting ? 'En cours...' : "Lancer l'impression"}
             </Button>
           </div>
           {selectedInvoice && <PrintableDocument document={selectedInvoice} type="facture" />}
@@ -700,6 +755,61 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           data={previewInvoice}
         />
       )}
+
+      <AlertDialog open={invoiceToDeleteId !== null} onOpenChange={(open) => !open && !isDeleting && setInvoiceToDeleteId(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer cette facture ? Cette action appliquera un Soft Delete pour conserver la traçabilité fiscale.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => invoiceToDeleteId && handleDelete(invoiceToDeleteId)}
+              disabled={isDeleting}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              {isDeleting ? "Suppression..." : "Supprimer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={invoiceToCancel !== null} onOpenChange={(open) => !open && !isCancelling && setInvoiceToCancel(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">
+              Annuler la facture {invoiceToCancel?.number}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-4">
+              <span>
+                Cette action va générer un avoir pour annuler comptablement cette facture.
+              </span>
+              {invoiceToCancel?.quoteId && (
+                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border border-border mt-3">
+                  <div className="space-y-0.5 text-left">
+                    <Label className="text-sm font-medium">Supprimer également le devis associé</Label>
+                    <p className="text-[10px] text-muted-foreground">Le devis lié sera également marqué comme supprimé</p>
+                  </div>
+                  <Switch checked={deleteAssociatedQuote} onCheckedChange={setDeleteAssociatedQuote} disabled={isCancelling} />
+                </div>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isCancelling}>Retour</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmCancelInvoice}
+              disabled={isCancelling}
+              className="bg-orange-600 hover:bg-orange-700 text-white"
+            >
+              {isCancelling ? "Annulation..." : "Confirmer l'annulation"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

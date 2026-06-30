@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { invoiceSchema } from '@/lib/validations';
+import { computeTotals, getTaxRates } from '@/lib/api/invoice-logic';
 import crypto from 'crypto';
 import { logAudit } from '@/lib/api/audit';
-import type { InvoiceResponse, InvoiceItem, PaymentResponse, ErrorResponse, DbInvoice, DbInvoiceItem, DbPayment, DbSettings, DbSequence } from '@/lib/types/api';
+import { getNextNumber } from '@/lib/api/numbering';
+import type {
+  InvoiceResponse,
+  InvoiceItem,
+  PaymentResponse,
+  ErrorResponse,
+  DbInvoice,
+  DbClient,
+} from '@/lib/types/api';
 
 export async function GET() {
   try {
@@ -36,9 +45,7 @@ export async function GET() {
     return NextResponse.json(formattedInvoices);
   } catch (error) {
     console.error('[API Invoices GET] Error:', error);
-    const errorResponse: ErrorResponse = {
-      error: 'Failed to fetch invoices',
-    };
+    const errorResponse: ErrorResponse = { error: 'Failed to fetch invoices' };
     return NextResponse.json(errorResponse, { status: 500 });
   }
 }
@@ -47,48 +54,64 @@ export async function POST(request: Request) {
   try {
     const body: unknown = await request.json();
 
+    // --- Zod Validation ---
     const validation = invoiceSchema.safeParse(body);
     if (!validation.success) {
       const errorResponse: ErrorResponse = {
         error: 'Données invalides',
-        details: {
-          fieldErrors: validation.error.flatten().fieldErrors,
-        },
+        details: { fieldErrors: validation.error.flatten().fieldErrors },
       };
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
     const data = validation.data;
 
-    // Validate quote if provided
+    // --- AN-1 FIX: Validate clientId against active (non-soft-deleted) clients ---
+    const client = db
+      .prepare('SELECT id FROM clients WHERE id = ? AND deletedAt IS NULL')
+      .get(data.clientId) as DbClient | undefined;
+    if (!client) {
+      const errorResponse: ErrorResponse = {
+        error: 'Client introuvable ou supprimé. Impossible de créer une facture pour ce client.',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
+
+    // --- Validate linked quote (if any) ---
     if (data.quoteId) {
-      const quote = db.prepare('SELECT status, deletedAt FROM quotes WHERE id = ?').get(data.quoteId) as { status: string; deletedAt: string | null } | undefined;
+      const quote = db
+        .prepare('SELECT status, deletedAt FROM quotes WHERE id = ?')
+        .get(data.quoteId) as { status: string; deletedAt: string | null } | undefined;
+
       if (!quote) {
-        return NextResponse.json({ error: 'Devis introuvable.' } as ErrorResponse, { status: 400 });
+        return NextResponse.json(
+          { error: 'Devis introuvable.' } as ErrorResponse,
+          { status: 400 }
+        );
       }
       if (quote.deletedAt !== null) {
-        return NextResponse.json({ error: 'Le devis associé a été supprimé.' } as ErrorResponse, { status: 400 });
+        return NextResponse.json(
+          { error: 'Le devis associé a été supprimé.' } as ErrorResponse,
+          { status: 400 }
+        );
       }
-      if (quote.status === 'invoiced') {
-        return NextResponse.json({ error: 'Ce devis a déjà été converti en facture.' } as ErrorResponse, { status: 400 });
+      // AN-Bonus FIX: was checking 'invoiced' (old value), now using correct 'CONVERTI'
+      if (quote.status === 'CONVERTI') {
+        return NextResponse.json(
+          { error: 'Ce devis a déjà été converti en facture.' } as ErrorResponse,
+          { status: 400 }
+        );
       }
     }
 
-    const settings = db.prepare('SELECT invoicePrefix, companyCode FROM settings WHERE id = 1').get() as DbSettings | undefined;
-    if (!settings) {
-      const errorResponse: ErrorResponse = {
-        error: 'Settings not found',
-      };
-      return NextResponse.json(errorResponse, { status: 500 });
-    }
+    // --- AN-4 FIX: Compute all financial totals SERVER-SIDE ---
+    const rates = getTaxRates();
+    const computed = computeTotals(data.items, data.discount, rates);
 
-    const year = new Date().getFullYear();
     const id = crypto.randomUUID();
 
-    const insertInvoice = db.transaction((invData) => {
-      db.prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = 'invoice'").run();
-      const sequence = db.prepare("SELECT current_value FROM sequences WHERE name = 'invoice'").get() as DbSequence;
-      const number = `${String(sequence.current_value).padStart(3, '0')}/${settings.companyCode}/${year}`;
+    const insertInvoice = db.transaction(() => {
+      const number = getNextNumber('invoice');
 
       db.prepare(`
         INSERT INTO invoices (
@@ -96,9 +119,22 @@ export async function POST(request: Request) {
           subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        id, number, invData.quoteId, invData.clientId, invData.clientName, invData.clientEmail, invData.date,
-        Math.round(invData.subtotal), Math.round(invData.discount), Math.round(invData.taxBase),
-        Math.round(invData.tvaAmount), Math.round(invData.tpsAmount || 0), Math.round(invData.cssAmount), Math.round(invData.total), invData.status === 'pending' ? 'UNPAID' : invData.status, invData.notes
+        id,
+        number,
+        data.quoteId ?? null,
+        data.clientId,
+        data.clientName,
+        data.clientEmail,
+        data.date,
+        computed.subtotal,
+        computed.discount,
+        computed.taxBase,
+        computed.tvaAmount,
+        computed.tpsAmount,
+        computed.cssAmount,
+        computed.total,
+        'UNPAID', // Always starts as UNPAID — payments drive status transitions
+        data.notes ?? null,
       );
 
       const insertItem = db.prepare(`
@@ -106,33 +142,31 @@ export async function POST(request: Request) {
         VALUES (?, ?, ?, ?, ?, ?)
       `);
 
-      for (const item of invData.items) {
+      for (const item of data.items) {
         insertItem.run(
           crypto.randomUUID(),
           id,
           item.description,
           item.quantity,
           Math.round(item.unitPrice),
-          Math.round(item.total)
+          Math.round(item.quantity * item.unitPrice),
         );
       }
 
-      // Automatically update the quote status to 'invoiced' if associated
-      if (invData.quoteId) {
-        db.prepare("UPDATE quotes SET status = 'invoiced' WHERE id = ?").run(invData.quoteId);
+      // Atomic quote status transition
+      if (data.quoteId) {
+        db.prepare("UPDATE quotes SET status = 'CONVERTI' WHERE id = ?").run(data.quoteId);
       }
 
       logAudit('CREATE', 'invoice', id, `Nouvelle facture créée: ${number}`);
       return { id, number };
     });
 
-    const result = insertInvoice(data);
+    const result = insertInvoice();
     return NextResponse.json(result);
   } catch (error) {
     console.error('[API Invoices POST] Error:', error);
-    const errorResponse: ErrorResponse = {
-      error: 'Failed to create invoice',
-    };
+    const errorResponse: ErrorResponse = { error: 'Failed to create invoice' };
     return NextResponse.json(errorResponse, { status: 500 });
   }
 }

@@ -28,7 +28,6 @@ export interface Quote {
   clientName: string;
   clientEmail: string;
   date: string;
-  dueDate: string;
   subtotal: number;
   discount: number;
   taxBase: number;
@@ -36,10 +35,12 @@ export interface Quote {
   tvaAmount: number;
   cssAmount: number;
   total: number;
-  status: 'draft' | 'sent' | 'invoiced' | 'rejected';
+  status: 'EN_ATTENTE' | 'CONVERTI';
   items: InvoiceItem[];
   notes?: string;
   created_by?: string;
+  deletedAt?: string;
+  createdAt?: string;
 }
 
 export interface Invoice {
@@ -97,7 +98,7 @@ export interface CreditNote {
   tvaAmount: number;
   cssAmount: number;
   total: number;
-  status: 'open' | 'closed';
+  status: 'open' | 'applied' | 'cancelled';
   items: InvoiceItem[];
 }
 
@@ -184,6 +185,23 @@ interface ViewFormat {
   creditNotes: 'table' | 'horizontal' | 'block'
 }
 
+export interface InvoiceDraft {
+  selectedClient: Client | null;
+  items: InvoiceItem[];
+  invoiceDate: string;
+  discount: number;
+  notes: string;
+}
+
+export interface QuoteDraft {
+  selectedClient: Client | null;
+  items: InvoiceItem[];
+  quoteDate: string;
+  discount: number;
+  notes: string;
+  status: Quote['status'];
+}
+
 interface AppState {
   user: User | null;
   permissions: RolePermissions | null;
@@ -198,6 +216,8 @@ interface AppState {
   settings: Settings;
   viewFormat: ViewFormat;
   users: UserResponse[];
+  invoiceDraft: InvoiceDraft;
+  quoteDraft: QuoteDraft;
   setIsDataLoaded: (loaded: boolean) => void;
   setUser: (user: User | null) => void;
   setClients: (clients: Client[]) => void;
@@ -212,6 +232,10 @@ interface AppState {
   addUser: (user: UserResponse) => void;
   updateUser: (id: string, updates: Partial<UserResponse>) => void;
   removeUser: (id: string) => void;
+  setInvoiceDraft: (draft: Partial<InvoiceDraft>) => void;
+  clearInvoiceDraft: () => void;
+  setQuoteDraft: (draft: Partial<QuoteDraft>) => void;
+  clearQuoteDraft: () => void;
 }
 
 const DEFAULT_SETTINGS: Settings = {
@@ -258,6 +282,21 @@ export const useStore = create<AppState>()(
         services: 'block',
         creditNotes: 'horizontal'
       },
+      invoiceDraft: {
+        selectedClient: null,
+        items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
+        invoiceDate: new Date().toISOString().split("T")[0],
+        discount: 0,
+        notes: ""
+      },
+      quoteDraft: {
+        selectedClient: null,
+        items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
+        quoteDate: new Date().toISOString().split("T")[0],
+        discount: 0,
+        notes: "",
+        status: 'EN_ATTENTE'
+      },
 
       setIsDataLoaded: (isDataLoaded) => set({ isDataLoaded }),
       setUser: (user) => {
@@ -283,6 +322,31 @@ export const useStore = create<AppState>()(
       })),
       removeUser: (id) => set((state) => ({
         users: state.users.map((u) => u.id === id ? { ...u, is_active: 0, deletedAt: new Date().toISOString() } : u),
+      })),
+      setInvoiceDraft: (draft) => set((state) => ({
+        invoiceDraft: { ...state.invoiceDraft, ...draft }
+      })),
+      clearInvoiceDraft: () => set((state) => ({
+        invoiceDraft: {
+          selectedClient: null,
+          items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
+          invoiceDate: new Date().toISOString().split("T")[0],
+          discount: 0,
+          notes: state.settings.mentionsLegales || ""
+        }
+      })),
+      setQuoteDraft: (draft) => set((state) => ({
+        quoteDraft: { ...state.quoteDraft, ...draft }
+      })),
+      clearQuoteDraft: () => set((state) => ({
+        quoteDraft: {
+          selectedClient: null,
+          items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
+          quoteDate: new Date().toISOString().split("T")[0],
+          discount: 0,
+          notes: state.settings.mentionsLegales || "",
+          status: 'EN_ATTENTE'
+        }
       })),
     }),
     {

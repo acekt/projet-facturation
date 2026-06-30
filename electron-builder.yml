@@ -1,0 +1,161 @@
+# =============================================================================
+# electron-builder.yml — Configuration de Packaging "L'Étoile"
+# =============================================================================
+#
+# ARCHITECTURE STANDALONE (Phase 3) :
+#   next build  →  .next/standalone/server.js  (serveur Node.js embarqué)
+#   electron-builder lit ce fichier pour produire le binaire final.
+#
+# COMMANDE DE BUILD :
+#   npm run dist          → Build + Package pour la plateforme courante
+#   npm run dist:win      → Installateur Windows (.exe NSIS)
+#   npm run dist:mac      → Image disque macOS (.dmg)
+#
+# STRUCTURE DU PAQUET FINAL :
+#   ├── main.js                        # Processus principal Electron
+#   ├── preload.js                     # Script de préchargement sécurisé
+#   ├── package.json                   # Métadonnées (version, main)
+#   ├── .next/standalone/              # Serveur Next.js autonome + ses node_modules
+#   ├── .next/static/                  # Assets CSS, JS chunks (client-side)
+#   └── public/                        # Icônes, images statiques globales
+#
+# =============================================================================
+
+# ── Identité de l'application ─────────────────────────────────────────────────
+
+appId: com.letoile.invoicing
+productName: "L'Etoile"
+copyright: "© 2024 L'Étoile — Tous droits réservés"
+
+# ── Inclusion des fichiers dans l'archive ────────────────────────────────────
+#
+# RÈGLE CRITIQUE STANDALONE :
+#   .next/standalone/ contient DÉJÀ ses propres node_modules tree-shaked.
+#   Le node_modules racine (~500MB) ne doit JAMAIS être inclus.
+#
+files:
+  # Fichiers du processus principal Electron
+  - main.js
+  - preload.js
+  - package.json
+
+  # Serveur Next.js standalone (avec ses node_modules légers intégrés)
+  - .next/standalone/**/*
+
+  # Assets statiques Next.js (CSS, JS chunks, fonts)
+  - .next/static/**/*
+
+  # Assets statiques globaux (icônes, images)
+  - public/**/*
+
+  # ── EXCLUSIONS EXPLICITES ─────────────────────────────────────────────────
+  # node_modules racine : inutile et très lourd (~500MB)
+  - "!node_modules/**/*"
+  # Sources TypeScript/React : jamais dans le binaire final
+  - "!**/*.ts"
+  - "!**/*.tsx"
+  - "!**/*.map"
+  # Configs de développement
+  - "!tsconfig*.json"
+  - "!next.config.mjs"
+  - "!postcss.config.mjs"
+  - "!vitest.config.ts"
+  - "!components.json"
+  - "!.gitignore"
+  - "!audit_report.md"
+  - "!SPECIFICATIONS.md"
+  # Tests et scripts de développement
+  - "!__tests__/**/*"
+  - "!tests/**/*"
+  - "!seed*.ts"
+  - "!reset-db.ts"
+  - "!migrate.ts"
+  - "!fix_tests.js"
+  - "!seed-analytics.ts"
+  - "!seed-test.ts"
+  # La BDD de dev ne va PAS dans le paquet
+  # (créée dans userData au premier lancement)
+  - "!database.sqlite"
+  # Cache et Git
+  - "!.git/**/*"
+  - "!.next/cache/**/*"
+
+# ── Copie des assets statiques au bon emplacement ────────────────────────────
+#
+# PROBLÈME CONNU output: 'standalone' :
+#   Le serveur standalone sert les assets depuis son propre sous-dossier
+#   .next/standalone/.next/static/ mais next build ne copie pas automatiquement
+#   .next/static/ à cet endroit. extraResources gère cette copie.
+#
+extraResources:
+  - from: .next/static
+    to: .next/standalone/.next/static
+    filter:
+      - "**/*"
+
+# ── Répertoires ───────────────────────────────────────────────────────────────
+directories:
+  # Dossier contenant les icônes sources : build/icon.png (512x512),
+  # build/icon.ico (Windows), build/icon.icns (macOS)
+  buildResources: build
+  # Dossier de sortie des installateurs générés
+  output: dist
+
+# ── Rebuild des modules natifs (better-sqlite3) ───────────────────────────────
+#
+# better-sqlite3 contient des binaires natifs (.node) compilés pour une
+# architecture CPU spécifique. electron-builder doit les recompiler pour
+# la version d'Electron (v42.x) via electron-rebuild automatiquement.
+#
+npmRebuild: true
+
+# ── WINDOWS ───────────────────────────────────────────────────────────────────
+win:
+  icon: build/icon.ico
+  target:
+    - target: nsis
+      arch:
+        - x64    # 64-bit uniquement (requis par better-sqlite3)
+
+nsis:
+  # Affiche l'assistant d'installation standard (recommandé pour les apps pro)
+  oneClick: false
+  # Installation par utilisateur courant — évite l'UAC administrateur
+  perMachine: false
+  # Permet à l'utilisateur de choisir le répertoire d'installation
+  allowToChangeInstallationDirectory: true
+  # CRITIQUE : ne PAS supprimer userData à la désinstallation
+  # (contient la base de données SQLite avec toutes les données financières)
+  deleteAppDataOnUninstall: false
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "L'Etoile"
+  # Nom du fichier généré : dist/L'Etoile-Setup-1.0.0.exe
+  artifactName: "${productName}-Setup-${version}.${ext}"
+
+# ── MACOS ─────────────────────────────────────────────────────────────────────
+mac:
+  icon: build/icon.icns
+  category: public.app-category.finance
+  target:
+    - target: dmg
+      arch:
+        - x64      # Intel
+        - arm64    # Apple Silicon (M1/M2/M3)
+
+dmg:
+  title: "${productName} ${version}"
+  artifactName: "${productName}-${version}.${ext}"
+
+# ── LINUX ─────────────────────────────────────────────────────────────────────
+linux:
+  icon: build/icon.png
+  category: Finance
+  target:
+    - target: AppImage
+      arch:
+        - x64
+
+# ── Publication désactivée (app offline, pas de mise à jour automatique) ──────
+# Pour activer les mises à jour auto, configurer electron-updater ici.
+# publish: null

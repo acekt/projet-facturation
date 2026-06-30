@@ -13,7 +13,7 @@ interface DocumentPreviewProps {
     clientName: string
     clientEmail: string
     date: string
-    dueDate: string
+    dueDate?: string  // Optional: not stored in DB, shown only if available
     items: InvoiceItem[]
     subtotal: number
     discount: number
@@ -23,12 +23,12 @@ interface DocumentPreviewProps {
     cssAmount: number
     total: number
     notes?: string
-  payments?: any[]
+    payments?: Array<{ amount: number }>
   }
 }
 
 export function DocumentPreview({ open, onOpenChange, type, data }: DocumentPreviewProps) {
-  const { settings } = useStore()
+  const settings = useStore((state) => state.settings)
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

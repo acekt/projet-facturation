@@ -41,6 +41,16 @@ import { EmptyState } from "@/components/ui/empty-state"
 import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 interface QuotesPageProps {
   onCreateQuote: (id?: string) => void
@@ -49,16 +59,21 @@ interface QuotesPageProps {
 export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   const quotes = useStore(state => state.quotes)
   const setQuotes = useStore(state => state.setQuotes)
+  const setInvoices = useStore(state => state.setInvoices)
   const settings = useStore(state => state.settings)
   const user = useStore(state => state.user)
   const viewFormat = useStore(state => state.viewFormat)
   const setViewFormat = useStore(state => state.setViewFormat)
+  const isDataLoaded = useStore(state => state.isDataLoaded)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 10
   const [previewQuote, setPreviewQuote] = React.useState<Quote | null>(null)
   const [selectedQuote, setSelectedQuote] = React.useState<Quote | null>(null)
   const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
+  const [quoteToDeleteId, setQuoteToDeleteId] = React.useState<string | null>(null)
+  // [P2-A] Protège le bouton d'impression contre le double-clic accidentel
+  const [isPrinting, setIsPrinting] = React.useState(false)
 
   const filteredQuotes = React.useMemo(() => {
     return quotes.filter(
@@ -77,6 +92,17 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   React.useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery])
+
+  if (!isDataLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Chargement des devis...</p>
+        </div>
+      </div>
+    )
+  }
 
   const getStatusBadge = (status: Quote['status']) => {
     switch (status) {
@@ -101,23 +127,18 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Voulez-vous vraiment supprimer ce devis ?")) return
     try {
       const response = await fetch(`/api/quotes/${id}`, {
         method: 'DELETE',
       })
 
-      if (!response.ok) {
-        const err = await response.json();
-        throw new Error(err.error || 'Failed to delete quote');
-      }
-
-      toast.success("Devis supprimé avec succès")
-
-      const newQuotes = await fetch('/api/quotes').then(res => res.json())
-      setQuotes(newQuotes)
-    } catch (error: any) {
-      toast.error(error.message || "Erreur lors de la suppression")
+      if (!response.ok) throw new Error('Delete failed')
+      toast.success("Devis supprimé")
+      setQuoteToDeleteId(null)
+      const updatedQuotes = await fetch('/api/quotes').then(res => res.json())
+      setQuotes(updatedQuotes)
+    } catch (error) {
+      toast.error("Erreur lors de la suppression")
     }
   }
 
@@ -164,7 +185,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
       ])
 
       setQuotes(newQuotes)
-      useStore.getState().setInvoices(newInvoices)
+      setInvoices(newInvoices)
     } catch (error: any) {
       toast.error(`Erreur: ${error.message}`)
     }
@@ -209,12 +230,12 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
           <table className="w-full min-w-[600px]">
             <thead className="bg-secondary/50">
               <tr>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Devis</th>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Client</th>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Dates</th>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Statut</th>
-                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Total</th>
-                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
+                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Devis</th>
+                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client</th>
+                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dates</th>
+                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Statut</th>
+                <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</th>
+                <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -228,7 +249,9 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                       <span className="font-bold text-sm">{quote.number}</span>
                     </div>
                   </td>
-                  <td className="p-4 text-sm text-muted-foreground">{quote.clientName}</td>
+                  <td className="p-4 text-sm text-muted-foreground max-w-[200px] sm:max-w-[300px] truncate" title={quote.clientName}>
+                    {quote.clientName}
+                  </td>
                   <td className="p-4">
                     <div className="text-xs text-muted-foreground">
                       <div>Émission: {formatDate(quote.date)}</div>
@@ -274,12 +297,12 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                             </DropdownMenuItem>
                           </>
                         )}
-                        {useStore.getState().user?.role === 'admin' && (
+                        {user?.role === 'admin' && (
                           <>
                             <div className="h-px bg-border my-1" />
                             <DropdownMenuItem
                                 className="gap-2 text-destructive focus:text-destructive"
-                                onClick={() => handleDelete(quote.id)}
+                                onClick={() => setQuoteToDeleteId(quote.id)}
                             >
                                 <Trash2 className="w-4 h-4" /> Supprimer
                             </DropdownMenuItem>
@@ -379,12 +402,12 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                             </DropdownMenuItem>
                             </>
                           )}
-                          {useStore.getState().user?.role === 'admin' && (
+                          {user?.role === 'admin' && (
                             <>
                             <div className="h-px bg-border my-1" />
                             <DropdownMenuItem
                                 className="gap-2 text-destructive focus:text-destructive"
-                                onClick={() => handleDelete(quote.id)}
+                                onClick={() => setQuoteToDeleteId(quote.id)}
                             >
                                 <Trash2 className="w-4 h-4" /> Supprimer
                             </DropdownMenuItem>
@@ -476,12 +499,12 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                             </DropdownMenuItem>
                           </>
                         )}
-                        {useStore.getState().user?.role === 'admin' && (
+                        {user?.role === 'admin' && (
                           <>
                             <div className="h-px bg-border my-1" />
                             <DropdownMenuItem
                                 className="gap-2 text-destructive focus:text-destructive"
-                                onClick={() => handleDelete(quote.id)}
+                                onClick={() => setQuoteToDeleteId(quote.id)}
                             >
                                 <Trash2 className="w-4 h-4" /> Supprimer
                             </DropdownMenuItem>
@@ -515,6 +538,26 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
         onPageChange={setCurrentPage}
       />
 
+      <AlertDialog open={quoteToDeleteId !== null} onOpenChange={(open) => !open && setQuoteToDeleteId(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer ce devis ? Cette action appliquera un Soft Delete.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => quoteToDeleteId && handleDelete(quoteToDeleteId)}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       {previewQuote && (
         <DocumentPreview
           open={!!previewQuote}
@@ -532,19 +575,27 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
           </VisuallyHidden>
           <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
             <h2 className="font-bold text-black">Aperçu avant impression</h2>
-            <Button onClick={async () => {
-                if (window.electron) {
-                    try {
-                        await window.electron.print();
-                    } catch (err) {
-                        console.error('[Print] IPC error:', err);
-                        toast.error("Erreur lors du lancement de l'impression");
-                    }
-                } else {
-                    window.print();
+            <Button
+              disabled={isPrinting}
+              onClick={async () => {
+                setIsPrinting(true)
+                try {
+                  if (window.electron) {
+                    await window.electron.print()
+                  } else {
+                    window.print()
+                  }
+                } catch (err) {
+                  console.error('[Print] IPC error:', err)
+                  toast.error("Erreur lors du lancement de l'impression")
+                } finally {
+                  setIsPrinting(false)
                 }
-            }} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground">
-              <Printer className="w-4 h-4" /> Lancer l'impression
+              }}
+              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+            >
+              <Printer className={`w-4 h-4 ${isPrinting ? 'animate-spin' : ''}`} />
+              {isPrinting ? 'En cours...' : "Lancer l'impression"}
             </Button>
           </div>
           {selectedQuote && <PrintableDocument document={selectedQuote} type="devis" />}

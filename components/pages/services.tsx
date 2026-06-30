@@ -23,12 +23,22 @@ import {
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { useStore } from "@/lib/store"
+import { useStore, type Service } from "@/lib/store"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
 import { ViewFormatSelector } from "@/components/ui/view-format-selector"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 
 export function ServicesPage() {
   const services = useStore((state) => state.services)
@@ -40,7 +50,8 @@ export function ServicesPage() {
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 9 // Grid 3x3
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
-  const [editingService, setEditingService] = React.useState<any | null>(null)
+  const [editingService, setEditingService] = React.useState<Service | null>(null)
+  const [serviceToDeleteId, setServiceToDeleteId] = React.useState<string | null>(null)
   const [formData, setFormData] = React.useState({
     name: "",
     description: "",
@@ -68,40 +79,85 @@ export function ServicesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    try {
-      const url = editingService ? `/api/services/${editingService.id}` : '/api/services'
-      const method = editingService ? 'PATCH' : 'POST'
+    const previousServices = [...services]
 
-      const response = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
-      })
+    if (editingService) {
+      // Modification
+      const updatedService: Service = {
+        ...editingService,
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        unitPrice: formData.unitPrice,
+      }
 
-      if (!response.ok) throw new Error('Failed to save service')
-
-      const updated = await fetch('/api/services').then(res => res.json())
-      setServices(updated)
-
+      // Optimistic Update
+      setServices(services.map(s => s.id === editingService.id ? updatedService : s))
       setIsDialogOpen(false)
-      setEditingService(null)
+      toast.success("Service mis à jour")
+
+      try {
+        const response = await fetch(`/api/services/${editingService.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        })
+        if (!response.ok) throw new Error('Failed to update service')
+      } catch (error) {
+        // Rollback on failure
+        setServices(previousServices)
+        toast.error("Erreur lors de la modification du service. Annulation.")
+      }
+    } else {
+      // Ajout
+      const tempId = crypto.randomUUID()
+      const serviceToCreate: Service = {
+        id: tempId,
+        name: formData.name,
+        description: formData.description,
+        category: formData.category,
+        unitPrice: formData.unitPrice,
+        isActive: true,
+      }
+
+      // Optimistic Update
+      setServices([...services, serviceToCreate])
+      setIsDialogOpen(false)
       setFormData({ name: "", description: "", category: "", unitPrice: 0 })
-      toast.success(editingService ? "Service mis à jour" : "Service ajouté au catalogue")
-    } catch (error) {
-      toast.error("Erreur lors de l'enregistrement")
+      toast.success("Service ajouté au catalogue")
+
+      try {
+        const response = await fetch('/api/services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(serviceToCreate),
+        })
+        if (!response.ok) throw new Error('Failed to create service')
+        const created = await response.json()
+        setServices(previousServices.concat(created))
+      } catch (error) {
+        // Rollback on failure
+        setServices(previousServices)
+        toast.error("Erreur lors de l'ajout du service. Annulation.")
+      }
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm("Supprimer ce service du catalogue ?")) return
+    const previousServices = [...services]
+
+    // Optimistic Update
+    setServices(services.filter(s => s.id !== id))
+    toast.success("Service supprimé")
+    setServiceToDeleteId(null)
+
     try {
       const response = await fetch(`/api/services/${id}`, { method: 'DELETE' })
       if (!response.ok) throw new Error('Delete failed')
-      toast.success("Service supprimé")
-      const updated = await fetch('/api/services').then(res => res.json())
-      setServices(updated)
     } catch (error) {
-      toast.error("Erreur lors de la suppression")
+      // Rollback on failure
+      setServices(previousServices)
+      toast.error("Erreur lors de la suppression du service. Restauration.")
     }
   }
 
@@ -148,11 +204,11 @@ export function ServicesPage() {
           <table className="w-full min-w-[600px]">
             <thead className="bg-secondary/50">
               <tr>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Service</th>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Catégorie</th>
-                <th className="text-left p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Description</th>
-                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Prix</th>
-                <th className="text-right p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground">Actions</th>
+                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Service</th>
+                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Catégorie</th>
+                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</th>
+                <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Prix</th>
+                <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/50">
@@ -163,13 +219,21 @@ export function ServicesPage() {
                       <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
                         <Briefcase className="w-4 h-4" />
                       </div>
-                      <span className="font-bold text-sm">{service.name}</span>
+                      <span className="font-bold text-sm max-w-[200px] sm:max-w-[300px] truncate" title={service.name}>
+                        {service.name}
+                      </span>
                     </div>
                   </td>
                   <td className="p-4">
-                    <Badge variant="secondary">{service.category || 'Non classé'}</Badge>
+                    <Badge variant="secondary" className="max-w-[150px] truncate" title={service.category || 'Non classé'}>
+                      {service.category || 'Non classé'}
+                    </Badge>
                   </td>
-                  <td className="p-4 text-sm text-muted-foreground line-clamp-1">{service.description || '-'}</td>
+                  <td className="p-4 text-sm text-muted-foreground">
+                    <div className="max-w-[300px] truncate" title={service.description || undefined}>
+                      {service.description || <span className="text-muted-foreground/50">—</span>}
+                    </div>
+                  </td>
                   <td className="p-4 text-right font-bold text-sm">{formatCurrency(service.unitPrice)}</td>
                   <td className="p-4 text-right">
                     <DropdownMenu>
@@ -194,7 +258,7 @@ export function ServicesPage() {
                           </DropdownMenuItem>
                         )}
                         {(user?.role === 'admin' || user?.role === 'user') && (
-                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(service.id)}>
+                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setServiceToDeleteId(service.id)}>
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>
                         )}
@@ -261,7 +325,7 @@ export function ServicesPage() {
                           </DropdownMenuItem>
                         )}
                         {(user?.role === 'admin' || user?.role === 'user') && (
-                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(service.id)}>
+                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setServiceToDeleteId(service.id)}>
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>
                         )}
@@ -324,7 +388,7 @@ export function ServicesPage() {
                             </DropdownMenuItem>
                           )}
                           {(user?.role === 'admin' || user?.role === 'user') && (
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => handleDelete(service.id)}>
+                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setServiceToDeleteId(service.id)}>
                               <Trash2 className="w-4 h-4" /> Supprimer
                             </DropdownMenuItem>
                           )}
@@ -430,6 +494,25 @@ export function ServicesPage() {
           </form>
         </DialogContent>
       </Dialog>
+      <AlertDialog open={serviceToDeleteId !== null} onOpenChange={(open) => !open && setServiceToDeleteId(null)}>
+        <AlertDialogContent className="bg-card border-border">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-foreground">Confirmer la suppression</AlertDialogTitle>
+            <AlertDialogDescription>
+              Êtes-vous sûr de vouloir supprimer ce service du catalogue ?
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => serviceToDeleteId && handleDelete(serviceToDeleteId)}
+              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+            >
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   )
 }

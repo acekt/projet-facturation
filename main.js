@@ -1,113 +1,321 @@
 /**
  * main.js — Processus Principal Electron "L'Étoile"
  * ===================================================
- * Architecture Desktop-first : l'app charge Next.js en dev (localhost)
- * et les fichiers statiques exportés en production (file://).
  *
- * Corrections appliquées :
- *  [AXE 1] Injection de ELECTRON_USERDATA_PATH → SQLite hors app.asar
- *  [AXE 1] Production : chargement des fichiers statiques (file://), pas localhost
- *  [AXE 1] IPC sécurisé : print-to-pdf async, dialog:open-folder async
- *  [AXE 2] Liens externes interceptés → shell.openExternal (navigateur OS)
- *  [AXE 2] Content Security Policy stricte (pas de ressources réseau hors dev)
- *  [AXE 4] Suppression du console.log de debug sur fallback de port
+ * CORRECTIONS PHASE 3-BIS (Stabilité & Conflits de ports) :
+ *
+ *  [FIX-1] isDev : Basé sur l'absence de .next/standalone/server.js plutôt
+ *          que sur NODE_ENV. Quand on lance `electron .` sans `next build`
+ *          préalable, NODE_ENV n'est pas 'development' mais le build prod
+ *          n'existe pas non plus → crash. On détecte désormais le mode
+ *          par la présence du fichier standalone, pas par NODE_ENV.
+ *
+ *  [FIX-2] findAvailablePort : Boucle jusqu'à MAX_PORT_SCAN ports au lieu
+ *          d'un unique fallback à preferred+1. Évite les crashs quand
+ *          plusieurs ports sont déjà occupés.
+ *
+ *  [FIX-3] Dev mode — sondage dynamique du port : En développement,
+ *          scanPorts() sonde la plage [3000..3009] pour trouver QUEL port
+ *          le serveur `next dev` a choisi, plutôt que d'assumer le 3000.
+ *
+ *  [FIX-4] Cycle de vie propre : killNextProcess() est appelé sur
+ *          'window-all-closed', 'before-quit', ET process.on('exit')
+ *          pour empêcher tout processus zombie côté port.
+ *
+ *  [P0-A]  ELECTRON_USERDATA_PATH passé explicitement dans spawn().env.
+ *  [P0-B]  output: 'standalone' → .next/standalone/server.js
  */
 
 'use strict';
 
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
-const path = require('path');
+const { spawn }                               = require('child_process');
+const path                                    = require('path');
+const http                                    = require('http');
+const fs                                      = require('fs');
 
-const isDev = process.env.NODE_ENV === 'development';
+// ── Chemin userData — injecté dans TOUS les processus enfants (P0-A)
+const USER_DATA_PATH = app.getPath('userData');
 
-// ── AXE 1 : Injecter le chemin userData avant que Next.js (et SQLite) se lancent
-// Le renderer charge les routes /api/* qui elles-mêmes importent lib/db.ts côté
-// server. Ce process.env est hérité par le sous-processus Next.js.
-process.env.ELECTRON_USERDATA_PATH = app.getPath('userData');
+// ── Détection du mode d'exécution par la présence du build standalone
+// C'est plus fiable que process.env.NODE_ENV qui peut être indéfini
+// quand on lance `electron .` directement depuis le terminal.
+const STANDALONE_SERVER = path.join(__dirname, '.next', 'standalone', 'server.js');
+const isDev = !fs.existsSync(STANDALONE_SERVER);
 
-// ── AXE 2 : Désactiver le cache disque Chromium (inutile pour une app offline)
-app.commandLine.appendSwitch('disable-http-cache');
+console.log(`[main] Mode: ${isDev ? 'DÉVELOPPEMENT' : 'PRODUCTION'}`);
+if (isDev) {
+  console.log('[main] Serveur standalone absent → connexion au serveur Next.js dev.');
+}
 
-// ── Fenêtre principale
-let mainWindow = null;
+// ── Fenêtre principale et processus serveur Next.js
+let mainWindow  = null;
+let nextProcess = null;  // Référence au processus enfant Next.js (prod uniquement)
 
-function createWindow() {
+// ══════════════════════════════════════════════════════════════════════
+// UTILITAIRES DE PORT
+// ══════════════════════════════════════════════════════════════════════
+
+const DEV_PORT_RANGE_START = 3000;
+const DEV_PORT_RANGE_END   = 3009;  // Next.js essaie jusqu'à 3009 en cas de conflit
+const MAX_PORT_SCAN        = 10;    // Nombre max de ports à tester
+
+/**
+ * [FIX-2] Trouve un port libre en testant de preferred jusqu'à preferred + MAX_PORT_SCAN.
+ * Contrairement à l'ancienne version (fallback unique +1), cette version boucle.
+ *
+ * @param {number} preferred - Port de départ préféré
+ * @returns {Promise<number>} - Premier port disponible trouvé
+ */
+function findAvailablePort(preferred = 3000) {
+  return new Promise((resolve, reject) => {
+    let attempt = preferred;
+
+    const tryPort = () => {
+      if (attempt > preferred + MAX_PORT_SCAN) {
+        reject(new Error(`[main] Aucun port libre trouvé dans la plage [${preferred}-${preferred + MAX_PORT_SCAN}]`));
+        return;
+      }
+
+      const srv = http.createServer();
+      srv.listen(attempt, '127.0.0.1', () => {
+        const port = (srv.address()).port;
+        srv.close(() => resolve(port));
+      });
+      srv.on('error', () => {
+        attempt++;
+        tryPort();
+      });
+    };
+
+    tryPort();
+  });
+}
+
+/**
+ * [FIX-3] En mode développement, sonde la plage de ports pour trouver
+ * sur lequel `next dev` écoute effectivement. Next.js peut choisir 3001, 3002…
+ * si 3000 est occupé. Retourne le port répondant le plus tôt, ou null.
+ *
+ * @param {number} start - Port de début de plage
+ * @param {number} end - Port de fin de plage
+ * @param {number} timeoutMs - Timeout par requête
+ * @returns {Promise<number | null>}
+ */
+function scanForDevServer(start = DEV_PORT_RANGE_START, end = DEV_PORT_RANGE_END, timeoutMs = 500) {
+  const checks = [];
+
+  for (let port = start; port <= end; port++) {
+    const p = new Promise((resolve) => {
+      const req = http.get(
+        { hostname: '127.0.0.1', port, path: '/', timeout: timeoutMs },
+        (res) => {
+          res.resume();
+          resolve(port);
+        }
+      );
+      req.on('error', () => resolve(null));
+      req.on('timeout', () => { req.destroy(); resolve(null); });
+    });
+    checks.push(p);
+  }
+
+  return Promise.all(checks).then((results) => {
+    const found = results.find((p) => p !== null);
+    return found ?? null;
+  });
+}
+
+/**
+ * Attend que le serveur Next.js accepte les connexions HTTP.
+ * Retry toutes les 300ms jusqu'au timeout.
+ *
+ * @param {string} url - URL à sonder
+ * @param {number} timeoutMs - Timeout total
+ * @returns {Promise<void>}
+ */
+function waitForServer(url, timeoutMs = 20000) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+
+    const check = () => {
+      const req = http.get(url, (res) => {
+        res.resume();
+        resolve();
+      });
+
+      req.on('error', () => {
+        if (Date.now() - start > timeoutMs) {
+          reject(new Error(`[main] Timeout (${timeoutMs / 1000}s): le serveur Next.js ne répond pas sur ${url}`));
+        } else {
+          setTimeout(check, 300);
+        }
+      });
+
+      req.on('timeout', () => {
+        req.destroy();
+        if (Date.now() - start > timeoutMs) {
+          reject(new Error(`[main] Timeout: ${url}`));
+        } else {
+          setTimeout(check, 300);
+        }
+      });
+
+      req.setTimeout(1000); // Timeout par requête individuelle
+    };
+
+    check();
+  });
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// GESTION DU PROCESSUS ENFANT NEXT.JS
+// ══════════════════════════════════════════════════════════════════════
+
+/**
+ * [FIX-4] Tue proprement le processus enfant Next.js.
+ * Appelé sur plusieurs événements de sortie pour garantir
+ * qu'aucun processus zombie ne reste accroché sur le port.
+ */
+function killNextProcess() {
+  if (nextProcess && !nextProcess.killed) {
+    console.log('[main] Arrêt du serveur Next.js enfant (PID:', nextProcess.pid, ')');
+    try {
+      // SIGTERM d'abord (arrêt propre), puis SIGKILL après 3s si nécessaire
+      nextProcess.kill('SIGTERM');
+      const forceKillTimer = setTimeout(() => {
+        if (nextProcess && !nextProcess.killed) {
+          console.warn('[main] Forçage SIGKILL sur le serveur Next.js');
+          nextProcess.kill('SIGKILL');
+        }
+      }, 3000);
+      // Annuler le timer si le processus se termine proprement
+      nextProcess.once('exit', () => clearTimeout(forceKillTimer));
+    } catch (e) {
+      // Ignorer les erreurs si le processus est déjà mort
+    }
+    nextProcess = null;
+  }
+}
+
+/**
+ * Démarre le serveur Next.js standalone en production.
+ *
+ * @param {number} port - Port sur lequel le serveur doit écouter
+ * @returns {Promise<void>} - Résout quand le serveur est prêt
+ */
+async function startNextServer(port) {
+  nextProcess = spawn(process.execPath, [STANDALONE_SERVER], {
+    env: {
+      ...process.env,
+      ELECTRON_USERDATA_PATH: USER_DATA_PATH, // [P0-A] Transmission EXPLICITE
+      PORT: String(port),
+      NODE_ENV: 'production',
+      NEXT_TELEMETRY_DISABLED: '1',
+    },
+    stdio: 'ignore',  // En prod, ne pas polluer stdout du processus principal
+  });
+
+  nextProcess.on('error', (err) => {
+    console.error('[main] Erreur du processus Next.js:', err.message);
+  });
+
+  nextProcess.on('exit', (code, signal) => {
+    if (code !== 0 && code !== null) {
+      console.error(`[main] Le serveur Next.js s'est arrêté avec le code ${code} (signal: ${signal})`);
+    }
+    nextProcess = null;
+  });
+
+  console.log(`[main] Serveur Next.js standalone démarré (PID: ${nextProcess.pid}, PORT: ${port})`);
+  await waitForServer(`http://127.0.0.1:${port}`, 25000);
+}
+
+// ══════════════════════════════════════════════════════════════════════
+// Fenêtre principale
+// ══════════════════════════════════════════════════════════════════════
+
+function createWindow(port) {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
     minWidth: 900,
     minHeight: 600,
     title: "L'Étoile — Gestion & Facturation",
-    // Masquer la frame native : l'app a sa propre UI de navigation
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
-      nodeIntegration: false,         // Jamais true — sécurité critique
-      contextIsolation: true,          // Toujours true — isolation renderer
-      sandbox: false,                  // false requis pour better-sqlite3 côté serveur
+      nodeIntegration: false,
+      contextIsolation: true,
+      sandbox: false,         // Requis pour better-sqlite3
       preload: path.join(__dirname, 'preload.js'),
-      // ── AXE 2 : CSP renforcée
-      // En prod, aucune requête réseau externe n'est autorisée.
-      // En dev, localhost est permis pour le HMR Turbopack.
       webSecurity: !isDev,
     },
     icon: path.join(__dirname, 'public', 'icon.png'),
-    show: false, // Anti-flash : on affiche la fenêtre quand elle est prête
-    backgroundColor: '#030303', // Même couleur que --background dark pour éviter le flash blanc
+    show: false,
+    backgroundColor: '#030303',
   });
 
-  // ── Anti-flash blanc : afficher seulement quand prêt
   mainWindow.once('ready-to-show', () => {
     mainWindow.show();
   });
 
-  // ── Chargement de l'application
-  if (isDev) {
-    // Développement : Next.js dev server (port 3000 ou 3001 si occupé)
-    const port = process.env.PORT || 3000;
-    const devUrl = `http://localhost:${port}`;
-    const fallbackUrl = `http://localhost:${parseInt(port) + 1}`;
+  const appUrl = `http://127.0.0.1:${port}`;
+  console.log(`[main] Chargement de l'URL: ${appUrl}`);
 
-    mainWindow.loadURL(devUrl).catch(() => {
-      mainWindow.loadURL(fallbackUrl);
-    });
+  mainWindow.loadURL(appUrl).catch((err) => {
+    mainWindow.loadURL(
+      `data:text/html,<html><body style="background:#0a0a0a;color:#f87171;font-family:sans-serif;padding:2rem">` +
+      `<h1>Erreur de chargement</h1><pre style="color:#94a3b8">${err.message}</pre>` +
+      `<p style="color:#64748b">Lancez d'abord <code>npm run dev</code> puis relancez Electron.</p></body></html>`
+    );
+  });
 
-    // DevTools disponibles uniquement en dev
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
-  } else {
-    // Production : charger les fichiers statiques exportés par `next export`
-    // Structure attendue : ./out/index.html (généré par `next build && next export`)
-    const indexPath = path.join(__dirname, 'out', 'index.html');
-    mainWindow.loadFile(indexPath).catch((err) => {
-      // Dernier recours : afficher une page d'erreur inline
-      mainWindow.loadURL(`data:text/html,<h1>Erreur de chargement</h1><pre>${err.message}</pre>`);
-    });
-  }
+  // [FIX-3] En dev, si le chargement échoue, tenter de re-scanner le bon port
+  // (le serveur dev a peut-être changé de port depuis le démarrage d'Electron)
+  let retryCount = 0;
+  const MAX_RETRIES = 5;
 
-  // ── AXE 1 : Gestion du retry en dev si le serveur n'est pas encore démarré
-  mainWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription, validatedURL) => {
-    if (isDev && validatedURL && validatedURL.includes('localhost')) {
-      // Retry silencieux après 1 seconde (Turbopack peut être lent au démarrage)
+  mainWindow.webContents.on('did-fail-load', async (_event, errorCode, _desc, validatedURL) => {
+    if (!isDev) return; // En production, ne pas retry automatiquement
+    if (!validatedURL || !validatedURL.includes('127.0.0.1')) return;
+    if (retryCount >= MAX_RETRIES) return;
+
+    retryCount++;
+    console.log(`[main] Chargement échoué (code: ${errorCode}), re-scan des ports dev... (tentative ${retryCount}/${MAX_RETRIES})`);
+
+    await new Promise((r) => setTimeout(r, 1000));
+
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+
+    // Re-scanner pour trouver le bon port actif du serveur dev
+    const foundPort = await scanForDevServer();
+    if (foundPort && foundPort !== port) {
+      console.log(`[main] Serveur dev trouvé sur le port ${foundPort}, rechargement...`);
+      mainWindow.loadURL(`http://127.0.0.1:${foundPort}`);
+    } else if (foundPort === port) {
+      mainWindow.reload();
+    } else {
       setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.reload();
-        }
-      }, 1000);
+        if (mainWindow && !mainWindow.isDestroyed()) mainWindow.reload();
+      }, 1500);
     }
   });
 
-  // ── AXE 2 : Intercepter TOUS les liens externes (http/https) pour les ouvrir
-  // dans le navigateur par défaut de l'OS, et NON dans l'app Electron.
+  // DevTools uniquement en dev
+  if (isDev) {
+    mainWindow.webContents.openDevTools({ mode: 'detach' });
+  }
+
+  // Intercepter les liens externes → navigateur OS
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('http://') || url.startsWith('https://')) {
       shell.openExternal(url);
     }
-    return { action: 'deny' }; // Bloquer toute popup dans l'app
+    return { action: 'deny' };
   });
 
-  // Liens <a href> avec target="_blank"
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    const appUrl = isDev ? 'http://localhost' : 'file://';
-    if (!url.startsWith(appUrl)) {
+    if (!url.startsWith(`http://127.0.0.1:${port}`)) {
       event.preventDefault();
       shell.openExternal(url);
     }
@@ -118,31 +326,78 @@ function createWindow() {
   });
 }
 
-// ── Lifecycle
-app.whenReady().then(() => {
-  createWindow();
+// ══════════════════════════════════════════════════════════════════════
+// Lifecycle
+// ══════════════════════════════════════════════════════════════════════
+
+app.whenReady().then(async () => {
+  let port;
+
+  if (isDev) {
+    // [FIX-3] Sonder la plage de ports pour trouver le serveur dev actif
+    console.log(`[main] Scan des ports dev [${DEV_PORT_RANGE_START}-${DEV_PORT_RANGE_END}]...`);
+    const foundPort = await scanForDevServer();
+
+    if (foundPort) {
+      port = foundPort;
+      console.log(`[main] Serveur dev trouvé sur le port ${port}`);
+    } else {
+      // Aucun serveur dev actif → utiliser 3000 par défaut et laisser
+      // did-fail-load + retry gérer la reconnexion quand next dev démarre
+      port = DEV_PORT_RANGE_START;
+      console.warn('[main] Aucun serveur Next.js dev trouvé. Lancez `npm run dev` dans un autre terminal.');
+    }
+  } else {
+    // Production : trouver un port libre et démarrer le serveur standalone
+    port = await findAvailablePort(3000);
+    console.log(`[main] Port de production sélectionné: ${port}`);
+    await startNextServer(port);
+  }
+
+  createWindow(port);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      createWindow(port);
     }
   });
 });
 
+// [FIX-4] Nettoyage propre sur TOUS les événements de sortie ──────────────────
+
+app.on('before-quit', () => {
+  killNextProcess();
+});
+
 app.on('window-all-closed', () => {
+  killNextProcess();
   if (process.platform !== 'darwin') {
     app.quit();
   }
 });
 
+// Sécurité supplémentaire : tuer le processus enfant même si Node.js sort
+// brutalement (Ctrl+C, crash Electron, etc.)
+process.on('exit', () => {
+  killNextProcess();
+});
+
+process.on('SIGINT', () => {
+  killNextProcess();
+  process.exit(0);
+});
+
+process.on('SIGTERM', () => {
+  killNextProcess();
+  process.exit(0);
+});
+
 // ══════════════════════════════════════════════════════════════════════
-// IPC HANDLERS (AXE 1 — Tous async via ipcMain.handle, jamais sendSync)
+// IPC HANDLERS (Tous async via ipcMain.handle, jamais sendSync)
 // ══════════════════════════════════════════════════════════════════════
 
 /**
- * print-to-pdf
  * Déclenche l'impression native via la boîte de dialogue système.
- * Le renderer appelle: await window.electron.print()
  */
 ipcMain.handle('print-to-pdf', async () => {
   const win = BrowserWindow.getFocusedWindow() || mainWindow;
@@ -160,14 +415,11 @@ ipcMain.handle('print-to-pdf', async () => {
   });
 });
 
-/**
- * app:get-version
- * Expose la version de l'application au renderer (pour l'UI Paramètres).
- */
+/** Expose la version de l'application au renderer. */
 ipcMain.handle('app:get-version', () => app.getVersion());
 
 /**
- * app:get-userData-path
- * Expose le chemin userData au renderer (pour debug ou affichage dans l'UI).
+ * Expose le chemin userData au renderer (affichage dans l'UI Paramètres).
+ * Ce chemin est aussi injecté dans le processus enfant Next.js via spawn().env.
  */
-ipcMain.handle('app:get-userData-path', () => app.getPath('userData'));
+ipcMain.handle('app:get-userData-path', () => USER_DATA_PATH);

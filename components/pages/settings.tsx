@@ -18,7 +18,9 @@ import { toast } from "sonner"
 import { cn } from "@/lib/utils"
 
 export function SettingsPage() {
-  const { settings, setSettings, user } = useStore()
+  const settings = useStore(state => state.settings)
+  const setSettings = useStore(state => state.setSettings)
+  const user = useStore(state => state.user)
   const [formData, setFormData] = React.useState(settings)
   const [isSaving, setIsSaving] = React.useState(false)
   const [isDragging, setIsDragging] = React.useState(false)

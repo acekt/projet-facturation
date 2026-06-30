@@ -31,7 +31,10 @@ import { Pagination } from "@/components/ui/pagination-custom"
 import { cn } from "@/lib/utils"
 
 export function CreditNotesPage() {
-  const { creditNotes, settings, viewFormat, setViewFormat } = useStore()
+  const creditNotes = useStore(state => state.creditNotes)
+  const settings = useStore(state => state.settings)
+  const viewFormat = useStore(state => state.viewFormat)
+  const setViewFormat = useStore(state => state.setViewFormat)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 10

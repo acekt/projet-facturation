@@ -391,21 +391,12 @@ export interface QuoteCreateRequest {
   clientName: string;
   clientEmail: string;
   date: string;
-  dueDate: string;
-  subtotal: number;
   discount: number;
-  taxBase: number;
-  tvaAmount: number;
-  tpsAmount?: number;
-  cssAmount: number;
-  total: number;
   notes?: string;
-  status: 'draft' | 'sent' | 'invoiced' | 'rejected';
   items: Array<{
     description: string;
     quantity: number;
     unitPrice: number;
-    total: number;
   }>;
 }
 
@@ -416,7 +407,6 @@ export interface QuoteResponse {
   clientName: string;
   clientEmail: string;
   date: string;
-  dueDate: string;
   subtotal: number;
   discount: number;
   taxBase: number;
@@ -425,7 +415,7 @@ export interface QuoteResponse {
   cssAmount: number;
   total: number;
   notes?: string;
-  status: 'draft' | 'sent' | 'invoiced' | 'rejected';
+  status: 'EN_ATTENTE' | 'CONVERTI';
   items: QuoteItem[];
   deletedAt?: string;
   createdAt: string;
@@ -438,7 +428,6 @@ export interface DbQuote {
   clientName: string;
   clientEmail: string;
   date: string;
-  dueDate: string;
   subtotal: number;
   discount: number;
   taxBase: number;
@@ -447,8 +436,8 @@ export interface DbQuote {
   cssAmount: number;
   total: number;
   notes?: string;
-  status: 'draft' | 'sent' | 'invoiced' | 'rejected';
-  deletedAt?: string;
+  status: 'EN_ATTENTE' | 'CONVERTI';
+  deletedAt?: string | null;
   createdAt: string;
 }
 
