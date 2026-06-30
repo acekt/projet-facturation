@@ -92,15 +92,8 @@ export async function middleware(request: NextRequest) {
   const isApiAuth = pathname.startsWith('/api/auth')
   const isPublicAsset = pathname.startsWith('/_next') || pathname.includes('.')
 
-  // Allow read-only access to GET requests on quotes/invoices/services/clients APIs
-  const isReadOnlyApi = (pathname.startsWith('/api/quotes') ||
-                         pathname.startsWith('/api/invoices') ||
-                         pathname.startsWith('/api/services') ||
-                         pathname.startsWith('/api/clients')) &&
-                        request.method === 'GET'
-
   // 1. Check Authentication
-  if (!sessionCookie && !isLoginPage && !isApiAuth && !isPublicAsset && !isReadOnlyApi) {
+  if (!sessionCookie && !isLoginPage && !isApiAuth && !isPublicAsset) {
     if (pathname.startsWith('/api')) {
       return new NextResponse(JSON.stringify({ error: 'Unauthorized' }), {
         status: 401,

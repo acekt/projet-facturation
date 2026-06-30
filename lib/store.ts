@@ -2,18 +2,42 @@
 
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import type { UserResponse } from '@/lib/types/api';
 
-export interface Client {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  address: string;
-  status: 'active' | 'warning' | 'inactive';
-}
+// ============================================================================
+// Re-export canonical types from the Single Source of Truth
+// Components should import entity types from HERE (not from lib/types/api directly)
+// ============================================================================
+import type {
+  UserResponse,
+  ClientResponse,
+  InvoiceResponse,
+  QuoteResponse,
+  PaymentResponse,
+  ServiceResponse,
+  CreditNoteResponse,
+  SettingsResponse,
+} from '@/lib/types/api';
 
-export interface InvoiceItem {
+// Re-export InvoiceItem type to avoid breakage in editor components
+export type { InvoiceItem } from '@/lib/types/api';
+
+// ============================================================================
+// Store-local type aliases for backward compatibility
+// ============================================================================
+export type Client     = ClientResponse;
+export type Invoice    = InvoiceResponse;
+export type Quote      = QuoteResponse;
+export type Payment    = PaymentResponse;
+export type Service    = ServiceResponse;
+export type CreditNote = CreditNoteResponse;
+export type Settings   = SettingsResponse;
+
+/**
+ * DraftItem — item used inside the editor before the invoice/quote is saved.
+ * Unlike InvoiceItem/QuoteItem, it does NOT require invoiceId/quoteId since
+ * those foreign keys are only assigned at server persistence time.
+ */
+export interface DraftItem {
   id: string;
   description: string;
   quantity: number;
@@ -21,111 +45,29 @@ export interface InvoiceItem {
   total: number;
 }
 
-export interface Quote {
-  id: string;
-  number: string;
-  clientId: string;
-  clientName: string;
-  clientEmail: string;
-  date: string;
-  subtotal: number;
+// ============================================================================
+// Draft interfaces (for in-memory edit persistence across SPA navigation)
+// ============================================================================
+export interface InvoiceDraft {
+  selectedClient: Client | null;
+  items: DraftItem[];
+  invoiceDate: string;
   discount: number;
-  taxBase: number;
-  tpsAmount?: number;
-  tvaAmount: number;
-  cssAmount: number;
-  total: number;
-  status: 'EN_ATTENTE' | 'CONVERTI';
-  items: InvoiceItem[];
-  notes?: string;
-  created_by?: string;
-  deletedAt?: string;
-  createdAt?: string;
+  notes: string;
 }
 
-export interface Invoice {
-  id: string;
-  number: string;
-  quoteId?: string;
-  clientId: string;
-  clientName: string;
-  clientEmail: string;
-  date: string;
-  dueDate: string;
-  subtotal: number;
+export interface QuoteDraft {
+  selectedClient: Client | null;
+  items: DraftItem[];
+  quoteDate: string;
   discount: number;
-  taxBase: number;
-  tpsAmount?: number;
-  tvaAmount: number;
-  cssAmount: number;
-  total: number;
-  status: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'overdue' | 'draft' | 'cancelled';
-  items: InvoiceItem[];
-  payments?: Payment[];
-  notes?: string;
-  created_by?: string;
+  notes: string;
+  status: Quote['status'];
 }
 
-export interface Payment {
-  id: string;
-  invoiceId: string;
-  amount: number;
-  paymentMethod: string;
-  date: string;
-  reference?: string;
-}
-
-export interface Service {
-  id: string;
-  name: string;
-  description: string;
-  category: string;
-  unitPrice: number;
-  isActive: boolean;
-}
-
-export interface CreditNote {
-  id: string;
-  number: string;
-  invoiceId: string;
-  clientId: string;
-  clientName: string;
-  date: string;
-  reason: string;
-  subtotal: number;
-  taxBase: number;
-  tpsAmount?: number;
-  tvaAmount: number;
-  cssAmount: number;
-  total: number;
-  status: 'open' | 'applied' | 'cancelled';
-  items: InvoiceItem[];
-}
-
-export interface Settings {
-  companyName: string;
-  legalForm: string;
-  nif: string;
-  rccm: string;
-  address: string;
-  email: string;
-  phone: string;
-  bankName: string;
-  bankAgency: string;
-  accountNumber: string;
-  swiftCode: string;
-  iban: string;
-  tvaRate: number;
-  tpsRate: number;
-  cssRate: number;
-  sessionTimeout: number;
-  invoicePrefix: string;
-  quotePrefix: string;
-  companyCode: string;
-  mentionsLegales?: string;
-  logo?: string;
-}
-
+// ============================================================================
+// RBAC
+// ============================================================================
 interface User {
   id: string;
   name: string;
@@ -178,35 +120,22 @@ const USER_PERMISSIONS: RolePermissions = {
 };
 
 interface ViewFormat {
-  quotes: 'table' | 'horizontal' | 'block'
-  invoices: 'table' | 'horizontal' | 'block'
-  clients: 'table' | 'horizontal' | 'block'
-  services: 'table' | 'horizontal' | 'block'
-  creditNotes: 'table' | 'horizontal' | 'block'
+  quotes: 'table' | 'horizontal' | 'block';
+  invoices: 'table' | 'horizontal' | 'block';
+  clients: 'table' | 'horizontal' | 'block';
+  services: 'table' | 'horizontal' | 'block';
+  creditNotes: 'table' | 'horizontal' | 'block';
 }
 
-export interface InvoiceDraft {
-  selectedClient: Client | null;
-  items: InvoiceItem[];
-  invoiceDate: string;
-  discount: number;
-  notes: string;
-}
-
-export interface QuoteDraft {
-  selectedClient: Client | null;
-  items: InvoiceItem[];
-  quoteDate: string;
-  discount: number;
-  notes: string;
-  status: Quote['status'];
-}
-
+// ============================================================================
+// Zustand AppState
+// ============================================================================
 interface AppState {
   user: User | null;
   permissions: RolePermissions | null;
   isAuthenticated: boolean;
   isDataLoaded: boolean;
+
   clients: Client[];
   quotes: Quote[];
   invoices: Invoice[];
@@ -216,8 +145,11 @@ interface AppState {
   settings: Settings;
   viewFormat: ViewFormat;
   users: UserResponse[];
+
   invoiceDraft: InvoiceDraft;
   quoteDraft: QuoteDraft;
+
+  // Actions
   setIsDataLoaded: (loaded: boolean) => void;
   setUser: (user: User | null) => void;
   setClients: (clients: Client[]) => void;
@@ -232,13 +164,18 @@ interface AppState {
   addUser: (user: UserResponse) => void;
   updateUser: (id: string, updates: Partial<UserResponse>) => void;
   removeUser: (id: string) => void;
+
   setInvoiceDraft: (draft: Partial<InvoiceDraft>) => void;
   clearInvoiceDraft: () => void;
   setQuoteDraft: (draft: Partial<QuoteDraft>) => void;
   clearQuoteDraft: () => void;
 }
 
+// ============================================================================
+// Default Settings — fallback before API response
+// ============================================================================
 const DEFAULT_SETTINGS: Settings = {
+  id: 1,
   companyName: "Global Maintenance",
   legalForm: "SARL",
   nif: "XXXXXXXXXX",
@@ -258,8 +195,13 @@ const DEFAULT_SETTINGS: Settings = {
   invoicePrefix: "FAC",
   quotePrefix: "DEV",
   companyCode: "GM",
+  mentionsLegales: null,
+  logo: null,
 };
 
+// ============================================================================
+// Store
+// ============================================================================
 export const useStore = create<AppState>()(
   persist(
     (set) => ({
@@ -280,14 +222,14 @@ export const useStore = create<AppState>()(
         invoices: 'table',
         clients: 'block',
         services: 'block',
-        creditNotes: 'horizontal'
+        creditNotes: 'horizontal',
       },
       invoiceDraft: {
         selectedClient: null,
         items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
         invoiceDate: new Date().toISOString().split("T")[0],
         discount: 0,
-        notes: ""
+        notes: "",
       },
       quoteDraft: {
         selectedClient: null,
@@ -295,7 +237,7 @@ export const useStore = create<AppState>()(
         quoteDate: new Date().toISOString().split("T")[0],
         discount: 0,
         notes: "",
-        status: 'EN_ATTENTE'
+        status: 'EN_ATTENTE',
       },
 
       setIsDataLoaded: (isDataLoaded) => set({ isDataLoaded }),
@@ -313,7 +255,7 @@ export const useStore = create<AppState>()(
       setCreditNotes: (creditNotes) => set({ creditNotes }),
       setSettings: (settings) => set({ settings }),
       setViewFormat: (page, format) => set((state) => ({
-        viewFormat: { ...state.viewFormat, [page]: format }
+        viewFormat: { ...state.viewFormat, [page]: format },
       })),
       setUsers: (users) => set({ users }),
       addUser: (user) => set((state) => ({ users: [...state.users, user] })),
@@ -321,10 +263,13 @@ export const useStore = create<AppState>()(
         users: state.users.map((u) => (u.id === id ? { ...u, ...updates } : u)),
       })),
       removeUser: (id) => set((state) => ({
-        users: state.users.map((u) => u.id === id ? { ...u, is_active: 0, deletedAt: new Date().toISOString() } : u),
+        users: state.users.map((u) =>
+          u.id === id ? { ...u, is_active: 0, deletedAt: new Date().toISOString() } : u
+        ),
       })),
+
       setInvoiceDraft: (draft) => set((state) => ({
-        invoiceDraft: { ...state.invoiceDraft, ...draft }
+        invoiceDraft: { ...state.invoiceDraft, ...draft },
       })),
       clearInvoiceDraft: () => set((state) => ({
         invoiceDraft: {
@@ -332,11 +277,11 @@ export const useStore = create<AppState>()(
           items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
           invoiceDate: new Date().toISOString().split("T")[0],
           discount: 0,
-          notes: state.settings.mentionsLegales || ""
-        }
+          notes: state.settings.mentionsLegales || "",
+        },
       })),
       setQuoteDraft: (draft) => set((state) => ({
-        quoteDraft: { ...state.quoteDraft, ...draft }
+        quoteDraft: { ...state.quoteDraft, ...draft },
       })),
       clearQuoteDraft: () => set((state) => ({
         quoteDraft: {
@@ -345,8 +290,8 @@ export const useStore = create<AppState>()(
           quoteDate: new Date().toISOString().split("T")[0],
           discount: 0,
           notes: state.settings.mentionsLegales || "",
-          status: 'EN_ATTENTE'
-        }
+          status: 'EN_ATTENTE',
+        },
       })),
     }),
     {
@@ -357,7 +302,7 @@ export const useStore = create<AppState>()(
         permissions: state.permissions,
         isAuthenticated: state.isAuthenticated,
         settings: state.settings,
-        viewFormat: state.viewFormat
+        viewFormat: state.viewFormat,
       }),
     }
   )

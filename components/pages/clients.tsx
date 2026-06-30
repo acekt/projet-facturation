@@ -102,7 +102,6 @@ export function ClientsPage() {
       email: newClient.email,
       phone: newClient.phone,
       address: newClient.address,
-      status: 'active'
     }
 
     const previousClients = [...clients]
@@ -383,9 +382,7 @@ export function ClientsPage() {
                     {client.phone || <span className="text-muted-foreground/30">—</span>}
                   </td>
                   <td className="p-4">
-                    <Badge variant={client.status === 'active' ? 'default' : client.status === 'warning' ? 'secondary' : 'outline'}>
-                      {client.status === 'active' ? 'Actif' : client.status === 'warning' ? 'Attention' : 'Inactif'}
-                    </Badge>
+                    <Badge variant="default">Actif</Badge>
                   </td>
                   <td className="p-4 text-right">
                     <DropdownMenu>
@@ -457,9 +454,7 @@ export function ClientsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge variant={client.status === 'active' ? 'default' : client.status === 'warning' ? 'secondary' : 'outline'}>
-                      {client.status === 'active' ? 'Actif' : client.status === 'warning' ? 'Attention' : 'Inactif'}
-                    </Badge>
+                    <Badge variant="default">Actif</Badge>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
