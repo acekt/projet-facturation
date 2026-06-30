@@ -1,7 +1,7 @@
 import * as React from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { formatCurrency } from "@/lib/utils"
-import { InvoiceItem } from "@/lib/store"
+import { type DraftItem } from "@/lib/store"
 import { useStore } from "@/lib/store"
 
 interface DocumentPreviewProps {
@@ -14,7 +14,7 @@ interface DocumentPreviewProps {
     clientEmail: string
     date: string
     dueDate?: string  // Optional: not stored in DB, shown only if available
-    items: InvoiceItem[]
+    items: DraftItem[]
     subtotal: number
     discount: number
     taxBase: number

@@ -33,7 +33,7 @@ import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
-import { useStore, type InvoiceItem, type Quote } from "@/lib/store"
+import { useStore, type InvoiceItem, type DraftItem, type Quote } from "@/lib/store"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 import { DocumentPreview } from "@/components/document-preview"
@@ -65,7 +65,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   const setNotes = (val: string) => setQuoteDraft({ notes: val })
   const setQuoteDate = (val: string) => setQuoteDraft({ quoteDate: val })
   const setStatus = (val: Quote['status']) => setQuoteDraft({ status: val })
-  const setItems = (newItems: InvoiceItem[] | ((prev: InvoiceItem[]) => InvoiceItem[])) => {
+  const setItems = (newItems: DraftItem[] | ((prev: DraftItem[]) => DraftItem[])) => {
     const updatedItems = typeof newItems === 'function' ? newItems(draft.items) : newItems
     setQuoteDraft({ items: updatedItems })
   }
@@ -77,28 +77,43 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   const [isLoading, setIsLoading] = React.useState(!!editingId)
 
   React.useEffect(() => {
-    if (editingId) {
-      fetch(`/api/quotes/${editingId}`)
-        .then(res => res.json())
-        .then(data => {
-          setSelectedClient(clients.find(c => c.id === data.clientId) || {
-            id: data.clientId,
-            name: data.clientName,
-            email: data.clientEmail,
-            phone: '', address: '', status: 'active'
-          });
-          setItems(data.items);
-          setQuoteDate(data.date);
-          setDiscount(data.discount);
-          setNotes(data.notes || "");
-          setStatus(data.status);
-          setIsLoading(false);
-        })
-        .catch(() => {
-          toast.error("Impossible de charger le devis");
+    if (!editingId) return;
+
+    const controller = new AbortController();
+
+    fetch(`/api/quotes/${editingId}`, { signal: controller.signal })
+      .then(async (res) => {
+        if (!res.ok) {
+          if (res.status === 404) {
+            toast.error("Devis introuvable ou supprimé");
+          } else {
+            toast.error(`Erreur serveur (${res.status}) — impossible de charger le devis`);
+          }
           onBack();
+          return;
+        }
+        const data = await res.json();
+        setSelectedClient(clients.find(c => c.id === data.clientId) || {
+          id: data.clientId,
+          name: data.clientName,
+          email: data.clientEmail,
+          phone: '',
+          address: '',
         });
-    }
+        setItems(data.items);
+        setQuoteDate(data.date);
+        setDiscount(data.discount);
+        setNotes(data.notes || "");
+        setStatus(data.status);
+        setIsLoading(false);
+      })
+      .catch((err: unknown) => {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        toast.error("Impossible de charger le devis — vérifiez la connexion au serveur");
+        onBack();
+      });
+
+    return () => controller.abort();
   }, [editingId]);
 
   const TAX_RATE = (settings.tvaRate ?? 0) / 100
@@ -315,7 +330,9 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
               ) : (
                 <Dialog open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
                   <DialogTrigger asChild>
-                    <button className="w-full p-4 rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-all text-left group">
+                    <button
+                      className="w-full p-4 rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-all text-left group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                    >
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                           <User className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
@@ -352,7 +369,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                               setSelectedClient(client)
                               setClientSearchOpen(false)
                             }}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors text-left"
+                            className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                           >
                             <Avatar className="w-8 h-8">
                               <AvatarFallback className="text-[10px]">

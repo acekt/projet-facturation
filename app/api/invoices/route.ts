@@ -5,6 +5,7 @@ import { computeTotals, getTaxRates } from '@/lib/api/invoice-logic';
 import crypto from 'crypto';
 import { logAudit } from '@/lib/api/audit';
 import { getNextNumber } from '@/lib/api/numbering';
+import { getSession } from '@/lib/api/auth';
 import type {
   InvoiceResponse,
   InvoiceItem,
@@ -52,6 +53,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized' } as ErrorResponse, { status: 401 });
+    }
+
     const body: unknown = await request.json();
 
     // --- Zod Validation ---

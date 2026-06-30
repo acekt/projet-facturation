@@ -17,7 +17,12 @@ export async function GET() {
       return NextResponse.json(errorResponse, { status: 403 });
     }
 
-    const users = db.prepare('SELECT id, name, email, username, role, is_active, created_at, last_login_at, phone, deletedAt FROM users').all() as DbUser[];
+    // Select only the fields strictly needed by the frontend — never expose hashed passwords,
+    // audit timestamps (last_login_at, deletedAt) or internal metadata.
+    const users = db.prepare(
+      'SELECT id, name, email, username, role, is_active, created_at, phone FROM users WHERE deletedAt IS NULL'
+    ).all() as Pick<DbUser, 'id' | 'name' | 'email' | 'username' | 'role' | 'is_active' | 'created_at' | 'phone'>[];
+
     const userResponses: UserResponse[] = users.map((user): UserResponse => ({
       id: user.id,
       name: user.name,
@@ -26,9 +31,7 @@ export async function GET() {
       role: user.role,
       is_active: user.is_active,
       created_at: user.created_at,
-      last_login_at: user.last_login_at,
       phone: user.phone,
-      deletedAt: user.deletedAt,
     }));
 
     return NextResponse.json(userResponses);

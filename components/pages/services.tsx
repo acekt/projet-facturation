@@ -63,7 +63,7 @@ export function ServicesPage() {
     return services.filter(
       (s) =>
         s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        s.category.toLowerCase().includes(searchQuery.toLowerCase())
+        (s.category ?? '').toLowerCase().includes(searchQuery.toLowerCase())
     )
   }, [services, searchQuery])
 
@@ -117,7 +117,6 @@ export function ServicesPage() {
         description: formData.description,
         category: formData.category,
         unitPrice: formData.unitPrice,
-        isActive: true,
       }
 
       // Optimistic Update
