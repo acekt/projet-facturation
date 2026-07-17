@@ -97,7 +97,7 @@ describe('Integration Test - RBAC Limits', () => {
     const data = await response.json();
 
     expect(response.status).toBe(403);
-    expect(data.error).toBe('Forbidden: Only Admin can delete quotes');
+    expect(data.error).toBe('Forbidden: You can only delete your own quotes');
   });
 
   it('should restrict DELETE /api/invoices/[id] to admin role only (User gets 403)', async () => {
@@ -137,7 +137,7 @@ describe('Integration Test - RBAC Limits', () => {
     const data = await response.json();
 
     expect(response.status).toBe(403);
-    expect(data.error).toBe('Forbidden: Only Admin can delete invoices');
+    expect(data.error).toBe('Forbidden: You can only delete your own invoices');
   });
 
   it('should restrict DELETE /api/payments/[id] to admin role only (User gets 403)', async () => {
