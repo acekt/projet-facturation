@@ -224,7 +224,7 @@ db.exec(`
     tvaAmount REAL DEFAULT 0,
     cssAmount REAL DEFAULT 0,
     total REAL DEFAULT 0,
-    status TEXT DEFAULT 'pending', -- draft, pending, paid, overdue, cancelled
+    status TEXT DEFAULT 'UNPAID', -- draft, UNPAID, PARTIALLY_PAID, PAID, overdue, cancelled
     notes TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     deletedAt DATETIME,
@@ -393,6 +393,15 @@ try {
     db.prepare("ALTER TABLE services ADD COLUMN created_by TEXT").run();
   }
 
+  if (!invoicesColumns.some(c => c.name === 'dueDate')) {
+    db.prepare("ALTER TABLE invoices ADD COLUMN dueDate TEXT").run();
+    db.prepare("UPDATE invoices SET dueDate = date(date, '+30 days') WHERE dueDate IS NULL").run();
+  }
+
+  // Sanitization of Invoice Statuses
+  db.prepare("UPDATE invoices SET status = 'UNPAID' WHERE status IN ('pending', 'sent', 'open')").run();
+  db.prepare("UPDATE invoices SET status = 'PAID' WHERE status = 'paid'").run();
+  db.prepare("UPDATE invoices SET status = 'PARTIALLY_PAID' WHERE status IN ('partially_paid', 'partial')").run();
   // TPS Migrations
   const settingsColumns = db.prepare("PRAGMA table_info(settings)").all() as Array<{ name: string }>;
   if (!settingsColumns.some(c => c.name === 'tpsRate')) {
@@ -465,6 +474,14 @@ db.exec(`
   -- Users optimizations
   CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email ON users(email);
   CREATE INDEX IF NOT EXISTS idx_users_deletedAt ON users(deletedAt);
+
+  -- High Performance Indices (Phase 2 Architect)
+  CREATE INDEX IF NOT EXISTS idx_invoices_status_deleted ON invoices(status, deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_invoices_created_by ON invoices(created_by);
+  CREATE INDEX IF NOT EXISTS idx_quotes_status_deleted ON quotes(status, deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_quotes_created_by ON quotes(created_by);
+  CREATE INDEX IF NOT EXISTS idx_payments_invoice_deleted ON payments(invoiceId, deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_clients_deleted ON clients(deletedAt);
 `);
 
 // Phase 1: Backfilling & Orphans Cleanup

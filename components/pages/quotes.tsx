@@ -33,8 +33,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
-import { pdf } from '@react-pdf/renderer'
-import { PDFDocument } from "@/components/pdf-document"
+import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 // ── Design System
 import { PageHeader } from "@/components/ui/page-header"
 import { SearchBar } from "@/components/ui/search-bar"
@@ -132,6 +131,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   const handleDownloadPDF = async (quote: Quote) => {
     try {
       setIsDownloading(quote.id)
+      const { pdf } = await import('@react-pdf/renderer')
+      const { PDFDocument } = await import('@/components/pdf-document')
       const blob = await pdf(<PDFDocument document={quote} type="devis" settings={settings} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')

@@ -24,8 +24,6 @@ import {
 import { useStore, type CreditNote } from "@/lib/store"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
-import { pdf } from '@react-pdf/renderer'
-import { PDFDocument } from "@/components/pdf-document"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { cn } from "@/lib/utils"
 
@@ -60,6 +58,8 @@ export function CreditNotesPage() {
   const handleDownloadPDF = async (note: CreditNote) => {
     try {
       setIsDownloading(note.id)
+      const { pdf } = await import('@react-pdf/renderer')
+      const { PDFDocument } = await import('@/components/pdf-document')
       const blob = await pdf(<PDFDocument document={note} type="avoir" settings={settings} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')

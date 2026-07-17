@@ -36,8 +36,6 @@ import { PrintableDocument } from "@/components/printable-document"
 import { DocumentPreview } from "@/components/document-preview"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
-import { pdf } from '@react-pdf/renderer'
-import { PDFDocument } from "@/components/pdf-document"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Pagination } from "@/components/ui/pagination-custom"
@@ -175,6 +173,8 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   const handleDownloadPDF = async (invoice: Invoice) => {
     try {
       setIsDownloading(invoice.id)
+      const { pdf } = await import('@react-pdf/renderer')
+      const { PDFDocument } = await import('@/components/pdf-document')
       const blob = await pdf(<PDFDocument document={invoice} type="facture" settings={settings} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
