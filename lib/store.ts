@@ -16,6 +16,7 @@ import type {
   ServiceResponse,
   CreditNoteResponse,
   SettingsResponse,
+  DashboardMetricsResponse,
 } from '@/lib/types/api';
 
 // Re-export InvoiceItem type to avoid breakage in editor components
@@ -145,20 +146,49 @@ interface AppState {
   settings: Settings;
   viewFormat: ViewFormat;
   users: UserResponse[];
+  dashboardMetrics: DashboardMetricsResponse | null;
 
   invoiceDraft: InvoiceDraft;
   quoteDraft: QuoteDraft;
 
   // Actions
   setIsDataLoaded: (loaded: boolean) => void;
+  setDashboardMetrics: (metrics: DashboardMetricsResponse | null) => void;
   setUser: (user: User | null) => void;
   setClients: (clients: Client[]) => void;
+  // Atomic client mutations — use these instead of setClients for optimistic UI
+  // to avoid stale closure overwrites during concurrent mutations.
+  addClient: (client: Client) => void;
+  removeClient: (id: string) => void;
+  updateClient: (id: string, data: Partial<Client>) => void;
+  replaceClient: (tempId: string, confirmed: Client) => void;
+
   setQuotes: (quotes: Quote[]) => void;
+  addQuote: (quote: Quote) => void;
+  removeQuote: (id: string) => void;
+  updateQuote: (id: string, data: Partial<Quote>) => void;
+  replaceQuote: (tempId: string, confirmed: Quote) => void;
   setInvoices: (invoices: Invoice[]) => void;
+  addInvoice: (invoice: Invoice) => void;
+  removeInvoice: (id: string) => void;
+  updateInvoice: (id: string, data: Partial<Invoice>) => void;
+  replaceInvoice: (tempId: string, confirmed: Invoice) => void;
+
   setServices: (services: Service[]) => void;
+  // Atomic service mutations — same rationale as clients.
+  addService: (service: Service) => void;
+  removeService: (id: string) => void;
+  updateService: (id: string, data: Partial<Service>) => void;
+  replaceService: (tempId: string, confirmed: Service) => void;
+
   setPayments: (payments: Payment[]) => void;
+  addPayment: (payment: Payment) => void;
+  removePayment: (id: string) => void;
+  updatePayment: (id: string, data: Partial<Payment>) => void;
+  replacePayment: (tempId: string, confirmed: Payment) => void;
   setCreditNotes: (creditNotes: CreditNote[]) => void;
   setSettings: (settings: Settings) => void;
+  updateSettings: (updates: Partial<Settings>) => void;
   setViewFormat: (page: keyof ViewFormat, format: ViewFormat[keyof ViewFormat]) => void;
   setUsers: (users: UserResponse[]) => void;
   addUser: (user: UserResponse) => void;
@@ -217,6 +247,7 @@ export const useStore = create<AppState>()(
       creditNotes: [],
       settings: DEFAULT_SETTINGS,
       users: [],
+      dashboardMetrics: null,
       viewFormat: {
         quotes: 'table',
         invoices: 'table',
@@ -241,6 +272,7 @@ export const useStore = create<AppState>()(
       },
 
       setIsDataLoaded: (isDataLoaded) => set({ isDataLoaded }),
+      setDashboardMetrics: (dashboardMetrics) => set({ dashboardMetrics }),
       setUser: (user) => {
         const permissions = user
           ? (user.role === 'admin' ? ADMIN_PERMISSIONS : USER_PERMISSIONS)
@@ -248,12 +280,60 @@ export const useStore = create<AppState>()(
         set({ user, permissions, isAuthenticated: !!user });
       },
       setClients: (clients) => set({ clients }),
+      // Atomic client mutations: each reads fresh state via set(state => ...) — no stale closure.
+      addClient: (client) => set((state) => ({ clients: [...state.clients, client] })),
+      removeClient: (id) => set((state) => ({ clients: state.clients.filter((c) => c.id !== id) })),
+      updateClient: (id, data) => set((state) => ({
+        clients: state.clients.map((c) => (c.id === id ? { ...c, ...data } : c)),
+      })),
+      replaceClient: (tempId, confirmed) => set((state) => ({
+        clients: state.clients.map((c) => (c.id === tempId ? confirmed : c)),
+      })),
+
       setQuotes: (quotes) => set({ quotes }),
+      addQuote: (quote) => set((state) => ({ quotes: [quote, ...state.quotes] })),
+      removeQuote: (id) => set((state) => ({ quotes: state.quotes.filter((q) => q.id !== id) })),
+      updateQuote: (id, data) => set((state) => ({
+        quotes: state.quotes.map((q) => (q.id === id ? { ...q, ...data } : q)),
+      })),
+      replaceQuote: (tempId, confirmed) => set((state) => ({
+        quotes: state.quotes.map((q) => (q.id === tempId ? confirmed : q)),
+      })),
       setInvoices: (invoices) => set({ invoices }),
+      addInvoice: (invoice) => set((state) => ({ invoices: [invoice, ...state.invoices] })),
+      removeInvoice: (id) => set((state) => ({ invoices: state.invoices.filter((i) => i.id !== id) })),
+      updateInvoice: (id, data) => set((state) => ({
+        invoices: state.invoices.map((i) => (i.id === id ? { ...i, ...data } : i)),
+      })),
+      replaceInvoice: (tempId, confirmed) => set((state) => ({
+        invoices: state.invoices.map((i) => (i.id === tempId ? confirmed : i)),
+      })),
+
       setServices: (services) => set({ services }),
+      // Atomic service mutations: same pattern as clients.
+      addService: (service) => set((state) => ({ services: [...state.services, service] })),
+      removeService: (id) => set((state) => ({ services: state.services.filter((s) => s.id !== id) })),
+      updateService: (id, data) => set((state) => ({
+        services: state.services.map((s) => (s.id === id ? { ...s, ...data } : s)),
+      })),
+      replaceService: (tempId, confirmed) => set((state) => ({
+        services: state.services.map((s) => (s.id === tempId ? confirmed : s)),
+      })),
+
       setPayments: (payments) => set({ payments }),
+      addPayment: (payment) => set((state) => ({ payments: [payment, ...state.payments] })),
+      removePayment: (id) => set((state) => ({ payments: state.payments.filter((p) => p.id !== id) })),
+      updatePayment: (id, data) => set((state) => ({
+        payments: state.payments.map((p) => (p.id === id ? { ...p, ...data } : p)),
+      })),
+      replacePayment: (tempId, confirmed) => set((state) => ({
+        payments: state.payments.map((p) => (p.id === tempId ? confirmed : p)),
+      })),
       setCreditNotes: (creditNotes) => set({ creditNotes }),
       setSettings: (settings) => set({ settings }),
+      updateSettings: (updates) => set((state) => ({
+        settings: { ...state.settings, ...updates },
+      })),
       setViewFormat: (page, format) => set((state) => ({
         viewFormat: { ...state.viewFormat, [page]: format },
       })),

@@ -5,18 +5,32 @@ import crypto from 'crypto';
 import { loginSchema } from '@/lib/validations';
 import type { LoginRequest, SessionResponse, ErrorResponse, DbUser, DbCount } from '@/lib/types/api';
 
-const SALT = process.env.PASSWORD_SALT || 'letoile-gabon-2026';
-const SESSION_SECRET = process.env.SESSION_SECRET || 'letoile-secret-key-2026-signing';
+/**
+ * SECURITY: Both SESSION_SECRET and PASSWORD_SALT must be defined in environment variables.
+ * A missing or weak secret causes an immediate crash to force proper configuration.
+ */
+function getRequiredEnv(varName: string, minLength: number = 16): string {
+  const value = process.env[varName]
+  if (!value || value.length < minLength) {
+    throw new Error(
+      `[SECURITY] Environment variable '${varName}' is missing or too short (minimum ${minLength} characters). ` +
+      'Set it in your .env.local file.'
+    )
+  }
+  return value
+}
 
 function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password + SALT).digest('hex');
+  const salt = getRequiredEnv('PASSWORD_SALT', 16);
+  return crypto.createHash('sha256').update(password + salt).digest('hex');
 }
 
 async function signSession(data: string): Promise<string> {
+  const secret = getRequiredEnv('SESSION_SECRET', 32);
   // Use SubtleCrypto for compatibility with middleware (Web Crypto API)
   const key = await crypto.webcrypto.subtle.importKey(
     'raw',
-    new TextEncoder().encode(SESSION_SECRET),
+    new TextEncoder().encode(secret),
     { name: 'HMAC', hash: 'SHA-256' },
     false,
     ['sign']
@@ -34,6 +48,16 @@ async function signSession(data: string): Promise<string> {
 
 export async function POST(request: Request) {
   try {
+    try {
+      getRequiredEnv('PASSWORD_SALT', 16);
+      getRequiredEnv('SESSION_SECRET', 32);
+    } catch (configError: any) {
+      const errorResponse: ErrorResponse = {
+        error: "Configuration serveur invalide. Contactez l'administrateur.",
+      };
+      return NextResponse.json(errorResponse, { status: 503 });
+    }
+
     const body: unknown = await request.json();
 
     // Validate request payload with Zod
@@ -49,18 +73,14 @@ export async function POST(request: Request) {
     }
 
     const { username, password }: LoginRequest = validation.data;
-    const hashedPassword = hashPassword(password);
+    const cleanUsername = username.toLowerCase().trim();
 
-    // Check if users table is empty (first-time setup)
-    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get() as DbCount;
-    if (userCount.count === 0) {
-      const id = crypto.randomUUID();
-      db.prepare('INSERT INTO users (id, username, password, name, role) VALUES (?, ?, ?, ?, ?)')
-        .run(id, username, hashedPassword, 'Administrateur', 'admin');
-    }
-
-    // Authenticate user
-    const user = db.prepare('SELECT * FROM users WHERE username = ? AND password = ?').get(username, hashedPassword) as DbUser | undefined;
+    // Authenticate user by username or email case-insensitively, explicitly fetching password column
+    const user = db.prepare(`
+      SELECT id, name, email, username, password, role, is_active, force_password_change, created_at, last_login_at, phone
+      FROM users
+      WHERE (LOWER(username) = ? OR LOWER(email) = ?) AND deletedAt IS NULL
+    `).get(cleanUsername, cleanUsername) as DbUser | undefined;
 
     if (!user) {
       const errorResponse: ErrorResponse = {
@@ -69,7 +89,44 @@ export async function POST(request: Request) {
       return NextResponse.json(errorResponse, { status: 401 });
     }
 
-    // Create session data
+    // Verify password strictly with bcrypt first, then fallback to legacy SHA-256
+    const bcrypt = require('bcryptjs');
+    let isPasswordValid = false;
+    try {
+      isPasswordValid = await bcrypt.compare(password, user.password);
+    } catch (e) {
+      // If bcrypt fails (e.g. invalid salt format on legacy hash), it will throw or return false
+      isPasswordValid = false;
+    }
+
+    if (!isPasswordValid && user.password) {
+      // Legacy SHA-256 fallback
+      const legacyHash = hashPassword(password);
+      isPasswordValid = user.password === legacyHash;
+    }
+
+    if (!isPasswordValid) {
+      const errorResponse: ErrorResponse = {
+        error: 'Identifiants invalides',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
+    }
+
+    // Check if user account is active
+    if (user.is_active === 0) {
+      const errorResponse: ErrorResponse = {
+        error: 'Compte inactif. Veuillez contacter votre administrateur.',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
+    }
+
+    try {
+      db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").run(user.id);
+    } catch (e) {
+      console.error('[Login] Failed to update last_login_at:', e);
+    }
+
+    // Create session data strictly using exact user.role from database without any fallback
     const sessionData = JSON.stringify({
       userId: user.id,
       name: user.name,
@@ -80,14 +137,7 @@ export async function POST(request: Request) {
     const base64Data = Buffer.from(sessionData).toString('base64');
     const signedSession = await signSession(base64Data);
 
-    (await cookies()).set('auth_session', signedSession, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24, // 24 hours
-      path: '/',
-    });
-
-    const response: SessionResponse = {
+    const sessionPayload: SessionResponse = {
       success: true,
       user: {
         id: user.id,
@@ -102,7 +152,26 @@ export async function POST(request: Request) {
       },
     };
 
-    return NextResponse.json(response);
+    const response = NextResponse.json(sessionPayload);
+    response.cookies.set('auth_session', signedSession, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      maxAge: 60 * 60 * 24, // 24 hours
+      path: '/',
+    });
+
+    try {
+      (await cookies()).set('auth_session', signedSession, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24,
+        path: '/',
+      });
+    } catch (e) {
+      // Ignore when called outside Next.js request scope (e.g., Vitest integration tests)
+    }
+
+    return response;
   } catch (error) {
     console.error('[Login] Error:', error);
     const errorResponse: ErrorResponse = {

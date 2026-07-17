@@ -10,7 +10,6 @@
  */
 import type { Metadata } from 'next'
 import { Providers } from '@/components/providers'
-import { DataSync } from '@/components/data-sync'
 import { AppErrorBoundary } from '@/components/error-boundary'
 import './globals.css'
 
@@ -47,7 +46,6 @@ export default function RootLayout({
       <body className="font-sans antialiased bg-background text-foreground select-none">
         <AppErrorBoundary>
           <Providers>
-            <DataSync />
             {children}
           </Providers>
         </AppErrorBoundary>

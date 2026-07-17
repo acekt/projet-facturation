@@ -15,9 +15,17 @@ import type {
   DbClient,
 } from '@/lib/types/api';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
-    const invoices = db.prepare(`
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized: Authentication required' } as ErrorResponse, { status: 401 });
+    }
+
+    let query = `
       SELECT i.*,
              (SELECT json_group_array(json_object(
                'id', id,
@@ -34,8 +42,17 @@ export async function GET() {
              )) FROM payments WHERE invoiceId = i.id AND deletedAt IS NULL) as payments
       FROM invoices i
       WHERE i.deletedAt IS NULL
-      ORDER BY createdAt DESC
-    `).all() as (DbInvoice & { items: string; payments: string })[];
+    `;
+    const params: unknown[] = [];
+
+    if (session.role !== 'admin') {
+      query += ' AND i.created_by = ?';
+      params.push(session.userId);
+    }
+
+    query += ' ORDER BY createdAt DESC';
+
+    const invoices = db.prepare(query).all(...params) as (DbInvoice & { items: string; payments: string })[];
 
     const formattedInvoices: InvoiceResponse[] = invoices.map((i): InvoiceResponse => ({
       ...i,
@@ -43,7 +60,11 @@ export async function GET() {
       payments: JSON.parse(i.payments || '[]') as PaymentResponse[],
     }));
 
-    return NextResponse.json(formattedInvoices);
+    const response = NextResponse.json(formattedInvoices);
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    return response;
   } catch (error) {
     console.error('[API Invoices GET] Error:', error);
     const errorResponse: ErrorResponse = { error: 'Failed to fetch invoices' };
@@ -56,6 +77,12 @@ export async function POST(request: Request) {
     const session = await getSession();
     if (!session) {
       return NextResponse.json({ error: 'Unauthorized' } as ErrorResponse, { status: 401 });
+    }
+    if (!session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'User ID manquant dans la session',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
     const body: unknown = await request.json();
@@ -86,13 +113,19 @@ export async function POST(request: Request) {
     // --- Validate linked quote (if any) ---
     if (data.quoteId) {
       const quote = db
-        .prepare('SELECT status, deletedAt FROM quotes WHERE id = ?')
-        .get(data.quoteId) as { status: string; deletedAt: string | null } | undefined;
+        .prepare('SELECT status, deletedAt, created_by FROM quotes WHERE id = ?')
+        .get(data.quoteId) as { status: string; deletedAt: string | null; created_by?: string } | undefined;
 
       if (!quote) {
         return NextResponse.json(
           { error: 'Devis introuvable.' } as ErrorResponse,
           { status: 400 }
+        );
+      }
+      if (session.role !== 'admin' && quote.created_by !== session.userId) {
+        return NextResponse.json(
+          { error: 'Forbidden: You can only invoice your own quotes' } as ErrorResponse,
+          { status: 403 }
         );
       }
       if (quote.deletedAt !== null) {
@@ -122,8 +155,8 @@ export async function POST(request: Request) {
       db.prepare(`
         INSERT INTO invoices (
           id, number, quoteId, clientId, clientName, clientEmail, date,
-          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id,
         number,
@@ -141,6 +174,7 @@ export async function POST(request: Request) {
         computed.total,
         'UNPAID', // Always starts as UNPAID — payments drive status transitions
         data.notes ?? null,
+        session.userId,
       );
 
       const insertItem = db.prepare(`
@@ -164,7 +198,7 @@ export async function POST(request: Request) {
         db.prepare("UPDATE quotes SET status = 'CONVERTI' WHERE id = ?").run(data.quoteId);
       }
 
-      logAudit('CREATE', 'invoice', id, `Nouvelle facture créée: ${number}`);
+      logAudit('CREATE', 'invoice', id, `Nouvelle facture créée: ${number}`, session.userId, session.name || session.username || null);
       return { id, number };
     });
 

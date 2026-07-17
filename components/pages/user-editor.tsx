@@ -80,7 +80,14 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
 
   const validateForm = () => {
     const schema = editingId ? userUpdateSchema : userCreateSchema
-    const result = schema.safeParse(formData)
+    const dataToValidate = editingId 
+      ? {
+          ...formData,
+          email: formData.email && formData.email !== "" ? formData.email : undefined,
+        }
+      : { ...formData, username: formData.email }
+      
+    const result = schema.safeParse(dataToValidate)
     
     if (!result.success) {
       const newErrors: Record<string, string> = {}
@@ -90,6 +97,8 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
         }
       })
       setErrors(newErrors)
+      const firstError = result.error.errors[0]?.message || "Veuillez corriger les erreurs du formulaire"
+      toast.error(firstError)
       return false
     }
     
@@ -101,7 +110,6 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
     e.preventDefault()
     
     if (!validateForm()) {
-      toast.error("Veuillez corriger les erreurs du formulaire")
       return
     }
 
@@ -112,23 +120,22 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
         
         const payload = editingId 
           ? {
-              username: formData.email,
               name: formData.name,
-              email: formData.email,
-              phone: formData.phone,
+              ...(formData.email && formData.email !== "" ? { email: formData.email, username: formData.email } : {}),
+              phone: formData.phone || null,
               role: formData.role,
-              ...(formData.password ? { password: formData.password, force_password_change: 1 } : {}),
-              is_active: formData.is_active ? 1 : 0,
+              ...(formData.password && formData.password !== "" ? { password: formData.password, force_password_change: true } : {}),
+              is_active: formData.is_active,
             }
           : {
               username: formData.email,
               name: formData.name,
               email: formData.email,
-              phone: formData.phone,
+              phone: formData.phone || null,
               role: formData.role,
               password: formData.password,
-              force_password_change: formData.force_password_change ? 1 : 0,
-              is_active: formData.is_active ? 1 : 0,
+              force_password_change: formData.force_password_change,
+              is_active: formData.is_active,
             }
 
         const res = await fetch(url, {
@@ -195,12 +202,12 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                   <Label htmlFor="name">Nom complet *</Label>
                   <Input
                     id="name"
-                    value={formData.name}
+                    value={formData.name || ""}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Jean Dupont"
                     className="bg-secondary border-border text-foreground"
                   />
-                  {errors.name && <p className="text-destructive text-sm">{errors.name}</p>}
+                  {errors.name && <p className="text-destructive text-sm font-medium">{errors.name}</p>}
                 </div>
 
                 <div className="space-y-2">
@@ -208,14 +215,14 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                   <Input
                     id="email"
                     type="email"
-                    value={formData.email}
+                    value={formData.email || ""}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="jean@letoile.ga"
                     className="bg-secondary border-border text-foreground"
                     disabled={!!editingId}
                   />
-                  {errors.email && <p className="text-destructive text-sm">{errors.email}</p>}
-                  {editingId && (
+                  {errors.email && <p className="text-destructive text-sm font-medium">{errors.email}</p>}
+                  {editingId && !errors.email && (
                     <p className="text-xs text-muted-foreground">L'email ne peut pas être modifié</p>
                   )}
                 </div>
@@ -225,12 +232,12 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                   <Input
                     id="phone"
                     type="tel"
-                    value={formData.phone}
+                    value={formData.phone || ""}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                     placeholder="+241 XX XX XX XX"
                     className="bg-secondary border-border text-foreground"
                   />
-                  {errors.phone && <p className="text-destructive text-sm">{errors.phone}</p>}
+                  {errors.phone && <p className="text-destructive text-sm font-medium">{errors.phone}</p>}
                 </div>
               </CardContent>
             </Card>
@@ -268,7 +275,8 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                       </SelectItem>
                     </SelectContent>
                   </Select>
-                  {editingId === currentUser?.id && (
+                  {errors.role && <p className="text-destructive text-sm font-medium mt-1">{errors.role}</p>}
+                  {editingId === currentUser?.id && !errors.role && (
                     <p className="text-xs text-muted-foreground">Vous ne pouvez pas modifier votre propre rôle</p>
                   )}
                 </div>
@@ -308,7 +316,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
-                      value={formData.password}
+                      value={formData.password || ""}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                       placeholder={editingId ? "Laisser vide pour ne pas modifier" : "Minimum 8 caractères"}
                       className="bg-secondary border-border text-foreground pr-10"
@@ -318,13 +326,14 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                       variant="ghost"
                       size="icon"
                       className="absolute right-0 top-0 h-full px-3"
+                      aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? <Lock className="w-4 h-4" /> : <Key className="w-4 h-4" />}
                     </Button>
                   </div>
-                  {errors.password && <p className="text-destructive text-sm">{errors.password}</p>}
-                  {editingId && (
+                  {errors.password && <p className="text-destructive text-sm font-medium">{errors.password}</p>}
+                  {editingId && !errors.password && (
                     <p className="text-xs text-muted-foreground">
                       Ne renseignez un nouveau mot de passe que si vous souhaitez le réinitialiser
                     </p>
@@ -369,7 +378,9 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                   <div className="flex items-center gap-2 text-sm">
                     <ShieldCheck className="w-4 h-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Rôle:</span>
-                    <span className="font-medium text-foreground capitalize">{formData.role}</span>
+                    <span className="font-medium text-foreground">
+                      {formData.role === 'admin' ? 'Administrateur' : 'Opérateur'}
+                    </span>
                   </div>
                   <div className="flex items-center gap-2 text-sm">
                     <Check className="w-4 h-4 text-muted-foreground" />

@@ -5,6 +5,8 @@ import { serviceUpdateSchema } from '@/lib/validations';
 import { logAudit } from '@/lib/api/audit';
 import type { ServiceUpdateRequest, ServiceResponse, ErrorResponse, DbService } from '@/lib/types/api';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/services/[id]
  * Fetch a specific service by ID
@@ -55,7 +57,6 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // RBAC Check
     const session = await getSession();
     if (!session) {
       const errorResponse: ErrorResponse = {
@@ -63,9 +64,38 @@ export async function PATCH(
       };
       return NextResponse.json(errorResponse, { status: 401 });
     }
+    if (!session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'User ID manquant dans la session',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
 
     const { id } = await params;
-    const body: unknown = await request.json();
+
+    const existingService = db.prepare('SELECT * FROM services WHERE id = ? AND deletedAt IS NULL').get(id) as DbService | undefined;
+    if (!existingService) {
+      const errorResponse: ErrorResponse = {
+        error: 'Service not found',
+      };
+      return NextResponse.json(errorResponse, { status: 404 });
+    }
+
+    if (session.role !== 'admin') {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
+    }
+
+    let body: unknown = {};
+    try {
+      const text = await request.text();
+      body = text ? JSON.parse(text) : {};
+    } catch {
+      const errorResponse: ErrorResponse = { error: 'Payload JSON invalide' };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
 
     // Validate request payload with Zod
     const validation = serviceUpdateSchema.safeParse(body);
@@ -84,7 +114,7 @@ export async function PATCH(
     db.prepare('UPDATE services SET name = ?, description = ?, category = ?, unitPrice = ? WHERE id = ?')
       .run(name, description, category, Math.round(unitPrice), id);
 
-    logAudit('UPDATE', 'service', id, `Service mis à jour: ${name}`);
+    logAudit('UPDATE', 'service', id, `Service mis à jour: ${name}`, session.userId, session.name || session.username || null);
     const service = db.prepare('SELECT * FROM services WHERE id = ?').get(id) as DbService;
     return NextResponse.json(service);
   } catch (error) {
@@ -98,7 +128,7 @@ export async function PATCH(
 
 /**
  * DELETE /api/services/[id]
- * Soft delete a service (Admin only)
+ * Soft delete a service
  * @param {string} id - Service ID
  * @returns {{ success: boolean }} Success indicator
  */
@@ -109,7 +139,6 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // RBAC Check - Authenticated users (admin & operator) can soft-delete services
     const session = await getSession();
     if (!session) {
       const errorResponse: ErrorResponse = {
@@ -117,8 +146,14 @@ export async function DELETE(
       };
       return NextResponse.json(errorResponse, { status: 401 });
     }
+    if (!session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'User ID manquant dans la session',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
 
-    const service = db.prepare('SELECT name FROM services WHERE id = ? AND deletedAt IS NULL').get(id) as DbService | undefined;
+    const service = db.prepare('SELECT * FROM services WHERE id = ? AND deletedAt IS NULL').get(id) as DbService | undefined;
     if (!service) {
       const errorResponse: ErrorResponse = {
         error: 'Service not found',
@@ -126,9 +161,16 @@ export async function DELETE(
       return NextResponse.json(errorResponse, { status: 404 });
     }
 
+    if (session.role !== 'admin') {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
+    }
+
     // Soft delete
     db.prepare("UPDATE services SET deletedAt = datetime('now') WHERE id = ?").run(id);
-    logAudit('DELETE', 'service', id, `Service supprimé: ${service.name}`);
+    logAudit('DELETE', 'service', id, `Service supprimé: ${service.name}`, session.userId, session.name || session.username || null);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[API Services DELETE] Error:', error);

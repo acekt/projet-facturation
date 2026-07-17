@@ -57,7 +57,7 @@ describe('Integration Test - End-to-End Financial Flow', () => {
       tvaAmount: 1818, // 18% of 10100
       tpsAmount: 960,  // 9.5% of 10100 -> Math.round(959.5) = 960
       cssAmount: 100,
-      total: 12978,    // 10100 + 1818 + 960 + 100 = 12978
+      total: 12878,    // 10100 + 1818 + 960 = 12878
       status: 'EN_ATTENTE',
       items: [
         {
@@ -109,7 +109,7 @@ describe('Integration Test - End-to-End Financial Flow', () => {
     const dbInvoice = testDb.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceId) as any;
     expect(dbInvoice).toBeDefined();
     expect(dbInvoice.status).toBe('UNPAID');
-    expect(dbInvoice.total).toBe(12978);
+    expect(dbInvoice.total).toBe(12878);
 
     // 3. Record a partial payment
     const paymentPayload = {
@@ -141,7 +141,7 @@ describe('Integration Test - End-to-End Financial Flow', () => {
     const totalPayments = testDb.prepare('SELECT SUM(amount) as total FROM payments WHERE invoiceId = ? AND deletedAt IS NULL').get(invoiceId) as any;
     expect(totalPayments.total).toBe(5000);
     const remaining = dbInvoicePaid.total - totalPayments.total;
-    expect(remaining).toBe(7978);
+    expect(remaining).toBe(7878);
 
     // 4. Soft delete the payment
     const deletePaymentReq = new Request(`http://localhost/api/payments/${paymentId}`, {

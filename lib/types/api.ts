@@ -22,9 +22,11 @@ export interface RegisterRequest {
 
 export interface SessionData {
   userId: string;
-  name: string;
+  name?: string;
+  username?: string;
   role: 'admin' | 'user';
-  exp: number;
+  exp?: number;
+  expiresAt?: number;
 }
 
 export interface SessionResponse {
@@ -164,7 +166,9 @@ export interface PaymentCreateRequest {
   amount: number;
   paymentMethod: string;
   date: string;
-  reference?: string;
+  // reference: nullable + optional to match paymentCreateSchema (.nullable().optional())
+  // Stores bank transfer IDs, cheque numbers, etc. Null = no reference provided.
+  reference?: string | null;
 }
 
 export interface PaymentResponse {
@@ -176,6 +180,7 @@ export interface PaymentResponse {
   reference?: string;
   createdAt: string;
   deletedAt?: string;
+  created_by?: string;
 }
 
 export interface DbPayment {
@@ -187,6 +192,7 @@ export interface DbPayment {
   reference?: string;
   createdAt: string;
   deletedAt?: string;
+  created_by?: string;
 }
 
 // ============================================================================
@@ -224,6 +230,7 @@ export interface InvoiceResponse {
   payments: PaymentResponse[];
   deletedAt?: string;
   createdAt: string;
+  created_by?: string;
 }
 
 export interface DbInvoice {
@@ -246,6 +253,7 @@ export interface DbInvoice {
   status: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'overdue' | 'draft' | 'cancelled' | 'pending';
   deletedAt?: string;
   createdAt: string;
+  created_by?: string;
 }
 
 export interface DbInvoiceItem {
@@ -298,6 +306,7 @@ export interface CreditNoteResponse {
   items: CreditNoteItem[];
   deletedAt?: string;
   createdAt: string;
+  created_by?: string;
 }
 
 export interface DbCreditNote {
@@ -317,6 +326,7 @@ export interface DbCreditNote {
   status: 'open' | 'applied' | 'cancelled';
   deletedAt?: string;
   createdAt: string;
+  created_by?: string;
 }
 
 export interface DbCreditNoteItem {
@@ -419,6 +429,7 @@ export interface QuoteResponse {
   items: QuoteItem[];
   deletedAt?: string;
   createdAt: string;
+  created_by?: string;
 }
 
 export interface DbQuote {
@@ -439,6 +450,7 @@ export interface DbQuote {
   status: 'EN_ATTENTE' | 'CONVERTI';
   deletedAt?: string | null;
   createdAt: string;
+  created_by?: string;
 }
 
 export interface DbQuoteItem {
@@ -499,6 +511,7 @@ export interface ClientResponse {
   address?: string;
   deletedAt?: string;
   createdAt?: string;
+  created_by?: string;
 }
 
 export interface DbClient {
@@ -509,6 +522,7 @@ export interface DbClient {
   address?: string;
   deletedAt?: string;
   createdAt?: string;
+  created_by?: string;
 }
 
 // ============================================================================
@@ -537,6 +551,7 @@ export interface ServiceResponse {
   unitPrice: number;
   deletedAt?: string;
   createdAt?: string;
+  created_by?: string;
 }
 
 export interface DbService {
@@ -547,6 +562,7 @@ export interface DbService {
   unitPrice: number;
   deletedAt?: string;
   createdAt?: string;
+  created_by?: string;
 }
 
 // ============================================================================

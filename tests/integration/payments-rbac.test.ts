@@ -88,8 +88,8 @@ describe('API RBAC Tests - Payments Module', () => {
       const response = await GETPayments(request);
       const data = await response.json();
 
-      expect(response.status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      expect(response.status).toBe(401);
+      expect(data.error).toBeDefined();
     });
   });
 
@@ -100,8 +100,8 @@ describe('API RBAC Tests - Payments Module', () => {
       
       const invoiceId = crypto.randomUUID();
       testDb.prepare(`
-        INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, createdAt, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         invoiceId,
         getUniqueInvoiceNumber(),
@@ -118,7 +118,8 @@ describe('API RBAC Tests - Payments Module', () => {
         100,
         12878,
         'UNPAID',
-        new Date().toISOString()
+        new Date().toISOString(),
+        session.userId
       );
 
       const request = new Request('http://localhost/api/payments', {

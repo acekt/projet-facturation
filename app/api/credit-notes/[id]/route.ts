@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
+import { logAudit } from '@/lib/api/audit';
 import db from '@/lib/db';
 import { updateInvoiceStatus } from '@/lib/api/invoice-logic';
 import type { CreditNoteResponse, CreditNoteItem, ErrorResponse, DbCreditNote, DbCreditNoteItem } from '@/lib/types/api';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: Request,
@@ -57,6 +60,12 @@ export async function DELETE(
       };
       return NextResponse.json(errorResponse, { status: 403 });
     }
+    if (!session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'User ID manquant dans la session',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
 
     // Get credit note details before soft delete
     const note = db.prepare('SELECT * FROM credit_notes WHERE id = ? AND deletedAt IS NULL').get(id) as DbCreditNote | undefined;
@@ -75,6 +84,8 @@ export async function DELETE(
       if (result.changes === 0) {
         return null;
       }
+
+      logAudit('DELETE', 'credit_note', id, `Avoir supprimé: ${note.number || id}`, session.userId, session.name || session.username || null);
 
       // Recalculate invoice status based on sum of remaining (non-deleted) payments.
       // This correctly handles the case where the invoice had partial payments before the avoir:

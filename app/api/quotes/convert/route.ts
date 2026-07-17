@@ -48,12 +48,19 @@ export async function POST(request: Request) {
 
     const { quoteId }: QuoteConvertRequest = validation.data;
 
-    const quote = db.prepare('SELECT * FROM quotes WHERE id = ?').get(quoteId) as DbQuote | undefined;
+    const quote = db.prepare('SELECT * FROM quotes WHERE id = ?').get(quoteId) as (DbQuote & { created_by?: string }) | undefined;
     if (!quote) {
       const errorResponse: ErrorResponse = {
         error: 'Quote not found',
       };
       return NextResponse.json(errorResponse, { status: 404 });
+    }
+
+    if (session.role !== 'admin' && quote.created_by !== session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden: You can only convert your own quotes',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
     }
 
     if (quote.deletedAt !== null) {
@@ -89,8 +96,8 @@ export async function POST(request: Request) {
       db.prepare(`
         INSERT INTO invoices (
           id, number, quoteId, clientId, clientName, clientEmail, date,
-          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         invoiceId,
         number,
@@ -107,7 +114,8 @@ export async function POST(request: Request) {
         Math.round(quote.cssAmount),
         Math.round(quote.total),
         'UNPAID',
-        quote.notes
+        quote.notes,
+        session.userId
       );
 
       // Copy items

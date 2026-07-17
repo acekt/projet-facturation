@@ -18,6 +18,7 @@ interface DbUser {
   last_login_at: string | null;
   created_by: string | null;
   phone: string | null;
+  deletedAt: string | null;
 }
 
 interface DbClient {
@@ -126,7 +127,8 @@ export function createTestDatabase(): Database.Database {
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       last_login_at DATETIME,
       created_by TEXT,
-      phone TEXT
+      phone TEXT,
+      deletedAt DATETIME
     );
 
     CREATE TABLE IF NOT EXISTS clients (
@@ -137,7 +139,8 @@ export function createTestDatabase(): Database.Database {
       address TEXT,
       status TEXT DEFAULT 'active',
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      deletedAt DATETIME
+      deletedAt DATETIME,
+      created_by TEXT
     );
 
     CREATE TABLE IF NOT EXISTS quotes (
@@ -218,6 +221,7 @@ export function createTestDatabase(): Database.Database {
       reference TEXT,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       deletedAt DATETIME,
+      created_by TEXT,
       FOREIGN KEY (invoiceId) REFERENCES invoices(id) ON DELETE CASCADE
     );
 
@@ -234,7 +238,8 @@ export function createTestDatabase(): Database.Database {
       category TEXT,
       unitPrice REAL DEFAULT 0,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      deletedAt DATETIME
+      deletedAt DATETIME,
+      created_by TEXT
     );
 
     CREATE TABLE IF NOT EXISTS credit_notes (

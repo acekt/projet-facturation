@@ -30,6 +30,22 @@ interface DocumentPreviewProps {
 export function DocumentPreview({ open, onOpenChange, type, data }: DocumentPreviewProps) {
   const settings = useStore((state) => state.settings)
 
+  React.useEffect(() => {
+    if (!open) {
+      const timer = setTimeout(() => {
+        document.body.style.removeProperty('pointer-events')
+        document.body.removeAttribute('data-scroll-locked')
+      }, 50)
+      return () => clearTimeout(timer)
+    }
+    return () => {
+      const timer = setTimeout(() => {
+        document.body.style.removeProperty('pointer-events')
+        document.body.removeAttribute('data-scroll-locked')
+      }, 50)
+    }
+  }, [open])
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-border max-w-5xl max-h-[90vh] overflow-y-auto overflow-x-hidden p-0 md:p-6">

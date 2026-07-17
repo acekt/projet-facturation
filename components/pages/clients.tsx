@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
-import { Plus, Search, Mail, Phone, MapPin, MoreVertical, Edit2, Trash2 } from "lucide-react"
+import { Plus, MoreVertical, Edit2, Trash2, DownloadCloud, Users, Mail, Phone, MapPin } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,14 +23,24 @@ import {
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { useStore, type Client } from "@/lib/store"
 import { toast } from "sonner"
-import { DownloadCloud, Users } from "lucide-react"
 import { formatCurrency } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ViewFormatSelector } from "@/components/ui/view-format-selector"
+// ── Design System
+import { PageHeader } from "@/components/ui/page-header"
+import { SearchBar } from "@/components/ui/search-bar"
+import { StatusBadge } from "@/components/ui/status-badge"
+import {
+  DataTable,
+  DataTableHead,
+  DataTableBody,
+  DataTableRow,
+  DataTableHeaderCell,
+  DataTableCell,
+  ActionsCell,
+} from "@/components/ui/data-table"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -45,6 +55,10 @@ import {
 export function ClientsPage() {
   const clients = useStore(state => state.clients)
   const setClients = useStore(state => state.setClients)
+  const addClient = useStore(state => state.addClient)
+  const removeClient = useStore(state => state.removeClient)
+  const updateClient = useStore(state => state.updateClient)
+  const replaceClient = useStore(state => state.replaceClient)
   const invoices = useStore(state => state.invoices)
   const user = useStore(state => state.user)
   const viewFormat = useStore(state => state.viewFormat)
@@ -57,6 +71,9 @@ export function ClientsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [editingClient, setEditingClient] = React.useState<Client | null>(null)
   const [clientToDeleteId, setClientToDeleteId] = React.useState<string | null>(null)
+  // FORM BLINDNESS FIX: track in-flight submission to disable button and
+  // prevent double-submit or premature dialog closure.
+  const [isSubmitting, startSubmitTransition] = React.useTransition()
   const [newClient, setNewClient] = React.useState({
     name: "",
     email: "",
@@ -95,6 +112,8 @@ export function ClientsPage() {
 
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (isSubmitting) return
+
     const tempId = crypto.randomUUID()
     const clientToCreate: Client = {
       id: tempId,
@@ -104,38 +123,41 @@ export function ClientsPage() {
       address: newClient.address,
     }
 
-    const previousClients = [...clients]
+    startSubmitTransition(async () => {
+      try {
+        const response = await fetch('/api/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(clientToCreate),
+        })
 
-    // Optimistic Update
-    setClients([...clients, clientToCreate])
-    setIsAddDialogOpen(false)
-    setNewClient({ name: "", email: "", phone: "", address: "" })
-    toast.success("Client ajouté avec succès")
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}))
+          throw new Error(errData.error || `HTTP ${response.status}`)
+        }
 
-    try {
-      const response = await fetch('/api/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(clientToCreate),
-      })
+        const createdClient = await response.json()
 
-      if (!response.ok) throw new Error('Failed to add client')
-
-      const createdClient = await response.json()
-      // Replace temporary client with the one from the server (containing real metadata)
-      setClients(previousClients.concat(createdClient))
-    } catch (error) {
-      // Rollback on failure
-      setClients(previousClients)
-      toast.error("Erreur lors de l'ajout du client")
-    }
+        // SERVER-FIRST: only close dialog and reset form AFTER server confirms success.
+        // This prevents Form Blindness (user thinks record was saved when network failed).
+        addClient(createdClient)         // use confirmed server record, not temp
+        setIsAddDialogOpen(false)
+        setNewClient({ name: "", email: "", phone: "", address: "" })
+        toast.success("Client ajouté avec succès")
+      } catch (error) {
+        // Form stays open — user can correct and retry
+        const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+        toast.error(`Échec de l'ajout : ${msg}`)
+      }
+    })
   }
 
   const handleDelete = async (id: string) => {
-    const previousClients = [...clients]
+    // OPTIMISTIC UI — atomic removal; rollback re-inserts via addClient if needed.
+    // We capture the full client object BEFORE removing it so we can restore it.
+    const clientToRestore = clients.find(c => c.id === id)
 
-    // Optimistic Update
-    setClients(clients.filter(c => c.id !== id))
+    removeClient(id)
     toast.success("Client supprimé avec succès")
     setClientToDeleteId(null)
 
@@ -143,292 +165,294 @@ export function ClientsPage() {
       const response = await fetch(`/api/clients/${id}`, {
         method: 'DELETE',
       })
-
-      if (!response.ok) throw new Error('Failed to delete client')
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `HTTP ${response.status}`)
+      }
     } catch (error) {
-      // Rollback on failure
-      setClients(previousClients)
-      toast.error("Erreur lors de la suppression du client. Restauration.")
+      // ROLLBACK — re-insert the previously removed client
+      if (clientToRestore) addClient(clientToRestore)
+      const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+      toast.error(`Échec de la suppression : ${msg}. Restauration effectuée.`)
     }
   }
 
   const handleEditClient = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!editingClient) return
+    if (!editingClient || isSubmitting) return
 
-    const previousClients = [...clients]
-
-    // [QA-Phase 1] Optimistic Update : mise à jour immédiate du store et fermeture de la modale
-    setClients(clients.map(c => c.id === editingClient.id ? editingClient : c))
-    setIsEditDialogOpen(false)
+    const originalClient = clients.find(c => c.id === editingClient.id)
     const clientToSave = editingClient
-    setEditingClient(null)
-    toast.success("Client mis à jour avec succès")
 
-    try {
-      const response = await fetch(`/api/clients/${clientToSave.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(clientToSave),
-      })
+    startSubmitTransition(async () => {
+      try {
+        const response = await fetch(`/api/clients/${clientToSave.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(clientToSave),
+        })
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}))
+          throw new Error(errData.error || `HTTP ${response.status}`)
+        }
 
-      if (!response.ok) throw new Error('Failed to update client')
-    } catch (error) {
-      // Rollback en cas d'échec
-      setClients(previousClients)
-      toast.error("Erreur lors de la modification du client. Restauration.")
-    }
+        // SERVER-FIRST: apply optimistic update only after server confirms.
+        updateClient(clientToSave.id, clientToSave)
+        setIsEditDialogOpen(false)
+        setEditingClient(null)
+        toast.success("Client mis à jour avec succès")
+      } catch (error) {
+        // Form stays open with data intact — user can correct and retry
+        if (originalClient) updateClient(clientToSave.id, originalClient)
+        const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+        toast.error(`Échec de la modification : ${msg}`)
+      }
+    })
   }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Clients</h1>
-          <p className="text-muted-foreground mt-1">Gérez votre base de clients et leurs coordonnées</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              const headers = ["Nom", "Email", "Telephone", "Adresse"];
-              const rows = clients.map(c => [c.name, c.email, c.phone, c.address]);
-              const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-              const link = document.createElement("a");
-              link.href = URL.createObjectURL(blob);
-              link.setAttribute("download", `clients_${new Date().toISOString().split('T')[0]}.csv`);
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }}
-            className="gap-2 hidden sm:flex"
-          >
-            <DownloadCloud className="w-4 h-4" />
-            Export CSV
-          </Button>
-          {user?.role === 'user' && (
-          <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20">
-                <Plus className="w-4 h-4" />
-                Nouveau client
-              </Button>
-            </DialogTrigger>
-          <DialogContent className="bg-card border-border">
-            <DialogHeader>
-              <DialogTitle className="text-foreground">Ajouter un nouveau client</DialogTitle>
-              <VisuallyHidden>
-                <DialogDescription>Formulaire pour ajouter un client à votre base de données</DialogDescription>
-              </VisuallyHidden>
-            </DialogHeader>
-            <form onSubmit={handleAddClient} className="space-y-4 mt-4">
-              <div className="space-y-2">
-                <Label htmlFor="name" className="text-muted-foreground">Nom complet / Raison sociale</Label>
-                <Input
-                  id="name"
-                  value={newClient.name}
-                  onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
-                  placeholder="Ex: Societe Gabon Mining"
-                  className="bg-secondary border-border text-foreground"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-muted-foreground">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={newClient.email}
-                  onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
-                  placeholder="contact@entreprise.ga"
-                  className="bg-secondary border-border text-foreground"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone" className="text-muted-foreground">Téléphone</Label>
-                <Input
-                  id="phone"
-                  value={newClient.phone}
-                  onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
-                  placeholder="+241 XX XX XX XX"
-                  className="bg-secondary border-border text-foreground"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="address" className="text-muted-foreground">Adresse</Label>
-                <Input
-                  id="address"
-                  value={newClient.address}
-                  onChange={(e) => setNewClient({ ...newClient, address: e.target.value })}
-                  placeholder="Libreville, Gabon"
-                  className="bg-secondary border-border text-foreground"
-                />
-              </div>
-              <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4">
-                Enregistrer le client
-              </Button>
-            </form>
-            </DialogContent>
-          </Dialog>
-          )}
-
-          {/* Edit Dialog */}
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      {/* ── En-tête de page (Design System) ───────────────────────────── */}
+      <PageHeader
+        title="Clients"
+        description="Gérez votre base de clients et leurs coordonnées"
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const headers = ["Nom", "Email", "Telephone", "Adresse"];
+                const rows = clients.map(c => [c.name, c.email, c.phone, c.address]);
+                const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.setAttribute("download", `clients_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}
+              className="gap-2 hidden sm:flex"
+            >
+              <DownloadCloud className="w-4 h-4" />
+              Export CSV
+            </Button>
+            {user?.role === 'admin' && (
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20">
+                  <Plus className="w-4 h-4" />
+                  Nouveau client
+                </Button>
+              </DialogTrigger>
             <DialogContent className="bg-card border-border">
               <DialogHeader>
-                <DialogTitle className="text-foreground">Modifier le client</DialogTitle>
+                <DialogTitle className="text-foreground">Ajouter un nouveau client</DialogTitle>
                 <VisuallyHidden>
-                  <DialogDescription>Formulaire pour modifier un client existant</DialogDescription>
+                  <DialogDescription>Formulaire pour ajouter un client à votre base de données</DialogDescription>
                 </VisuallyHidden>
               </DialogHeader>
-              <form onSubmit={handleEditClient} className="space-y-4 mt-4">
+              <form onSubmit={handleAddClient} className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="edit-name" className="text-muted-foreground">Nom complet / Raison sociale</Label>
+                  <Label htmlFor="name" className="text-muted-foreground">Nom complet / Raison sociale</Label>
                   <Input
-                    id="edit-name"
-                    value={editingClient?.name || ''}
-                    onChange={(e) => editingClient && setEditingClient({ ...editingClient, name: e.target.value })}
+                    id="name"
+                    value={newClient.name}
+                    onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
                     placeholder="Ex: Societe Gabon Mining"
                     className="bg-secondary border-border text-foreground"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-email" className="text-muted-foreground">Email</Label>
+                  <Label htmlFor="email" className="text-muted-foreground">Email</Label>
                   <Input
-                    id="edit-email"
+                    id="email"
                     type="email"
-                    value={editingClient?.email || ''}
-                    onChange={(e) => editingClient && setEditingClient({ ...editingClient, email: e.target.value })}
+                    value={newClient.email}
+                    onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
                     placeholder="contact@entreprise.ga"
                     className="bg-secondary border-border text-foreground"
                     required
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-phone" className="text-muted-foreground">Téléphone</Label>
+                  <Label htmlFor="phone" className="text-muted-foreground">Téléphone</Label>
                   <Input
-                    id="edit-phone"
-                    value={editingClient?.phone || ''}
-                    onChange={(e) => editingClient && setEditingClient({ ...editingClient, phone: e.target.value })}
+                    id="phone"
+                    value={newClient.phone}
+                    onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
                     placeholder="+241 XX XX XX XX"
                     className="bg-secondary border-border text-foreground"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="edit-address" className="text-muted-foreground">Adresse</Label>
+                  <Label htmlFor="address" className="text-muted-foreground">Adresse</Label>
                   <Input
-                    id="edit-address"
-                    value={editingClient?.address || ''}
-                    onChange={(e) => editingClient && setEditingClient({ ...editingClient, address: e.target.value })}
+                    id="address"
+                    value={newClient.address}
+                    onChange={(e) => setNewClient({ ...newClient, address: e.target.value })}
                     placeholder="Libreville, Gabon"
                     className="bg-secondary border-border text-foreground"
                   />
                 </div>
-                <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4">
-                  Enregistrer les modifications
+                <Button
+                  type="submit"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Enregistrement..." : "Enregistrer le client"}
                 </Button>
               </form>
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
+              </DialogContent>
+            </Dialog>
+            )}
 
-      <div className="flex items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un client..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-secondary/50 border-border text-foreground w-full md:max-w-md"
+            {/* Edit Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+              <DialogContent className="bg-card border-border">
+                <DialogHeader>
+                  <DialogTitle className="text-foreground">Modifier le client</DialogTitle>
+                  <VisuallyHidden>
+                    <DialogDescription>Formulaire pour modifier un client existant</DialogDescription>
+                  </VisuallyHidden>
+                </DialogHeader>
+                <form onSubmit={handleEditClient} className="space-y-4 mt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-name" className="text-muted-foreground">Nom complet / Raison sociale</Label>
+                    <Input
+                      id="edit-name"
+                      value={editingClient?.name || ''}
+                      onChange={(e) => editingClient && setEditingClient({ ...editingClient, name: e.target.value })}
+                      placeholder="Ex: Societe Gabon Mining"
+                      className="bg-secondary border-border text-foreground"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-email" className="text-muted-foreground">Email</Label>
+                    <Input
+                      id="edit-email"
+                      type="email"
+                      value={editingClient?.email || ''}
+                      onChange={(e) => editingClient && setEditingClient({ ...editingClient, email: e.target.value })}
+                      placeholder="contact@entreprise.ga"
+                      className="bg-secondary border-border text-foreground"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-phone" className="text-muted-foreground">Téléphone</Label>
+                    <Input
+                      id="edit-phone"
+                      value={editingClient?.phone || ''}
+                      onChange={(e) => editingClient && setEditingClient({ ...editingClient, phone: e.target.value })}
+                      placeholder="+241 XX XX XX XX"
+                      className="bg-secondary border-border text-foreground"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-address" className="text-muted-foreground">Adresse</Label>
+                    <Input
+                      id="edit-address"
+                      value={editingClient?.address || ''}
+                      onChange={(e) => editingClient && setEditingClient({ ...editingClient, address: e.target.value })}
+                      placeholder="Libreville, Gabon"
+                      className="bg-secondary border-border text-foreground"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? "Enregistrement..." : "Enregistrer les modifications"}
+                  </Button>
+                </form>
+              </DialogContent>
+            </Dialog>
+          </>
+        }
+      />
+
+      {/* ── Barre de recherche (Design System) ─────────────────────── */}
+      <SearchBar
+        placeholder="Rechercher un client..."
+        value={searchQuery}
+        onChange={setSearchQuery}
+        viewFormatKey="clients"
+      />
+
+      {/* ── Vue Tableau (Design System) ────────────────────────────────── */}
+      {(!viewFormat.clients || viewFormat.clients === 'table') && (
+        <DataTable>
+          <DataTableHead>
+            <DataTableRow>
+              <DataTableHeaderCell>Client</DataTableHeaderCell>
+              <DataTableHeaderCell>Email</DataTableHeaderCell>
+              <DataTableHeaderCell>Téléphone</DataTableHeaderCell>
+              <DataTableHeaderCell>Statut</DataTableHeaderCell>
+              <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
+            {paginatedClients.map((client) => (
+              <DataTableRow key={client.id}>
+                <DataTableCell>
+                  <div className="flex items-center gap-3">
+                    <Avatar className="w-8 h-8 ring-1 ring-border">
+                      <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground text-xs font-semibold">
+                        {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="font-medium text-sm text-foreground">{client.name}</span>
+                  </div>
+                </DataTableCell>
+                <DataTableCell>{client.email}</DataTableCell>
+                <DataTableCell>
+                  {client.phone || <span className="text-muted-foreground/30">—</span>}
+                </DataTableCell>
+                <DataTableCell>
+                  <StatusBadge variant="active" />
+                </DataTableCell>
+                <ActionsCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+                      {user?.role === 'admin' && (
+                        <DropdownMenuItem className="gap-2" onClick={() => { setEditingClient(client); setIsEditDialogOpen(true) }}>
+                          <Edit2 className="w-4 h-4" /> Modifier
+                        </DropdownMenuItem>
+                      )}
+                      {user?.role === 'admin' && (
+                        <DropdownMenuItem
+                          className="gap-2 text-destructive focus:text-destructive"
+                          onClick={() => setClientToDeleteId(client.id)}
+                        >
+                          <Trash2 className="w-4 h-4" /> Supprimer
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </ActionsCell>
+              </DataTableRow>
+            ))}
+          </DataTableBody>
+        </DataTable>
+      )}
+      {(!viewFormat.clients || viewFormat.clients === 'table') && paginatedClients.length === 0 && (
+        <div className="p-8 text-center">
+          <EmptyState
+            icon={Users}
+            title={searchQuery ? "Aucun résultat" : "Aucun client"}
+            description={searchQuery ? "Aucun client ne correspond à votre recherche." : "Ajoutez votre premier client pour commencer à générer des devis."}
+            actionLabel={!searchQuery && user?.role === 'admin' ? "Nouveau client" : undefined}
+            onAction={!searchQuery && user?.role === 'admin' ? () => setIsAddDialogOpen(true) : undefined}
           />
-        </div>
-        <ViewFormatSelector
-          currentFormat={viewFormat.clients}
-          onFormatChange={(format: 'table' | 'horizontal' | 'block') => setViewFormat('clients', format)}
-        />
-      </div>
-
-      {viewFormat.clients === 'table' && (
-        <div className="flex-1 min-h-0 bg-card rounded-xl border border-border overflow-auto shadow-sm">
-          <table className="w-full min-w-[600px]">
-            <thead className="bg-secondary/50">
-              <tr>
-                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client</th>
-                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Email</th>
-                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Téléphone</th>
-                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Statut</th>
-                <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {paginatedClients.map((client) => (
-                <tr key={client.id} className="hover:bg-secondary/30 transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <Avatar className="w-8 h-8 ring-1 ring-border">
-                        <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground text-xs font-semibold">
-                          {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="font-bold text-sm">{client.name}</span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-sm text-muted-foreground">{client.email}</td>
-                  <td className="p-4 text-sm text-muted-foreground">
-                    {client.phone || <span className="text-muted-foreground/30">—</span>}
-                  </td>
-                  <td className="p-4">
-                    <Badge variant="default">Actif</Badge>
-                  </td>
-                  <td className="p-4 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40 bg-card border-border">
-                        {user?.role === 'user' && (
-                          <DropdownMenuItem 
-                            className="gap-2"
-                            onClick={() => {
-                              setEditingClient(client)
-                              setIsEditDialogOpen(true)
-                            }}
-                          >
-                            <Edit2 className="w-4 h-4" /> Modifier
-                          </DropdownMenuItem>
-                        )}
-                        {(user?.role === 'admin' || user?.role === 'user') && (
-                          <DropdownMenuItem
-                            className="gap-2 text-destructive focus:text-destructive"
-                            onClick={() => handleDelete(client.id)}
-                          >
-                            <Trash2 className="w-4 h-4" /> Supprimer
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {paginatedClients.length === 0 && (
-            <div className="p-8 text-center">
-              <EmptyState
-                icon={Users}
-                title={searchQuery ? "Aucun client trouvé" : "Base clients vide"}
-                description={searchQuery ? "Aucun client ne correspond à votre recherche." : "Ajoutez votre premier client pour commencer à générer des devis."}
-                actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau client" : undefined}
-                onAction={!searchQuery && user?.role === 'user' ? () => setIsAddDialogOpen(true) : undefined}
-              />
-            </div>
-          )}
         </div>
       )}
 
@@ -454,7 +478,7 @@ export function ClientsPage() {
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <Badge variant="default">Actif</Badge>
+                    <StatusBadge variant="active" />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
@@ -462,7 +486,7 @@ export function ClientsPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40 bg-card border-border">
-                        {user?.role === 'user' && (
+                        {user?.role === 'admin' && (
                           <DropdownMenuItem 
                             className="gap-2"
                             onClick={() => {
@@ -473,7 +497,7 @@ export function ClientsPage() {
                             <Edit2 className="w-4 h-4" /> Modifier
                           </DropdownMenuItem>
                         )}
-                        {(user?.role === 'admin' || user?.role === 'user') && (
+                        {user?.role === 'admin' && (
                           <DropdownMenuItem
                             className="gap-2 text-destructive focus:text-destructive"
                             onClick={() => handleDelete(client.id)}
@@ -493,8 +517,8 @@ export function ClientsPage() {
               icon={Users}
               title={searchQuery ? "Aucun client trouvé" : "Base clients vide"}
               description={searchQuery ? "Aucun client ne correspond à votre recherche." : "Ajoutez votre premier client pour commencer à générer des devis."}
-              actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau client" : undefined}
-              onAction={!searchQuery && user?.role === 'user' ? () => setIsAddDialogOpen(true) : undefined}
+              actionLabel={!searchQuery && user?.role === 'admin' ? "Nouveau client" : undefined}
+              onAction={!searchQuery && user?.role === 'admin' ? () => setIsAddDialogOpen(true) : undefined}
             />
           )}
         </div>
@@ -527,7 +551,7 @@ export function ClientsPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40 bg-card border-border">
-                          {user?.role === 'user' && (
+                          {user?.role === 'admin' && (
                             <DropdownMenuItem 
                               className="gap-2"
                               onClick={() => {
@@ -538,10 +562,10 @@ export function ClientsPage() {
                               <Edit2 className="w-4 h-4" /> Modifier
                             </DropdownMenuItem>
                           )}
-                          {(user?.role === 'admin' || user?.role === 'user') && (
+                          {user?.role === 'admin' && (
                             <DropdownMenuItem
                               className="gap-2 text-destructive focus:text-destructive"
-                              onClick={() => handleDelete(client.id)}
+                              onClick={() => setClientToDeleteId(client.id)}
                             >
                               <Trash2 className="w-4 h-4" /> Supprimer
                             </DropdownMenuItem>
@@ -585,8 +609,8 @@ export function ClientsPage() {
                 icon={Users}
                 title={searchQuery ? "Aucun client trouvé" : "Base clients vide"}
                 description={searchQuery ? "Aucun client ne correspond à votre recherche." : "Ajoutez votre premier client pour commencer à générer des devis."}
-                actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau client" : undefined}
-                onAction={!searchQuery && user?.role === 'user' ? () => setIsAddDialogOpen(true) : undefined}
+                actionLabel={!searchQuery && user?.role === 'admin' ? "Nouveau client" : undefined}
+                onAction={!searchQuery && user?.role === 'admin' ? () => setIsAddDialogOpen(true) : undefined}
               />
             </div>
           )}

@@ -47,13 +47,15 @@ const navItems = [
   { id: "users", label: "Utilisateurs", icon: Users, roles: ['admin'], group: 'system' },
   { id: "audit", label: "Journal Audit", icon: ScrollText, roles: ['admin'], group: 'system' },
 
+  // Groupe Référentiel
+  { id: "clients", label: "Clients", icon: Users, roles: ['admin'], group: 'repository' },
+  { id: "services", label: "Services", icon: Briefcase, roles: ['admin'], group: 'repository' },
+
   // Groupe Opérations
-  { id: "clients", label: "Clients", icon: Users, roles: ['user'], group: 'business' },
-  { id: "quotes", label: "Devis", icon: FileText, roles: ['user'], group: 'business' },
-  { id: "invoices", label: "Factures", icon: FileText, roles: ['user'], group: 'business' },
-  { id: "services", label: "Services", icon: Briefcase, roles: ['user'], group: 'business' },
-  { id: "payments", label: "Paiements", icon: CreditCard, roles: ['user'], group: 'business' },
-  { id: "credit-notes", label: "Avoirs", icon: RefreshCcw, roles: ['user'], group: 'business' },
+  { id: "quotes", label: "Devis", icon: FileText, roles: ['admin', 'user'], group: 'business' },
+  { id: "invoices", label: "Factures", icon: FileText, roles: ['admin', 'user'], group: 'business' },
+  { id: "payments", label: "Paiements", icon: CreditCard, roles: ['admin', 'user'], group: 'business' },
+  { id: "credit-notes", label: "Avoirs", icon: RefreshCcw, roles: ['admin', 'user'], group: 'business' },
 
   // Bas de Sidebar
   { id: "settings", label: "Paramètres", icon: Settings, roles: ['admin', 'user'], group: 'bottom' },
@@ -74,6 +76,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
 
   const filteredItems = navItems.filter(item => item.roles.includes(user?.role || 'user'));
   const systemItems = filteredItems.filter(i => i.group === 'system');
+  const repositoryItems = filteredItems.filter(i => i.group === 'repository');
   const businessItems = filteredItems.filter(i => i.group === 'business');
   const bottomItems = filteredItems.filter(i => i.group === 'bottom');
 
@@ -181,6 +184,14 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
             {!collapsed && <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Système</p>}
             {systemItems.map(renderItem)}
           </div>
+
+          {/* Groupe Référentiel */}
+          {user?.role === 'admin' && repositoryItems.length > 0 && (
+            <div className="space-y-1">
+              {!collapsed && <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Référentiel</p>}
+              {repositoryItems.map(renderItem)}
+            </div>
+          )}
 
           {/* Groupe Opérations */}
           {businessItems.length > 0 && (

@@ -29,7 +29,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import { useStore, type Invoice, type Payment } from "@/lib/store"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
@@ -43,8 +42,21 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 import { Switch } from "@/components/ui/switch"
+// ── Design System components
+import { PageHeader } from "@/components/ui/page-header"
+import { SearchBar } from "@/components/ui/search-bar"
+import { StatusBadge } from "@/components/ui/status-badge"
+import {
+  DataTable,
+  DataTableHead,
+  DataTableBody,
+  DataTableRow,
+  DataTableHeaderCell,
+  DataTableCell,
+  AmountCell,
+  ActionsCell,
+} from "@/components/ui/data-table"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,6 +111,11 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     setIsDeleting(true)
     try {
       const response = await fetch(`/api/invoices/${id}`, { method: 'DELETE' })
+      if (response.status === 403) {
+        toast.error("Action refusée : Vous manquez de droits pour supprimer cette facture.")
+        setInvoiceToDeleteId(null)
+        return
+      }
       if (!response.ok) throw new Error('Delete failed')
       toast.success("Facture supprimée")
       setInvoiceToDeleteId(null)
@@ -121,6 +138,11 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         body: JSON.stringify({ deleteQuote: deleteAssociatedQuote }),
       });
 
+      if (response.status === 403) {
+        toast.error("Action refusée : Vous manquez de droits pour annuler/supprimer cette facture.")
+        setInvoiceToCancel(null)
+        return
+      }
       if (!response.ok) throw new Error('Failed to cancel invoice');
 
       toast.success("Facture annulée avec succès");
@@ -247,198 +269,176 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     )
   }
 
-  const getStatusBadge = (status: Invoice['status']) => {
-    return null
-  }
-
+  // ── Calcul statut de paiement ───────────────────────────────────────────────
   const getPaymentStatus = (invoice: Invoice) => {
     const totalPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
     const remaining = invoice.total - totalPaid
-    
-    if (totalPaid === 0) {
-      return { status: 'unpaid', paid: 0, remaining: invoice.total }
-    }
-    if (totalPaid >= invoice.total) {
-      return { status: 'paid', paid: totalPaid, remaining: 0 }
-    }
-    return { status: 'partial', paid: totalPaid, remaining }
+    if (totalPaid === 0) return { status: 'unpaid' as const, paid: 0, remaining: invoice.total }
+    if (totalPaid >= invoice.total) return { status: 'paid' as const, paid: totalPaid, remaining: 0 }
+    return { status: 'partial' as const, paid: totalPaid, remaining }
   }
 
+  // ── Rendu du badge de paiement via StatusBadge unifié ──────────────────────
   const getPaymentBadge = (invoice: Invoice) => {
-    const paymentStatus = getPaymentStatus(invoice)
-    
-    switch (paymentStatus.status) {
-      case 'paid':
-        return (
-          <Badge className="bg-emerald-50 text-emerald-700 border-emerald-200">
-            Soldé ({formatCurrency(paymentStatus.paid)})
-          </Badge>
-        )
-      case 'partial':
-        return (
-          <Badge className="bg-amber-50 text-amber-700 border-amber-200">
-            Partiel - Payé: {formatCurrency(paymentStatus.paid)} | Reste: {formatCurrency(paymentStatus.remaining)}
-          </Badge>
-        )
-      case 'unpaid':
-        return (
-          <Badge className="bg-red-50 text-red-700 border-red-200">
-            Non payé - Reste: {formatCurrency(paymentStatus.remaining)}
-          </Badge>
-        )
-      default:
-        return null
+    const ps = getPaymentStatus(invoice)
+    if (ps.status === 'paid') {
+      return <StatusBadge variant="invoice-paid" amount={ps.paid} />
     }
+    if (ps.status === 'partial') {
+      return <StatusBadge variant="invoice-partial" paidAmount={ps.paid} remainingAmount={ps.remaining} />
+    }
+    return <StatusBadge variant="invoice-unpaid" remainingAmount={ps.remaining} />
   }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground tracking-tight">Factures</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Gérez vos factures et suivez vos paiements</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              const headers = ["Numero", "Client", "Date", "Total", "Statut"];
-              const rows = invoices.map(i => [i.number, i.clientName, i.date, i.total, i.status]);
-              const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-              const link = document.createElement("a");
-              link.href = URL.createObjectURL(blob);
-              link.setAttribute("download", `factures_${new Date().toISOString().split('T')[0]}.csv`);
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
-            }}
-            className="gap-2 hidden sm:flex"
-          >
-            <DownloadCloud className="w-4 h-4" />
-            Export CSV
-          </Button>
-          <Button
-            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-            onClick={() => onCreateInvoice()}
-          >
-            <Plus className="w-4 h-4" />
-            Nouvelle Facture
-          </Button>
-        </div>
-      </div>
+      {/* ── En-tête de page (Design System) ───────────────────────────── */}
+      <PageHeader
+        title="Factures"
+        description="Gérez vos factures et suivez vos paiements"
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const headers = ["Numero", "Client", "Date", "Total", "Statut"];
+                const rows = invoices.map(i => [i.number, i.clientName, i.date, i.total, i.status]);
+                const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.setAttribute("download", `factures_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}
+              className="gap-2 hidden sm:flex"
+            >
+              <DownloadCloud className="w-4 h-4" />
+              Export CSV
+            </Button>
+            {user?.role === 'user' && (
+              <Button
+                className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+                onClick={() => onCreateInvoice()}
+              >
+                <Plus className="w-4 h-4" />
+                Nouvelle Facture
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <div className="flex items-center justify-between gap-4 bg-card p-4 rounded-lg border border-border">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher une facture..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-transparent border-border text-sm w-full md:max-w-md"
-          />
-        </div>
-        <ViewFormatSelector
-          currentFormat={viewFormat.invoices}
-          onFormatChange={(format: 'table' | 'horizontal' | 'block') => setViewFormat('invoices', format)}
-        />
-      </div>
+      {/* ── Barre de recherche + sélecteur de vue (Design System) ──────── */}
+      <SearchBar
+        placeholder="Rechercher une facture..."
+        value={searchQuery}
+        onChange={setSearchQuery}
+        viewFormatKey="invoices"
+      />
 
-      {viewFormat.invoices === 'table' && (
-        <div className="flex-1 min-h-0 bg-card rounded-lg border border-border overflow-auto shadow-sm">
-          <table className="w-full min-w-[600px]">
-            <thead className="bg-secondary/30">
-              <tr>
-                <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Facture</th>
-                <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Client</th>
-                <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Dates</th>
-                <th className="text-left p-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Statut</th>
-                <th className="text-right p-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Total</th>
-                <th className="text-right p-4 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {paginatedInvoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-secondary/30 transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-md bg-primary/5 flex items-center justify-center text-primary">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <span className="font-medium text-sm">{invoice.number}</span>
+      {/* ── Vue Tableau (Design System) ─────────────────────────────────── */}
+      {(!viewFormat.invoices || viewFormat.invoices === 'table') && (
+        <DataTable>
+          <DataTableHead>
+            <DataTableRow>
+              <DataTableHeaderCell>Facture</DataTableHeaderCell>
+              <DataTableHeaderCell>Client</DataTableHeaderCell>
+              <DataTableHeaderCell>Date</DataTableHeaderCell>
+              <DataTableHeaderCell>Statut</DataTableHeaderCell>
+              <DataTableHeaderCell align="right">Total</DataTableHeaderCell>
+              <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
+            {paginatedInvoices.map((invoice) => (
+              <DataTableRow key={invoice.id}>
+                {/* Numéro de facture */}
+                <DataTableCell>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-md bg-primary/5 flex items-center justify-center text-primary flex-shrink-0">
+                      <FileText className="w-4 h-4" />
                     </div>
-                  </td>
-                  <td className="p-4 text-sm text-muted-foreground max-w-[200px] sm:max-w-[300px] truncate" title={invoice.clientName}>
-                    {invoice.clientName}
-                  </td>
-                  <td className="p-4">
-                    <div className="text-xs text-muted-foreground">
-                      <div>{formatDate(invoice.date)}</div>
-                    </div>
-                  </td>
-                  <td className="p-4">
-                    {getPaymentBadge(invoice)}
-                  </td>
-                  <td className="p-4 text-right font-medium text-sm">{formatCurrency(invoice.total)}</td>
-                  <td className="p-4 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48">
-                        <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
-                          <Eye className="w-4 h-4" /> Aperçu
+                    <span className="font-medium text-sm text-foreground">{invoice.number}</span>
+                  </div>
+                </DataTableCell>
+                {/* Client */}
+                <DataTableCell truncate title={invoice.clientName}>
+                  {invoice.clientName}
+                </DataTableCell>
+                {/* Date */}
+                <DataTableCell>
+                  <span className="text-xs text-muted-foreground">{formatDate(invoice.date)}</span>
+                </DataTableCell>
+                {/* Statut de paiement */}
+                <DataTableCell>
+                  {getPaymentBadge(invoice)}
+                </DataTableCell>
+                {/* Total (AmountCell unifié) */}
+                <AmountCell amount={invoice.total} />
+                {/* Actions */}
+                <ActionsCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+                      <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
+                        <Eye className="w-4 h-4" /> Aperçu
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
+                        <Printer className="w-4 h-4" /> Imprimer
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="gap-2"
+                        onClick={() => handleDownloadPDF(invoice)}
+                        disabled={isDownloading === invoice.id}
+                      >
+                        <Download className="w-4 h-4" />
+                        {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
+                      </DropdownMenuItem>
+                      {invoice.status !== 'PAID' && user?.role === 'user' && invoice.created_by === user?.id && (
+                        <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
+                          <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                         </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
-                          <Printer className="w-4 h-4" /> Imprimer
+                      )}
+                      {user?.role === 'user' && invoice.created_by === user?.id && (
+                        <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
+                          setInvoiceToCancel(invoice)
+                          setDeleteAssociatedQuote(false)
+                        }}>
+                          <RefreshCcw className="w-4 h-4" /> Annuler la facture
                         </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="gap-2"
-                          onClick={() => handleDownloadPDF(invoice)}
-                          disabled={isDownloading === invoice.id}
-                        >
-                          <Download className="w-4 h-4" />
-                          {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
-                        </DropdownMenuItem>
-                        {invoice.status !== 'PAID' && user?.role === 'user' && (
-                          <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
-                            <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
+                      )}
+                      {user?.role === 'user' && invoice.created_by === user?.id && (
+                        <>
+                          <div className="h-px bg-border my-1" />
+                          <DropdownMenuItem
+                            className="gap-2 text-destructive focus:text-destructive"
+                            onClick={() => setInvoiceToDeleteId(invoice.id)}
+                          >
+                            <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>
-                        )}
-                        {user?.role === 'user' && (
-                           <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
-                             setInvoiceToCancel(invoice)
-                             setDeleteAssociatedQuote(false)
-                           }}>
-                             <RefreshCcw className="w-4 h-4" /> Annuler la facture
-                           </DropdownMenuItem>
-                        )}
-                        {user?.role === 'admin' && (
-                          <>
-                            <div className="h-px bg-border my-1" />
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setInvoiceToDeleteId(invoice.id)}>
-                                <Trash2 className="w-4 h-4" /> Supprimer
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {paginatedInvoices.length === 0 && (
-            <div className="p-8 text-center">
-              <EmptyState
-                icon={FileText}
-                title={searchQuery ? "Aucun résultat" : "Aucune facture"}
-                description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
-              />
-            </div>
-          )}
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </ActionsCell>
+              </DataTableRow>
+            ))}
+          </DataTableBody>
+        </DataTable>
+      )}
+      {(!viewFormat.invoices || viewFormat.invoices === 'table') && paginatedInvoices.length === 0 && (
+        <div className="p-8 text-center">
+          <EmptyState
+            icon={FileText}
+            title={searchQuery ? "Aucun résultat" : "Aucune facture"}
+            description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
+          />
         </div>
       )}
 
@@ -474,7 +474,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                     <div className="flex items-center gap-4">
                       <div className="text-right hidden sm:block">
                         <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Total</p>
-                        <p className="text-base font-semibold">{formatCurrency(invoice.total)}</p>
+                        <p className="text-sm font-semibold tracking-tight text-foreground">{formatCurrency(invoice.total)}</p>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -482,7 +482,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                             <MoreVertical className="w-5 h-5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48">
+                        <DropdownMenuContent align="end" className="w-48 bg-card border-border">
                           <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
                             <Eye className="w-4 h-4" /> Aperçu
                           </DropdownMenuItem>
@@ -497,12 +497,12 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                             <Download className="w-4 h-4" />
                             {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
                           </DropdownMenuItem>
-                          {invoice.status !== 'PAID' && user?.role === 'user' && (
+                          {invoice.status !== 'PAID' && user?.role === 'user' && invoice.created_by === user?.id && (
                             <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
                               <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                             </DropdownMenuItem>
                           )}
-                          {user?.role === 'user' && (
+                          {user?.role === 'user' && invoice.created_by === user?.id && (
                              <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
                                setInvoiceToCancel(invoice)
                                setDeleteAssociatedQuote(false)
@@ -510,12 +510,15 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                                <RefreshCcw className="w-4 h-4" /> Annuler la facture
                              </DropdownMenuItem>
                           )}
-                          {user?.role === 'admin' && (
+                          {user?.role === 'user' && invoice.created_by === user?.id && (
                             <>
-                            <div className="h-px bg-border my-1" />
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setInvoiceToDeleteId(invoice.id)}>
+                              <div className="h-px bg-border my-1" />
+                              <DropdownMenuItem
+                                className="gap-2 text-destructive focus:text-destructive"
+                                onClick={() => setInvoiceToDeleteId(invoice.id)}
+                              >
                                 <Trash2 className="w-4 h-4" /> Supprimer
-                            </DropdownMenuItem>
+                              </DropdownMenuItem>
                             </>
                           )}
                         </DropdownMenuContent>
@@ -566,7 +569,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                    <p className="text-lg font-semibold text-foreground tracking-tighter">{formatCurrency(invoice.total)}</p>
+                    <p className="text-sm font-semibold tracking-tight text-foreground">{formatCurrency(invoice.total)}</p>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
@@ -588,20 +591,20 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <Download className="w-4 h-4" />
                           {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
                         </DropdownMenuItem>
-                        {invoice.status !== 'PAID' && user?.role === 'user' && (
+                        {invoice.status !== 'PAID' && user?.role === 'user' && invoice.created_by === user?.id && (
                           <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
                             <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                           </DropdownMenuItem>
                         )}
-                        {user?.role === 'user' && (
-                          <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
-                            setInvoiceToCancel(invoice)
-                            setDeleteAssociatedQuote(false)
-                          }}>
+                        {user?.role === 'user' && invoice.created_by === user?.id && (
+                          <DropdownMenuItem
+                            className="gap-2 text-orange-600"
+                            onClick={() => { setInvoiceToCancel(invoice); setDeleteAssociatedQuote(false) }}
+                          >
                             <RefreshCcw className="w-4 h-4" /> Annuler
                           </DropdownMenuItem>
                         )}
-                        {user?.role === 'admin' && (
+                        {user?.role === 'user' && invoice.created_by === user?.id && (
                           <>
                             <div className="h-px bg-border my-1" />
                             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setInvoiceToDeleteId(invoice.id)}>
@@ -654,8 +657,14 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                     window.print()
                   }
                 } catch (err) {
-                  console.error('[Print] IPC error:', err)
-                  toast.error("Erreur lors du lancement de l'impression")
+                  // L'utilisateur a fermé la boîte de dialogue : annulation volontaire, ne pas afficher d'erreur
+                  const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase()
+                  if (msg.includes('cancel') || msg.includes('annul')) {
+                    // Annulation silencieuse — pas de toast, pas de log
+                  } else {
+                    console.error('[Print] IPC error:', err)
+                    toast.error("Erreur lors du lancement de l'impression")
+                  }
                 } finally {
                   setIsPrinting(false)
                 }

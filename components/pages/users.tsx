@@ -1,13 +1,11 @@
 "use client"
 
 import * as React from "react"
-import { motion, AnimatePresence } from "framer-motion"
 import {
-    Users, UserPlus, Shield, ShieldCheck, Mail, MoreVertical,
-    Trash2, Key, Edit2, UserX, UserCheck, Search, Filter,
-    AlertTriangle, Check, Copy, X, ShieldAlert
+    UserPlus, MoreVertical,
+    Trash2, Key, Edit2, UserX, UserCheck, Search,
+    AlertTriangle, Copy, ShieldAlert
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -34,6 +32,20 @@ import { toast } from "sonner"
 import { useStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
+import { StatusBadge } from "@/components/ui/status-badge"
+
+const checkIsActive = (u: any): boolean => {
+  if (!u) return false;
+  if (u.deletedAt && u.deletedAt !== null) return false;
+  if (u.isActive !== undefined && u.isActive !== null) {
+    return u.isActive === true || u.isActive === 1 || u.isActive === "1" || u.isActive === "ACTIF";
+  }
+  if (u.is_active !== undefined && u.is_active !== null) {
+    return u.is_active === true || u.is_active === 1 || u.is_active === "1" || u.is_active === "ACTIF";
+  }
+  if (u.role === 'admin') return true;
+  return false;
+};
 
 interface UsersPageProps {
   onCreateUser: () => void
@@ -42,7 +54,6 @@ interface UsersPageProps {
 export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   const users = useStore(state => state.users)
   const setUsers = useStore(state => state.setUsers)
-  const addUser = useStore(state => state.addUser)
   const updateUser = useStore(state => state.updateUser)
   const removeUser = useStore(state => state.removeUser)
   const [isLoading, setIsLoading] = React.useState(true)
@@ -72,29 +83,46 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
     password: ""
   })
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (signal: AbortSignal) => {
     try {
-      const res = await fetch('/api/users')
-      
+      const res = await fetch('/api/users', { signal })
+
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}))
-        console.error('[UsersPage] API Error:', errorData)
-        throw new Error(errorData.error || `HTTP ${res.status}`)
+        console.warn('[UsersPage] API response not ok:', res.status, errorData)
+        if (res.status === 401 || res.status === 403) {
+          toast.error("Accès non autorisé ou session expirée pour les utilisateurs")
+        } else {
+          toast.error(errorData.error || `Erreur lors du chargement des utilisateurs (${res.status})`)
+        }
+        return
       }
-      
+
       const data = await res.json()
       setUsers(data)
     } catch (err) {
+      // AbortError is expected on component unmount — do not display an error toast
+      if (err instanceof Error && err.name === 'AbortError') return
       console.error('[UsersPage] Fetch error:', err)
-      toast.error(`Erreur chargement: ${err instanceof Error ? err.message : 'Inconnue'}`)
+      toast.error(`Erreur chargement utilisateurs : ${err instanceof Error ? err.message : 'Inconnue'}`)
     } finally {
       setIsLoading(false)
     }
   }
 
   React.useEffect(() => {
-    if (currentUser?.role === 'admin') {
-      fetchUsers()
+    if (currentUser?.role !== 'admin') {
+      setIsLoading(false)
+      return
+    }
+
+    // AbortController prevents setState calls on unmounted components
+    // and cancels in-flight requests when the user navigates away.
+    const controller = new AbortController()
+    fetchUsers(controller.signal)
+
+    return () => {
+      controller.abort()
     }
   }, [currentUser?.id])
 
@@ -103,7 +131,8 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         const matchesSearch = u.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                               u.email.toLowerCase().includes(searchQuery.toLowerCase())
         const matchesRole = roleFilter === "all" || u.role === roleFilter
-        const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? u.is_active === 1 : u.is_active === 0)
+        const isActive = checkIsActive(u)
+        const matchesStatus = statusFilter === "all" || (statusFilter === "active" ? isActive : !isActive)
         return matchesSearch && matchesRole && matchesStatus
       })
   }, [users, searchQuery, roleFilter, statusFilter])
@@ -142,7 +171,8 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         if (res.ok) {
             toast.success("Utilisateur créé avec succès")
             // Optimistic UI (Optionnel, on reload fetchUsers pour avoir la date exacte et l'ID)
-            fetchUsers()
+            // Post-mutation reload: create a fresh controller for this one-shot request
+            fetchUsers(new AbortController().signal)
             setIsAddModalOpen(false)
             setIsPasswordDisplayOpen(true)
         } else {
@@ -158,11 +188,16 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         const res = await fetch(`/api/users/${selectedUser.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name: formData.name, role: formData.role })
+            body: JSON.stringify({
+              name: formData.name,
+              email: formData.email || selectedUser.email,
+              role: formData.role,
+              is_active: checkIsActive(selectedUser)
+            })
         })
         if (res.ok) {
             toast.success("Utilisateur mis à jour")
-            updateUser(selectedUser.id, { name: formData.name, role: formData.role as 'admin' | 'user' })
+            updateUser(selectedUser.id, { name: formData.name, email: formData.email || selectedUser.email, role: formData.role as 'admin' | 'user' })
             setIsEditModalOpen(false)
         } else {
             const data = await res.json()
@@ -175,15 +210,21 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
 
   const handleToggleStatus = async () => {
     try {
-        const newStatus = selectedUser.is_active === 1 ? 0 : 1;
+        const currentActive = checkIsActive(selectedUser);
+        const newStatus = !currentActive; // Invert status as boolean
         const res = await fetch(`/api/users/${selectedUser.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ is_active: newStatus })
+            body: JSON.stringify({
+              name: selectedUser.name,
+              email: selectedUser.email,
+              role: selectedUser.role,
+              is_active: newStatus
+            })
         })
         if (res.ok) {
-            toast.success(newStatus === 0 ? "Compte désactivé" : "Compte réactivé")
-            updateUser(selectedUser.id, { is_active: newStatus, deletedAt: newStatus === 1 ? undefined : new Date().toISOString() })
+            toast.success(!newStatus ? "Compte désactivé" : "Compte réactivé")
+            updateUser(selectedUser.id, { is_active: newStatus ? 1 : 0, deletedAt: newStatus ? undefined : new Date().toISOString() })
             setIsStatusModalOpen(false)
         } else {
             const data = await res.json()
@@ -239,7 +280,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Gestion des utilisateurs</h1>
           <p className="text-muted-foreground mt-1">
-            {users.filter(u => u.is_active === 1 && !u.deletedAt).length} actifs — {users.filter(u => u.is_active === 0 || u.deletedAt).length} inactifs
+            {users.filter(u => checkIsActive(u)).length} actifs — {users.filter(u => !checkIsActive(u)).length} inactifs
           </p>
         </div>
         <Button onClick={handleOpenAdd} className="gap-2 bg-primary shadow-lg shadow-primary/20">
@@ -286,110 +327,115 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
       </div>
 
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden bg-card rounded-xl border border-border shadow-sm">
-        <div className="flex-1 overflow-auto min-h-0">
-          <table className="w-full text-left border-collapse">
-            <thead>
-                <tr className="bg-secondary/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    <th className="px-6 py-4">Utilisateur</th>
-                    <th className="px-6 py-4">Rôle</th>
-                    <th className="px-6 py-4">Statut</th>
-                    <th className="px-6 py-4">Création</th>
-                    <th className="px-6 py-4">Dernière connexion</th>
-                    <th className="px-6 py-4 text-right">Actions</th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-                {paginatedUsers.map((u) => {
-                    const isInactive = u.is_active === 0 || u.deletedAt !== null;
-                    return (
-                    <tr key={u.id} className={cn(
-                        "group transition-colors",
-                        u.id === currentUser?.id ? "bg-indigo-500/5" : "hover:bg-muted/30",
-                        isInactive ? "opacity-60 grayscale" : ""
-                    )}>
-                        <td className="px-4 py-2">
-                            <div className="flex items-center gap-2">
-                                <Avatar className="h-7 w-7 ring-1 ring-border">
-                                    <AvatarFallback className="bg-primary/10 text-primary font-semibold text-[10px]">
-                                        {u.name.substring(0, 2).toUpperCase()}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div>
-                                    <p className="text-[11px] font-semibold text-foreground uppercase tracking-tighter">
-                                        {u.name} {u.id === currentUser?.id && <span className="text-[9px] text-primary font-bold">(MOI)</span>}
-                                    </p>
-                                    <p className="text-[10px] text-muted-foreground leading-none">{u.email}</p>
-                                </div>
-                            </div>
-                        </td>
-                        <td className="px-4 py-2">
-                            <Badge className={cn(
-                                "text-[9px] px-1.5 py-0 h-5 font-semibold uppercase tracking-widest",
-                                u.role === 'admin' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : "bg-indigo-500/10 text-indigo-600 border-indigo-500/20"
-                            )}>
-                                {u.role === 'admin' ? 'Admin' : 'User'}
-                            </Badge>
-                        </td>
-                        <td className="px-4 py-2">
-                            {!isInactive ? (
-                                <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-500/20 text-[9px] px-1.5 py-0 h-5 font-semibold uppercase tracking-widest">
-                                    Actif
-                                </Badge>
-                            ) : (
-                                <Badge className="bg-gray-500/10 text-gray-600 border-gray-500/20 text-[9px] px-1.5 py-0 h-5 font-semibold uppercase tracking-widest">
-                                    INACTIF
-                                </Badge>
-                            )}
-                        </td>
-                        <td className="px-4 py-2 text-[10px] text-muted-foreground font-semibold uppercase tracking-tighter">
-                            {u.created_at?.split(' ')[0]}
-                        </td>
-                        <td className="px-4 py-2 text-[10px] text-muted-foreground font-bold italic">
-                            {u.last_login_at || "N/A"}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                            <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                                        <MoreVertical className="w-4 h-4" />
-                                    </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end" className="bg-card border-border w-48">
-                                    {!isInactive && (
-                                        <DropdownMenuItem onClick={() => onEditUser(u.id)} className="gap-2">
-                                            <Edit2 className="w-4 h-4" /> Modifier
-                                        </DropdownMenuItem>
-                                    )}
-                                    {!isInactive && (
-                                        <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsResetModalOpen(true); }} className="gap-2">
-                                            <Key className="w-4 h-4" /> Reset MDP
-                                        </DropdownMenuItem>
-                                    )}
-                                    <DropdownMenuSeparator />
-                                    <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsStatusModalOpen(true); }} className={cn("gap-2", !isInactive ? "text-amber-500" : "text-emerald-500")}>
-                                        {!isInactive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                                        {!isInactive ? "Désactiver" : "Réactiver"}
-                                    </DropdownMenuItem>
-                                    {u.id !== currentUser?.id && !isInactive && (
-                                        <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsDeleteModalOpen(true); }} className="gap-2 text-destructive focus:text-destructive">
-                                            <Trash2 className="w-4 h-4" /> Supprimer
-                                        </DropdownMenuItem>
-                                    )}
-                                </DropdownMenuContent>
-                            </DropdownMenu>
-                        </td>
+        {isLoading ? (
+          <div className="flex-1 flex flex-col items-center justify-center p-12 text-muted-foreground space-y-4 min-h-[300px]">
+            <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="text-sm font-medium">Chargement des utilisateurs...</p>
+          </div>
+        ) : (
+          <>
+            <div className="flex-1 overflow-auto min-h-0">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                    <tr className="bg-secondary/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                        <th className="px-6 py-4">Utilisateur</th>
+                        <th className="px-6 py-4">Rôle</th>
+                        <th className="px-6 py-4">Statut</th>
+                        <th className="px-6 py-4">Création</th>
+                        <th className="px-6 py-4">Dernière connexion</th>
+                        <th className="px-6 py-4 text-right">Actions</th>
                     </tr>
-                )})}
-            </tbody>
-          </table>
-        </div>
-        <div className="pt-4 p-4 border-t border-border/50">
-          <Pagination
-              currentPage={currentPage}
-              totalPages={totalPages}
-              onPageChange={setCurrentPage}
-          />
-        </div>
+                </thead>
+                <tbody className="divide-y divide-border/50">
+                    {paginatedUsers.map((u) => {
+                        const isActive = checkIsActive(u);
+                        const isInactive = !isActive;
+                        return (
+                        <tr key={u.id} className={cn(
+                            "group transition-colors",
+                            u.id === currentUser?.id ? "bg-indigo-500/5" : "hover:bg-muted/30",
+                            isInactive ? "opacity-60 grayscale" : ""
+                        )}>
+                            <td className="px-4 py-2">
+                                <div className="flex items-center gap-2">
+                                    <Avatar className="h-7 w-7 ring-1 ring-border">
+                                        <AvatarFallback className="bg-primary/10 text-primary font-semibold text-[10px]">
+                                            {u.name.substring(0, 2).toUpperCase()}
+                                        </AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <p className="text-[11px] font-semibold text-foreground uppercase tracking-tighter">
+                                            {u.name} {u.id === currentUser?.id && <span className="text-[9px] text-primary font-bold">(MOI)</span>}
+                                        </p>
+                                        <p className="text-[10px] text-muted-foreground leading-none">{u.email}</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td className="px-4 py-2">
+                                <Badge className={cn(
+                                    "text-[9px] px-1.5 py-0 h-5 font-semibold uppercase tracking-widest",
+                                    u.role === 'admin' ? "bg-amber-500/10 text-amber-600 border-amber-500/20" : "bg-indigo-500/10 text-indigo-600 border-indigo-500/20"
+                                )}>
+                                    {u.role === 'admin' ? 'Admin' : 'User'}
+                                </Badge>
+                            </td>
+                            <td className="px-4 py-2">
+                                <StatusBadge 
+                                    variant={isActive ? "active" : "inactive"} 
+                                    label={isActive ? "ACTIF" : "INACTIF"} 
+                                />
+                            </td>
+                            <td className="px-4 py-2 text-[10px] text-muted-foreground font-semibold uppercase tracking-tighter">
+                                {u.created_at?.split(' ')[0]}
+                            </td>
+                            <td className="px-4 py-2 text-[10px] text-muted-foreground font-bold italic">
+                                {u.last_login_at || "N/A"}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                            <MoreVertical className="w-4 h-4" />
+                                        </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="bg-card border-border w-48">
+                                        {!isInactive && (
+                                            <DropdownMenuItem onClick={() => onEditUser(u.id)} className="gap-2">
+                                                <Edit2 className="w-4 h-4" /> Modifier
+                                            </DropdownMenuItem>
+                                        )}
+                                        {!isInactive && (
+                                            <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsResetModalOpen(true); }} className="gap-2">
+                                                <Key className="w-4 h-4" /> Reset MDP
+                                            </DropdownMenuItem>
+                                        )}
+                                        <DropdownMenuSeparator />
+                                        <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsStatusModalOpen(true); }} className={cn("gap-2", !isInactive ? "text-amber-500" : "text-emerald-500")}>
+                                            {!isInactive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
+                                            {!isInactive ? "Désactiver" : "Réactiver"}
+                                        </DropdownMenuItem>
+                                        {u.id !== currentUser?.id && !isInactive && (
+                                            <DropdownMenuItem onClick={() => { setSelectedUser(u); setIsDeleteModalOpen(true); }} className="gap-2 text-destructive focus:text-destructive">
+                                                <Trash2 className="w-4 h-4" /> Supprimer
+                                            </DropdownMenuItem>
+                                        )}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </td>
+                        </tr>
+                    )})}
+                </tbody>
+              </table>
+            </div>
+            <div className="pt-4 p-4 border-t border-border/50">
+              <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* MODALS */}
@@ -468,9 +514,9 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
       <Dialog open={isStatusModalOpen} onOpenChange={setIsStatusModalOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle>{selectedUser?.is_active === 1 ? "Désactiver" : "Réactiver"} le compte</DialogTitle>
+            <DialogTitle>{checkIsActive(selectedUser) ? "Désactiver" : "Réactiver"} le compte</DialogTitle>
             <DialogDescription>
-                {selectedUser?.is_active === 1
+                {checkIsActive(selectedUser)
                     ? `Voulez-vous désactiver le compte de ${selectedUser?.name} ? Il ne pourra plus se connecter à l'application.`
                     : `Voulez-vous réactiver le compte de ${selectedUser?.name} ?`
                 }
@@ -479,7 +525,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsStatusModalOpen(false)}>Annuler</Button>
             <Button
-                variant={selectedUser?.is_active === 1 ? "destructive" : "default"}
+                variant={checkIsActive(selectedUser) ? "destructive" : "default"}
                 onClick={handleToggleStatus}
                 disabled={selectedUser?.id === currentUser?.id}
             >

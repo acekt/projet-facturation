@@ -34,23 +34,23 @@ const path                                    = require('path');
 const http                                    = require('http');
 const fs                                      = require('fs');
 
+// Prévention de l'avertissement MaxListenersExceeded
+process.setMaxListeners(20);
+
+// Verrou global strict de disponibilité du serveur Next.js
+let isServerReady = false;
+
 // ── Chemin userData — injecté dans TOUS les processus enfants (P0-A)
 const USER_DATA_PATH = app.getPath('userData');
 
 // ── Détection du mode d'exécution par la présence du build standalone
-// C'est plus fiable que process.env.NODE_ENV qui peut être indéfini
-// quand on lance `electron .` directement depuis le terminal.
 const STANDALONE_SERVER = path.join(__dirname, '.next', 'standalone', 'server.js');
 const isDev = !fs.existsSync(STANDALONE_SERVER);
 
-console.log(`[main] Mode: ${isDev ? 'DÉVELOPPEMENT' : 'PRODUCTION'}`);
-if (isDev) {
-  console.log('[main] Serveur standalone absent → connexion au serveur Next.js dev.');
-}
-
 // ── Fenêtre principale et processus serveur Next.js
-let mainWindow  = null;
-let nextProcess = null;  // Référence au processus enfant Next.js (prod uniquement)
+let mainWindow   = null;
+let splashWindow = null;
+let nextProcess  = null;  // Référence au processus enfant Next.js (prod uniquement)
 
 // ══════════════════════════════════════════════════════════════════════
 // UTILITAIRES DE PORT
@@ -134,34 +134,83 @@ function scanForDevServer(start = DEV_PORT_RANGE_START, end = DEV_PORT_RANGE_END
  * @param {number} timeoutMs - Timeout total
  * @returns {Promise<void>}
  */
-function waitForServer(url, timeoutMs = 20000) {
+function createSplashWindow() {
+  if (splashWindow && !splashWindow.isDestroyed()) return;
+  splashWindow = new BrowserWindow({
+    width: 400,
+    height: 300,
+    frame: false,
+    alwaysOnTop: true,
+    transparent: false,
+    resizable: false,
+    show: false,
+    backgroundColor: '#09090b',
+    icon: path.join(__dirname, 'public', 'icon.png'),
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+    },
+  });
+
+  const splashPath = path.join(__dirname, 'public', 'splash.html');
+  splashWindow.loadFile(splashPath).catch(() => {});
+  splashWindow.once('ready-to-show', () => {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.show();
+    }
+  });
+}
+
+/**
+ * Attend que le serveur Next.js réponde 200 OK sur /api/health.
+ * Retry toutes les 300ms jusqu'au timeout.
+ *
+ * @param {string} baseUrl - URL de base du serveur (ex: http://127.0.0.1:3000)
+ * @param {number} timeoutMs - Timeout total
+ * @returns {Promise<void>}
+ */
+function waitForServer(baseUrl, timeoutMs = 25000) {
+  createSplashWindow();
+  const healthUrl = `${baseUrl}/api/health`;
   return new Promise((resolve, reject) => {
     const start = Date.now();
 
     const check = () => {
-      const req = http.get(url, (res) => {
-        res.resume();
-        resolve();
+      const req = http.get(healthUrl, (res) => {
+        let rawData = '';
+        res.on('data', (chunk) => { rawData += chunk; });
+        res.on('end', () => {
+          if (res.statusCode === 200) {
+            try {
+              const data = JSON.parse(rawData);
+              if (data && data.status === 'ok') {
+                isServerReady = true;
+                resolve();
+                return;
+              }
+            } catch (e) {
+              // Parse error, continuer à attendre
+            }
+          }
+          retry();
+        });
       });
 
-      req.on('error', () => {
-        if (Date.now() - start > timeoutMs) {
-          reject(new Error(`[main] Timeout (${timeoutMs / 1000}s): le serveur Next.js ne répond pas sur ${url}`));
-        } else {
-          setTimeout(check, 300);
-        }
-      });
-
+      req.on('error', () => retry());
       req.on('timeout', () => {
         req.destroy();
-        if (Date.now() - start > timeoutMs) {
-          reject(new Error(`[main] Timeout: ${url}`));
-        } else {
-          setTimeout(check, 300);
-        }
+        retry();
       });
 
       req.setTimeout(1000); // Timeout par requête individuelle
+
+      function retry() {
+        if (Date.now() - start > timeoutMs) {
+          reject(new Error(`[main] Timeout (${timeoutMs / 1000}s): le serveur Next.js ne répond pas sur ${healthUrl}`));
+        } else {
+          setTimeout(check, 300);
+        }
+      }
     };
 
     check();
@@ -179,7 +228,6 @@ function waitForServer(url, timeoutMs = 20000) {
  */
 function killNextProcess() {
   if (nextProcess && !nextProcess.killed) {
-    console.log('[main] Arrêt du serveur Next.js enfant (PID:', nextProcess.pid, ')');
     try {
       // SIGTERM d'abord (arrêt propre), puis SIGKILL après 3s si nécessaire
       nextProcess.kill('SIGTERM');
@@ -227,7 +275,6 @@ async function startNextServer(port) {
     nextProcess = null;
   });
 
-  console.log(`[main] Serveur Next.js standalone démarré (PID: ${nextProcess.pid}, PORT: ${port})`);
   await waitForServer(`http://127.0.0.1:${port}`, 25000);
 }
 
@@ -235,7 +282,7 @@ async function startNextServer(port) {
 // Fenêtre principale
 // ══════════════════════════════════════════════════════════════════════
 
-function createWindow(port) {
+async function createWindow(port) {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 820,
@@ -255,12 +302,27 @@ function createWindow(port) {
     backgroundColor: '#030303',
   });
 
-  mainWindow.once('ready-to-show', () => {
-    mainWindow.show();
-  });
-
   const appUrl = `http://127.0.0.1:${port}`;
-  console.log(`[main] Chargement de l'URL: ${appUrl}`);
+
+  if (!isServerReady) {
+    createSplashWindow();
+    console.log(`[main] Attente de disponibilité sur /api/health avant affichage...`);
+    try {
+      await waitForServer(`http://127.0.0.1:${port}`, 25000);
+    } catch (err) {
+      console.error('[main] Avertissement health check:', err.message);
+    }
+  }
+
+  mainWindow.once('ready-to-show', () => {
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.destroy();
+      splashWindow = null;
+    }
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.show();
+    }
+  });
 
   mainWindow.loadURL(appUrl).catch((err) => {
     mainWindow.loadURL(
@@ -281,7 +343,6 @@ function createWindow(port) {
     if (retryCount >= MAX_RETRIES) return;
 
     retryCount++;
-    console.log(`[main] Chargement échoué (code: ${errorCode}), re-scan des ports dev... (tentative ${retryCount}/${MAX_RETRIES})`);
 
     await new Promise((r) => setTimeout(r, 1000));
 
@@ -290,7 +351,6 @@ function createWindow(port) {
     // Re-scanner pour trouver le bon port actif du serveur dev
     const foundPort = await scanForDevServer();
     if (foundPort && foundPort !== port) {
-      console.log(`[main] Serveur dev trouvé sur le port ${foundPort}, rechargement...`);
       mainWindow.loadURL(`http://127.0.0.1:${foundPort}`);
     } else if (foundPort === port) {
       mainWindow.reload();
@@ -335,12 +395,10 @@ app.whenReady().then(async () => {
 
   if (isDev) {
     // [FIX-3] Sonder la plage de ports pour trouver le serveur dev actif
-    console.log(`[main] Scan des ports dev [${DEV_PORT_RANGE_START}-${DEV_PORT_RANGE_END}]...`);
     const foundPort = await scanForDevServer();
 
     if (foundPort) {
       port = foundPort;
-      console.log(`[main] Serveur dev trouvé sur le port ${port}`);
     } else {
       // Aucun serveur dev actif → utiliser 3000 par défaut et laisser
       // did-fail-load + retry gérer la reconnexion quand next dev démarre
@@ -350,7 +408,6 @@ app.whenReady().then(async () => {
   } else {
     // Production : trouver un port libre et démarrer le serveur standalone
     port = await findAvailablePort(3000);
-    console.log(`[main] Port de production sélectionné: ${port}`);
     await startNextServer(port);
   }
 

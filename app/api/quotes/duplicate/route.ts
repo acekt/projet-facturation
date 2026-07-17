@@ -46,12 +46,19 @@ export async function POST(request: Request) {
 
     const { quoteId }: QuoteDuplicateRequest = validation.data;
 
-    const quote = db.prepare('SELECT * FROM quotes WHERE id = ?').get(quoteId) as DbQuote | undefined;
+    const quote = db.prepare('SELECT * FROM quotes WHERE id = ?').get(quoteId) as (DbQuote & { created_by?: string, tpsAmount?: number }) | undefined;
     if (!quote) {
       const errorResponse: ErrorResponse = {
         error: 'Quote not found',
       };
       return NextResponse.json(errorResponse, { status: 404 });
+    }
+
+    if (session.role !== 'admin' && quote.created_by !== session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden: You can only duplicate your own quotes',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
     }
 
     const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(quoteId) as DbQuoteItem[];
@@ -75,8 +82,8 @@ export async function POST(request: Request) {
       db.prepare(`
         INSERT INTO quotes (
           id, number, clientId, clientName, clientEmail, date,
-          subtotal, discount, taxBase, tvaAmount, cssAmount, total, notes, status
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, notes, status, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         newId,
         number,
@@ -88,10 +95,12 @@ export async function POST(request: Request) {
         quote.discount,
         quote.taxBase,
         quote.tvaAmount,
+        quote.tpsAmount ?? 0,
         quote.cssAmount,
         quote.total,
         quote.notes,
-        'EN_ATTENTE'
+        'EN_ATTENTE',
+        session.userId
       );
 
       const insertItem = db.prepare(`

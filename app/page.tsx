@@ -1,227 +1,42 @@
-"use client"
+import React from 'react'
+import { redirect } from 'next/navigation'
+import { getSession } from '@/lib/api/auth'
+import db from '@/lib/db'
+import { ProtectedAppShell } from '@/components/pages/protected-app-shell'
 
-import * as React from "react"
-import { motion, AnimatePresence } from "framer-motion"
-import { Sidebar, TopBar } from "@/components/layout/navigation"
-import { CommandMenu } from "@/components/layout/command-menu"
-import { Dashboard } from "@/components/pages/dashboard"
-import { InvoicesPage } from "@/components/pages/invoices"
-import { QuotesPage } from "@/components/pages/quotes"
-import { QuoteEditor } from "@/components/pages/quote-editor"
-import { InvoiceEditor } from "@/components/pages/invoice-editor"
-import { ClientsPage } from "@/components/pages/clients"
-import { ServicesPage } from "@/components/pages/services"
-import { PaymentsPage } from "@/components/pages/payments"
-import { SettingsPage } from "@/components/pages/settings"
-import { CreditNotesPage } from "@/components/pages/credit-notes"
-import { AuditLogsPage } from "@/components/pages/audit-logs"
-import { UsersPage } from "@/components/pages/users"
-import { UserEditor } from "@/components/pages/user-editor"
-import { useStore } from "@/lib/store"
+export const dynamic = 'force-dynamic';
 
-const pageVariants = {
-  initial: { opacity: 0, y: 10 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -10 },
+interface DbAuthUser {
+  id: string
+  name: string
+  role: 'admin' | 'user'
+  username: string
 }
 
-export default function App() {
-  // [QA-Phase 1] Éradication de la destructuration Zustand pour éviter les re-rendus inutiles
-  const user = useStore(state => state.user)
-  const isDataLoaded = useStore(state => state.isDataLoaded)
+/**
+ * Server Component Protecteur — Racine de l'application (/)
+ * ==========================================================
+ * Vérifie l'intégrité de la session (HMAC) et la présence effective
+ * de l'utilisateur dans la base SQLite avant tout rendu HTML.
+ * En cas de session absente ou invalide, émet immédiatement une
+ * redirection HTTP stricte (307) vers /login sans monter de composant client.
+ */
+export default async function Page() {
+  const session = await getSession()
+  if (!session || !session.userId) {
+    redirect('/login')
+  }
 
-  const [currentPage, setCurrentPage] = React.useState("dashboard")
-  const [editingId, setEditingId] = React.useState<string | null>(null)
-  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
-  const [commandOpen, setCommandOpen] = React.useState(false)
-
-  // Raccourci clavier Cmd/Ctrl+K pour la palette de commandes
-  React.useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault()
-        setCommandOpen((open) => !open)
-      }
-    }
-    document.addEventListener("keydown", down)
-    return () => document.removeEventListener("keydown", down)
-  }, [])
-
-  // [QA-Phase 1] Fluidité de l'hydratation & Élimination du Layout Shift (CLS)
-  // Si l'utilisateur n'est pas connecté du tout, on affiche un écran d'attente plein écran (redirection imminente)
+  const user = db.prepare('SELECT id, name, role, username FROM users WHERE id = ?').get(session.userId) as DbAuthUser | undefined
   if (!user) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 animate-pulse" />
-          <div className="w-24 h-2 bg-secondary rounded animate-pulse" />
-        </div>
-      </div>
-    )
+    redirect('/login')
   }
 
-  // Si l'utilisateur est connecté mais que les données SQLite sont en cours de chargement,
-  // on monte l'ossature visuelle (Sidebar, TopBar) et on affiche le spinner uniquement au centre du contenu.
-  if (!isDataLoaded) {
-    return (
-      <div className="h-screen bg-background overflow-hidden flex flex-col">
-        <Sidebar
-          currentPage={currentPage}
-          onPageChange={() => {}} // Désactivé pendant le chargement
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
-        <TopBar collapsed={sidebarCollapsed} onCommandOpen={() => {}} />
-        <motion.main
-          initial={false}
-          animate={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
-          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-          className="h-screen pt-16 flex flex-col overflow-hidden"
-        >
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-background">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-muted-foreground font-medium">Initialisation des modules locaux...</p>
-          </div>
-        </motion.main>
-      </div>
-    )
+  const initialUser = {
+    id: user.id,
+    name: user.name,
+    role: user.role,
   }
 
-  const handlePageChange = (page: string) => {
-    React.startTransition(() => {
-      setCurrentPage(page)
-    })
-  }
-
-  const renderPage = () => {
-    switch (currentPage) {
-      case "dashboard":
-        return <Dashboard onNavigate={handlePageChange} />
-      case "users":
-        return <UsersPage 
-          onCreateUser={() => {
-            setEditingId(null);
-            setCurrentPage("new-user");
-          }}
-          onEditUser={(id: string) => {
-            setEditingId(id);
-            setCurrentPage("edit-user");
-          }}
-        />
-      case "new-user":
-        return <UserEditor
-          onBack={() => {
-            setEditingId(null);
-            setCurrentPage("users");
-          }}
-          editingId={null}
-        />
-      case "edit-user":
-        return <UserEditor
-          onBack={() => {
-            setEditingId(null);
-            setCurrentPage("users");
-          }}
-          editingId={editingId}
-        />
-      case "quotes":
-        return <QuotesPage onCreateQuote={(id) => {
-          setEditingId(id || null);
-          setCurrentPage("new-quote");
-        }} />
-      case "new-quote":
-        return <QuoteEditor
-          onBack={() => {
-            setEditingId(null);
-            setCurrentPage("quotes");
-          }}
-          editingId={editingId}
-        />
-      case "invoices":
-        return <InvoicesPage 
-          onCreateInvoice={() => {
-            setEditingId(null);
-            handlePageChange("new-invoice");
-          }} 
-          onEditInvoice={(id) => {
-            setEditingId(id);
-            handlePageChange("edit-invoice");
-          }} 
-        />
-      case "new-invoice":
-        return <InvoiceEditor
-          onBack={() => {
-            setEditingId(null);
-            handlePageChange("invoices");
-          }}
-          editingId={null}
-        />
-      case "edit-invoice":
-        return <InvoiceEditor
-          onBack={() => {
-            setEditingId(null);
-            handlePageChange("invoices");
-          }}
-          editingId={editingId}
-        />
-      case "clients":
-        return <ClientsPage />
-      case "services":
-        return <ServicesPage />
-      case "payments":
-        return <PaymentsPage />
-      case "credit-notes":
-        return <CreditNotesPage />
-      case "audit":
-        return <AuditLogsPage />
-      case "settings":
-        return <SettingsPage />
-      default:
-        return <Dashboard onNavigate={handlePageChange} />
-    }
-  }
-
-  return (
-    <div className="h-screen bg-background overflow-hidden flex flex-col">
-      {/* Sidebar */}
-      <Sidebar
-        currentPage={currentPage}
-        onPageChange={handlePageChange}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-      />
-
-      {/* Top Bar */}
-      <TopBar collapsed={sidebarCollapsed} onCommandOpen={() => setCommandOpen(true)} />
-
-      {/* Command Menu */}
-      <CommandMenu
-        open={commandOpen}
-        onOpenChange={setCommandOpen}
-        onNavigate={handlePageChange}
-      />
-
-      {/* Main Content */}
-      <motion.main
-        initial={false}
-        animate={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
-        transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-        className="h-screen pt-16 flex flex-col overflow-hidden"
-      >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={currentPage}
-            variants={pageVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="flex-1 flex flex-col overflow-hidden px-8 py-6"
-          >
-            {renderPage()}
-          </motion.div>
-        </AnimatePresence>
-      </motion.main>
-    </div>
-  )
+  return <ProtectedAppShell initialUser={initialUser} />
 }

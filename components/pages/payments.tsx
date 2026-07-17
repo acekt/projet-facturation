@@ -5,18 +5,15 @@ import { motion } from "framer-motion"
 import { useTheme } from "next-themes"
 import {
   Search,
-  ArrowUpRight,
   ArrowDownLeft,
   CheckCircle,
   Clock,
-  Smartphone,
-  Building,
   CreditCard,
-  TrendingUp,
   RefreshCw,
   Wallet,
   Activity,
   Trash2,
+  DownloadCloud,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -206,16 +203,41 @@ export function PaymentsPage() {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Paiements</h1>
           <p className="text-muted-foreground mt-1">Suivez vos encaissements et flux de trésorerie réels</p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="gap-2"
-        >
-          <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-          {isRefreshing ? 'Actualisation...' : 'Actualiser'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const headers = ["ID", "Facture", "Montant", "Méthode", "Date", "Référence"];
+              const rows = payments.map(p => {
+                const inv = invoices.find(i => i.id === p.invoiceId);
+                return [p.id, inv?.number || p.invoiceId, p.amount, p.paymentMethod, p.date, p.reference || ''];
+              });
+              const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+              const link = document.createElement("a");
+              link.href = URL.createObjectURL(blob);
+              link.setAttribute("download", `paiements_${new Date().toISOString().split('T')[0]}.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="gap-2 hidden sm:flex"
+          >
+            <DownloadCloud className="w-4 h-4" />
+            Export CSV
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            className="gap-2"
+          >
+            <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+            {isRefreshing ? 'Actualisation...' : 'Actualiser'}
+          </Button>
+        </div>
       </div>
 
       {/* Stats */}
@@ -392,11 +414,12 @@ export function PaymentsPage() {
                         <p className="font-bold text-emerald-600 dark:text-emerald-400">+{formatCurrency(p.amount)}</p>
                         <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-600 border-emerald-600/20">Encaissé</Badge>
                         </div>
-                      {user?.role === 'admin' && (
+                      {user?.role === 'user' && p.created_by === user?.id && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
+                          aria-label={`Supprimer le règlement de ${formatCurrency(p.amount)} du ${formatDate(p.date)}`}
+                          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-destructive transition-all"
                           onClick={() => handleDeletePayment(p.id)}
                         >
                           <Trash2 className="w-4 h-4" />

@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import { getSession } from '@/lib/api/auth';
+import { logAudit } from '@/lib/api/audit';
+import { getNextNumber } from '@/lib/api/numbering';
 import db from '@/lib/db';
 import type { InvoiceResponse, InvoiceItem, PaymentResponse, ErrorResponse, DbInvoice, DbInvoiceItem, DbPayment } from '@/lib/types/api';
+
+export const dynamic = 'force-dynamic';
 
 export async function GET(
   request: Request,
@@ -9,12 +14,27 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id) as DbInvoice | undefined;
+    const session = await getSession();
+    if (!session) {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Authentication required',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
+    }
+
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id) as (DbInvoice & { created_by?: string }) | undefined;
     if (!invoice) {
       const errorResponse: ErrorResponse = {
         error: 'Invoice not found',
       };
       return NextResponse.json(errorResponse, { status: 404 });
+    }
+
+    if (session.role !== 'admin' && invoice.created_by !== session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden: You can only access your own invoices',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
     }
 
     const items = db.prepare('SELECT * FROM invoice_items WHERE invoiceId = ?').all(id) as DbInvoiceItem[];
@@ -60,6 +80,13 @@ export async function PUT() {
   return NextResponse.json(errorResponse, { status: 405 });
 }
 
+export async function PATCH() {
+  const errorResponse: ErrorResponse = {
+    error: 'Une facture générée est strictement immuable et ne peut pas être modifiée.',
+  };
+  return NextResponse.json(errorResponse, { status: 405 });
+}
+
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -69,13 +96,12 @@ export async function DELETE(
 
     // RBAC Check - Only Admin can delete invoices
     const session = await getSession();
-    if (!session || session.role !== 'admin') {
+    if (!session || !session.userId || session.role !== 'admin') {
       const errorResponse: ErrorResponse = {
         error: 'Forbidden: Only Admin can delete invoices',
       };
       return NextResponse.json(errorResponse, { status: 403 });
     }
-
     const body = await request.json().catch(() => ({}));
     const { deleteQuote = false } = body as { deleteQuote?: boolean };
 
@@ -107,6 +133,58 @@ export async function DELETE(
         db.prepare("UPDATE quotes SET deletedAt = datetime('now') WHERE id = ?").run(invoice.quoteId);
       }
     }
+
+    // Automatically generate credit note (Avoir) if one does not already exist
+    const existingCN = db.prepare('SELECT id FROM credit_notes WHERE invoiceId = ? AND deletedAt IS NULL').get(id);
+    if (!existingCN) {
+      db.exec("INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('credit_note', 0)");
+      const cnId = crypto.randomUUID();
+      const cnNumber = getNextNumber('credit_note');
+      const items = db.prepare('SELECT * FROM invoice_items WHERE invoiceId = ?').all(id) as DbInvoiceItem[];
+
+      db.transaction(() => {
+        db.prepare(`
+          INSERT INTO credit_notes (
+            id, number, invoiceId, clientId, clientName, date, reason,
+            subtotal, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+          cnId,
+          cnNumber,
+          invoice.id,
+          invoice.clientId,
+          invoice.clientName,
+          new Date().toISOString().split('T')[0],
+          `Annulation de facture ${invoice.number}`,
+          invoice.subtotal,
+          invoice.taxBase,
+          invoice.tvaAmount,
+          invoice.tpsAmount ?? 0,
+          invoice.cssAmount ?? 0,
+          invoice.total,
+          'open',
+          session.userId
+        );
+
+        const insertCNItem = db.prepare(`
+          INSERT INTO credit_note_items (id, creditNoteId, description, quantity, unitPrice, total)
+          VALUES (?, ?, ?, ?, ?, ?)
+        `);
+
+        for (const item of items) {
+          insertCNItem.run(
+            crypto.randomUUID(),
+            cnId,
+            item.description,
+            item.quantity,
+            item.unitPrice,
+            item.total
+          );
+        }
+      })();
+    }
+
+    logAudit('DELETE', 'invoice', id, `Facture supprimée: ${invoice.number || id}`, session.userId, session.name || session.username || null);
 
     return NextResponse.json({ success: true });
   } catch (error) {

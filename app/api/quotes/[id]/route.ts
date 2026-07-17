@@ -5,7 +5,10 @@ import { quoteSchema } from '@/lib/validations';
 import { computeTotals, getTaxRates } from '@/lib/api/invoice-logic';
 import crypto from 'crypto';
 import { logAudit } from '@/lib/api/audit';
+import { validateQuoteStatusTransition } from '@/lib/api/quote-logic';
 import type { QuoteResponse, QuoteItem, ErrorResponse, DbQuote, DbQuoteItem } from '@/lib/types/api';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/quotes/[id]
@@ -19,12 +22,27 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const quote = db.prepare('SELECT * FROM quotes WHERE id = ? AND deletedAt IS NULL').get(id) as DbQuote | undefined;
+    const session = await getSession();
+    if (!session) {
+      const errorResponse: ErrorResponse = {
+        error: 'Unauthorized: Authentication required',
+      };
+      return NextResponse.json(errorResponse, { status: 401 });
+    }
+
+    const quote = db.prepare('SELECT * FROM quotes WHERE id = ? AND deletedAt IS NULL').get(id) as (DbQuote & { created_by?: string }) | undefined;
     if (!quote) {
       const errorResponse: ErrorResponse = {
         error: 'Quote not found',
       };
       return NextResponse.json(errorResponse, { status: 404 });
+    }
+
+    if (session.role !== 'admin' && quote.created_by !== session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden: You can only access your own quotes',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
     }
 
     const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(id) as DbQuoteItem[];
@@ -64,7 +82,6 @@ export async function PUT(
   try {
     const { id } = await params;
 
-    // RBAC Check - Only 'user' (Opérateur) can edit quotes
     const session = await getSession();
     if (!session) {
       const errorResponse: ErrorResponse = {
@@ -72,22 +89,27 @@ export async function PUT(
       };
       return NextResponse.json(errorResponse, { status: 401 });
     }
-
-    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session.userId) as { role: string } | undefined;
-    if (!user || user.role !== 'user') {
+    if (!session.userId) {
       const errorResponse: ErrorResponse = {
-        error: 'Unauthorized: Only Users can update quotes',
+        error: 'User ID manquant dans la session',
       };
-      return NextResponse.json(errorResponse, { status: 403 });
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
     // Fetch existing quote
-    const existingQuote = db.prepare('SELECT status, deletedAt FROM quotes WHERE id = ?').get(id) as DbQuote | undefined;
+    const existingQuote = db.prepare('SELECT status, deletedAt, created_by FROM quotes WHERE id = ?').get(id) as (DbQuote & { created_by?: string }) | undefined;
     if (!existingQuote || existingQuote.deletedAt !== null) {
       const errorResponse: ErrorResponse = {
         error: 'Quote not found',
       };
       return NextResponse.json(errorResponse, { status: 404 });
+    }
+
+    if (session.role !== 'admin' && existingQuote.created_by !== session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden: You can only update your own quotes',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
     }
 
     if (existingQuote.status === 'CONVERTI') {
@@ -161,7 +183,7 @@ export async function PUT(
         );
       }
 
-      logAudit('UPDATE', 'quote', id, `Devis modifié: ${id}`);
+      logAudit('UPDATE', 'quote', id, `Devis modifié: ${id}`, session.userId, session.name || session.username || null);
       return { id };
     });
 
@@ -190,16 +212,16 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // RBAC Check - Only Admin can delete quotes
+    // RBAC Check
     const session = await getSession();
-    if (!session || session.role !== 'admin') {
+    if (!session || !session.userId || session.role !== 'admin') {
       const errorResponse: ErrorResponse = {
         error: 'Forbidden: Only Admin can delete quotes',
       };
       return NextResponse.json(errorResponse, { status: 403 });
     }
 
-    const quote = db.prepare('SELECT status, deletedAt FROM quotes WHERE id = ?').get(id) as DbQuote | undefined;
+    const quote = db.prepare('SELECT status, deletedAt, created_by FROM quotes WHERE id = ?').get(id) as (DbQuote & { created_by?: string }) | undefined;
     if (!quote || quote.deletedAt !== null) {
       const errorResponse: ErrorResponse = {
         error: 'Quote not found',
@@ -219,6 +241,7 @@ export async function DELETE(
     // The original status (EN_ATTENTE) is preserved for fiscal audit purposes.
     // 'rejected' was a phantom status from a legacy version — removed.
     db.prepare("UPDATE quotes SET deletedAt = datetime('now') WHERE id = ?").run(id);
+    logAudit('DELETE', 'quote', id, `Devis supprimé: ${quote.number || id}`, session.userId, session.name || session.username || null);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[API Quotes DELETE] Error:', error);
@@ -226,5 +249,59 @@ export async function DELETE(
       error: 'Failed to delete quote',
     };
     return NextResponse.json(errorResponse, { status: 500 });
+  }
+}
+
+/**
+ * PATCH /api/quotes/[id]
+ * Transition quote status (e.g. EN_ATTENTE -> ENVOYE, REFUSE, CONVERTI)
+ */
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized: Authentication required' }, { status: 401 });
+    }
+    if (!session.userId) {
+      return NextResponse.json({ error: 'User ID manquant dans la session' }, { status: 400 });
+    }
+
+    const user = db.prepare('SELECT role FROM users WHERE id = ?').get(session.userId) as { role: string } | undefined;
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const quote = db.prepare('SELECT status, deletedAt, created_by FROM quotes WHERE id = ?').get(id) as (DbQuote & { created_by?: string }) | undefined;
+    if (!quote || quote.deletedAt !== null) {
+      return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
+    }
+
+    if (session.role !== 'admin' && quote.created_by !== session.userId) {
+      return NextResponse.json({ error: 'Forbidden: You can only update your own quotes' }, { status: 403 });
+    }
+
+    const body = await request.json() as { status?: string };
+    if (!body.status) {
+      return NextResponse.json({ error: 'Statut requis' }, { status: 400 });
+    }
+
+    if (!validateQuoteStatusTransition(quote.status, body.status)) {
+      return NextResponse.json(
+        { error: `Transition de statut impossible : de ${quote.status} à ${body.status}` },
+        { status: 400 }
+      );
+    }
+
+    db.prepare('UPDATE quotes SET status = ? WHERE id = ?').run(body.status, id);
+    logAudit('UPDATE', 'quote', id, `Changement de statut devis: ${quote.status} -> ${body.status}`, session.userId, session.name || session.username || null);
+
+    return NextResponse.json({ success: true, status: body.status });
+  } catch (error) {
+    console.error('[API Quotes PATCH] Error:', error);
+    return NextResponse.json({ error: 'Failed to update quote status' }, { status: 500 });
   }
 }

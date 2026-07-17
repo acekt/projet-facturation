@@ -4,31 +4,26 @@ import * as React from "react"
 import { motion } from "framer-motion"
 import {
   Plus,
-  Search,
   FileText,
   MoreVertical,
   Download,
   Printer,
   Trash2,
-  Copy,
   Clock,
   CheckCircle2,
-  AlertCircle,
-  XCircle,
   Eye,
   Edit2,
   Calendar,
+  DownloadCloud,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Badge } from "@/components/ui/badge"
 import { useStore, type Quote } from "@/lib/store"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
@@ -38,9 +33,22 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 import { pdf } from '@react-pdf/renderer'
 import { PDFDocument } from "@/components/pdf-document"
+// ── Design System
+import { PageHeader } from "@/components/ui/page-header"
+import { SearchBar } from "@/components/ui/search-bar"
+import { StatusBadge, getQuoteStatusVariant } from "@/components/ui/status-badge"
+import {
+  DataTable,
+  DataTableHead,
+  DataTableBody,
+  DataTableRow,
+  DataTableHeaderCell,
+  DataTableCell,
+  AmountCell,
+  ActionsCell,
+} from "@/components/ui/data-table"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,7 +71,6 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   const settings = useStore(state => state.settings)
   const user = useStore(state => state.user)
   const viewFormat = useStore(state => state.viewFormat)
-  const setViewFormat = useStore(state => state.setViewFormat)
   const isDataLoaded = useStore(state => state.isDataLoaded)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
@@ -104,27 +111,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
     )
   }
 
-  const getStatusBadge = (status: Quote['status']) => {
-    switch (status) {
-      case "EN_ATTENTE":
-        return <Badge variant="secondary" className="bg-amber-100 text-amber-700 border-amber-200">En Attente</Badge>
-      case "CONVERTI":
-        return <Badge variant="secondary" className="bg-green-100 text-green-700 border-green-200">Converti</Badge>
-      default:
-        return null
-    }
-  }
-
-  const getStatusIcon = (status: Quote['status']) => {
-    switch (status) {
-      case "EN_ATTENTE":
-        return <Clock className="w-4 h-4 text-amber-500" />
-      case "CONVERTI":
-        return <CheckCircle2 className="w-4 h-4 text-green-500" />
-      default:
-        return null
-    }
-  }
+  // Supprimé : getStatusBadge() remplacé par <StatusBadge /> du Design System
 
   const handleDelete = async (id: string) => {
     try {
@@ -193,139 +180,149 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Devis</h1>
-          <p className="text-muted-foreground mt-1">Gérez vos propositions commerciales et proformas</p>
-        </div>
-        {user?.role === 'user' && (
-          <Button
-            onClick={() => onCreateQuote()}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-          >
-            <Plus className="w-4 h-4" />
-            Nouveau devis
-          </Button>
-        )}
-      </div>
+      {/* ── En-tête de page (Design System) */}
+      <PageHeader
+        title="Devis"
+        description="Gérez vos propositions commerciales et proformas"
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const headers = ["Numero", "Client", "Date", "Total", "Statut"];
+                const rows = paginatedQuotes.map(q => [q.number, q.clientName, q.date, q.total, q.status]);
+                const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.setAttribute("download", `devis_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}
+              className="gap-2 hidden sm:flex"
+            >
+              <DownloadCloud className="w-4 h-4" />
+              Export CSV
+            </Button>
+            {user?.role === 'user' && (
+              <Button
+                onClick={() => onCreateQuote()}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
+              >
+                <Plus className="w-4 h-4" />
+                Nouveau devis
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <div className="flex items-center justify-between gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un devis (numéro, client)..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-secondary/50 border-border text-foreground placeholder:text-muted-foreground w-full md:max-w-md"
+      {/* ── Barre de recherche (Design System) */}
+      <SearchBar
+        placeholder="Rechercher un devis (numéro, client)..."
+        value={searchQuery}
+        onChange={setSearchQuery}
+        viewFormatKey="quotes"
+      />
+
+      {/* ── Vue Tableau (Design System) */}
+      {(!viewFormat.quotes || viewFormat.quotes === 'table') && (
+        <DataTable>
+          <DataTableHead>
+            <DataTableRow>
+              <DataTableHeaderCell>Devis</DataTableHeaderCell>
+              <DataTableHeaderCell>Client</DataTableHeaderCell>
+              <DataTableHeaderCell>Date</DataTableHeaderCell>
+              <DataTableHeaderCell>Statut</DataTableHeaderCell>
+              <DataTableHeaderCell align="right">Total</DataTableHeaderCell>
+              <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
+            {paginatedQuotes.map((quote) => (
+              <DataTableRow key={quote.id}>
+                <DataTableCell>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-md bg-primary/5 flex items-center justify-center text-primary flex-shrink-0">
+                      <FileText className="w-4 h-4" />
+                    </div>
+                    <span className="font-medium text-sm text-foreground">{quote.number}</span>
+                  </div>
+                </DataTableCell>
+                <DataTableCell truncate title={quote.clientName}>
+                  {quote.clientName}
+                </DataTableCell>
+                <DataTableCell>
+                  <span className="text-xs text-muted-foreground">Émission : {formatDate(quote.date)}</span>
+                </DataTableCell>
+                <DataTableCell>
+                  <StatusBadge variant={getQuoteStatusVariant(quote.status as any)} />
+                </DataTableCell>
+                <AmountCell amount={quote.total} />
+                <ActionsCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+                      <DropdownMenuItem className="gap-2" onClick={() => setPreviewQuote(quote)}>
+                        <Eye className="w-4 h-4" /> Aperçu
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
+                        <Printer className="w-4 h-4" /> Imprimer
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        className="gap-2"
+                        onClick={() => handleDownloadPDF(quote)}
+                        disabled={isDownloading === quote.id}
+                      >
+                        <Download className="w-4 h-4" />
+                        {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
+                      </DropdownMenuItem>
+                      {quote.status !== 'CONVERTI' && user?.role === 'user' && quote.created_by === user?.id && (
+                        <>
+                          <DropdownMenuItem className="gap-2" onClick={() => onCreateQuote(quote.id)}>
+                            <Edit2 className="w-4 h-4" /> Modifier le devis
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="gap-2 text-primary font-medium"
+                            onClick={() => handleConvertToInvoice(quote.id)}
+                          >
+                            <CheckCircle2 className="w-4 h-4" /> Convertir en facture
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                      {user?.role === 'user' && quote.created_by === user?.id && (
+                        <>
+                          <div className="h-px bg-border my-1" />
+                          <DropdownMenuItem
+                            className="gap-2 text-destructive focus:text-destructive"
+                            onClick={() => setQuoteToDeleteId(quote.id)}
+                          >
+                            <Trash2 className="w-4 h-4" /> Supprimer
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </ActionsCell>
+              </DataTableRow>
+            ))}
+          </DataTableBody>
+        </DataTable>
+      )}
+      {(!viewFormat.quotes || viewFormat.quotes === 'table') && paginatedQuotes.length === 0 && (
+        <div className="p-8 text-center">
+          <EmptyState
+            icon={FileText}
+            title={searchQuery ? "Aucun devis trouvé" : "Aucun devis"}
+            description={searchQuery ? "Aucun devis ne correspond à votre recherche." : "Créez votre premier devis pour commencer."}
+            actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau devis" : undefined}
+            onAction={!searchQuery && user?.role === 'user' ? () => onCreateQuote() : undefined}
           />
-        </div>
-        <ViewFormatSelector
-          currentFormat={viewFormat.quotes}
-          onFormatChange={(format: 'table' | 'horizontal' | 'block') => setViewFormat('quotes', format)}
-        />
-      </div>
-
-      {viewFormat.quotes === 'table' && (
-        <div className="flex-1 min-h-0 bg-card rounded-xl border border-border overflow-auto shadow-sm">
-          <table className="w-full min-w-[600px]">
-            <thead className="bg-secondary/50">
-              <tr>
-                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Devis</th>
-                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Client</th>
-                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Dates</th>
-                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Statut</th>
-                <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Total</th>
-                <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {paginatedQuotes.map((quote) => (
-                <tr key={quote.id} className="hover:bg-secondary/30 transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <span className="font-bold text-sm">{quote.number}</span>
-                    </div>
-                  </td>
-                  <td className="p-4 text-sm text-muted-foreground max-w-[200px] sm:max-w-[300px] truncate" title={quote.clientName}>
-                    {quote.clientName}
-                  </td>
-                  <td className="p-4">
-                    <div className="text-xs text-muted-foreground">
-                      <div>Émission: {formatDate(quote.date)}</div>
-                    </div>
-                  </td>
-                  <td className="p-4">{getStatusBadge(quote.status)}</td>
-                  <td className="p-4 text-right font-bold text-sm">{formatCurrency(quote.total)}</td>
-                  <td className="p-4 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                        <DropdownMenuItem className="gap-2" onClick={() => setPreviewQuote(quote)}>
-                          <Eye className="w-4 h-4" /> Aperçu
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
-                          <Printer className="w-4 h-4" /> Imprimer
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="gap-2"
-                          onClick={() => handleDownloadPDF(quote)}
-                          disabled={isDownloading === quote.id}
-                        >
-                          <Download className="w-4 h-4" />
-                          {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
-                        </DropdownMenuItem>
-                        {quote.status !== 'CONVERTI' && user?.role === 'user' && (
-                          <>
-                            <DropdownMenuItem
-                              className="gap-2"
-                              onClick={() => onCreateQuote(quote.id)}
-                            >
-                              <Edit2 className="w-4 h-4" /> Modifier le devis
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              className="gap-2 text-primary font-medium"
-                              onClick={() => handleConvertToInvoice(quote.id)}
-                            >
-                              <CheckCircle2 className="w-4 h-4" /> Convertir en facture
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                        {user?.role === 'admin' && (
-                          <>
-                            <div className="h-px bg-border my-1" />
-                            <DropdownMenuItem
-                                className="gap-2 text-destructive focus:text-destructive"
-                                onClick={() => setQuoteToDeleteId(quote.id)}
-                            >
-                                <Trash2 className="w-4 h-4" /> Supprimer
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {paginatedQuotes.length === 0 && (
-            <div className="p-8 text-center">
-              <EmptyState
-                icon={FileText}
-                title={searchQuery ? "Aucun devis trouvé" : "Aucun devis"}
-                description={searchQuery ? "Aucun devis ne correspond à votre recherche." : "Créez votre premier devis pour commencer."}
-                actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau devis" : undefined}
-                onAction={!searchQuery && user?.role === 'user' ? () => onCreateQuote() : undefined}
-              />
-            </div>
-          )}
         </div>
       )}
 
@@ -349,7 +346,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                       <div>
                         <div className="flex items-center gap-2">
                           <h3 className="font-bold text-foreground text-sm">{quote.number}</h3>
-                          {getStatusBadge(quote.status)}
+                          <StatusBadge variant={getQuoteStatusVariant(quote.status as any)} />
                         </div>
                         <div className="flex flex-col md:flex-row md:items-center gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-muted-foreground">
                           <span className="font-semibold text-foreground/80 uppercase tracking-tighter">{quote.clientName}</span>
@@ -386,7 +383,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                             <Download className="w-4 h-4" />
                             {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
                           </DropdownMenuItem>
-                          {quote.status !== 'CONVERTI' && user?.role === 'user' && (
+                          {quote.status !== 'CONVERTI' && user?.role === 'user' && quote.created_by === user?.id && (
                             <>
                             <DropdownMenuItem
                               className="gap-2"
@@ -402,7 +399,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                             </DropdownMenuItem>
                             </>
                           )}
-                          {user?.role === 'admin' && (
+                          {user?.role === 'user' && quote.created_by === user?.id && (
                             <>
                             <div className="h-px bg-border my-1" />
                             <DropdownMenuItem
@@ -450,7 +447,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                     <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
                       <FileText className="w-5 h-5" />
                     </div>
-                    {getStatusBadge(quote.status)}
+                    <StatusBadge variant={getQuoteStatusVariant(quote.status as any)} />
                   </div>
                   <h3 className="font-bold text-sm mb-1">{quote.number}</h3>
                   <p className="text-xs text-muted-foreground mb-2">{quote.clientName}</p>
@@ -483,7 +480,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           <Download className="w-4 h-4" />
                           {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
                         </DropdownMenuItem>
-                        {quote.status !== 'CONVERTI' && user?.role === 'user' && (
+                        {quote.status !== 'CONVERTI' && user?.role === 'user' && quote.created_by === user?.id && (
                           <>
                             <DropdownMenuItem
                               className="gap-2"
@@ -499,7 +496,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                             </DropdownMenuItem>
                           </>
                         )}
-                        {user?.role === 'admin' && (
+                        {user?.role === 'user' && quote.created_by === user?.id && (
                           <>
                             <div className="h-px bg-border my-1" />
                             <DropdownMenuItem

@@ -1,69 +1,129 @@
 import Database from 'better-sqlite3';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 
 /**
- * Résolution du chemin de la base de données.
- *
- * ┌──────────────────────────────────────────────────────────────────────┤
- * │  RÈGLE CRITIQUE ELECTRON (P0-A) :                                     │
- * │  En mode packagé (.exe / .dmg / .AppImage), process.cwd() pointe    │
- * │  vers app.asar — une archive en LECTURE SEULE. Écrire un fichier     │
- * │  SQLite là-dedans provoque un crash immédiat au premier INSERT.       │
- * │                                                                      │
- * │  Solution (Phase 3) : ELECTRON_USERDATA_PATH est passé EXPLICITEMENT │
- * │  par main.js dans l'objet env de spawn() du serveur Next.js enfant.  │
- * │  Ce mécanisme traverse la barrière de processus de façon garantie     │
- * │  sous Windows, contrairement à l'héritage implicite de process.env.  │
- * │                                                                      │
- * │  En développement (NODE_ENV=development), fallback sur process.cwd()  │
- * │  — c'est le répertoire racine du projet où database.sqlite est créé. │
- * └──────────────────────────────────────────────────────────────────────┘
+ * Résolution robuste du chemin de la base de données (Electron & Next.js).
  */
-const isProduction = process.env.NODE_ENV === 'production';
-const electronUserDataPath = process.env.ELECTRON_USERDATA_PATH;
+/**
+ * Résolution robuste et persistante du chemin de la base de données (Electron & Next.js).
+ * Garantie sans :memory: et stockée dans un sous-dossier persistant 'data'.
+ */
+function resolveDatabasePath(): string {
+  if (process.env.TEST_DB_PATH) {
+    return path.resolve(process.env.TEST_DB_PATH);
+  }
+  const dbFileName = process.env.DB_FILE_NAME || 'database.sqlite';
+  const electronUserDataPath = process.env.ELECTRON_USERDATA_PATH;
 
-if (isProduction && !electronUserDataPath) {
-  // Crash immédiat et explicite plutôt qu'une écriture silencieuse dans app.asar
-  throw new Error(
-    '[db] FATAL: ELECTRON_USERDATA_PATH is not defined in production mode. ' +
-    'The Next.js server must be spawned by Electron main.js with this env var ' +
-    'explicitly set in the spawn() call. Check main.js → startNextServer().'
-  );
+  if (electronUserDataPath) {
+    try {
+      const dataDir = path.join(electronUserDataPath, 'data');
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+      return path.resolve(path.join(dataDir, dbFileName));
+    } catch (err) {
+      console.warn('[db] Impossible d\'écrire dans ELECTRON_USERDATA_PATH, fallback sur le répertoire de travail:', err);
+    }
+  }
+
+  const cwd = process.cwd();
+  try {
+    const dataDir = path.join(cwd, 'data');
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    const targetDbPath = path.resolve(path.join(dataDir, dbFileName));
+
+    // Migration automatique d'une ancienne base située à la racine de cwd pour éviter toute perte lors de la transition
+    if (dbFileName === 'database.sqlite') {
+      const legacyDbPath = path.resolve(path.join(cwd, 'database.sqlite'));
+      if (!fs.existsSync(targetDbPath) && fs.existsSync(legacyDbPath)) {
+        try {
+          fs.copyFileSync(legacyDbPath, targetDbPath);
+          console.log(`[db] Ancienne base de données (racine) migrée vers ${targetDbPath}`);
+        } catch (migErr) {
+          console.warn('[db] Erreur lors de la migration de l\'ancienne base:', migErr);
+        }
+      }
+    }
+
+    fs.accessSync(dataDir, fs.constants.W_OK);
+    return targetDbPath;
+  } catch (err) {
+    const fallbackDir = path.join(os.homedir(), '.letoile-invoicing', 'data');
+    if (!fs.existsSync(fallbackDir)) {
+      fs.mkdirSync(fallbackDir, { recursive: true });
+    }
+    console.warn(`[db] process.cwd()/data non accessible en écriture, fallback sur: ${fallbackDir}`);
+    return path.resolve(path.join(fallbackDir, dbFileName));
+  }
 }
 
-const userDataPath = electronUserDataPath ?? process.cwd();
-const dbPath = path.join(userDataPath, 'database.sqlite');
-const db = new Database(dbPath, { timeout: 5000 });
+const globalForDb = globalThis as unknown as {
+  db: Database.Database;
+  statementCache: Map<string, any>;
+  isClosing: boolean;
+};
+
+const dbPath = resolveDatabasePath();
+const db = globalForDb.db || new Database(dbPath, { timeout: 5000 });
+if (!globalForDb.db) {
+  globalForDb.db = db;
+}
 
 // [QA-Phase 2] Configuration de la base de données pour la concurrence et la robustesse
 db.pragma('foreign_keys = ON');
 db.pragma('journal_mode = WAL');
 db.pragma('synchronous = NORMAL');
 
-// [QA-Phase 2] Fermeture propre de la base de données lors de l'arrêt du processus
+// Clôture gracieuse de la base de données (WAL Checkpoint & Close)
 const closeDb = () => {
+  if (globalForDb.isClosing) return;
+  globalForDb.isClosing = true;
   try {
     if (db && db.open) {
+      try {
+        db.pragma('wal_checkpoint(TRUNCATE)');
+      } catch (e) {
+        // Ignorer si la base est occupée ou verrouillée lors de l'arrêt
+      }
       db.close();
-      console.log('[db] Connexion SQLite fermée proprement.');
+      console.log('[db] Base de données SQLite fermée proprement (WAL Checkpoint & Close).');
     }
   } catch (err) {
     console.error('[db] Erreur lors de la fermeture de la base de données:', err);
   }
 };
 
-process.on('exit', closeDb);
-process.on('SIGINT', () => {
-  closeDb();
-  process.exit(0);
-});
-process.on('SIGTERM', () => {
-  closeDb();
-  process.exit(0);
-});
+if (!globalForDb.isClosing) {
+  process.on('exit', closeDb);
+  process.on('beforeExit', closeDb);
+  process.on('SIGINT', () => {
+    closeDb();
+    process.exit(0);
+  });
+  process.on('SIGTERM', () => {
+    closeDb();
+    process.exit(0);
+  });
+  process.on('SIGHUP', () => {
+    closeDb();
+    process.exit(0);
+  });
+  process.on('SIGBREAK', () => {
+    closeDb();
+    process.exit(0);
+  });
+}
 
 // Cache global pour les requêtes préparées (Statement Cache)
-const statementCache = new Map<string, ReturnType<typeof db.prepare>>();
+const statementCache = globalForDb.statementCache || new Map<string, ReturnType<typeof db.prepare>>();
+if (process.env.NODE_ENV !== 'production') {
+  globalForDb.statementCache = statementCache;
+}
 
 /**
  * Récupère une requête préparée mise en cache ou la compile si elle n'existe pas.
@@ -113,7 +173,8 @@ db.exec(`
     address TEXT,
     status TEXT DEFAULT 'active',
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    deletedAt DATETIME
+    deletedAt DATETIME,
+    created_by TEXT
   );
 
   CREATE TABLE IF NOT EXISTS quotes (
@@ -191,6 +252,7 @@ db.exec(`
     reference TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     deletedAt DATETIME,
+    created_by TEXT,
     FOREIGN KEY (invoiceId) REFERENCES invoices(id) ON DELETE CASCADE
   );
 
@@ -210,7 +272,8 @@ db.exec(`
     category TEXT,
     unitPrice REAL DEFAULT 0,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-    deletedAt DATETIME
+    deletedAt DATETIME,
+    created_by TEXT
   );
 
   -- New User Table Schema (v4.0)
@@ -325,6 +388,11 @@ try {
     db.prepare("ALTER TABLE invoices ADD COLUMN created_by TEXT").run();
   }
 
+  const servicesColumns = db.prepare("PRAGMA table_info(services)").all() as Array<{ name: string }>;
+  if (!servicesColumns.some(c => c.name === 'created_by')) {
+    db.prepare("ALTER TABLE services ADD COLUMN created_by TEXT").run();
+  }
+
   // TPS Migrations
   const settingsColumns = db.prepare("PRAGMA table_info(settings)").all() as Array<{ name: string }>;
   if (!settingsColumns.some(c => c.name === 'tpsRate')) {
@@ -343,14 +411,19 @@ try {
   if (!cnColumns.some(c => c.name === 'tpsAmount')) {
     db.prepare("ALTER TABLE credit_notes ADD COLUMN tpsAmount REAL DEFAULT 0").run();
   }
+  if (!cnColumns.some(c => c.name === 'created_by')) {
+    db.prepare("ALTER TABLE credit_notes ADD COLUMN created_by TEXT").run();
+  }
 
   // Soft Delete Migrations for Phase 3
   const clientsColumns = db.prepare("PRAGMA table_info(clients)").all() as Array<{ name: string }>;
   if (!clientsColumns.some(c => c.name === 'deletedAt')) {
     db.prepare("ALTER TABLE clients ADD COLUMN deletedAt DATETIME").run();
   }
+  if (!clientsColumns.some(c => c.name === 'created_by')) {
+    db.prepare("ALTER TABLE clients ADD COLUMN created_by TEXT").run();
+  }
 
-  const servicesColumns = db.prepare("PRAGMA table_info(services)").all() as Array<{ name: string }>;
   if (!servicesColumns.some(c => c.name === 'deletedAt')) {
     db.prepare("ALTER TABLE services ADD COLUMN deletedAt DATETIME").run();
   }
@@ -362,6 +435,9 @@ try {
   const paymentsColumns = db.prepare("PRAGMA table_info(payments)").all() as Array<{ name: string }>;
   if (!paymentsColumns.some(c => c.name === 'deletedAt')) {
     db.prepare("ALTER TABLE payments ADD COLUMN deletedAt DATETIME").run();
+  }
+  if (!paymentsColumns.some(c => c.name === 'created_by')) {
+    db.prepare("ALTER TABLE payments ADD COLUMN created_by TEXT").run();
   }
 } catch (e) {
   console.error("Migration error:", e);
@@ -377,6 +453,7 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_invoices_quoteId ON invoices(quoteId);
   CREATE INDEX IF NOT EXISTS idx_payments_deletedAt ON payments(deletedAt);
   CREATE INDEX IF NOT EXISTS idx_payments_invoiceId ON payments(invoiceId);
+  CREATE INDEX IF NOT EXISTS idx_payments_created_by ON payments(created_by);
   CREATE INDEX IF NOT EXISTS idx_credit_notes_deletedAt ON credit_notes(deletedAt);
   CREATE INDEX IF NOT EXISTS idx_credit_notes_invoiceId ON credit_notes(invoiceId);
   CREATE INDEX IF NOT EXISTS idx_credit_notes_clientId ON credit_notes(clientId);
@@ -390,41 +467,21 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_users_deletedAt ON users(deletedAt);
 `);
 
-// Insert default settings
-const row = db.prepare('SELECT COUNT(*) as count FROM settings').get() as { count: number };
-if (row.count === 0) {
-  db.prepare(`
-    INSERT INTO settings (
-      id, companyName, legalForm, nif, rccm, address, email, phone, mentionsLegales,
-      bankName, bankAgency, accountNumber, swiftCode, iban,
-      tvaRate, tpsRate, cssRate, sessionTimeout,
-      invoicePrefix, quotePrefix, companyCode
-    ) VALUES (
-      1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
-    )
-  `).run(
-    "Global Maintenance",
-    "SARL",
-    "XXXXXXXXXX",
-    "GA-LBV-XX-XXXX-XXXX",
-    "123 Boulevard Triomphal, Libreville, Gabon",
-    "facturation@globalm.ga",
-    "+241 01 76 XX XX",
-    "Merci de votre confiance.",
-    "BGFI Bank",
-    "Libreville",
-    "XXXXXXXXXX",
-    "BGFIGAXX",
-    "GAXX XXXX XXXX XXXX XXXX",
-    18,
-    9.5,
-    1,
-    30,
-    "FAC",
-    "DEV",
-    "GM"
-  );
+// Phase 1: Backfilling & Orphans Cleanup
+try {
+  db.prepare("UPDATE payments SET created_by = (SELECT created_by FROM invoices WHERE id = payments.invoiceId) WHERE created_by IS NULL").run();
+
+  const firstAdmin = db.prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1").get() as { id: string } | undefined;
+  if (firstAdmin?.id) {
+    db.prepare("UPDATE clients SET created_by = ? WHERE created_by IS NULL").run(firstAdmin.id);
+    db.prepare("UPDATE services SET created_by = ? WHERE created_by IS NULL").run(firstAdmin.id);
+    db.prepare("UPDATE quotes SET created_by = ? WHERE created_by IS NULL").run(firstAdmin.id);
+    db.prepare("UPDATE invoices SET created_by = ? WHERE created_by IS NULL").run(firstAdmin.id);
+  }
+} catch (e) {
+  console.error("Backfilling & Orphans Cleanup error:", e);
 }
+
 
 // [QA-Phase 2] Proxy transparent pour intercepter tous les appels db.prepare
 // et utiliser automatiquement le Statement Cache global.

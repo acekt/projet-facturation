@@ -8,8 +8,7 @@ import {
   Search,
   RefreshCcw,
   MoreVertical,
-  LayoutList,
-  Grid3x3,
+  DownloadCloud,
 } from "lucide-react"
 import { ViewFormatSelector } from "@/components/ui/view-format-selector"
 import { Card, CardContent } from "@/components/ui/card"
@@ -87,10 +86,31 @@ export function CreditNotesPage() {
           <h1 className="text-2xl font-semibold text-foreground tracking-tight">Avoirs</h1>
           <p className="text-muted-foreground mt-1">Consultez les notes d'avoir émises (annulations)</p>
         </div>
-        <ViewFormatSelector
-          currentFormat={format as 'table' | 'horizontal' | 'block'}
-          onFormatChange={(f: 'table' | 'horizontal' | 'block') => setViewFormat('creditNotes', f)}
-        />
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const headers = ["Numero", "Client", "Montant", "Date", "Motif"];
+              const rows = creditNotes.map(c => [c.number, c.clientName, c.total || (c as any).amount || 0, c.date, c.reason || '']);
+              const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+              const link = document.createElement("a");
+              link.href = URL.createObjectURL(blob);
+              link.setAttribute("download", `avoirs_${new Date().toISOString().split('T')[0]}.csv`);
+              document.body.appendChild(link);
+              link.click();
+              document.body.removeChild(link);
+            }}
+            className="gap-2 hidden sm:flex"
+          >
+            <DownloadCloud className="w-4 h-4" />
+            Export CSV
+          </Button>
+          <ViewFormatSelector
+            currentFormat={format as 'table' | 'horizontal' | 'block'}
+            onFormatChange={(f: 'table' | 'horizontal' | 'block') => setViewFormat('creditNotes', f)}
+          />
+        </div>
       </div>
 
       <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border">

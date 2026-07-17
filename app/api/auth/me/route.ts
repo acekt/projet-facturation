@@ -5,9 +5,11 @@ import db from '@/lib/db';
 interface DbAuthUser {
   id: string;
   name: string;
-  role: 'admin' | 'user';
+  role: string;
   username: string;
 }
+
+export const dynamic = 'force-dynamic';
 
 export async function GET() {
     try {

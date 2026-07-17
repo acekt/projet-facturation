@@ -1,8 +1,11 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
+import { logAudit } from '@/lib/api/audit';
 import db from '@/lib/db';
 import { settingsSchema } from '@/lib/validations';
 import type { SettingsUpdateRequest, SettingsResponse, ErrorResponse, DbSettings } from '@/lib/types/api';
+
+export const dynamic = 'force-dynamic';
 
 /**
  * GET /api/settings
@@ -44,6 +47,12 @@ export async function PATCH(request: Request) {
       };
       return NextResponse.json(errorResponse, { status: 403 });
     }
+    if (!session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'User ID manquant dans la session',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
 
     const body: unknown = await request.json();
 
@@ -66,6 +75,8 @@ export async function PATCH(request: Request) {
 
     db.prepare(`UPDATE settings SET ${setClause} WHERE id = 1`).run(...values);
 
+    logAudit('UPDATE', 'settings', '1', 'Paramètres mis à jour', session.userId, session.name || session.username || null);
+
     const settings = db.prepare('SELECT * FROM settings WHERE id = 1').get() as DbSettings;
     return NextResponse.json(settings);
   } catch (error) {
@@ -76,3 +87,6 @@ export async function PATCH(request: Request) {
     return NextResponse.json(errorResponse, { status: 500 });
   }
 }
+
+export const PUT = PATCH;
+export const POST = PATCH;

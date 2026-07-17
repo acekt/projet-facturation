@@ -11,8 +11,6 @@ import {
   Trash2,
   User,
   Search,
-  Printer,
-  Calculator,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -29,9 +27,7 @@ import {
 } from "@/components/ui/dialog"
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
 
 import { useStore, type InvoiceItem, type DraftItem, type Quote } from "@/lib/store"
 import { toast } from "sonner"
@@ -472,6 +468,21 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-foreground font-semibold text-base">Notes et Conditions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Indiquez la durée de validité du devis, les conditions de règlement ou toute mention complémentaire..."
+                className="min-h-[90px] resize-y bg-secondary/30 border-border text-sm focus:ring-1"
+                disabled={status === 'CONVERTI' || isSubmitting}
+              />
             </CardContent>
           </Card>
         </div>

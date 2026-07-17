@@ -35,10 +35,12 @@ export function getNextNumber(type: 'quote' | 'invoice' | 'credit_note') {
       throw new Error('Company settings not found');
   }
 
+  const prefix = type === 'quote' ? 'DEV-' : (type === 'invoice' ? 'FAC-' : '');
+
   if (!sequence) {
       // Should not happen as sequences are initialized in db.ts, but for safety:
       db.prepare('INSERT INTO sequences (name, current_value, last_year) VALUES (?, 1, ?)').run(type, year);
-      return `001/${settings.companyCode}/${year}`;
+      return `${prefix}001/${settings.companyCode}/${year}`;
   }
 
   let nextValue = sequence.current_value + 1;
@@ -50,5 +52,5 @@ export function getNextNumber(type: 'quote' | 'invoice' | 'credit_note') {
       db.prepare('UPDATE sequences SET current_value = ? WHERE name = ?').run(nextValue, type);
   }
 
-  return `${String(nextValue).padStart(3, '0')}/${settings.companyCode}/${year}`;
+  return `${prefix}${String(nextValue).padStart(3, '0')}/${settings.companyCode}/${year}`;
 }

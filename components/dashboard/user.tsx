@@ -27,7 +27,16 @@ interface DashboardUserProps {
 }
 
 interface UserDashboardState {
-  metrics: {
+  totalRevenue?: number;
+  growth?: number | string;
+  pendingRevenue?: number;
+  overdueRevenue?: number;
+  paidCount?: number;
+  unpaidCount?: number;
+  partiallyPaidCount?: number;
+  totalInvoicesCount?: number;
+  pendingQuotesCount?: number;
+  metrics?: {
     totalRevenue: number;
     growth: number | string;
     pendingRevenue: number;
@@ -38,17 +47,18 @@ interface UserDashboardState {
     totalInvoicesCount: number;
     pendingQuotesCount: number;
   };
-  revenueData: Array<{ label: string; value: number }>;
-  paymentMethodData: Array<{ method: string; amount: number }>;
-  recentInvoices: Invoice[];
-  activityTimeline: Array<{ id: string; action: string; client: string; time: string }>;
-  topClients: Array<{ clientName: string; totalRevenue: number }>;
+  revenueData?: Array<{ label: string; value: number; date?: string; revenue?: number }>;
+  paymentMethodData?: Array<{ method: string; amount: number }>;
+  recentInvoices?: Invoice[];
+  activityTimeline?: Array<{ id: string; action: string; client: string; time: string }>;
+  topClients?: Array<{ clientName: string; totalRevenue: number }>;
   userPerformance?: any[];
 }
 
 export function DashboardUser({ onNavigate }: DashboardUserProps) {
   const [isMounted, setIsMounted] = useState(false)
   const isDataLoaded = useStore(state => state.isDataLoaded)
+  const user = useStore(state => state.user)
 
   const [data, setData] = useState<UserDashboardState>({
     metrics: {
@@ -75,19 +85,98 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
 
   useEffect(() => {
     setIsMounted(true)
-    fetch('/api/dashboard/metrics?range=month')
-      .then(res => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-        return res.json()
-      })
-      .then(d => {
-        setData(d)
-        setIsLoading(false)
-      })
-      .catch(err => {
-        console.error('[Dashboard User] Error fetching metrics:', err.message || err)
-        setIsLoading(false)
-      })
+
+    // AbortController prevents setState on unmounted component
+    const controller = new AbortController()
+
+    ;(async () => {
+      try {
+        const res = await fetch('/api/dashboard/metrics?range=month', {
+          signal: controller.signal,
+          cache: 'no-store',
+        })
+
+        // --- Guard 1: HTTP error (401 Middleware redirect, 500 crash, etc.) ---
+        if (!res.ok) {
+          const contentType = res.headers.get('content-type') ?? ''
+          if (!contentType.includes('application/json')) {
+            throw new Error(
+              `Le serveur a renvoyé une page inattendue (HTTP ${res.status}). ` +
+              `Vérifiez que SESSION_SECRET est configuré dans .env.local et que le serveur est démarré.`
+            )
+          }
+          const errorBody = await res.json().catch(() => ({}))
+          throw new Error(errorBody?.error || `Erreur HTTP ${res.status}`)
+        }
+
+        // --- Guard 2: Successful response but wrong Content-Type (e.g. proxy returning HTML) ---
+        const contentType = res.headers.get('content-type') ?? ''
+        if (!contentType.includes('application/json')) {
+          throw new Error(
+            'Le serveur a renvoyé une réponse non-JSON. ' +
+            'Le middleware ou un proxy a peut-être intercepté la requête.'
+          )
+        }
+
+        const d = await res.json().catch(() => null)
+        if (!controller.signal.aborted && d && typeof d === 'object') {
+          const normalizedData: UserDashboardState = {
+            ...d,
+            metrics: d.metrics || {
+              totalRevenue: d.totalRevenue ?? 0,
+              growth: d.growth ?? 0,
+              pendingRevenue: d.pendingRevenue ?? 0,
+              overdueRevenue: d.overdueRevenue ?? 0,
+              paidCount: d.paidCount ?? 0,
+              unpaidCount: d.unpaidCount ?? 0,
+              partiallyPaidCount: d.partiallyPaidCount ?? 0,
+              totalInvoicesCount: d.totalInvoicesCount ?? 0,
+              pendingQuotesCount: d.pendingQuotesCount ?? 0,
+            },
+            revenueData: d.revenueData || [],
+            paymentMethodData: d.paymentMethodData || [],
+            recentInvoices: d.recentInvoices || [],
+            activityTimeline: d.activityTimeline || [],
+            topClients: d.topClients || [],
+            userPerformance: d.userPerformance || [],
+          }
+          setData(normalizedData)
+          useStore.getState().setDashboardMetrics(normalizedData as any)
+        }
+      } catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') return
+        console.error('[Dashboard User] Error fetching metrics:', err instanceof Error ? err.message : err)
+        if (!controller.signal.aborted) {
+          setData({
+            metrics: {
+              totalRevenue: 0,
+              growth: 0,
+              pendingRevenue: 0,
+              overdueRevenue: 0,
+              paidCount: 0,
+              unpaidCount: 0,
+              partiallyPaidCount: 0,
+              totalInvoicesCount: 0,
+              pendingQuotesCount: 0
+            },
+            revenueData: [],
+            paymentMethodData: [],
+            recentInvoices: [],
+            activityTimeline: [],
+            topClients: [],
+            userPerformance: []
+          })
+        }
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoading(false)
+        }
+      }
+    })()
+
+    return () => {
+      controller.abort()
+    }
   }, [])
 
   // LE GUARD CLAUSE OBLIGATOIRE (Anti-Flash)
@@ -99,16 +188,17 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
     )
   }
 
-  const metrics = data?.metrics || {
-    totalRevenue: 0,
-    growth: 0,
-    pendingRevenue: 0,
-    overdueRevenue: 0,
-    paidCount: 0,
-    unpaidCount: 0,
-    partiallyPaidCount: 0,
-    totalInvoicesCount: 0,
-    pendingQuotesCount: 0
+  const rawMetrics = data?.metrics || {}
+  const metrics = {
+    totalRevenue: rawMetrics.totalRevenue ?? data?.totalRevenue ?? 0,
+    growth: rawMetrics.growth ?? data?.growth ?? 0,
+    pendingRevenue: rawMetrics.pendingRevenue ?? data?.pendingRevenue ?? 0,
+    overdueRevenue: rawMetrics.overdueRevenue ?? data?.overdueRevenue ?? 0,
+    paidCount: rawMetrics.paidCount ?? data?.paidCount ?? 0,
+    unpaidCount: rawMetrics.unpaidCount ?? data?.unpaidCount ?? 0,
+    partiallyPaidCount: rawMetrics.partiallyPaidCount ?? data?.partiallyPaidCount ?? 0,
+    totalInvoicesCount: rawMetrics.totalInvoicesCount ?? data?.totalInvoicesCount ?? 0,
+    pendingQuotesCount: rawMetrics.pendingQuotesCount ?? data?.pendingQuotesCount ?? 0,
   }
 
   const totalRevenu = metrics.totalRevenue ?? 0
@@ -137,12 +227,14 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
         </div>
         
         <div className="flex gap-2">
-            <Button 
-              onClick={() => onNavigate('clients')} 
-              className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 px-5 font-bold gap-2 text-xs shadow-md shadow-primary/10"
-            >
-                <UserPlus className="w-4 h-4" /> NOUVEAU CLIENT
-            </Button>
+            {user?.role === 'admin' && (
+              <Button 
+                onClick={() => onNavigate('clients')} 
+                className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 px-5 font-bold gap-2 text-xs shadow-md shadow-primary/10"
+              >
+                  <UserPlus className="w-4 h-4" /> NOUVEAU CLIENT
+              </Button>
+            )}
         </div>
       </div>
 

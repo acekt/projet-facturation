@@ -41,6 +41,8 @@ interface DashboardAdminData {
 export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
   const [isMounted, setIsMounted] = useState(false)
   const isDataLoaded = useStore(state => state.isDataLoaded)
+  const storeMetrics = useStore(state => state.dashboardMetrics)
+  const setDashboardMetrics = useStore(state => state.setDashboardMetrics)
 
   const [data, setData] = useState<DashboardAdminData>({
     paidCount: 0,
@@ -62,19 +64,36 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
 
   useEffect(() => {
     setIsMounted(true)
-    fetch('/api/dashboard/metrics?range=month')
-      .then(res => {
-        if (!res.ok) throw new Error('Failed to fetch metrics')
-        return res.json()
-      })
-      .then((d: DashboardAdminData) => {
-        setData(d)
-        setIsLoading(false)
-      })
-      .catch(err => {
+    const currentMetrics = useStore.getState().dashboardMetrics
+    if (currentMetrics) {
+      setData(currentMetrics as unknown as DashboardAdminData)
+      setIsLoading(false)
+    }
+
+    const fetchMetrics = async () => {
+      try {
+        const res = await fetch('/api/dashboard/metrics?range=month', { cache: 'no-store' })
+        if (!res.ok) {
+          if (res.status === 401 || res.status === 403) {
+            console.warn('[Dashboard Admin] Access denied or session invalid during metrics fetch:', res.status)
+          } else {
+            console.warn('[Dashboard Admin] API returned non-ok status:', res.status)
+          }
+          return
+        }
+        const d = await res.json().catch(() => null) as DashboardAdminData | null
+        if (d && typeof d === 'object' && !('error' in d)) {
+          setData(d)
+          setDashboardMetrics(d as any)
+        }
+      } catch (err) {
         console.error('[Dashboard Admin] Error fetching metrics:', err)
+      } finally {
         setIsLoading(false)
-      })
+      }
+    }
+
+    fetchMetrics()
   }, [])
 
   // LE GUARD CLAUSE OBLIGATOIRE (Anti-Flash)

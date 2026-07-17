@@ -1,6 +1,19 @@
 import { cookies } from 'next/headers'
 
-const SESSION_SECRET = process.env.SESSION_SECRET || 'letoile-secret-key-2026-signing'
+/**
+ * SECURITY: SESSION_SECRET must be set in environment variables.
+ * The application will crash at call time if the secret is absent or too short.
+ */
+function getSessionSecret(): string {
+  const secret = process.env.SESSION_SECRET
+  if (!secret || secret.length < 32) {
+    throw new Error(
+      '[SECURITY] SESSION_SECRET environment variable is missing or too short (minimum 32 characters). ' +
+      'Set it in your .env.local file.'
+    )
+  }
+  return secret
+}
 
 function str2ab(str: string) {
   const buf = new ArrayBuffer(str.length)
@@ -11,11 +24,32 @@ function str2ab(str: string) {
   return buf
 }
 
+export async function signSession(data: string): Promise<string> {
+  const secret = getSessionSecret()
+  const key = await crypto.subtle.importKey(
+    'raw',
+    str2ab(secret),
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  )
+
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    key,
+    str2ab(data)
+  )
+
+  const base64Signature = btoa(String.fromCharCode(...new Uint8Array(signature)))
+  return `${data}.${base64Signature}`
+}
+
 async function verifySignature(data: string, signature: string) {
   try {
+    const secret = getSessionSecret()
     const key = await crypto.subtle.importKey(
       'raw',
-      str2ab(SESSION_SECRET),
+      str2ab(secret),
       { name: 'HMAC', hash: 'SHA-256' },
       false,
       ['verify']
@@ -69,6 +103,9 @@ export async function getSession() {
   try {
     const decoded = atob(data)
     const session = JSON.parse(decoded)
+    if (!session || typeof session.exp !== 'number' || session.exp < Date.now()) {
+      return null
+    }
     return session
   } catch (e) {
     console.error('[Auth] Failed to decode session:', e)

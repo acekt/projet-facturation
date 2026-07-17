@@ -92,6 +92,41 @@ describe('Users API', () => {
     });
   });
 
+  describe('Gestion des Erreurs de Doublons (SQLite)', () => {
+    it('devrait intercepter une erreur de doublon SQLite et retourner une erreur 400 propre', async () => {
+      vi.mocked(auth.getSession).mockResolvedValue({
+        userId: '1',
+        name: 'Admin',
+        role: 'admin',
+        exp: 100000
+      });
+
+      const mockRun = vi.fn().mockImplementation(() => {
+        const error = new Error('UNIQUE constraint failed: users.username');
+        (error as any).code = 'SQLITE_CONSTRAINT_UNIQUE';
+        throw error;
+      });
+
+      vi.mocked(db.prepare).mockReturnValue({
+        run: mockRun,
+      } as any);
+
+      const req = createMockRequest({
+        name: 'Jean Doublon',
+        email: 'doublon@letoile.ga',
+        username: 'doublon',
+        role: 'user',
+        password: 'Password123!'
+      }, 'POST');
+
+      const res = await POST(req) as NextResponse;
+      expect(res.status).toBe(400);
+
+      const body = await res.json();
+      expect(body.error).toBe('Un utilisateur avec cet email ou identifiant existe déjà.');
+    });
+  });
+
   describe('Métier - Soft Delete', () => {
     it('devrait mettre à jour is_active et deletedAt lors d\'un DELETE', async () => {
       vi.mocked(auth.getSession).mockResolvedValue({

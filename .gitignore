@@ -15,4 +15,10 @@ node_modules
 .DS_Store
 *.sqlite
 *.sqlite-journal
+*.sqlite-shm
+*.sqlite-wal
 *.log
+data/
+.antigravity
+playwright-report/
+test-results/

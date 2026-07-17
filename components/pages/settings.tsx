@@ -76,10 +76,13 @@ export function SettingsPage() {
     if (!isAdmin) return;
     setIsSaving(true)
     try {
+      // On exclut les champs non reconnus par le schéma Zod côté serveur (ex: 'id')
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { id, ...payload } = formData as typeof formData & { id?: number }
       const response = await fetch('/api/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       })
 
       if (!response.ok) throw new Error('Failed to update settings')

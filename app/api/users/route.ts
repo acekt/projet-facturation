@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
+import { logAudit } from '@/lib/api/audit';
 import db from '@/lib/db';
 import bcrypt from 'bcryptjs';
 import { userCreateSchema } from '@/lib/validations';
 import type { UserCreateRequest, UserResponse, ErrorResponse, DbUser } from '@/lib/types/api';
 
 const SALT_ROUNDS = 10;
+
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -17,11 +21,9 @@ export async function GET() {
       return NextResponse.json(errorResponse, { status: 403 });
     }
 
-    // Select only the fields strictly needed by the frontend — never expose hashed passwords,
-    // audit timestamps (last_login_at, deletedAt) or internal metadata.
     const users = db.prepare(
-      'SELECT id, name, email, username, role, is_active, created_at, phone FROM users WHERE deletedAt IS NULL'
-    ).all() as Pick<DbUser, 'id' | 'name' | 'email' | 'username' | 'role' | 'is_active' | 'created_at' | 'phone'>[];
+      'SELECT * FROM users WHERE deletedAt IS NULL'
+    ).all() as DbUser[];
 
     const userResponses: UserResponse[] = users.map((user): UserResponse => ({
       id: user.id,
@@ -31,10 +33,16 @@ export async function GET() {
       role: user.role,
       is_active: user.is_active,
       created_at: user.created_at,
-      phone: user.phone,
+      last_login_at: user.last_login_at || undefined,
+      phone: user.phone || undefined,
+      deletedAt: user.deletedAt || undefined,
     }));
 
-    return NextResponse.json(userResponses);
+    const response = NextResponse.json(userResponses);
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    return response;
   } catch (error) {
     console.error('[API Users] Error:', error);
     const errorResponse: ErrorResponse = {
@@ -53,6 +61,12 @@ export async function POST(request: Request) {
       };
       return NextResponse.json(errorResponse, { status: 403 });
     }
+    if (!session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'User ID manquant dans la session',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
 
     const body: unknown = await request.json();
 
@@ -70,19 +84,31 @@ export async function POST(request: Request) {
 
     const { name, email, username, role, password, phone, force_password_change, is_active }: UserCreateRequest = validation.data;
 
-    const id = crypto.randomUUID();
+    const id = globalThis.crypto.randomUUID();
+    const cleanUsername = username.toLowerCase().trim();
+    const cleanEmail = email?.toLowerCase().trim() || null;
+    const cleanName = name.trim();
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-    db.prepare(`
-      INSERT INTO users (id, name, email, username, password, role, is_active, created_by, phone)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(id, name, email, username, hashedPassword, role, is_active ? 1 : 0, session.userId, phone || null);
+    try {
+      db.prepare(`
+        INSERT INTO users (id, name, email, username, password, role, is_active, created_by, phone)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(id, cleanName, cleanEmail, cleanUsername, hashedPassword, role, is_active ? 1 : 0, session.userId, phone || null);
+    } catch (error: any) {
+      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
+        return NextResponse.json({ error: 'Un utilisateur avec cet email ou identifiant existe déjà.' }, { status: 400 });
+      }
+      throw error;
+    }
+
+    logAudit('CREATE', 'user', id, `Nouvel utilisateur créé: ${cleanUsername} (${role})`, session.userId, session.name || session.username || null);
 
     const userResponse: UserResponse = {
       id,
-      name,
-      email,
-      username,
+      name: cleanName,
+      email: cleanEmail || undefined,
+      username: cleanUsername,
       role,
       is_active: is_active ? 1 : 0,
       created_at: new Date().toISOString(),
@@ -90,15 +116,12 @@ export async function POST(request: Request) {
     };
 
     return NextResponse.json(userResponse);
-  } catch (error: unknown) {
+  } catch (error: any) {
     console.error('[API Users] Error:', error);
     
     // Handle SQLite constraint errors
-    if (error instanceof Error && 'code' in error && error.code === 'SQLITE_CONSTRAINT_UNIQUE') {
-      const errorResponse: ErrorResponse = {
-        error: 'Cet email ou identifiant est déjà utilisé',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
+    if (error?.code === 'SQLITE_CONSTRAINT_UNIQUE' || error?.message?.includes('UNIQUE constraint failed')) {
+      return NextResponse.json({ error: 'Un utilisateur avec cet email ou identifiant existe déjà.' }, { status: 400 });
     }
 
     const errorResponse: ErrorResponse = {

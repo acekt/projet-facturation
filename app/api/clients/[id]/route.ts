@@ -5,6 +5,8 @@ import { clientUpdateSchema } from '@/lib/validations';
 import { logAudit } from '@/lib/api/audit';
 import type { ClientUpdateRequest, ClientResponse, ErrorResponse, DbClient } from '@/lib/types/api';
 
+export const dynamic = 'force-dynamic';
+
 /**
  * GET /api/clients/[id]
  * Fetch a specific client by ID
@@ -33,6 +35,7 @@ export async function GET(
       };
       return NextResponse.json(errorResponse, { status: 404 });
     }
+
     return NextResponse.json(client);
   } catch (error) {
     console.error('[API Clients GET by ID] Error:', error);
@@ -55,7 +58,6 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    // RBAC Check
     const session = await getSession();
     if (!session) {
       const errorResponse: ErrorResponse = {
@@ -63,9 +65,38 @@ export async function PATCH(
       };
       return NextResponse.json(errorResponse, { status: 401 });
     }
+    if (!session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'User ID manquant dans la session',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
 
     const { id } = await params;
-    const body: unknown = await request.json();
+
+    const existingClient = db.prepare('SELECT * FROM clients WHERE id = ? AND deletedAt IS NULL').get(id) as DbClient | undefined;
+    if (!existingClient) {
+      const errorResponse: ErrorResponse = {
+        error: 'Client not found',
+      };
+      return NextResponse.json(errorResponse, { status: 404 });
+    }
+
+    if (session.role !== 'admin') {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
+    }
+
+    let body: unknown = {};
+    try {
+      const text = await request.text();
+      body = text ? JSON.parse(text) : {};
+    } catch {
+      const errorResponse: ErrorResponse = { error: 'Payload JSON invalide' };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
 
     // Validate request payload with Zod
     const validation = clientUpdateSchema.safeParse(body);
@@ -81,17 +112,10 @@ export async function PATCH(
 
     const { name, email, phone, address }: ClientUpdateRequest = validation.data;
 
-    const result = db.prepare('UPDATE clients SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?')
+    db.prepare('UPDATE clients SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?')
       .run(name, email, phone, address, id);
 
-    if (result.changes === 0) {
-      const errorResponse: ErrorResponse = {
-        error: 'Client not found',
-      };
-      return NextResponse.json(errorResponse, { status: 404 });
-    }
-
-    logAudit('UPDATE', 'client', id, `Client mis à jour: ${name}`);
+    logAudit('UPDATE', 'client', id, `Client mis à jour: ${name}`, session.userId, session.name || session.username || null);
     const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id) as DbClient;
     return NextResponse.json(client);
   } catch (error) {
@@ -105,7 +129,7 @@ export async function PATCH(
 
 /**
  * DELETE /api/clients/[id]
- * Soft delete a client (Admin only)
+ * Soft delete a client
  * @param {string} id - Client ID
  * @returns {{ success: boolean }} Success indicator
  */
@@ -116,7 +140,6 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // RBAC Check - Authenticated users (admin & operator) can soft-delete clients
     const session = await getSession();
     if (!session) {
       const errorResponse: ErrorResponse = {
@@ -124,8 +147,14 @@ export async function DELETE(
       };
       return NextResponse.json(errorResponse, { status: 401 });
     }
+    if (!session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'User ID manquant dans la session',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
+    }
 
-    const client = db.prepare('SELECT name FROM clients WHERE id = ? AND deletedAt IS NULL').get(id) as DbClient | undefined;
+    const client = db.prepare('SELECT * FROM clients WHERE id = ? AND deletedAt IS NULL').get(id) as DbClient | undefined;
     if (!client) {
       const errorResponse: ErrorResponse = {
         error: 'Client not found',
@@ -133,9 +162,16 @@ export async function DELETE(
       return NextResponse.json(errorResponse, { status: 404 });
     }
 
+    if (session.role !== 'admin') {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
+    }
+
     // Soft delete
     db.prepare("UPDATE clients SET deletedAt = datetime('now') WHERE id = ?").run(id);
-    logAudit('DELETE', 'client', id, `Client supprimé: ${client.name}`);
+    logAudit('DELETE', 'client', id, `Client supprimé: ${client.name}`, session.userId, session.name || session.username || null);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('[API Clients DELETE] Error:', error);

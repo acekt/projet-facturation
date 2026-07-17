@@ -56,27 +56,40 @@ export function getTaxRates(): TaxRates {
 
 /**
  * SERVER-SIDE single source of truth for all financial calculations.
- * Computes all document totals from raw items and a discount amount.
+ * Computes all document totals from raw items and a discount ABSOLUTE AMOUNT in XAF.
  *
- * Formula (Gabon fiscal rules):
- *  subtotal    = Σ(qty × unitPrice)           [HT brut]
- *  effectiveHT = max(0, subtotal − discount)  [HT après remise]
+ * Formula (Gabon DGI fiscal rules 2026):
+ *  lineTotal   = Math.round(qty × unitPrice)  [integer per line — XAF has no decimals]
+ *  subtotal    = Σ(lineTotal)                 [exact sum of integer line totals]
+ *  effectiveHT = max(0, subtotal − discount)  [HT après remise absolue en XAF]
  *  cssAmount   = effectiveHT × cssRate        [Contribution Sectorielle Spécifique]
  *  taxBase     = effectiveHT + cssAmount      [Base imposable TVA & TPS]
  *  tvaAmount   = taxBase × tvaRate            [TVA]
  *  tpsAmount   = taxBase × tpsRate            [Taxe sur les Produits et Services]
  *  total       = taxBase + tvaAmount + tpsAmount [TTC final]
  *
- * All amounts are rounded to the nearest integer (XAF has no decimals).
+ * ROUNDING RULE: Each line total is rounded to the nearest integer BEFORE summation.
+ * This guarantees perfect arithmetic consistency between the stored line items and the
+ * invoice subtotal: the value written in `invoice_items.total` equals the value used here.
+ * Never round the aggregate sum of already-rounded integers.
+ *
+ * DISCOUNT RULE: `discountInput` is an ABSOLUTE AMOUNT in XAF (not a percentage).
+ * Example: discount = 5000 means "subtract 5,000 XAF from the HT brut".
  */
 export function computeTotals(
   items: InvoiceItemInput[],
   discountInput: number,
   rates: TaxRates
 ): ComputedTotals {
-  const subtotal = Math.round(
-    items.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0)
+  // CRITICAL XAF FIX: round each line individually, then sum integers.
+  // DO NOT do Math.round(Σ qty*price) — that risks a ±1 XAF discrepancy
+  // between what is stored per line in invoice_items and the header subtotal.
+  const subtotal = items.reduce(
+    (acc, item) => acc + Math.round(item.quantity * item.unitPrice),
+    0
   );
+
+  // Discount is a flat absolute amount in XAF (not a percentage).
   const discount = Math.round(Math.max(0, discountInput));
   const effectiveHT = Math.max(0, subtotal - discount);
   const cssAmount = Math.round(effectiveHT * (rates.cssRate / 100));

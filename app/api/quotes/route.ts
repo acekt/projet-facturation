@@ -15,13 +15,21 @@ import type {
   DbClient,
 } from '@/lib/types/api';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * GET /api/quotes
  * Fetch all non-deleted quotes with their items.
  */
 export async function GET(_request: Request) {
   try {
-    const quotes = db.prepare(`
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized: Authentication required' } as ErrorResponse, { status: 401 });
+    }
+
+    let sql = `
       SELECT q.*,
              (SELECT json_group_array(json_object(
                'id', id,
@@ -32,8 +40,16 @@ export async function GET(_request: Request) {
              )) FROM quote_items WHERE quoteId = q.id) as items
       FROM quotes q
       WHERE q.deletedAt IS NULL
-      ORDER BY createdAt DESC
-    `).all() as (DbQuote & { items: string })[];
+    `;
+
+    const params: any[] = [];
+    if (session.role !== 'admin') {
+      sql += ` AND q.created_by = ?`;
+      params.push(session.userId);
+    }
+    sql += ` ORDER BY createdAt DESC`;
+
+    const quotes = db.prepare(sql).all(...params) as (DbQuote & { items: string })[];
 
     const formattedQuotes: QuoteResponse[] = quotes.map((q): QuoteResponse => ({
       ...q,
@@ -41,7 +57,11 @@ export async function GET(_request: Request) {
       items: JSON.parse(q.items || '[]') as QuoteItem[],
     }));
 
-    return NextResponse.json(formattedQuotes);
+    const response = NextResponse.json(formattedQuotes);
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    return response;
   } catch (error) {
     console.error('[API Quotes GET] Error:', error);
     const errorResponse: ErrorResponse = { error: 'Failed to fetch quotes' };
@@ -56,13 +76,18 @@ export async function GET(_request: Request) {
  */
 export async function POST(request: Request) {
   try {
-    // --- RBAC Check ---
     const session = await getSession();
     if (!session) {
       const errorResponse: ErrorResponse = {
         error: 'Unauthorized: Authentication required',
       };
       return NextResponse.json(errorResponse, { status: 401 });
+    }
+    if (!session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'User ID manquant dans la session',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
     const user = db
@@ -150,7 +175,7 @@ export async function POST(request: Request) {
         );
       }
 
-      logAudit('CREATE', 'quote', id, `Nouveau devis créé: ${number}`);
+      logAudit('CREATE', 'quote', id, `Nouveau devis créé: ${number}`, session.userId, session.name || session.username || null);
       return { id, number };
     });
 

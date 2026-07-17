@@ -1,13 +1,13 @@
 "use client"
 
 import * as React from "react"
-import { motion } from "framer-motion"
-import { ShieldCheck, User, Clock, Info } from "lucide-react"
+import { ShieldCheck, User } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { formatDate } from "@/lib/utils"
+import { toast } from "sonner"
 
 export function AuditLogsPage() {
   const [logs, setLogs] = React.useState<any[]>([])
@@ -22,19 +22,22 @@ export function AuditLogsPage() {
         
         if (!res.ok) {
           const errorData = await res.json().catch(() => ({}))
-          console.error('[AuditLogsPage] API Error:', errorData)
-          if (res.status === 403) {
-            console.warn('[AuditLogsPage] Access denied - not admin')
+          console.warn('[AuditLogsPage] API response not ok:', res.status, errorData)
+          if (res.status === 401 || res.status === 403) {
+            toast.error("Accès non autorisé ou session expirée pour le journal d'audit")
+          } else {
+            toast.error(errorData.error || `Erreur lors du chargement des logs (${res.status})`)
           }
-          throw new Error(errorData.error || `HTTP ${res.status}`)
+          return
         }
         
         const data = await res.json()
-        if (!data.error) {
+        if (!data.error && Array.isArray(data)) {
           setLogs(data)
         }
       } catch (err) {
         console.error('[AuditLogsPage] Fetch error:', err)
+        toast.error("Impossible de récupérer les logs d'audit")
       } finally {
         setIsLoading(false)
       }

@@ -89,8 +89,8 @@ describe('API RBAC Tests - Quotes Module', () => {
       const response = await GETQuotes(request);
       const data = await response.json();
 
-      expect(response.status).toBe(200);
-      expect(Array.isArray(data)).toBe(true);
+      expect(response.status).toBe(401);
+      expect(data.error).toBeDefined();
     });
   });
 
@@ -101,8 +101,8 @@ describe('API RBAC Tests - Quotes Module', () => {
       
       const quoteId = crypto.randomUUID();
       testDb.prepare(`
-        INSERT INTO quotes (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO quotes (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, createdAt, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         quoteId,
         getUniqueQuoteNumber(),
@@ -119,7 +119,8 @@ describe('API RBAC Tests - Quotes Module', () => {
         100,
         12878,
         'EN_ATTENTE',
-        new Date().toISOString()
+        new Date().toISOString(),
+        session.userId
       );
 
       const request = new Request(`http://localhost/api/quotes/${quoteId}`, {
@@ -521,8 +522,8 @@ describe('API RBAC Tests - Quotes Module', () => {
       
       const quoteId = crypto.randomUUID();
       testDb.prepare(`
-        INSERT INTO quotes (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO quotes (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, createdAt, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         quoteId,
         getUniqueQuoteNumber(),
@@ -539,7 +540,8 @@ describe('API RBAC Tests - Quotes Module', () => {
         100,
         12878,
         'EN_ATTENTE',
-        new Date().toISOString()
+        new Date().toISOString(),
+        session.userId
       );
 
       testDb.prepare(`
@@ -668,8 +670,8 @@ describe('API RBAC Tests - Quotes Module', () => {
       
       const quoteId = crypto.randomUUID();
       testDb.prepare(`
-        INSERT INTO quotes (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO quotes (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, createdAt, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         quoteId,
         getUniqueQuoteNumber(),
@@ -686,7 +688,8 @@ describe('API RBAC Tests - Quotes Module', () => {
         100,
         12878,
         'CONVERTI',
-        new Date().toISOString()
+        new Date().toISOString(),
+        session.userId
       );
 
       const request = new Request('http://localhost/api/quotes/convert', {
@@ -712,8 +715,8 @@ describe('API RBAC Tests - Quotes Module', () => {
       
       const quoteId = crypto.randomUUID();
       testDb.prepare(`
-        INSERT INTO quotes (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, deletedAt, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO quotes (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, deletedAt, createdAt, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         quoteId,
         getUniqueQuoteNumber(),
@@ -731,7 +734,8 @@ describe('API RBAC Tests - Quotes Module', () => {
         12878,
         'EN_ATTENTE',
         new Date().toISOString(),
-        new Date().toISOString()
+        new Date().toISOString(),
+        session.userId
       );
 
       const request = new Request('http://localhost/api/quotes/convert', {
@@ -759,8 +763,8 @@ describe('API RBAC Tests - Quotes Module', () => {
       
       const quoteId = crypto.randomUUID();
       testDb.prepare(`
-        INSERT INTO quotes (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, createdAt)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO quotes (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, createdAt, created_by)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         quoteId,
         getUniqueQuoteNumber(),
@@ -777,7 +781,8 @@ describe('API RBAC Tests - Quotes Module', () => {
         100,
         12878,
         'EN_ATTENTE',
-        new Date().toISOString()
+        new Date().toISOString(),
+        session.userId
       );
 
       testDb.prepare(`

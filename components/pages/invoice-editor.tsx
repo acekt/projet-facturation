@@ -4,15 +4,12 @@ import * as React from "react"
 import { motion } from "framer-motion"
 import {
   ArrowLeft,
-  Save,
   Send,
   Eye,
   Plus,
   Trash2,
   User,
   Search,
-  Printer,
-  Calculator,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -29,11 +26,10 @@ import {
 } from "@/components/ui/dialog"
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Switch } from "@/components/ui/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { cn } from "@/lib/utils"
+
 
 import { useStore, type InvoiceItem, type DraftItem, type Invoice } from "@/lib/store"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 import { DocumentPreview } from "@/components/document-preview"
@@ -455,6 +451,21 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                   </div>
                 ))}
               </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-foreground font-semibold text-base">Notes et Conditions</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Indiquez les conditions de règlement, coordonnées bancaires ou toute mention complémentaire..."
+                className="min-h-[90px] resize-y bg-secondary/30 border-border text-sm focus:ring-1"
+                disabled={isSubmitting}
+              />
             </CardContent>
           </Card>
         </div>

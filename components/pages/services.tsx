@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
-import { Plus, Search, MoreVertical, Edit2, Trash2, Briefcase, Tag } from "lucide-react"
+import { Plus, MoreVertical, Edit2, Trash2, Briefcase, Tag, DownloadCloud } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,13 +22,25 @@ import {
 } from "@/components/ui/dialog"
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
-import { Badge } from "@/components/ui/badge"
 import { useStore, type Service } from "@/lib/store"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ViewFormatSelector } from "@/components/ui/view-format-selector"
+// ── Design System
+import { PageHeader } from "@/components/ui/page-header"
+import { SearchBar } from "@/components/ui/search-bar"
+import { StatusBadge } from "@/components/ui/status-badge"
+import {
+  DataTable,
+  DataTableHead,
+  DataTableBody,
+  DataTableRow,
+  DataTableHeaderCell,
+  DataTableCell,
+  AmountCell,
+  ActionsCell,
+} from "@/components/ui/data-table"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -43,6 +55,10 @@ import {
 export function ServicesPage() {
   const services = useStore((state) => state.services)
   const setServices = useStore((state) => state.setServices)
+  const addService = useStore((state) => state.addService)
+  const removeService = useStore((state) => state.removeService)
+  const updateService = useStore((state) => state.updateService)
+  const replaceService = useStore((state) => state.replaceService)
   const user = useStore((state) => state.user)
   const viewFormat = useStore((state) => state.viewFormat)
   const setViewFormat = useStore((state) => state.setViewFormat)
@@ -52,6 +68,8 @@ export function ServicesPage() {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
   const [editingService, setEditingService] = React.useState<Service | null>(null)
   const [serviceToDeleteId, setServiceToDeleteId] = React.useState<string | null>(null)
+  // FORM BLINDNESS FIX: disable button during in-flight request
+  const [isSubmitting, startSubmitTransition] = React.useTransition()
   const [formData, setFormData] = React.useState({
     name: "",
     description: "",
@@ -79,10 +97,10 @@ export function ServicesPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    const previousServices = [...services]
+    if (isSubmitting) return
 
     if (editingService) {
-      // Modification
+      // MODIFICATION — SERVER-FIRST: only close modal after server confirms.
       const updatedService: Service = {
         ...editingService,
         name: formData.name,
@@ -90,26 +108,35 @@ export function ServicesPage() {
         category: formData.category,
         unitPrice: formData.unitPrice,
       }
+      const originalService = services.find(s => s.id === editingService.id)
 
-      // Optimistic Update
-      setServices(services.map(s => s.id === editingService.id ? updatedService : s))
-      setIsDialogOpen(false)
-      toast.success("Service mis à jour")
-
-      try {
-        const response = await fetch(`/api/services/${editingService.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        })
-        if (!response.ok) throw new Error('Failed to update service')
-      } catch (error) {
-        // Rollback on failure
-        setServices(previousServices)
-        toast.error("Erreur lors de la modification du service. Annulation.")
-      }
+      startSubmitTransition(async () => {
+        try {
+          const response = await fetch(`/api/services/${editingService.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData),
+          })
+          if (response.status === 403) {
+            toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
+            return
+          }
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}))
+            throw new Error(errData.error || `HTTP ${response.status}`)
+          }
+          // Apply update only after server confirms
+          updateService(editingService.id, updatedService)
+          setIsDialogOpen(false)
+          toast.success("Service mis à jour")
+        } catch (error) {
+          if (originalService) updateService(editingService.id, originalService)
+          const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+          toast.error(`Échec de la modification : ${msg}`)
+        }
+      })
     } else {
-      // Ajout
+      // AJOUT — SERVER-FIRST: only add to store and close modal after server confirms.
       const tempId = crypto.randomUUID()
       const serviceToCreate: Service = {
         id: tempId,
@@ -119,166 +146,198 @@ export function ServicesPage() {
         unitPrice: formData.unitPrice,
       }
 
-      // Optimistic Update
-      setServices([...services, serviceToCreate])
-      setIsDialogOpen(false)
-      setFormData({ name: "", description: "", category: "", unitPrice: 0 })
-      toast.success("Service ajouté au catalogue")
-
-      try {
-        const response = await fetch('/api/services', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(serviceToCreate),
-        })
-        if (!response.ok) throw new Error('Failed to create service')
-        const created = await response.json()
-        setServices(previousServices.concat(created))
-      } catch (error) {
-        // Rollback on failure
-        setServices(previousServices)
-        toast.error("Erreur lors de l'ajout du service. Annulation.")
-      }
+      startSubmitTransition(async () => {
+        try {
+          const response = await fetch('/api/services', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(serviceToCreate),
+          })
+          if (response.status === 403) {
+            toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
+            return
+          }
+          if (!response.ok) {
+            const errData = await response.json().catch(() => ({}))
+            throw new Error(errData.error || `HTTP ${response.status}`)
+          }
+          const created = await response.json()
+          // Use confirmed server record — form resets only on success
+          addService(created)
+          setIsDialogOpen(false)
+          setFormData({ name: "", description: "", category: "", unitPrice: 0 })
+          toast.success("Service ajouté au catalogue")
+        } catch (error) {
+          // Form stays open — user can correct and retry
+          const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+          toast.error(`Échec de l'ajout : ${msg}`)
+        }
+      })
     }
   }
 
   const handleDelete = async (id: string) => {
-    const previousServices = [...services]
+    // Capture the service BEFORE removing it to enable precise rollback
+    const serviceToRestore = services.find(s => s.id === id)
 
-    // Optimistic Update
-    setServices(services.filter(s => s.id !== id))
+    removeService(id)
     toast.success("Service supprimé")
     setServiceToDeleteId(null)
 
     try {
       const response = await fetch(`/api/services/${id}`, { method: 'DELETE' })
-      if (!response.ok) throw new Error('Delete failed')
+      if (response.status === 403) {
+        if (serviceToRestore) addService(serviceToRestore)
+        toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
+        return
+      }
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `HTTP ${response.status}`)
+      }
     } catch (error) {
-      // Rollback on failure
-      setServices(previousServices)
-      toast.error("Erreur lors de la suppression du service. Restauration.")
+      // ROLLBACK — re-insert the removed service
+      if (serviceToRestore) addService(serviceToRestore)
+      const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+      toast.error(`Échec de la suppression : ${msg}. Restauration effectuée.`)
     }
   }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Catalogue de Services</h1>
-          <p className="text-muted-foreground mt-1">Gérez vos prestations et tarifs standardisés</p>
-        </div>
-        {user?.role === 'user' && (
-          <Button
-            onClick={() => {
-              setEditingService(null)
-              setFormData({ name: "", description: "", category: "", unitPrice: 0 })
-              setIsDialogOpen(true)
-            }}
-            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-          >
-            <Plus className="w-4 h-4" />
-            Nouveau service
-          </Button>
-        )}
-      </div>
+      {/* ── En-tête de page (Design System) */}
+      <PageHeader
+        title="Catalogue de Services"
+        description="Gérez vos prestations et tarifs standardisés"
+        actions={
+          <>
+            <Button
+              variant="outline"
+              onClick={() => {
+                const headers = ["Service", "Categorie", "Description", "Prix unitaire"];
+                const rows = paginatedServices.map(s => [s.name, s.category || '', s.description || '', s.unitPrice]);
+                const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.setAttribute("download", `services_${new Date().toISOString().split('T')[0]}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+              }}
+              className="gap-2 hidden sm:flex"
+            >
+              <DownloadCloud className="w-4 h-4" />
+              Export CSV
+            </Button>
+            {user?.role === 'admin' && (
+              <Button
+                onClick={() => {
+                  setEditingService(null)
+                  setFormData({ name: "", description: "", category: "", unitPrice: 0 })
+                  setIsDialogOpen(true)
+                }}
+                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
+              >
+                <Plus className="w-4 h-4" />
+                Nouveau service
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      <div className="flex items-center gap-4 bg-card p-4 rounded-xl border border-border shadow-sm">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Rechercher un service ou catégorie..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10 bg-secondary/50 border-border text-foreground w-full md:max-w-md"
-          />
-        </div>
-        <ViewFormatSelector
-          currentFormat={viewFormat.services || 'block'}
-          onFormatChange={(format: 'table' | 'horizontal' | 'block') => setViewFormat('services', format)}
-        />
-      </div>
+      {/* ── Barre de recherche (Design System) */}
+      <SearchBar
+        placeholder="Rechercher un service ou catégorie..."
+        value={searchQuery}
+        onChange={setSearchQuery}
+        viewFormatKey="services"
+      />
 
+      {/* ── Vue Tableau (Design System) */}
       {(!viewFormat.services || viewFormat.services === 'table') && (
-        <div className="flex-1 min-h-0 bg-card rounded-xl border border-border overflow-auto shadow-sm">
-          <table className="w-full min-w-[600px]">
-            <thead className="bg-secondary/50">
-              <tr>
-                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Service</th>
-                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Catégorie</th>
-                <th className="text-left p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Description</th>
-                <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Prix</th>
-                <th className="text-right p-4 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border/50">
-              {paginatedServices.length > 0 ? paginatedServices.map((service) => (
-                <tr key={service.id} className="hover:bg-secondary/30 transition-colors">
-                  <td className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                        <Briefcase className="w-4 h-4" />
-                      </div>
-                      <span className="font-bold text-sm max-w-[200px] sm:max-w-[300px] truncate" title={service.name}>
-                        {service.name}
-                      </span>
+        <DataTable>
+          <DataTableHead>
+            <DataTableRow>
+              <DataTableHeaderCell>Service</DataTableHeaderCell>
+              <DataTableHeaderCell>Catégorie</DataTableHeaderCell>
+              <DataTableHeaderCell>Description</DataTableHeaderCell>
+              <DataTableHeaderCell align="right">Prix unitaire</DataTableHeaderCell>
+              <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
+            </DataTableRow>
+          </DataTableHead>
+          <DataTableBody>
+            {paginatedServices.length > 0 ? paginatedServices.map((service) => (
+              <DataTableRow key={service.id}>
+                <DataTableCell>
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-md bg-primary/5 flex items-center justify-center text-primary flex-shrink-0">
+                      <Briefcase className="w-4 h-4" />
                     </div>
-                  </td>
-                  <td className="p-4">
-                    <Badge variant="secondary" className="max-w-[150px] truncate" title={service.category || 'Non classé'}>
-                      {service.category || 'Non classé'}
-                    </Badge>
-                  </td>
-                  <td className="p-4 text-sm text-muted-foreground">
-                    <div className="max-w-[300px] truncate" title={service.description || undefined}>
-                      {service.description || <span className="text-muted-foreground/50">—</span>}
-                    </div>
-                  </td>
-                  <td className="p-4 text-right font-bold text-sm">{formatCurrency(service.unitPrice)}</td>
-                  <td className="p-4 text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40 bg-card border-border">
-                        {user?.role === 'user' && (
-                          <DropdownMenuItem className="gap-2" onClick={() => {
-                              setEditingService(service)
-                              setFormData({
-                                  name: service.name,
-                                  description: service.description || "",
-                                  category: service.category || "",
-                                  unitPrice: service.unitPrice
-                              })
-                              setIsDialogOpen(true)
-                          }}>
-                            <Edit2 className="w-4 h-4" /> Modifier
-                          </DropdownMenuItem>
-                        )}
-                        {(user?.role === 'admin' || user?.role === 'user') && (
-                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setServiceToDeleteId(service.id)}>
-                            <Trash2 className="w-4 h-4" /> Supprimer
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </td>
-                </tr>
-              )) : null}
-            </tbody>
-          </table>
-          {paginatedServices.length === 0 && (
-            <div className="p-8 text-center">
-              <EmptyState
-                icon={Briefcase}
-                title={searchQuery ? "Aucun service trouvé" : "Catalogue vide"}
-                description={searchQuery ? "Aucun service ne correspond à votre recherche dans le catalogue." : "Enregistrez vos prestations habituelles pour gagner du temps lors de la création de devis."}
-                actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau service" : undefined}
-                onAction={!searchQuery && user?.role === 'user' ? () => setIsDialogOpen(true) : undefined}
-              />
-            </div>
-          )}
+                    <span className="font-medium text-sm text-foreground max-w-[200px] sm:max-w-[300px] truncate" title={service.name}>
+                      {service.name}
+                    </span>
+                  </div>
+                </DataTableCell>
+                <DataTableCell>
+                  <StatusBadge
+                    variant="neutral"
+                    label={service.category || 'Non classé'}
+                    className="max-w-[150px] truncate"
+                  />
+                </DataTableCell>
+                <DataTableCell truncate title={service.description || undefined}>
+                  {service.description || <span className="text-muted-foreground/50">—</span>}
+                </DataTableCell>
+                <AmountCell amount={service.unitPrice} />
+                <ActionsCell>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                        <MoreVertical className="w-4 h-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-40 bg-card border-border">
+                      {user?.role === 'admin' && (
+                        <DropdownMenuItem className="gap-2" onClick={() => {
+                            setEditingService(service)
+                            setFormData({
+                                name: service.name,
+                                description: service.description || "",
+                                category: service.category || "",
+                                unitPrice: service.unitPrice
+                            })
+                            setIsDialogOpen(true)
+                        }}>
+                          <Edit2 className="w-4 h-4" /> Modifier
+                        </DropdownMenuItem>
+                      )}
+                      {user?.role === 'admin' && (
+                        <DropdownMenuItem
+                          className="gap-2 text-destructive focus:text-destructive"
+                          onClick={() => setServiceToDeleteId(service.id)}
+                        >
+                          <Trash2 className="w-4 h-4" /> Supprimer
+                        </DropdownMenuItem>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </ActionsCell>
+              </DataTableRow>
+            )) : null}
+          </DataTableBody>
+        </DataTable>
+      )}
+      {(!viewFormat.services || viewFormat.services === 'table') && paginatedServices.length === 0 && (
+        <div className="p-8 text-center">
+          <EmptyState
+            icon={Briefcase}
+            title={searchQuery ? "Aucun service trouvé" : "Catalogue vide"}
+            description={searchQuery ? "Aucun service ne correspond à votre recherche dans le catalogue." : "Enregistrez vos prestations habituelles pour gagner du temps lors de la création de devis."}
+            actionLabel={!searchQuery && user?.role === 'admin' ? "Nouveau service" : undefined}
+            onAction={!searchQuery && user?.role === 'admin' ? () => setIsDialogOpen(true) : undefined}
+          />
         </div>
       )}
 
@@ -296,7 +355,7 @@ export function ServicesPage() {
                     <div>
                       <h3 className="font-bold text-sm">{service.name}</h3>
                       <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="secondary" className="text-[10px]">{service.category || 'Non classé'}</Badge>
+                        <StatusBadge variant="neutral" label={service.category || 'Non classé'} />
                         <span className="text-xs text-muted-foreground">{formatCurrency(service.unitPrice)}</span>
                       </div>
                     </div>
@@ -309,7 +368,7 @@ export function ServicesPage() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-40 bg-card border-border">
-                        {user?.role === 'user' && (
+                        {user?.role === 'admin' && (
                           <DropdownMenuItem className="gap-2" onClick={() => {
                               setEditingService(service)
                               setFormData({
@@ -323,7 +382,7 @@ export function ServicesPage() {
                             <Edit2 className="w-4 h-4" /> Modifier
                           </DropdownMenuItem>
                         )}
-                        {(user?.role === 'admin' || user?.role === 'user') && (
+                        {user?.role === 'admin' && (
                           <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setServiceToDeleteId(service.id)}>
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>
@@ -340,8 +399,8 @@ export function ServicesPage() {
               icon={Briefcase}
               title={searchQuery ? "Aucun service trouvé" : "Catalogue vide"}
               description={searchQuery ? "Aucun service ne correspond à votre recherche dans le catalogue." : "Enregistrez vos prestations habituelles pour gagner du temps lors de la création de devis."}
-              actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau service" : undefined}
-              onAction={!searchQuery && user?.role === 'user' ? () => setIsDialogOpen(true) : undefined}
+              actionLabel={!searchQuery && user?.role === 'admin' ? "Nouveau service" : undefined}
+              onAction={!searchQuery && user?.role === 'admin' ? () => setIsDialogOpen(true) : undefined}
             />
           )}
         </div>
@@ -372,7 +431,7 @@ export function ServicesPage() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-40 bg-card border-border">
-                          {user?.role === 'user' && (
+                          {user?.role === 'admin' && (
                             <DropdownMenuItem className="gap-2" onClick={() => {
                                 setEditingService(service)
                                 setFormData({
@@ -386,7 +445,7 @@ export function ServicesPage() {
                               <Edit2 className="w-4 h-4" /> Modifier
                             </DropdownMenuItem>
                           )}
-                          {(user?.role === 'admin' || user?.role === 'user') && (
+                          {user?.role === 'admin' && (
                             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setServiceToDeleteId(service.id)}>
                               <Trash2 className="w-4 h-4" /> Supprimer
                             </DropdownMenuItem>
@@ -417,8 +476,8 @@ export function ServicesPage() {
                 icon={Briefcase}
                 title={searchQuery ? "Aucun service trouvé" : "Catalogue vide"}
                 description={searchQuery ? "Aucun service ne correspond à votre recherche dans le catalogue." : "Enregistrez vos prestations habituelles pour gagner du temps lors de la création de devis."}
-                actionLabel={!searchQuery && user?.role === 'user' ? "Nouveau service" : undefined}
-                onAction={!searchQuery && user?.role === 'user' ? () => setIsDialogOpen(true) : undefined}
+                actionLabel={!searchQuery && user?.role === 'admin' ? "Nouveau service" : undefined}
+                onAction={!searchQuery && user?.role === 'admin' ? () => setIsDialogOpen(true) : undefined}
               />
             </div>
           )}
@@ -487,8 +546,12 @@ export function ServicesPage() {
                 className="bg-secondary border-border"
               />
             </div>
-            <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4 h-11">
-              Enregistrer dans le catalogue
+            <Button
+              type="submit"
+              className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4 h-11"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Enregistrement..." : "Enregistrer dans le catalogue"}
             </Button>
           </form>
         </DialogContent>

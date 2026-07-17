@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
+import { logAudit } from '@/lib/api/audit';
 import db from '@/lib/db';
 import crypto from 'crypto';
 import { creditNoteCreateSchema } from '@/lib/validations';
@@ -14,9 +15,17 @@ import type {
   DbSettings,
 } from '@/lib/types/api';
 
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export async function GET() {
   try {
-    const notes = db.prepare(`
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: 'Unauthorized: Authentication required' } as ErrorResponse, { status: 401 });
+    }
+
+    let query = `
       SELECT cn.*,
              (SELECT json_group_array(json_object(
                'id', id,
@@ -27,15 +36,26 @@ export async function GET() {
              )) FROM credit_note_items WHERE creditNoteId = cn.id) as items
       FROM credit_notes cn
       WHERE cn.deletedAt IS NULL
-      ORDER BY createdAt DESC
-    `).all() as (DbCreditNote & { items: string })[];
+    `;
+    const params: unknown[] = [];
+    if (session.role !== 'admin') {
+      query += ' AND cn.created_by = ?';
+      params.push(session.userId);
+    }
+    query += ' ORDER BY createdAt DESC';
+
+    const notes = db.prepare(query).all(...params) as (DbCreditNote & { items: string })[];
 
     const formatted: CreditNoteResponse[] = notes.map((n): CreditNoteResponse => ({
       ...n,
       items: JSON.parse(n.items || '[]') as CreditNoteItem[],
     }));
 
-    return NextResponse.json(formatted);
+    const response = NextResponse.json(formatted);
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    return response;
   } catch (error) {
     console.error('[API Credit Notes GET] Error:', error);
     const errorResponse: ErrorResponse = { error: 'Failed to fetch credit notes' };
@@ -45,7 +65,6 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    // --- RBAC Check ---
     const session = await getSession();
     if (!session) {
       const errorResponse: ErrorResponse = {
@@ -53,15 +72,11 @@ export async function POST(request: Request) {
       };
       return NextResponse.json(errorResponse, { status: 401 });
     }
-
-    const user = db
-      .prepare('SELECT role FROM users WHERE id = ?')
-      .get(session.userId) as { role: string } | undefined;
-    if (!user || user.role !== 'user') {
+    if (!session.userId) {
       const errorResponse: ErrorResponse = {
-        error: 'Unauthorized: Only Users can create credit notes',
+        error: 'User ID manquant dans la session',
       };
-      return NextResponse.json(errorResponse, { status: 403 });
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
     const body: unknown = await request.json();
@@ -163,6 +178,7 @@ export async function POST(request: Request) {
       // If partial, the invoice status remains unchanged (UNPAID / PARTIALLY_PAID / PAID)
       // The credit note is the audit record; the invoice retains its payment history.
 
+      logAudit('CREATE', 'credit_note', id, `Nouvel avoir créé: ${number} sur facture ${invoice.number || invoiceId}`, session.userId, session.name || session.username || null);
       return { id, number };
     });
 
