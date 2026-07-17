@@ -402,7 +402,6 @@ try {
   db.prepare("UPDATE invoices SET status = 'UNPAID' WHERE status IN ('pending', 'sent', 'open')").run();
   db.prepare("UPDATE invoices SET status = 'PAID' WHERE status = 'paid'").run();
   db.prepare("UPDATE invoices SET status = 'PARTIALLY_PAID' WHERE status IN ('partially_paid', 'partial')").run();
-
   // TPS Migrations
   const settingsColumns = db.prepare("PRAGMA table_info(settings)").all() as Array<{ name: string }>;
   if (!settingsColumns.some(c => c.name === 'tpsRate')) {

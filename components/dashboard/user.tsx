@@ -188,7 +188,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
     )
   }
 
-  const rawMetrics = data?.metrics || {}
+  const rawMetrics: any = data?.metrics || {}
   const metrics = {
     totalRevenue: rawMetrics.totalRevenue ?? data?.totalRevenue ?? 0,
     growth: rawMetrics.growth ?? data?.growth ?? 0,
