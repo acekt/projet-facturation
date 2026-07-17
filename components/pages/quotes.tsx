@@ -82,14 +82,18 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   const [quoteToDeleteId, setQuoteToDeleteId] = React.useState<string | null>(null)
   // [P2-A] Protège le bouton d'impression contre le double-clic accidentel
   const [isPrinting, setIsPrinting] = React.useState(false)
+  const [statusFilter, setStatusFilter] = React.useState<string>("all")
 
   const filteredQuotes = React.useMemo(() => {
     return quotes.filter(
-      (quote) =>
-        quote.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        quote.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+      (quote) => {
+        const matchesSearch = quote.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              quote.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+        if (statusFilter === "all") return matchesSearch
+        return matchesSearch && quote.status === statusFilter
+      }
     )
-  }, [quotes, searchQuery])
+  }, [quotes, searchQuery, statusFilter])
 
   const totalPages = Math.ceil(filteredQuotes.length / itemsPerPage)
   const paginatedQuotes = filteredQuotes.slice(
@@ -99,7 +103,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
 
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery])
+  }, [searchQuery, statusFilter])
 
   if (!isDataLoaded) {
     return (
@@ -221,13 +225,43 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
         }
       />
 
-      {/* ── Barre de recherche (Design System) */}
-      <SearchBar
-        placeholder="Rechercher un devis (numéro, client)..."
-        value={searchQuery}
-        onChange={setSearchQuery}
-        viewFormatKey="quotes"
-      />
+      {/* ── Barre de recherche et filtres */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-4">
+        <div className="flex-1">
+          <SearchBar
+            placeholder="Rechercher un devis (numéro, client)..."
+            value={searchQuery}
+            onChange={setSearchQuery}
+            viewFormatKey="quotes"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          <Button
+            variant={statusFilter === 'all' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('all')}
+            className="rounded-full"
+          >
+            Tous
+          </Button>
+          <Button
+            variant={statusFilter === 'EN_ATTENTE' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('EN_ATTENTE')}
+            className="rounded-full"
+          >
+            En Attente
+          </Button>
+          <Button
+            variant={statusFilter === 'CONVERTI' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setStatusFilter('CONVERTI')}
+            className="rounded-full"
+          >
+            Converti
+          </Button>
+        </div>
+      </div>
 
       {/* ── Vue Tableau (Design System) */}
       {(!viewFormat.quotes || viewFormat.quotes === 'table') && (

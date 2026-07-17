@@ -16,5 +16,5 @@ node_modules
 *.sqlite
 *.sqlite-journal
 *.log
-*.database.sqlite-shm
-*.database.sqlite-wal
+*.sqlite-shm
+*.sqlite-wal

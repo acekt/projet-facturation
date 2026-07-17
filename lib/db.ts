@@ -481,6 +481,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_quotes_status_deleted ON quotes(status, deletedAt);
   CREATE INDEX IF NOT EXISTS idx_quotes_created_by ON quotes(created_by);
   CREATE INDEX IF NOT EXISTS idx_payments_invoice_deleted ON payments(invoiceId, deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_invoices_dashboard ON invoices(deletedAt, status, created_by);
+  CREATE INDEX IF NOT EXISTS idx_quotes_dashboard ON quotes(deletedAt, status, created_by);
   CREATE INDEX IF NOT EXISTS idx_clients_deleted ON clients(deletedAt);
 `);
 

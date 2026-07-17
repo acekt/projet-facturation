@@ -103,6 +103,24 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   // [QA-Phase 1] Protection contre le double-clic et les actions concurrentes
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [isCancelling, setIsCancelling] = React.useState(false)
+  const [statusFilter, setStatusFilter] = React.useState<string>("all")
+
+  const filteredInvoices = React.useMemo(() => {
+    return invoices.filter(
+      (invoice) => {
+        const matchesSearch = invoice.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                              invoice.clientName.toLowerCase().includes(searchQuery.toLowerCase())
+        if (statusFilter === "all") return matchesSearch
+        return matchesSearch && invoice.status === statusFilter
+      }
+    )
+  }, [invoices, searchQuery, statusFilter])
+
+  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage)
+  const paginatedInvoices = filteredInvoices.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  )
 
   const handleDelete = async (id: string) => {
     if (isDeleting) return
@@ -240,23 +258,9 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       }
   }
 
-  const filteredInvoices = React.useMemo(() => {
-    return invoices.filter(
-      (invoice) =>
-        invoice.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        invoice.clientName.toLowerCase().includes(searchQuery.toLowerCase())
-    )
-  }, [invoices, searchQuery])
-
-  const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage)
-  const paginatedInvoices = filteredInvoices.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  )
-
   React.useEffect(() => {
     setCurrentPage(1)
-  }, [searchQuery])
+  }, [searchQuery, statusFilter])
 
   if (!isDataLoaded) {
     return (

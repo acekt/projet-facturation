@@ -94,13 +94,13 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // RBAC Check - Only Admin can delete invoices
+    // RBAC Check
     const session = await getSession();
-    if (!session || !session.userId || session.role !== 'admin') {
+    if (!session || !session.userId) {
       const errorResponse: ErrorResponse = {
-        error: 'Forbidden: Only Admin can delete invoices',
+        error: 'Unauthorized: Authentication required',
       };
-      return NextResponse.json(errorResponse, { status: 403 });
+      return NextResponse.json(errorResponse, { status: 401 });
     }
     const body = await request.json().catch(() => ({}));
     const { deleteQuote = false } = body as { deleteQuote?: boolean };
@@ -112,6 +112,20 @@ export async function DELETE(
         error: 'Invoice not found',
       };
       return NextResponse.json(errorResponse, { status: 404 });
+    }
+
+    if (session.role !== 'admin' && invoice.created_by !== session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden: You can only delete your own invoices',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
+    }
+
+    if (session.role !== 'admin' && invoice.created_by !== session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden: You can only delete your own invoices',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
     }
 
     // RULE 5: Enforce Soft Delete to maintain fiscal audit trail
