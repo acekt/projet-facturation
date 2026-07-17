@@ -214,11 +214,11 @@ export async function DELETE(
 
     // RBAC Check
     const session = await getSession();
-    if (!session || !session.userId || session.role !== 'admin') {
+    if (!session || !session.userId) {
       const errorResponse: ErrorResponse = {
-        error: 'Forbidden: Only Admin can delete quotes',
+        error: 'Unauthorized: Authentication required',
       };
-      return NextResponse.json(errorResponse, { status: 403 });
+      return NextResponse.json(errorResponse, { status: 401 });
     }
 
     const quote = db.prepare('SELECT status, deletedAt, created_by FROM quotes WHERE id = ?').get(id) as (DbQuote & { created_by?: string }) | undefined;
@@ -227,6 +227,20 @@ export async function DELETE(
         error: 'Quote not found',
       };
       return NextResponse.json(errorResponse, { status: 404 });
+    }
+
+    if (session.role !== 'admin' && quote.created_by !== session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden: You can only delete your own quotes',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
+    }
+
+    if (session.role !== 'admin' && quote.created_by !== session.userId) {
+      const errorResponse: ErrorResponse = {
+        error: 'Forbidden: You can only delete your own quotes',
+      };
+      return NextResponse.json(errorResponse, { status: 403 });
     }
 
     // Business rule: A quote cannot be deleted if it has already been converted to an invoice

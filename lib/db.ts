@@ -388,13 +388,11 @@ try {
     db.prepare("ALTER TABLE invoices ADD COLUMN created_by TEXT").run();
   }
 
-<<<<<<< HEAD
   const servicesColumns = db.prepare("PRAGMA table_info(services)").all() as Array<{ name: string }>;
   if (!servicesColumns.some(c => c.name === 'created_by')) {
     db.prepare("ALTER TABLE services ADD COLUMN created_by TEXT").run();
   }
 
-=======
   if (!invoicesColumns.some(c => c.name === 'dueDate')) {
     db.prepare("ALTER TABLE invoices ADD COLUMN dueDate TEXT").run();
     db.prepare("UPDATE invoices SET dueDate = date(date, '+30 days') WHERE dueDate IS NULL").run();
@@ -405,7 +403,6 @@ try {
   db.prepare("UPDATE invoices SET status = 'PAID' WHERE status = 'paid'").run();
   db.prepare("UPDATE invoices SET status = 'PARTIALLY_PAID' WHERE status IN ('partially_paid', 'partial')").run();
 
->>>>>>> 6cda2b22dcd445d3f0421bc8bec2c1c70a15927d
   // TPS Migrations
   const settingsColumns = db.prepare("PRAGMA table_info(settings)").all() as Array<{ name: string }>;
   if (!settingsColumns.some(c => c.name === 'tpsRate')) {
@@ -485,6 +482,8 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_quotes_status_deleted ON quotes(status, deletedAt);
   CREATE INDEX IF NOT EXISTS idx_quotes_created_by ON quotes(created_by);
   CREATE INDEX IF NOT EXISTS idx_payments_invoice_deleted ON payments(invoiceId, deletedAt);
+  CREATE INDEX IF NOT EXISTS idx_invoices_dashboard ON invoices(deletedAt, status, created_by);
+  CREATE INDEX IF NOT EXISTS idx_quotes_dashboard ON quotes(deletedAt, status, created_by);
   CREATE INDEX IF NOT EXISTS idx_clients_deleted ON clients(deletedAt);
 `);
 
