@@ -33,7 +33,9 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
-import { ViewFormatSelector } from "@/components/ui/view-format-selector"
+<<<<<<< HEAD
+import { pdf } from '@react-pdf/renderer'
+import { PDFDocument } from "@/components/pdf-document"
 // ── Design System
 import { PageHeader } from "@/components/ui/page-header"
 import { SearchBar } from "@/components/ui/search-bar"
@@ -48,6 +50,9 @@ import {
   AmountCell,
   ActionsCell,
 } from "@/components/ui/data-table"
+=======
+import { ViewFormatSelector } from "@/components/ui/view-format-selector"
+>>>>>>> 6cda2b22dcd445d3f0421bc8bec2c1c70a15927d
 import {
   AlertDialog,
   AlertDialogAction,

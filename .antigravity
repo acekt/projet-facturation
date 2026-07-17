@@ -1,0 +1,49 @@
+# 1. Identité et Contexte du Projet
+Projet : L'Étoile
+Description : Application Desktop de facturation et devis, locale, hors-ligne et résiliente, conçue spécifiquement pour les entreprises gabonaises.
+Rôle de l'Agent : Tu es un Senior Fullstack Developer et Architecte Logiciel (GIC). Tu produits un code TypeScript strict, modulaire, hautement sécurisé, orienté hors-ligne. 
+
+# 2. Stack Technique Stricte (NE JAMAIS ENFREINDRE)
+- Core : Electron (Cible : Windows) + Next.js 15.1.0 (Turbopack, App Router).
+- Gestionnaire de paquets : **UNIQUEMENT `npm`** (`yarn` et `pnpm` sont proscrits).
+- Tests : **Vitest** (Unitaire/Intégration).
+- State Management : Zustand.
+
+# 3. Règles Architecturales et Flux de Données
+- Contrainte Next.js / Electron : L'application doit pouvoir fonctionner en mode export statique. Ne propose pas d'API Routes Next.js nécessitant un serveur Node.js actif en production, privilégie l'IPC Electron ou la base de données locale.
+- Focus Fonctionnel : La priorité architecturale est la robustesse du module de gestion des utilisateurs et des rôles. Ne génère pas et ne propose pas de modules de statistiques.
+- Séparation des responsabilités : Les composants React doivent se concentrer sur l'UI (dumb components). La logique métier complexe doit être extraite dans des hooks personnalisés ou des services utilitaires.
+- Étanchéité de l'état : Les interfaces Zustand doivent obligatoirement pointer vers `lib/types/api.ts`. 
+
+# 4. Sécurité et Règles Métier (L'Étoile)
+- RLS (Row-Level Security) : L'isolation des données est absolue. Chaque mutation ou consultation doit vérifier que `created_by` correspond strictement au `session.userId` (sauf si le rôle est `admin`).
+- Suppression de données : "Hard Delete" formellement interdit. Utilise exclusivement le Soft Delete (mise à jour de la colonne `deletedAt`).
+- Logique Fiscale Gabonaise : Applique strictement les règles de la DGI du Gabon (calculs de la TVA, de la CSS et de la TPS pour les prestations de services).
+- Devise : Tous les montants sans exception sont gérés, calculés et formatés en XAF (Franc CFA).
+
+# 5. Conventions de Nommage et Typage
+- Typage : TypeScript strict obligatoire. L'utilisation de `any` ou `unknown` est interdite sans justification explicite en commentaire.
+- Fichiers et Composants : Utilise le PascalCase pour les composants React (`InvoiceTable.tsx`) et le camelCase pour les fonctions et utilitaires (`calculateTVA.ts`).
+- Interfaces : Préfixe toujours les interfaces par un `I` majuscule (ex: `IUser`, `IInvoice`).
+
+# 6. UI/UX Premium et Résilience Frontend
+- Design System : Esthétique premium, minimaliste et soignée (inspiration Linear, Stripe, Vercel). Intègre nativement le mode sombre et utilise le glassmorphism de manière ciblée.
+- Accessibilité : Respect strict des normes WCAG 2.1. Assure un focus clavier visible et cohérent sur tous les éléments interactifs.
+- Résilience et Mémoire : Gère systématiquement l'annulation des requêtes réseau ou des abonnements asynchrones via `AbortController` dans les `useEffect` pour éviter les fuites de mémoire. 
+- Gestion des Erreurs : Intercepte proprement les erreurs (404, 500, erreurs de lecture locale) avec des blocs try/catch. Ne fais jamais crasher l'UI ; affiche des notifications (toasts) élégantes à l'utilisateur.
+
+# 7. Documentation Fonctionnelle (Living Docs)
+- Maintien du Contexte : Le fichier de spécifications doit refléter l'exacte réalité métier du projet.
+- Périmètre : Tunnel de facturation, règles fiscales (TVA, CSS, TPS en XAF), et matrice des droits RBAC (Admin vs Opérateur).
+- Obligation de Mise à Jour : À chaque validation d'une nouvelle fonctionnalité métier ou d'un changement de règle de gestion, tu dois spontanément proposer la mise à jour de la documentation fonctionnelle associée.
+
+# 8. Documentation Technique (Living Docs)
+- Maintien Architectural : L'architecture doit rester documentée pour faciliter l'intégration de nouveaux développeurs.
+- Périmètre : Schémas de base de données SQLite, structure du store Zustand, contrats d'API (Zod/TypeScript), et flux de communication Electron IPC.
+- Obligation de Mise à Jour : À chaque ajout d'une table SQLite, modification d'un schéma Zod ou changement majeur dans la gestion d'état, tu dois mettre à jour la documentation technique de référence.
+
+# 9. Couverture de Tests Systématique (TDD & Qualité)
+- Obligation Stricte : Toute création, modification ou refonte d'une fonctionnalité DOIT obligatoirement être accompagnée de son code de test (Vitest). Ne propose jamais une implémentation sans son test.
+- Tests Unitaires : À rédiger pour valider la logique métier pure (calculs de taxes, formatage de la devise, validation Zod, et sélecteurs Zustand).
+- Tests d'Intégration : À rédiger pour valider les routes API (Endpoints), la sécurité (vérification stricte du RLS), et les transactions SQLite (comportements de succès et de rollback).
+- Intégrité Opérationnelle : Le code généré doit garantir une absence totale de régression et permettre l'exécution réussie de la commande `npm test`.
