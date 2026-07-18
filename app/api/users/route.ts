@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
 import { logAudit } from '@/lib/api/audit';
-import db from '@/lib/db';
+import { UserRepository } from '@/lib/repositories/UserRepository';
 import bcrypt from 'bcryptjs';
 import { userCreateSchema } from '@/lib/validations';
 import type { UserCreateRequest, UserResponse, ErrorResponse, DbUser } from '@/lib/types/api';
@@ -21,9 +21,7 @@ export async function GET() {
       return NextResponse.json(errorResponse, { status: 403 });
     }
 
-    const users = db.prepare(
-      'SELECT * FROM users WHERE deletedAt IS NULL'
-    ).all() as DbUser[];
+    const users = UserRepository.findAllActive();
 
     const userResponses: UserResponse[] = users.map((user): UserResponse => ({
       id: user.id,
@@ -91,10 +89,17 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     try {
-      db.prepare(`
-        INSERT INTO users (id, name, email, username, password, role, is_active, created_by, phone)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(id, cleanName, cleanEmail, cleanUsername, hashedPassword, role, is_active ? 1 : 0, session.userId, phone || null);
+      UserRepository.create({
+        id,
+        name: cleanName,
+        email: cleanEmail,
+        username: cleanUsername,
+        password: hashedPassword,
+        role: role,
+        is_active: is_active ? 1 : 0,
+        created_by: session.userId,
+        phone: phone || null
+      });
     } catch (error: any) {
       if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
         return NextResponse.json({ error: 'Un utilisateur avec cet email ou identifiant existe déjà.' }, { status: 400 });

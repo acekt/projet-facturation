@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
+import { QuoteRepository } from '@/lib/repositories/QuoteRepository';
 import { quoteSchema } from '@/lib/validations';
 import { computeTotals, getTaxRates } from '@/lib/api/invoice-logic';
 import crypto from 'crypto';
@@ -29,27 +30,7 @@ export async function GET(_request: Request) {
       return NextResponse.json({ error: 'Unauthorized: Authentication required' } as ErrorResponse, { status: 401 });
     }
 
-    let sql = `
-      SELECT q.*,
-             (SELECT json_group_array(json_object(
-               'id', id,
-               'description', description,
-               'quantity', quantity,
-               'unitPrice', unitPrice,
-               'total', total
-             )) FROM quote_items WHERE quoteId = q.id) as items
-      FROM quotes q
-      WHERE q.deletedAt IS NULL
-    `;
-
-    const params: any[] = [];
-    if (session.role !== 'admin') {
-      sql += ` AND q.created_by = ?`;
-      params.push(session.userId);
-    }
-    sql += ` ORDER BY createdAt DESC`;
-
-    const quotes = db.prepare(sql).all(...params) as (DbQuote & { items: string })[];
+    const quotes = QuoteRepository.findAll(session.userId, session.role);
 
     const formattedQuotes: QuoteResponse[] = quotes.map((q): QuoteResponse => ({
       ...q,

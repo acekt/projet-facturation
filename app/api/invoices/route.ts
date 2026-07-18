@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
+import { InvoiceRepository } from '@/lib/repositories/InvoiceRepository';
 import { invoiceSchema } from '@/lib/validations';
 import { computeTotals, getTaxRates } from '@/lib/api/invoice-logic';
 import crypto from 'crypto';
@@ -25,34 +26,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized: Authentication required' } as ErrorResponse, { status: 401 });
     }
 
-    let query = `
-      SELECT i.*,
-             (SELECT json_group_array(json_object(
-               'id', id,
-               'description', description,
-               'quantity', quantity,
-               'unitPrice', unitPrice,
-               'total', total
-             )) FROM invoice_items WHERE invoiceId = i.id) as items,
-             (SELECT json_group_array(json_object(
-               'id', id,
-               'amount', amount,
-               'paymentMethod', paymentMethod,
-               'date', date
-             )) FROM payments WHERE invoiceId = i.id AND deletedAt IS NULL) as payments
-      FROM invoices i
-      WHERE i.deletedAt IS NULL
-    `;
-    const params: unknown[] = [];
-
-    if (session.role !== 'admin') {
-      query += ' AND i.created_by = ?';
-      params.push(session.userId);
-    }
-
-    query += ' ORDER BY createdAt DESC';
-
-    const invoices = db.prepare(query).all(...params) as (DbInvoice & { items: string; payments: string })[];
+    const invoices = InvoiceRepository.findAll(session.userId, session.role);
 
     const formattedInvoices: InvoiceResponse[] = invoices.map((i): InvoiceResponse => ({
       ...i,

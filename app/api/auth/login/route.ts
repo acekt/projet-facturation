@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { UserRepository } from '@/lib/repositories/UserRepository';
 import db from '@/lib/db';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
@@ -121,7 +122,7 @@ export async function POST(request: Request) {
     }
 
     try {
-      db.prepare("UPDATE users SET last_login_at = datetime('now') WHERE id = ?").run(user.id);
+      UserRepository.updateLastLogin(user.id);
     } catch (e) {
       console.error('[Login] Failed to update last_login_at:', e);
     }
