@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestDatabase, seedTestData, cleanupTestDatabase, createAuthenticatedSession, getTestDatabase } from '../helpers/db';
 import crypto from 'crypto';
@@ -58,7 +59,7 @@ describe('Integration Test - End-to-End Financial Flow', () => {
       tpsAmount: 960,  // 9.5% of 10100 -> Math.round(959.5) = 960
       cssAmount: 100,
       total: 12878,    // 10100 + 1818 + 960 = 12878
-      status: 'EN_ATTENTE',
+      status: QUOTE_STATUS.EN_ATTENTE,
       items: [
         {
           description: 'Web development services',
@@ -85,7 +86,7 @@ describe('Integration Test - End-to-End Financial Flow', () => {
     // Verify quote in DB
     const dbQuote = testDb.prepare('SELECT * FROM quotes WHERE id = ?').get(quoteId) as any;
     expect(dbQuote).toBeDefined();
-    expect(dbQuote.status).toBe('EN_ATTENTE');
+    expect(dbQuote.status).toBe(QUOTE_STATUS.EN_ATTENTE);
 
     // 2. Convert quote to invoice
     const convertReq = new Request('http://localhost/api/quotes/convert', {
@@ -103,12 +104,12 @@ describe('Integration Test - End-to-End Financial Flow', () => {
 
     // Verify quote status changed to 'CONVERTI'
     const dbQuoteInvoiced = testDb.prepare('SELECT status FROM quotes WHERE id = ?').get(quoteId) as any;
-    expect(dbQuoteInvoiced.status).toBe('CONVERTI');
+    expect(dbQuoteInvoiced.status).toBe(QUOTE_STATUS.CONVERTI);
 
     // Verify invoice created in DB
     const dbInvoice = testDb.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceId) as any;
     expect(dbInvoice).toBeDefined();
-    expect(dbInvoice.status).toBe('UNPAID');
+    expect(dbInvoice.status).toBe(INVOICE_STATUS.UNPAID);
     expect(dbInvoice.total).toBe(12878);
 
     // 3. Record a partial payment
@@ -135,7 +136,7 @@ describe('Integration Test - End-to-End Financial Flow', () => {
 
     // Assert that the invoice is status 'PARTIALLY_PAID' and remaining is computed
     const dbInvoicePaid = testDb.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceId) as any;
-    expect(dbInvoicePaid.status).toBe('PARTIALLY_PAID');
+    expect(dbInvoicePaid.status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
 
     // Get total payments for invoice
     const totalPayments = testDb.prepare('SELECT SUM(amount) as total FROM payments WHERE invoiceId = ? AND deletedAt IS NULL').get(invoiceId) as any;
@@ -165,6 +166,6 @@ describe('Integration Test - End-to-End Financial Flow', () => {
 
     // Verify invoice status reverted to 'UNPAID'
     const dbInvoiceReverted = testDb.prepare('SELECT * FROM invoices WHERE id = ?').get(invoiceId) as any;
-    expect(dbInvoiceReverted.status).toBe('UNPAID');
+    expect(dbInvoiceReverted.status).toBe(INVOICE_STATUS.UNPAID);
   });
 });

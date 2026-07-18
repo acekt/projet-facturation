@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useStore } from '@/lib/store';
 import {
@@ -48,7 +49,7 @@ describe('🚨 PHASE 9/10 : AUDIT TDD — PARAMÈTRES & JOURNAL D’AUDIT (APPEN
     it('devrait rejeter fermement en 405 toute tentative de POST, PUT, PATCH ou DELETE sur /api/audit-logs par tout rôle', async () => {
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-1',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admin',
         expiresAt: Date.now() + 3600000,
       });
@@ -81,7 +82,7 @@ describe('🚨 PHASE 9/10 : AUDIT TDD — PARAMÈTRES & JOURNAL D’AUDIT (APPEN
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-trace',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admin_audit',
         expiresAt: Date.now() + 3600000,
       });
@@ -108,7 +109,7 @@ describe('🚨 PHASE 9/10 : AUDIT TDD — PARAMÈTRES & JOURNAL D’AUDIT (APPEN
     it('devrait interdire à un opérateur d’accéder à GET /api/audit-logs ou de modifier les paramètres de l’entreprise', async () => {
       vi.mocked(getSession).mockResolvedValue({
         userId: 'oper-1',
-        role: 'user', // non-admin
+        role: ROLES.USER, // non-admin
         username: 'oper',
         expiresAt: Date.now() + 3600000,
       });
@@ -128,7 +129,7 @@ describe('🚨 PHASE 9/10 : AUDIT TDD — PARAMÈTRES & JOURNAL D’AUDIT (APPEN
       // Vérifions qu'un administrateur a en revanche bien accès
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-1',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admin',
         expiresAt: Date.now() + 3600000,
       });
@@ -145,7 +146,7 @@ describe('🚨 PHASE 9/10 : AUDIT TDD — PARAMÈTRES & JOURNAL D’AUDIT (APPEN
     it('devrait rejeter une mise à jour des paramètres avec un taux TVA négatif ou des données invalides via Zod', async () => {
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-1',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admin',
         expiresAt: Date.now() + 3600000,
       });
@@ -171,7 +172,7 @@ describe('🚨 PHASE 9/10 : AUDIT TDD — PARAMÈTRES & JOURNAL D’AUDIT (APPEN
     it('devrait permettre de mettre à jour légitimement les identifiants fiscaux NIF / RCCM par l’administrateur', async () => {
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-1',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admin',
         expiresAt: Date.now() + 3600000,
       });

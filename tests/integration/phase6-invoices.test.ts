@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { getNextNumber } from '@/lib/api/numbering';
 import { useStore } from '@/lib/store';
@@ -86,7 +87,7 @@ describe('🚨 PHASE 6/10 : AUDIT TDD — GESTION DES FACTURES (ACID, CONVERSION
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-op',
-        role: 'user',
+        role: ROLES.USER,
         username: 'op',
         expiresAt: Date.now() + 3600000,
       });
@@ -137,7 +138,7 @@ describe('🚨 PHASE 6/10 : AUDIT TDD — GESTION DES FACTURES (ACID, CONVERSION
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-op',
-        role: 'user',
+        role: ROLES.USER,
         username: 'op',
         expiresAt: Date.now() + 3600000,
       });
@@ -166,7 +167,7 @@ describe('🚨 PHASE 6/10 : AUDIT TDD — GESTION DES FACTURES (ACID, CONVERSION
 
       // Vérification que le devis source est passé en CONVERTI
       const updatedQuote = db.prepare('SELECT status FROM quotes WHERE id = ?').get('quote-src') as { status: string };
-      expect(updatedQuote.status).toBe('CONVERTI');
+      expect(updatedQuote.status).toBe(QUOTE_STATUS.CONVERTI);
     });
 
     it('devrait interdire la double conversion d’un devis déjà CONVERTI', async () => {
@@ -180,7 +181,7 @@ describe('🚨 PHASE 6/10 : AUDIT TDD — GESTION DES FACTURES (ACID, CONVERSION
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-op',
-        role: 'user',
+        role: ROLES.USER,
         username: 'op',
         expiresAt: Date.now() + 3600000,
       });
@@ -222,7 +223,7 @@ describe('🚨 PHASE 6/10 : AUDIT TDD — GESTION DES FACTURES (ACID, CONVERSION
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-user',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admin',
         expiresAt: Date.now() + 3600000,
       });
@@ -267,7 +268,7 @@ describe('🚨 PHASE 6/10 : AUDIT TDD — GESTION DES FACTURES (ACID, CONVERSION
       // Session en tant que User A
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-a',
-        role: 'user',
+        role: ROLES.USER,
         username: 'usera',
         expiresAt: Date.now() + 3600000,
       });
@@ -302,11 +303,12 @@ describe('🚨 PHASE 6/10 : AUDIT TDD — GESTION DES FACTURES (ACID, CONVERSION
         tvaAmount: 18000,
         cssAmount: 1000,
         total: 119000,
-        status: 'pending' as const,
+        status: 'pending' as any,
+        dueDate: '2026-08-08',
         items: [],
         payments: [],
         createdAt: '2026-07-08',
-      };
+      } as any;
 
       store.addInvoice(inv1);
       expect(useStore.getState().invoices).toHaveLength(1);

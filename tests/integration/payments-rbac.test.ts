@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestDatabase, seedTestData, cleanupTestDatabase, createAuthenticatedSession, getTestDatabase } from '../helpers/db';
 import crypto from 'crypto';
@@ -141,7 +142,7 @@ describe('API RBAC Tests - Payments Module', () => {
 
       expect(response.status).toBe(200);
       expect(data.id).toBeDefined();
-      expect(data.newStatus).toBe('PARTIALLY_PAID');
+      expect(data.newStatus).toBe(INVOICE_STATUS.PARTIALLY_PAID);
     });
 
     it('should deny Admin from creating payments (only Users can create)', async () => {
@@ -292,7 +293,7 @@ describe('API RBAC Tests - Payments Module', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.newStatus).toBe('UNPAID');
+      expect(data.newStatus).toBe(INVOICE_STATUS.UNPAID);
     });
 
     it('should deny User from soft-deleting payments (only Admin can delete)', async () => {
@@ -523,10 +524,10 @@ describe('API RBAC Tests - Payments Module', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.newStatus).toBe('UNPAID');
+      expect(data.newStatus).toBe(INVOICE_STATUS.UNPAID);
 
       const invoice = testDb.prepare('SELECT status FROM invoices WHERE id = ?').get(invoiceId) as { status: string };
-      expect(invoice.status).toBe('UNPAID');
+      expect(invoice.status).toBe(INVOICE_STATUS.UNPAID);
     });
 
     it('should recalculate invoice to PARTIALLY_PAID when deleting one of multiple payments', async () => {
@@ -594,10 +595,10 @@ describe('API RBAC Tests - Payments Module', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.newStatus).toBe('PARTIALLY_PAID');
+      expect(data.newStatus).toBe(INVOICE_STATUS.PARTIALLY_PAID);
 
       const invoice = testDb.prepare('SELECT status FROM invoices WHERE id = ?').get(invoiceId) as { status: string };
-      expect(invoice.status).toBe('PARTIALLY_PAID');
+      expect(invoice.status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
     });
   });
 });

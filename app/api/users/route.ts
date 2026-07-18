@@ -34,7 +34,7 @@ export async function GET() {
       is_active: user.is_active,
       created_at: user.created_at,
       last_login_at: user.last_login_at || undefined,
-      phone: user.phone || undefined,
+      phone: String(user.phone || ''),
       deletedAt: user.deletedAt || undefined,
     }));
 
@@ -82,7 +82,7 @@ export async function POST(request: Request) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    const { name, email, username, role, password, phone, force_password_change, is_active }: UserCreateRequest = validation.data;
+    const { name, email, role, password, phone, force_password_change, is_active } = validation.data; const username = validation.data.username || '';
 
     const id = globalThis.crypto.randomUUID();
     const cleanUsername = username.toLowerCase().trim();
@@ -107,12 +107,12 @@ export async function POST(request: Request) {
     const userResponse: UserResponse = {
       id,
       name: cleanName,
-      email: cleanEmail || undefined,
-      username: cleanUsername,
+      email: cleanEmail || '',
+      username: cleanUsername as string,
       role,
       is_active: is_active ? 1 : 0,
       created_at: new Date().toISOString(),
-      phone,
+      phone: phone || '',
     };
 
     return NextResponse.json(userResponse);

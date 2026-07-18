@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestDatabase, seedTestData, cleanupTestDatabase, createAuthenticatedSession, getTestDatabase } from '../helpers/db';
 import crypto from 'crypto';
@@ -176,7 +177,7 @@ describe('🚨 PHASE 3/10 : AUDIT TDD — MODULE GESTION DES CLIENTS 🚨', () =
       `).run(userAId, 'usera_cli', 'usera_cli@test.com', 'hash', 'User A Cli', 'user', 1, 0, new Date().toISOString());
 
       // Admin crée un client
-      vi.mocked(getSession).mockResolvedValue({ userId: adminId, role: 'admin', name: 'Admin Cli', username: 'admin_cli' });
+      vi.mocked(getSession).mockResolvedValue({ userId: adminId, role: ROLES.ADMIN, name: 'Admin Cli', username: 'admin_cli' });
       const resCreateB = await POSTClient(
         new Request('http://localhost/api/clients', {
           method: 'POST',
@@ -191,7 +192,7 @@ describe('🚨 PHASE 3/10 : AUDIT TDD — MODULE GESTION DES CLIENTS 🚨', () =
       expect(resCreateB.status).toBe(200);
 
       // ACT : User A appelle GET /api/clients
-      vi.mocked(getSession).mockResolvedValue({ userId: userAId, role: 'user', name: 'User A Cli', username: 'usera_cli' });
+      vi.mocked(getSession).mockResolvedValue({ userId: userAId, role: ROLES.USER, name: 'User A Cli', username: 'usera_cli' });
       const listResA = await GETClients();
       const listA = await listResA.json();
 
@@ -215,7 +216,7 @@ describe('🚨 PHASE 3/10 : AUDIT TDD — MODULE GESTION DES CLIENTS 🚨', () =
       `).run(userBId, 'userb_cli', 'userb_cli@test.com', 'hash', 'User B Cli', 'user', 1, 0, new Date().toISOString());
 
       // Admin crée le client
-      vi.mocked(getSession).mockResolvedValue({ userId: adminId, role: 'admin', name: 'Admin Cli', username: 'admin_cli' });
+      vi.mocked(getSession).mockResolvedValue({ userId: adminId, role: ROLES.ADMIN, name: 'Admin Cli', username: 'admin_cli' });
       const resCreateA = await POSTClient(
         new Request('http://localhost/api/clients', {
           method: 'POST',
@@ -229,7 +230,7 @@ describe('🚨 PHASE 3/10 : AUDIT TDD — MODULE GESTION DES CLIENTS 🚨', () =
       const clientA = await resCreateA.json();
 
       // Switch vers User B
-      vi.mocked(getSession).mockResolvedValue({ userId: userBId, role: 'user', name: 'User B Cli', username: 'userb_cli' });
+      vi.mocked(getSession).mockResolvedValue({ userId: userBId, role: ROLES.USER, name: 'User B Cli', username: 'userb_cli' });
 
       // Tentative PATCH par User B
       const patchRes = await PATCHClient(
@@ -262,7 +263,7 @@ describe('🚨 PHASE 3/10 : AUDIT TDD — MODULE GESTION DES CLIENTS 🚨', () =
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(adminId, 'admin_cli', 'admin_cli@test.com', 'hash', 'Admin Cli', 'admin', 1, 0, new Date().toISOString());
 
-      vi.mocked(getSession).mockResolvedValue({ userId: adminId, role: 'admin', name: 'Admin Cli', username: 'admin_cli' });
+      vi.mocked(getSession).mockResolvedValue({ userId: adminId, role: ROLES.ADMIN, name: 'Admin Cli', username: 'admin_cli' });
 
       const resCreate = await POSTClient(
         new Request('http://localhost/api/clients', {

@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, afterEach, beforeAll, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 import { createTestDatabase, seedTestData, cleanupTestDatabase, getTestDatabase } from '../helpers/db';
@@ -74,7 +75,7 @@ describe('🚨 PHASE 4/10 : AUDIT TDD — AUTHENTIFICATION & SÉCURITÉ (HMAC, R
       const wrongSecret = 'wrong-secret-key-different-from-valid-secret-key!!';
       const payload = {
         userId: 'admin-id',
-        role: 'admin',
+        role: ROLES.ADMIN,
         exp: Date.now() + 3600_000,
       };
       const cookieSignedWithWrongSecret = await createSignedSessionCookie(payload, wrongSecret);
@@ -118,7 +119,7 @@ describe('🚨 PHASE 4/10 : AUDIT TDD — AUTHENTIFICATION & SÉCURITÉ (HMAC, R
     it('devrait autoriser un administrateur valide à accéder aux routes admin', async () => {
       const adminPayload = {
         userId: 'admin-id',
-        role: 'admin',
+        role: ROLES.ADMIN,
         name: 'Admin Test',
         exp: Date.now() + 3600_000,
       };

@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestDatabase, seedTestData, cleanupTestDatabase, createAuthenticatedSession, getTestDatabase } from '../helpers/db';
 import crypto from 'crypto';
@@ -134,7 +135,7 @@ describe('🚨 PHASE 2/10 : AUDIT TDD — MODULE CATALOGUE DE SERVICES 🚨', ()
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(userAId, 'usera', 'usera@test.com', 'hash', 'User A (Admin)', 'admin', 1, 0, new Date().toISOString());
 
-      const sessionA = { userId: userAId, role: 'admin', name: 'User A', username: 'usera' };
+      const sessionA = { userId: userAId, role: ROLES.ADMIN, name: 'User A', username: 'usera' };
       vi.mocked(getSession).mockResolvedValue(sessionA);
 
       const createRes = await POSTService(
@@ -156,7 +157,7 @@ describe('🚨 PHASE 2/10 : AUDIT TDD — MODULE CATALOGUE DE SERVICES 🚨', ()
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(userBId, 'userb', 'userb@test.com', 'hash', 'User B', 'user', 1, 0, new Date().toISOString());
 
-      const sessionB = { userId: userBId, role: 'user', name: 'User B', username: 'userb' };
+      const sessionB = { userId: userBId, role: ROLES.USER, name: 'User B', username: 'userb' };
       vi.mocked(getSession).mockResolvedValue(sessionB);
 
       // ACT : User B tente de modifier le service de User A
@@ -183,7 +184,7 @@ describe('🚨 PHASE 2/10 : AUDIT TDD — MODULE CATALOGUE DE SERVICES 🚨', ()
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(userAId, 'usera', 'usera@test.com', 'hash', 'User A (Admin)', 'admin', 1, 0, new Date().toISOString());
 
-      const sessionA = { userId: userAId, role: 'admin', name: 'User A', username: 'usera' };
+      const sessionA = { userId: userAId, role: ROLES.ADMIN, name: 'User A', username: 'usera' };
       vi.mocked(getSession).mockResolvedValue(sessionA);
 
       const createRes = await POSTService(
@@ -205,7 +206,7 @@ describe('🚨 PHASE 2/10 : AUDIT TDD — MODULE CATALOGUE DE SERVICES 🚨', ()
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(userBId, 'userb', 'userb@test.com', 'hash', 'User B', 'user', 1, 0, new Date().toISOString());
 
-      const sessionB = { userId: userBId, role: 'user', name: 'User B', username: 'userb' };
+      const sessionB = { userId: userBId, role: ROLES.USER, name: 'User B', username: 'userb' };
       vi.mocked(getSession).mockResolvedValue(sessionB);
 
       // ACT : User B tente de supprimer le service de User A

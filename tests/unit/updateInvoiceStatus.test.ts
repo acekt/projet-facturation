@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import Database from 'better-sqlite3';
 import {
@@ -75,8 +76,8 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('UNPAID');
-      expect(getInvoiceStatus(invoiceId)).toBe('UNPAID');
+      expect(status).toBe(INVOICE_STATUS.UNPAID);
+      expect(getInvoiceStatus(invoiceId)).toBe(INVOICE_STATUS.UNPAID);
     });
 
     it('should set status to UNPAID when total payments equal 0', () => {
@@ -85,8 +86,8 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('UNPAID');
-      expect(getInvoiceStatus(invoiceId)).toBe('UNPAID');
+      expect(status).toBe(INVOICE_STATUS.UNPAID);
+      expect(getInvoiceStatus(invoiceId)).toBe(INVOICE_STATUS.UNPAID);
     });
   });
 
@@ -98,7 +99,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
     });
 
     it('should set status to PARTIALLY_PAID when payment is 25% of total', () => {
@@ -108,7 +109,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
     });
 
     it('should set status to PARTIALLY_PAID when payment is 75% of total', () => {
@@ -118,7 +119,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
     });
 
     it('should set status to PARTIALLY_PAID when payment is 99% of total', () => {
@@ -128,7 +129,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
     });
 
     it('should set status to PARTIALLY_PAID when payment is 1% of total', () => {
@@ -138,7 +139,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
     });
 
     it('should set status to PARTIALLY_PAID with multiple partial payments', () => {
@@ -149,7 +150,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
       expect(getTotalPayments(invoiceId)).toBe(6000);
     });
   });
@@ -162,7 +163,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('PAID');
+      expect(status).toBe(INVOICE_STATUS.PAID);
     });
 
     it('should set status to PAID when payment exceeds total (overpayment)', () => {
@@ -172,7 +173,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('PAID');
+      expect(status).toBe(INVOICE_STATUS.PAID);
     });
 
     it('should set status to PAID with multiple payments that sum to total', () => {
@@ -183,7 +184,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('PAID');
+      expect(status).toBe(INVOICE_STATUS.PAID);
     });
   });
 
@@ -195,15 +196,15 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       // First, status should be PAID
       let status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PAID');
+      expect(status).toBe(INVOICE_STATUS.PAID);
       
       // Soft delete the payment
       softDeletePayment(paymentId);
       
       // Status should recalculate to UNPAID
       status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('UNPAID');
-      expect(getInvoiceStatus(invoiceId)).toBe('UNPAID');
+      expect(status).toBe(INVOICE_STATUS.UNPAID);
+      expect(getInvoiceStatus(invoiceId)).toBe(INVOICE_STATUS.UNPAID);
     });
 
     it('should recalculate to PARTIALLY_PAID when partial payment is soft-deleted', () => {
@@ -214,15 +215,15 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       // First, status should be PAID
       let status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PAID');
+      expect(status).toBe(INVOICE_STATUS.PAID);
       
       // Soft delete one payment
       softDeletePayment(paymentId1);
       
       // Status should recalculate to PARTIALLY_PAID
       status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PARTIALLY_PAID');
-      expect(getInvoiceStatus(invoiceId)).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
+      expect(getInvoiceStatus(invoiceId)).toBe(INVOICE_STATUS.PARTIALLY_PAID);
       expect(getTotalPayments(invoiceId)).toBe(Math.round(total * 0.3));
     });
 
@@ -234,14 +235,14 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       // First, status should be PAID
       let status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PAID');
+      expect(status).toBe(INVOICE_STATUS.PAID);
       
       // Soft delete one payment
       softDeletePayment(paymentId1);
       
       // Status should recalculate to PARTIALLY_PAID (not PAID)
       status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
     });
 
     it('should exclude soft-deleted payments from total calculation', () => {
@@ -255,7 +256,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       // Status should be PARTIALLY_PAID based on remaining payment
       const status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
       expect(getTotalPayments(invoiceId)).toBe(Math.round(total * 0.2));
     });
 
@@ -272,7 +273,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       // Status should be PARTIALLY_PAID based on remaining payment
       const status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
       expect(getTotalPayments(invoiceId)).toBe(Math.round(total * 0.3));
     });
   });
@@ -295,7 +296,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('PAID');
+      expect(status).toBe(INVOICE_STATUS.PAID);
     });
 
     it('should handle very small payments correctly', () => {
@@ -304,7 +305,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
     });
 
     it('should handle very large payments correctly', () => {
@@ -313,7 +314,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('PAID');
+      expect(status).toBe(INVOICE_STATUS.PAID);
     });
 
     it('should handle zero total invoice correctly', () => {
@@ -322,7 +323,7 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       const status = updateInvoiceStatus(db, invoiceId);
       
-      expect(status).toBe('UNPAID');
+      expect(status).toBe(INVOICE_STATUS.UNPAID);
     });
   });
 
@@ -333,17 +334,17 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       // Initial state: UNPAID
       let status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('UNPAID');
+      expect(status).toBe(INVOICE_STATUS.UNPAID);
       
       // Add partial payment: PARTIALLY_PAID
       createTestPayment(invoiceId, Math.round(total * 0.5));
       status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
       
       // Add remaining payment: PAID
       createTestPayment(invoiceId, Math.round(total * 0.5));
       status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PAID');
+      expect(status).toBe(INVOICE_STATUS.PAID);
     });
 
     it('should transition PAID → PARTIALLY_PAID when payment is soft-deleted', () => {
@@ -353,12 +354,12 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       // Initial state: PAID
       let status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PAID');
+      expect(status).toBe(INVOICE_STATUS.PAID);
       
       // Soft delete payment: PARTIALLY_PAID (if partial) or UNPAID (if full)
       softDeletePayment(paymentId);
       status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('UNPAID');
+      expect(status).toBe(INVOICE_STATUS.UNPAID);
     });
 
     it('should handle complex payment and soft-delete sequence', () => {
@@ -370,22 +371,22 @@ describe('updateInvoiceStatus - Financial Status Transitions', () => {
       
       // Initial: PAID (or close to it)
       let status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PAID');
+      expect(status).toBe(INVOICE_STATUS.PAID);
       
       // Soft delete payment1: PARTIALLY_PAID
       softDeletePayment(paymentId1);
       status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
       
       // Soft delete payment2: PARTIALLY_PAID
       softDeletePayment(paymentId2);
       status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('PARTIALLY_PAID');
+      expect(status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
       
       // Soft delete payment3: UNPAID
       softDeletePayment(paymentId3);
       status = updateInvoiceStatus(db, invoiceId);
-      expect(status).toBe('UNPAID');
+      expect(status).toBe(INVOICE_STATUS.UNPAID);
     });
   });
 });
