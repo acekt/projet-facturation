@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestDatabase, seedTestData, cleanupTestDatabase, createAuthenticatedSession, getTestDatabase } from '../helpers/db';
 import crypto from 'crypto';
@@ -198,7 +199,7 @@ describe('API RBAC Tests - Quotes Module', () => {
           tpsAmount: 960,
           cssAmount: 100,
           total: 12878,
-          status: 'EN_ATTENTE',
+          status: QUOTE_STATUS.EN_ATTENTE,
           items: [
             {
               description: 'Test item',
@@ -240,7 +241,7 @@ describe('API RBAC Tests - Quotes Module', () => {
           tpsAmount: 960,
           cssAmount: 100,
           total: 12878,
-          status: 'EN_ATTENTE',
+          status: QUOTE_STATUS.EN_ATTENTE,
           items: [
             {
               description: 'Test item',
@@ -280,7 +281,7 @@ describe('API RBAC Tests - Quotes Module', () => {
           tpsAmount: 960,
           cssAmount: 100,
           total: 12878,
-          status: 'EN_ATTENTE',
+          status: QUOTE_STATUS.EN_ATTENTE,
           items: [
             {
               description: 'Test item',

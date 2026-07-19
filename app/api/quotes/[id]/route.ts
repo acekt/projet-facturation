@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
 import db from '@/lib/db';
+import { QuoteRepository } from '@/lib/repositories/QuoteRepository';
 import { quoteSchema } from '@/lib/validations';
 import { computeTotals, getTaxRates } from '@/lib/api/invoice-logic';
 import crypto from 'crypto';
@@ -30,7 +31,7 @@ export async function GET(
       return NextResponse.json(errorResponse, { status: 401 });
     }
 
-    const quote = db.prepare('SELECT * FROM quotes WHERE id = ? AND deletedAt IS NULL').get(id) as (DbQuote & { created_by?: string }) | undefined;
+    const quote = QuoteRepository.findById(id);
     if (!quote) {
       const errorResponse: ErrorResponse = {
         error: 'Quote not found',
@@ -97,7 +98,7 @@ export async function PUT(
     }
 
     // Fetch existing quote
-    const existingQuote = db.prepare('SELECT status, deletedAt, created_by FROM quotes WHERE id = ?').get(id) as (DbQuote & { created_by?: string }) | undefined;
+    const existingQuote = QuoteRepository.findWithStatus(id);
     if (!existingQuote || existingQuote.deletedAt !== null) {
       const errorResponse: ErrorResponse = {
         error: 'Quote not found',
@@ -221,7 +222,7 @@ export async function DELETE(
       return NextResponse.json(errorResponse, { status: 401 });
     }
 
-    const quote = db.prepare('SELECT status, deletedAt, created_by FROM quotes WHERE id = ?').get(id) as (DbQuote & { created_by?: string }) | undefined;
+    const quote = QuoteRepository.findWithStatus(id);
     if (!quote || quote.deletedAt !== null) {
       const errorResponse: ErrorResponse = {
         error: 'Quote not found',
@@ -254,7 +255,7 @@ export async function DELETE(
     // AN-3 FIX: Soft delete using deletedAt as the sole marker of deletion.
     // The original status (EN_ATTENTE) is preserved for fiscal audit purposes.
     // 'rejected' was a phantom status from a legacy version — removed.
-    db.prepare("UPDATE quotes SET deletedAt = datetime('now') WHERE id = ?").run(id);
+    QuoteRepository.softDelete(id);
     logAudit('DELETE', 'quote', id, `Devis supprimé: ${quote.number || id}`, session.userId, session.name || session.username || null);
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -289,7 +290,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const quote = db.prepare('SELECT status, deletedAt, created_by FROM quotes WHERE id = ?').get(id) as (DbQuote & { created_by?: string }) | undefined;
+    const quote = QuoteRepository.findWithStatus(id);
     if (!quote || quote.deletedAt !== null) {
       return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
     }
@@ -310,7 +311,7 @@ export async function PATCH(
       );
     }
 
-    db.prepare('UPDATE quotes SET status = ? WHERE id = ?').run(body.status, id);
+    QuoteRepository.updateStatus(id, body.status);
     logAudit('UPDATE', 'quote', id, `Changement de statut devis: ${quote.status} -> ${body.status}`, session.userId, session.name || session.username || null);
 
     return NextResponse.json({ success: true, status: body.status });

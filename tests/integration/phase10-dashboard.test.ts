@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { GET as GETDashboardMetrics } from '@/app/api/dashboard/metrics/route';
 import { getSession } from '@/lib/api/auth';
@@ -55,7 +56,7 @@ describe('🚨 PHASE 10/10 : AUDIT TDD — TABLEAU DE BORD OPÉRATIONNEL (AGRÉG
     it('devrait sommer les montants réellement encaissés (PAID + PARTIALLY_PAID) dans totalRevenue et les restes à charge dans totalPending', async () => {
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-dash',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admindash',
         expiresAt: Date.now() + 3600000,
       });
@@ -110,7 +111,7 @@ describe('🚨 PHASE 10/10 : AUDIT TDD — TABLEAU DE BORD OPÉRATIONNEL (AGRÉG
     it('devrait exclure du totalRevenue du mois courant les encaissements datant du mois précédent', async () => {
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-dash',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admindash',
         expiresAt: Date.now() + 3600000,
       });
@@ -159,7 +160,7 @@ describe('🚨 PHASE 10/10 : AUDIT TDD — TABLEAU DE BORD OPÉRATIONNEL (AGRÉG
     it('devrait retourner une structure JSON propre avec des montants à 0 sur une BDD vide', async () => {
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-dash',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admindash',
         expiresAt: Date.now() + 3600000,
       });
@@ -210,7 +211,7 @@ describe('🚨 PHASE 10/10 : AUDIT TDD — TABLEAU DE BORD OPÉRATIONNEL (AGRÉG
       // 1) Vérification pour l'opérateur connecté
       vi.mocked(getSession).mockResolvedValue({
         userId: 'oper-dash',
-        role: 'user', // Opérateur
+        role: ROLES.USER, // Opérateur
         username: 'operdash',
         expiresAt: Date.now() + 3600000,
       });
@@ -230,7 +231,7 @@ describe('🚨 PHASE 10/10 : AUDIT TDD — TABLEAU DE BORD OPÉRATIONNEL (AGRÉG
       // 2) Vérification pour l'administrateur connecté
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-dash',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admindash',
         expiresAt: Date.now() + 3600000,
       });

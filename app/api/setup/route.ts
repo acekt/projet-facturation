@@ -129,6 +129,7 @@ export async function POST(request: Request) {
         role: 'admin',
         is_active: 1,
         phone: phone || undefined,
+        created_at: new Date().toISOString(),
       },
     };
 

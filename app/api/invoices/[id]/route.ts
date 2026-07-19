@@ -4,6 +4,7 @@ import { getSession } from '@/lib/api/auth';
 import { logAudit } from '@/lib/api/audit';
 import { getNextNumber } from '@/lib/api/numbering';
 import db from '@/lib/db';
+import { InvoiceRepository } from '@/lib/repositories/InvoiceRepository';
 import type { InvoiceResponse, InvoiceItem, PaymentResponse, ErrorResponse, DbInvoice, DbInvoiceItem, DbPayment } from '@/lib/types/api';
 
 export const dynamic = 'force-dynamic';
@@ -106,7 +107,7 @@ export async function DELETE(
     const { deleteQuote = false } = body as { deleteQuote?: boolean };
 
     // Get invoice details
-    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id) as DbInvoice | undefined;
+    const invoice = InvoiceRepository.findById(id);
     if (!invoice) {
       const errorResponse: ErrorResponse = {
         error: 'Invoice not found',

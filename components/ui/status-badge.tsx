@@ -1,3 +1,4 @@
+import { QUOTE_STATUS, INVOICE_STATUS } from '@/lib/constants';
 /**
  * StatusBadge — Dictionnaire centralisé de tous les statuts
  * ===========================================================
@@ -127,7 +128,7 @@ export function StatusBadge({
 }
 
 // ── Helper : convertit un statut Invoice en variante StatusBadge ───────────────
-type InvoiceStatus = "PAID" | "PARTIALLY_PAID" | "UNPAID" | "CANCELLED"
+type InvoiceStatus = typeof INVOICE_STATUS[keyof typeof INVOICE_STATUS]
 interface InvoicePaymentInfo {
   status: InvoiceStatus
   paidAmount: number
@@ -143,15 +144,15 @@ export function getInvoiceStatusVariant(info: InvoicePaymentInfo): StatusBadgeVa
 }
 
 // ── Helper : convertit un statut Quote en variante StatusBadge ────────────────
-type QuoteStatus = "EN_ATTENTE" | "CONVERTI" | "ENVOYE" | "REFUSE" | "EXPIRE"
+type QuoteStatus = typeof QUOTE_STATUS[keyof typeof QUOTE_STATUS]
 
 export function getQuoteStatusVariant(status: QuoteStatus): StatusBadgeVariant {
   switch (status) {
-    case "CONVERTI":  return "quote-converted"
-    case "ENVOYE":    return "quote-sent"
-    case "REFUSE":    return "quote-refused"
-    case "EXPIRE":    return "quote-expired"
-    case "EN_ATTENTE":
+    case QUOTE_STATUS.CONVERTI:  return "quote-converted"
+    case QUOTE_STATUS.ENVOYE:    return "quote-sent"
+    case QUOTE_STATUS.REFUSE:    return "quote-refused"
+    case QUOTE_STATUS.EXPIRE:    return "quote-expired"
+    case QUOTE_STATUS.EN_ATTENTE:
     default:          return "quote-pending"
   }
 }

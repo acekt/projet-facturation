@@ -474,7 +474,7 @@ export function closeTestDatabase(): void {
  * @param {string} role - The role to assign ('admin' or 'user')
  * @returns {{ userId: string; role: string; name: string; username: string }} Mock session object
  */
-export function createAuthenticatedSession(role: 'admin' | 'user'): { userId: string; role: string; name: string; username: string } {
+export function createAuthenticatedSession(role: string): { userId: string; role: string; name: string; username: string } {
   const db = getTestDatabase();
   
   const user = db.prepare('SELECT id, username, name, role FROM users WHERE role = ? LIMIT 1').get(role) as DbUser | undefined;

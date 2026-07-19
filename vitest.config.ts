@@ -8,13 +8,7 @@ export default defineConfig({
     environment: 'jsdom',
     globals: true,
     fileParallelism: false,
-    // Exécution séquentielle stable sur Windows — évite les timeouts de pool de workers
     pool: 'forks',
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
     setupFiles: ['./tests/setup.ts'],
     exclude: [
       '**/node_modules/**',

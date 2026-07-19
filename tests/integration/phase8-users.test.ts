@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useStore } from '@/lib/store';
 import { GET as GETUsers, POST as POSTUser } from '@/app/api/users/route';
@@ -31,7 +32,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
     it('devrait hacher le mot de passe via Bcrypt lors du POST /api/users et ne jamais le stocker ni le renvoyer en clair', async () => {
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-1',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admin',
         expiresAt: Date.now() + 3600000,
       });
@@ -40,7 +41,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
         name: 'Opérateur Comptable',
         email: 'op@letoile.ga',
         username: 'op_comptable',
-        role: 'user' as const,
+        role: ROLES.USER,
         password: 'SecretPassword123!',
         is_active: true,
       };
@@ -79,7 +80,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-self',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admin',
         expiresAt: Date.now() + 3600000,
       });
@@ -105,7 +106,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-self',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admin',
         expiresAt: Date.now() + 3600000,
       });
@@ -116,7 +117,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
         body: JSON.stringify({
           name: 'Super Admin',
           email: 'admin@letoile.ga',
-          role: 'user',
+          role: ROLES.USER,
         }),
       });
 
@@ -143,7 +144,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'operator-1',
-        role: 'user', // non-admin
+        role: ROLES.USER, // non-admin
         username: 'oper',
         expiresAt: Date.now() + 3600000,
       });
@@ -155,7 +156,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
         new Request('http://localhost/api/users', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: 'X', email: 'x@t.ga', username: 'xx', role: 'user', password: 'Password123!' }),
+          body: JSON.stringify({ name: 'X', email: 'x@t.ga', username: 'xx', role: ROLES.USER, password: 'Password123!' }),
         })
       );
       expect(postRes.status).toBe(403);
@@ -191,7 +192,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-1',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admin',
         expiresAt: Date.now() + 3600000,
       });
@@ -202,7 +203,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
         body: JSON.stringify({
           name: 'Alice Updated',
           email: 'alice@letoile.ga',
-          role: 'user',
+          role: ROLES.USER,
           password: '', // Chaîne vide envoyée par le formulaire en cas de non-changement
         }),
       });
@@ -224,7 +225,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
         name: 'John Doe',
         email: 'john@letoile.ga',
         username: 'johndoe',
-        role: 'user' as const,
+        role: ROLES.USER,
         is_active: 1,
         created_at: '2026-07-08',
       };

@@ -1,3 +1,4 @@
+import { CreditNoteService, CreditNoteServiceError } from '@/lib/services/CreditNoteService';
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
 import { logAudit } from '@/lib/api/audit';
@@ -63,20 +64,12 @@ export async function GET() {
   }
 }
 
+
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-    if (!session) {
-      const errorResponse: ErrorResponse = {
-        error: 'Unauthorized: Authentication required',
-      };
-      return NextResponse.json(errorResponse, { status: 401 });
-    }
-    if (!session.userId) {
-      const errorResponse: ErrorResponse = {
-        error: 'User ID manquant dans la session',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
+    if (!session || !session.userId) {
+      return NextResponse.json({ error: 'Unauthorized: Authentication required' } as ErrorResponse, { status: 401 });
     }
 
     const body: unknown = await request.json();
@@ -84,109 +77,27 @@ export async function POST(request: Request) {
     // --- Zod Validation ---
     const validation = creditNoteCreateSchema.safeParse(body);
     if (!validation.success) {
-      const errorResponse: ErrorResponse = {
+      return NextResponse.json({
         error: 'Données invalides',
         details: { fieldErrors: validation.error.flatten().fieldErrors },
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
+      } as ErrorResponse, { status: 400 });
     }
 
-    const { invoiceId, reason, items }: CreditNoteCreateRequest = validation.data;
+    const data = validation.data;
 
-    // --- Validate the linked invoice exists and is active ---
-    const invoice = db
-      .prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL')
-      .get(invoiceId) as DbInvoice | undefined;
-    if (!invoice) {
-      const errorResponse: ErrorResponse = { error: 'Invoice not found' };
-      return NextResponse.json(errorResponse, { status: 404 });
-    }
-
-    // --- Retrieve tax rates (server is source of truth) ---
-    const settings = db
-      .prepare('SELECT companyCode, tvaRate, tpsRate, cssRate FROM settings WHERE id = 1')
-      .get() as (DbSettings & { tvaRate: number; tpsRate?: number; cssRate: number }) | undefined;
-    if (!settings) {
-      const errorResponse: ErrorResponse = { error: 'Settings not found' };
-      return NextResponse.json(errorResponse, { status: 500 });
-    }
-
-    // Ensure 'credit_note' sequence exists
-    db.exec("INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('credit_note', 0)");
-
-    const id = crypto.randomUUID();
-
-    const insertCreditNote = db.transaction(() => {
-      const number = getNextNumber('credit_note');
-
-      // --- Server-side total computation (same formula as invoice-logic.ts) ---
-      const subtotal = Math.round(
-        items.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0)
-      );
-      const cssAmount = Math.round(subtotal * (settings.cssRate / 100));
-      const taxBase = subtotal + cssAmount;
-      const tpsAmount = Math.round(taxBase * ((settings.tpsRate ?? 0) / 100));
-      const tvaAmount = Math.round(taxBase * (settings.tvaRate / 100));
-      const creditNoteTotal = taxBase + tpsAmount + tvaAmount;
-
-      db.prepare(`
-        INSERT INTO credit_notes (
-          id, number, invoiceId, clientId, clientName, date, reason,
-          subtotal, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        id,
-        number,
-        invoice.id,
-        invoice.clientId,
-        invoice.clientName,
-        new Date().toISOString().split('T')[0],
-        reason,
-        subtotal,
-        taxBase,
-        tvaAmount,
-        tpsAmount,
-        cssAmount,
-        creditNoteTotal,
-        'open',
-        session.userId,
-      );
-
-      const insertItem = db.prepare(`
-        INSERT INTO credit_note_items (id, creditNoteId, description, quantity, unitPrice, total)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-
-      for (const item of items) {
-        insertItem.run(
-          crypto.randomUUID(),
-          id,
-          item.description,
-          item.quantity,
-          Math.round(item.unitPrice),
-          Math.round(item.quantity * item.unitPrice),
-        );
+    try {
+      const result = CreditNoteService.createCreditNote(data, session.userId);
+      logAudit('CREATE', 'credit_note', result.id, `Nouvel avoir créé: ${result.number}`, session.userId, session.name || session.username || null);
+      return NextResponse.json(result);
+    } catch (error: any) {
+      if (error instanceof CreditNoteServiceError) {
+        return NextResponse.json({ error: error.message } as ErrorResponse, { status: error.status });
       }
+      throw error;
+    }
 
-      // --- AN-5 FIX: Only cancel the invoice if the credit note covers its FULL total ---
-      // Partial avoir → keep the current invoice status untouched.
-      // Full avoir → transition invoice to 'cancelled' to reflect total write-off.
-      const invoiceTotal = Math.round(invoice.total);
-      if (creditNoteTotal >= invoiceTotal) {
-        db.prepare("UPDATE invoices SET status = 'cancelled' WHERE id = ?").run(invoice.id);
-      }
-      // If partial, the invoice status remains unchanged (UNPAID / PARTIALLY_PAID / PAID)
-      // The credit note is the audit record; the invoice retains its payment history.
-
-      logAudit('CREATE', 'credit_note', id, `Nouvel avoir créé: ${number} sur facture ${invoice.number || invoiceId}`, session.userId, session.name || session.username || null);
-      return { id, number };
-    });
-
-    const result = insertCreditNote();
-    return NextResponse.json(result);
   } catch (error) {
     console.error('[API Credit Notes POST] Error:', error);
-    const errorResponse: ErrorResponse = { error: 'Failed to create credit note' };
-    return NextResponse.json(errorResponse, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create credit note' } as ErrorResponse, { status: 500 });
   }
 }

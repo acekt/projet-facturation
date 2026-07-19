@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useStore } from '@/lib/store';
 import { GET as GETPayments, POST as POSTPayment } from '@/app/api/payments/route';
@@ -66,7 +67,7 @@ describe('🚨 PHASE 7/10 : AUDIT TDD — PAIEMENTS & TRÉSORERIE (RESTES À CHA
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-op',
-        role: 'user',
+        role: ROLES.USER,
         username: 'user-op',
         expiresAt: Date.now() + 3600000,
       });
@@ -88,10 +89,10 @@ describe('🚨 PHASE 7/10 : AUDIT TDD — PAIEMENTS & TRÉSORERIE (RESTES À CHA
       const data1 = await res1.json();
 
       expect(res1.status).toBe(200);
-      expect(data1.newStatus).toBe('PARTIALLY_PAID');
+      expect(data1.newStatus).toBe(INVOICE_STATUS.PARTIALLY_PAID);
 
       const invAfter1 = db.prepare('SELECT status FROM invoices WHERE id = ?').get('fac-100k') as { status: string };
-      expect(invAfter1.status).toBe('PARTIALLY_PAID');
+      expect(invAfter1.status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
 
       // 2nd paiement : 60 000 XAF (solde)
       const req2 = new Request('http://localhost/api/payments', {
@@ -110,10 +111,10 @@ describe('🚨 PHASE 7/10 : AUDIT TDD — PAIEMENTS & TRÉSORERIE (RESTES À CHA
       const data2 = await res2.json();
 
       expect(res2.status).toBe(200);
-      expect(data2.newStatus).toBe('PAID');
+      expect(data2.newStatus).toBe(INVOICE_STATUS.PAID);
 
       const invAfter2 = db.prepare('SELECT status FROM invoices WHERE id = ?').get('fac-100k') as { status: string };
-      expect(invAfter2.status).toBe('PAID');
+      expect(invAfter2.status).toBe(INVOICE_STATUS.PAID);
     });
   });
 
@@ -126,7 +127,7 @@ describe('🚨 PHASE 7/10 : AUDIT TDD — PAIEMENTS & TRÉSORERIE (RESTES À CHA
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-op',
-        role: 'user',
+        role: ROLES.USER,
         username: 'user-op',
         expiresAt: Date.now() + 3600000,
       });
@@ -177,7 +178,7 @@ describe('🚨 PHASE 7/10 : AUDIT TDD — PAIEMENTS & TRÉSORERIE (RESTES À CHA
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-op',
-        role: 'user',
+        role: ROLES.USER,
         username: 'user-op',
         expiresAt: Date.now() + 3600000,
       });
@@ -230,7 +231,7 @@ describe('🚨 PHASE 7/10 : AUDIT TDD — PAIEMENTS & TRÉSORERIE (RESTES À CHA
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-op',
-        role: 'user',
+        role: ROLES.USER,
         username: 'user-op',
         expiresAt: Date.now() + 3600000,
       });
@@ -266,7 +267,7 @@ describe('🚨 PHASE 7/10 : AUDIT TDD — PAIEMENTS & TRÉSORERIE (RESTES À CHA
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-op',
-        role: 'user',
+        role: ROLES.USER,
         username: 'user-op',
         expiresAt: Date.now() + 3600000,
       });
@@ -290,12 +291,12 @@ describe('🚨 PHASE 7/10 : AUDIT TDD — PAIEMENTS & TRÉSORERIE (RESTES À CHA
       );
 
       const invBefore = db.prepare('SELECT status FROM invoices WHERE id = ?').get('fac-delete-cascade') as { status: string };
-      expect(invBefore.status).toBe('PAID');
+      expect(invBefore.status).toBe(INVOICE_STATUS.PAID);
 
       // Suppression par Admin de l'un des paiements de 50 000 XAF
       vi.mocked(getSession).mockResolvedValue({
         userId: 'admin-id',
-        role: 'admin',
+        role: ROLES.ADMIN,
         username: 'admin',
         expiresAt: Date.now() + 3600000,
       });
@@ -307,11 +308,11 @@ describe('🚨 PHASE 7/10 : AUDIT TDD — PAIEMENTS & TRÉSORERIE (RESTES À CHA
       const delData = await delRes.json();
 
       expect(delRes.status).toBe(200);
-      expect(delData.newStatus).toBe('PARTIALLY_PAID');
+      expect(delData.newStatus).toBe(INVOICE_STATUS.PARTIALLY_PAID);
 
       // Vérifions en BDD
       const invAfter = db.prepare('SELECT status FROM invoices WHERE id = ?').get('fac-delete-cascade') as { status: string };
-      expect(invAfter.status).toBe('PARTIALLY_PAID');
+      expect(invAfter.status).toBe(INVOICE_STATUS.PARTIALLY_PAID);
 
       const deletedPayment = db.prepare('SELECT deletedAt FROM payments WHERE id = ?').get(p1.id) as { deletedAt: string | null };
       expect(deletedPayment.deletedAt).not.toBeNull();
@@ -322,7 +323,7 @@ describe('🚨 PHASE 7/10 : AUDIT TDD — PAIEMENTS & TRÉSORERIE (RESTES À CHA
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-a',
-        role: 'user',
+        role: ROLES.USER,
         username: 'user-a',
         expiresAt: Date.now() + 3600000,
       });
@@ -352,7 +353,8 @@ describe('🚨 PHASE 7/10 : AUDIT TDD — PAIEMENTS & TRÉSORERIE (RESTES À CHA
         paymentMethod: 'cash',
         date: '2026-07-08',
         reference: 'REF-S1',
-      };
+        createdAt: '2026-07-08'
+      } as any;
 
       store.addPayment(pay1);
       expect(useStore.getState().payments).toHaveLength(1);

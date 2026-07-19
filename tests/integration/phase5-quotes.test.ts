@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { getNextNumber } from '@/lib/api/numbering';
 import { validateQuoteStatusTransition, computeQuoteStatus } from '@/lib/api/quote-logic';
@@ -74,7 +75,7 @@ describe('🚨 PHASE 5/10 : AUDIT TDD — GESTION DES DEVIS (NUMÉROTATION, ÉTA
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-op',
-        role: 'user',
+        role: ROLES.USER,
         username: 'op',
         expiresAt: Date.now() + 3600000,
       });
@@ -123,7 +124,7 @@ describe('🚨 PHASE 5/10 : AUDIT TDD — GESTION DES DEVIS (NUMÉROTATION, ÉTA
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-op',
-        role: 'user',
+        role: ROLES.USER,
         username: 'op',
         expiresAt: Date.now() + 3600000,
       });
@@ -145,7 +146,7 @@ describe('🚨 PHASE 5/10 : AUDIT TDD — GESTION DES DEVIS (NUMÉROTATION, ÉTA
       const { id } = await res.json();
 
       const quoteInDb = db.prepare('SELECT status FROM quotes WHERE id = ?').get(id) as { status: string };
-      expect(quoteInDb.status).toBe('EN_ATTENTE');
+      expect(quoteInDb.status).toBe(QUOTE_STATUS.EN_ATTENTE);
     });
 
     it('devrait valider les transitions autorisées par la logique métier', () => {
@@ -173,7 +174,7 @@ describe('🚨 PHASE 5/10 : AUDIT TDD — GESTION DES DEVIS (NUMÉROTATION, ÉTA
 
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-op',
-        role: 'user',
+        role: ROLES.USER,
         username: 'op',
         expiresAt: Date.now() + 3600000,
       });
@@ -182,7 +183,7 @@ describe('🚨 PHASE 5/10 : AUDIT TDD — GESTION DES DEVIS (NUMÉROTATION, ÉTA
       const patchReq = new Request('http://localhost/api/quotes/quote-refuse', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'CONVERTI' }),
+        body: JSON.stringify({ status: QUOTE_STATUS.CONVERTI }),
       });
       const patchRes = await PATCHQuote(patchReq, { params: Promise.resolve({ id: 'quote-refuse' }) });
       const patchData = await patchRes.json();
@@ -202,7 +203,7 @@ describe('🚨 PHASE 5/10 : AUDIT TDD — GESTION DES DEVIS (NUMÉROTATION, ÉTA
 
       const expiredQuote = {
         date: '2026-07-01', // émis il y a 45 jours (validité de base 30 jours -> expire le 31 juillet)
-        status: 'EN_ATTENTE',
+        status: QUOTE_STATUS.EN_ATTENTE,
         validityDays: 30,
       };
 
@@ -216,19 +217,19 @@ describe('🚨 PHASE 5/10 : AUDIT TDD — GESTION DES DEVIS (NUMÉROTATION, ÉTA
 
       const activeQuote = {
         date: '2026-07-01',
-        status: 'EN_ATTENTE',
+        status: QUOTE_STATUS.EN_ATTENTE,
         validityDays: 30,
       };
 
-      expect(computeQuoteStatus(activeQuote, new Date())).toBe('EN_ATTENTE');
+      expect(computeQuoteStatus(activeQuote, new Date())).toBe(QUOTE_STATUS.EN_ATTENTE);
     });
 
     it('ne devrait jamais basculer un devis CONVERTI ou REFUSE en EXPIRE même après des mois', () => {
       vi.useFakeTimers();
       vi.setSystemTime(new Date('2030-01-01T12:00:00Z'));
 
-      expect(computeQuoteStatus({ date: '2026-01-01', status: 'CONVERTI' }, new Date())).toBe('CONVERTI');
-      expect(computeQuoteStatus({ date: '2026-01-01', status: 'REFUSE' }, new Date())).toBe('REFUSE');
+      expect(computeQuoteStatus({ date: '2026-01-01', status: QUOTE_STATUS.CONVERTI }, new Date())).toBe(QUOTE_STATUS.CONVERTI);
+      expect(computeQuoteStatus({ date: '2026-01-01', status: QUOTE_STATUS.REFUSE }, new Date())).toBe('REFUSE');
     });
   });
 
@@ -250,7 +251,7 @@ describe('🚨 PHASE 5/10 : AUDIT TDD — GESTION DES DEVIS (NUMÉROTATION, ÉTA
       // Session en tant que User A
       vi.mocked(getSession).mockResolvedValue({
         userId: 'user-a',
-        role: 'user',
+        role: ROLES.USER,
         username: 'usera',
         expiresAt: Date.now() + 3600000,
       });
@@ -295,7 +296,7 @@ describe('🚨 PHASE 5/10 : AUDIT TDD — GESTION DES DEVIS (NUMÉROTATION, ÉTA
         tvaAmount: 18000,
         cssAmount: 1000,
         total: 119000,
-        status: 'EN_ATTENTE' as const,
+        status: QUOTE_STATUS.EN_ATTENTE,
         items: [],
         createdAt: '2026-07-08',
       };
@@ -306,8 +307,8 @@ describe('🚨 PHASE 5/10 : AUDIT TDD — GESTION DES DEVIS (NUMÉROTATION, ÉTA
       expect(useStore.getState().quotes[0].id).toBe('q-100');
 
       // Action updateQuote
-      store.updateQuote('q-100', { status: 'CONVERTI' });
-      expect(useStore.getState().quotes[0].status).toBe('CONVERTI');
+      store.updateQuote('q-100', { status: QUOTE_STATUS.CONVERTI });
+      expect(useStore.getState().quotes[0].status).toBe(QUOTE_STATUS.CONVERTI);
 
       // Action removeQuote
       store.removeQuote('q-100');

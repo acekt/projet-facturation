@@ -1,6 +1,7 @@
+import db from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
-import db from '@/lib/db';
+import { UserRepository } from '@/lib/repositories/UserRepository';
 import bcrypt from 'bcryptjs';
 import { userUpdateSchema } from '@/lib/validations';
 import { logAudit } from '@/lib/api/audit';

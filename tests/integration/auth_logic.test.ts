@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect } from 'vitest'
 import crypto from 'crypto'
 
@@ -10,7 +11,7 @@ async function verifySignature(data: string, signature: string) {
 
 describe('Auth Security', () => {
   it('should verify valid signatures', async () => {
-    const data = btoa(JSON.stringify({ role: 'admin' }));
+    const data = btoa(JSON.stringify({ role: ROLES.ADMIN }));
     const sig = crypto.createHmac('sha256', SESSION_SECRET).update(data).digest('base64');
     expect(await verifySignature(data, sig)).toBe(true);
   });

@@ -1,3 +1,4 @@
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS, CLIENT_STATUS } from '@/lib/constants';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createTestDatabase, seedTestData, cleanupTestDatabase, createAuthenticatedSession, getTestDatabase } from '../helpers/db';
 import crypto from 'crypto';
@@ -33,7 +34,7 @@ describe('Integration Test - RBAC Limits', () => {
   });
 
   it('should restrict PATCH /api/settings to admin role only (User gets 403)', async () => {
-    const session = createAuthenticatedSession('user');
+    const session = createAuthenticatedSession('user'); session.userId = 'imposter-user-id';
     vi.mocked(getSession).mockResolvedValue(session);
 
     const request = new Request('http://localhost/api/settings', {
@@ -50,7 +51,7 @@ describe('Integration Test - RBAC Limits', () => {
   });
 
   it('should restrict GET /api/audit-logs to admin role only (User gets 403)', async () => {
-    const session = createAuthenticatedSession('user');
+    const session = createAuthenticatedSession('user'); session.userId = 'imposter-user-id';
     vi.mocked(getSession).mockResolvedValue(session);
 
     const response = await GETAuditLogs();
@@ -61,7 +62,7 @@ describe('Integration Test - RBAC Limits', () => {
   });
 
   it('should restrict DELETE /api/quotes/[id] to admin role only (User gets 403)', async () => {
-    const session = createAuthenticatedSession('user');
+    const session = createAuthenticatedSession('user'); session.userId = 'imposter-user-id';
     vi.mocked(getSession).mockResolvedValue(session);
 
     const quoteId = crypto.randomUUID();
@@ -101,7 +102,7 @@ describe('Integration Test - RBAC Limits', () => {
   });
 
   it('should restrict DELETE /api/invoices/[id] to admin role only (User gets 403)', async () => {
-    const session = createAuthenticatedSession('user');
+    const session = createAuthenticatedSession('user'); session.userId = 'imposter-user-id';
     vi.mocked(getSession).mockResolvedValue(session);
 
     const invoiceId = crypto.randomUUID();
@@ -141,7 +142,7 @@ describe('Integration Test - RBAC Limits', () => {
   });
 
   it('should restrict DELETE /api/payments/[id] to admin role only (User gets 403)', async () => {
-    const session = createAuthenticatedSession('user');
+    const session = createAuthenticatedSession('user'); session.userId = 'imposter-user-id';
     vi.mocked(getSession).mockResolvedValue(session);
 
     const invoiceId = crypto.randomUUID();

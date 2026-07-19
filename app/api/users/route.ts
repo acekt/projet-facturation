@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/api/auth';
 import { logAudit } from '@/lib/api/audit';
-import db from '@/lib/db';
+import { UserRepository } from '@/lib/repositories/UserRepository';
 import bcrypt from 'bcryptjs';
 import { userCreateSchema } from '@/lib/validations';
 import type { UserCreateRequest, UserResponse, ErrorResponse, DbUser } from '@/lib/types/api';
@@ -21,9 +21,7 @@ export async function GET() {
       return NextResponse.json(errorResponse, { status: 403 });
     }
 
-    const users = db.prepare(
-      'SELECT * FROM users WHERE deletedAt IS NULL'
-    ).all() as DbUser[];
+    const users = UserRepository.findAllActive();
 
     const userResponses: UserResponse[] = users.map((user): UserResponse => ({
       id: user.id,
@@ -34,7 +32,7 @@ export async function GET() {
       is_active: user.is_active,
       created_at: user.created_at,
       last_login_at: user.last_login_at || undefined,
-      phone: user.phone || undefined,
+      phone: String(user.phone || ''),
       deletedAt: user.deletedAt || undefined,
     }));
 
@@ -82,7 +80,7 @@ export async function POST(request: Request) {
       return NextResponse.json(errorResponse, { status: 400 });
     }
 
-    const { name, email, username, role, password, phone, force_password_change, is_active }: UserCreateRequest = validation.data;
+    const { name, email, role, password, phone, force_password_change, is_active } = validation.data; const username = validation.data.username || '';
 
     const id = globalThis.crypto.randomUUID();
     const cleanUsername = username.toLowerCase().trim();
@@ -91,10 +89,17 @@ export async function POST(request: Request) {
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     try {
-      db.prepare(`
-        INSERT INTO users (id, name, email, username, password, role, is_active, created_by, phone)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(id, cleanName, cleanEmail, cleanUsername, hashedPassword, role, is_active ? 1 : 0, session.userId, phone || null);
+      UserRepository.create({
+        id,
+        name: cleanName,
+        email: cleanEmail || '',
+        username: cleanUsername,
+        password: hashedPassword,
+        role: role,
+        is_active: is_active ? 1 : 0,
+        created_by: session.userId,
+        phone: phone || undefined
+      });
     } catch (error: any) {
       if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
         return NextResponse.json({ error: 'Un utilisateur avec cet email ou identifiant existe déjà.' }, { status: 400 });
@@ -107,12 +112,12 @@ export async function POST(request: Request) {
     const userResponse: UserResponse = {
       id,
       name: cleanName,
-      email: cleanEmail || undefined,
-      username: cleanUsername,
+      email: cleanEmail || '',
+      username: cleanUsername as string,
       role,
       is_active: is_active ? 1 : 0,
       created_at: new Date().toISOString(),
-      phone,
+      phone: phone || '',
     };
 
     return NextResponse.json(userResponse);
