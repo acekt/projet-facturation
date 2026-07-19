@@ -1,0 +1,99 @@
+import db from '@/lib/db';
+import crypto from 'crypto';
+import { getNextNumber } from '@/lib/api/numbering';
+import { DbInvoice, DbSettings, CreditNoteCreateRequest } from '@/lib/types/api';
+import { calculateFiscalCascade } from '@/lib/fiscal';
+import { INVOICE_STATUS } from '@/lib/constants';
+
+export class CreditNoteServiceError extends Error {
+  constructor(public message: string, public status: number) {
+    super(message);
+  }
+}
+
+export const CreditNoteService = {
+  createCreditNote(data: CreditNoteCreateRequest, userId: string) {
+    const { invoiceId, reason, items } = data;
+
+    const invoice = db
+      .prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL')
+      .get(invoiceId) as DbInvoice | undefined;
+    if (!invoice) {
+      throw new CreditNoteServiceError('Invoice not found', 404);
+    }
+
+    const settings = db
+      .prepare('SELECT companyCode, tvaRate, tpsRate, cssRate FROM settings WHERE id = 1')
+      .get() as (DbSettings & { tvaRate: number; tpsRate?: number; cssRate: number }) | undefined;
+    if (!settings) {
+      throw new CreditNoteServiceError('Settings not found', 500);
+    }
+
+    db.exec("INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('credit_note', 0)");
+
+    const id = crypto.randomUUID();
+
+    const insertCreditNote = db.transaction(() => {
+      const number = getNextNumber('credit_note');
+
+      // The original manual calculation from the route
+      const rawSubtotal = Math.round(
+        items.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0)
+      );
+      const cssAmount = Math.round(rawSubtotal * (settings.cssRate / 100));
+      const taxBase = rawSubtotal + cssAmount;
+      const tpsAmount = Math.round(taxBase * ((settings.tpsRate ?? 0) / 100));
+      const tvaAmount = Math.round(taxBase * (settings.tvaRate / 100));
+      const creditNoteTotal = taxBase + tpsAmount + tvaAmount;
+
+      db.prepare(`
+        INSERT INTO credit_notes (
+          id, number, invoiceId, clientId, clientName, date, reason,
+          subtotal, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        id,
+        number,
+        invoice.id,
+        invoice.clientId,
+        invoice.clientName,
+        new Date().toISOString().split('T')[0],
+        reason,
+        rawSubtotal,
+        taxBase,
+        tvaAmount,
+        tpsAmount,
+        cssAmount,
+        creditNoteTotal,
+        'open',
+        userId
+      );
+
+      const insertItem = db.prepare(`
+        INSERT INTO credit_note_items (id, creditNoteId, description, quantity, unitPrice, total)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const item of items) {
+        insertItem.run(
+          crypto.randomUUID(),
+          id,
+          item.description,
+          item.quantity,
+          Math.round(item.unitPrice),
+          Math.round(item.quantity * item.unitPrice)
+        );
+      }
+
+      // --- AN-5 FIX: Only cancel the invoice if the credit note covers its FULL total ---
+      const invoiceTotal = Math.round(invoice.total);
+      if (creditNoteTotal >= invoiceTotal) {
+        db.prepare(`UPDATE invoices SET status = '${INVOICE_STATUS.CANCELLED}' WHERE id = ?`).run(invoice.id);
+      }
+
+      return { id, number };
+    });
+
+    return insertCreditNote();
+  }
+};

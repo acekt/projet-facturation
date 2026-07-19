@@ -1,3 +1,4 @@
+import { InvoiceService, InvoiceServiceError } from '@/lib/services/InvoiceService';
 import { NextResponse } from 'next/server';
 import db from '@/lib/db';
 import { InvoiceRepository } from '@/lib/repositories/InvoiceRepository';
@@ -46,141 +47,39 @@ export async function GET() {
   }
 }
 
+
 export async function POST(request: Request) {
   try {
     const session = await getSession();
-    if (!session) {
+    if (!session || !session.userId) {
       return NextResponse.json({ error: 'Unauthorized' } as ErrorResponse, { status: 401 });
-    }
-    if (!session.userId) {
-      const errorResponse: ErrorResponse = {
-        error: 'User ID manquant dans la session',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
     }
 
     const body: unknown = await request.json();
 
-    // --- Zod Validation ---
     const validation = invoiceSchema.safeParse(body);
     if (!validation.success) {
-      const errorResponse: ErrorResponse = {
+      return NextResponse.json({
         error: 'Données invalides',
         details: { fieldErrors: validation.error.flatten().fieldErrors },
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
+      } as ErrorResponse, { status: 400 });
     }
 
     const data = validation.data;
 
-    // --- AN-1 FIX: Validate clientId against active (non-soft-deleted) clients ---
-    const client = db
-      .prepare('SELECT id FROM clients WHERE id = ? AND deletedAt IS NULL')
-      .get(data.clientId) as DbClient | undefined;
-    if (!client) {
-      const errorResponse: ErrorResponse = {
-        error: 'Client introuvable ou supprimé. Impossible de créer une facture pour ce client.',
-      };
-      return NextResponse.json(errorResponse, { status: 400 });
+    try {
+      const result = InvoiceService.createInvoice(data, session.userId, session.role);
+      logAudit('CREATE', 'invoice', result.id, `Nouvelle facture créée: ${result.number}`, session.userId, session.name || session.username || null);
+      return NextResponse.json(result);
+    } catch (error: any) {
+      if (error instanceof InvoiceServiceError) {
+        return NextResponse.json({ error: error.message } as ErrorResponse, { status: error.status });
+      }
+      throw error;
     }
 
-    // --- Validate linked quote (if any) ---
-    if (data.quoteId) {
-      const quote = db
-        .prepare('SELECT status, deletedAt, created_by FROM quotes WHERE id = ?')
-        .get(data.quoteId) as { status: string; deletedAt: string | null; created_by?: string } | undefined;
-
-      if (!quote) {
-        return NextResponse.json(
-          { error: 'Devis introuvable.' } as ErrorResponse,
-          { status: 400 }
-        );
-      }
-      if (session.role !== 'admin' && quote.created_by !== session.userId) {
-        return NextResponse.json(
-          { error: 'Forbidden: You can only invoice your own quotes' } as ErrorResponse,
-          { status: 403 }
-        );
-      }
-      if (quote.deletedAt !== null) {
-        return NextResponse.json(
-          { error: 'Le devis associé a été supprimé.' } as ErrorResponse,
-          { status: 400 }
-        );
-      }
-      // AN-Bonus FIX: was checking 'invoiced' (old value), now using correct 'CONVERTI'
-      if (quote.status === 'CONVERTI') {
-        return NextResponse.json(
-          { error: 'Ce devis a déjà été converti en facture.' } as ErrorResponse,
-          { status: 400 }
-        );
-      }
-    }
-
-    // --- AN-4 FIX: Compute all financial totals SERVER-SIDE ---
-    const rates = getTaxRates();
-    const computed = computeTotals(data.items, data.discount, rates);
-
-    const id = crypto.randomUUID();
-
-    const insertInvoice = db.transaction(() => {
-      const number = getNextNumber('invoice');
-
-      db.prepare(`
-        INSERT INTO invoices (
-          id, number, quoteId, clientId, clientName, clientEmail, date,
-          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
-        id,
-        number,
-        data.quoteId ?? null,
-        data.clientId,
-        data.clientName,
-        data.clientEmail,
-        data.date,
-        computed.subtotal,
-        computed.discount,
-        computed.taxBase,
-        computed.tvaAmount,
-        computed.tpsAmount,
-        computed.cssAmount,
-        computed.total,
-        'UNPAID', // Always starts as UNPAID — payments drive status transitions
-        data.notes ?? null,
-        session.userId,
-      );
-
-      const insertItem = db.prepare(`
-        INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-
-      for (const item of data.items) {
-        insertItem.run(
-          crypto.randomUUID(),
-          id,
-          item.description,
-          item.quantity,
-          Math.round(item.unitPrice),
-          Math.round(item.quantity * item.unitPrice),
-        );
-      }
-
-      // Atomic quote status transition
-      if (data.quoteId) {
-        db.prepare("UPDATE quotes SET status = 'CONVERTI' WHERE id = ?").run(data.quoteId);
-      }
-
-      logAudit('CREATE', 'invoice', id, `Nouvelle facture créée: ${number}`, session.userId, session.name || session.username || null);
-      return { id, number };
-    });
-
-    const result = insertInvoice();
-    return NextResponse.json(result);
   } catch (error) {
     console.error('[API Invoices POST] Error:', error);
-    const errorResponse: ErrorResponse = { error: 'Failed to create invoice' };
-    return NextResponse.json(errorResponse, { status: 500 });
+    return NextResponse.json({ error: 'Failed to create invoice' } as ErrorResponse, { status: 500 });
   }
 }

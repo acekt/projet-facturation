@@ -92,13 +92,13 @@ export async function POST(request: Request) {
       UserRepository.create({
         id,
         name: cleanName,
-        email: cleanEmail,
+        email: cleanEmail || '',
         username: cleanUsername,
         password: hashedPassword,
         role: role,
         is_active: is_active ? 1 : 0,
         created_by: session.userId,
-        phone: phone || null
+        phone: phone || undefined
       });
     } catch (error: any) {
       if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
