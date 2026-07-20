@@ -9,8 +9,6 @@ La persistance des données s'effectue localement via SQLite (`better-sqlite3`),
 
 ```text
 /
-├── __tests__/                   # Anciens tests isolés ou temporaires
-│   └── api/                     # Tests API obsolètes
 ├── app/                         # App Router Next.js (Routage et Contrôleurs)
 │   ├── api/                     # Couche Controllers (Validation Zod et Appel Services)
 │   │   ├── audit-logs/          # Historique des actions (Lecture seule Admin)
@@ -44,6 +42,7 @@ La persistance des données s'effectue localement via SQLite (`better-sqlite3`),
 │   ├── setup/                   # Page d'Onboarding React
 │   ├── globals.css              # Styles globaux (Tailwind)
 │   └── layout.tsx               # Point d'entrée de l'App Shell HTML
+├── build/                       # Artéfacts de build Electron (ex: installeur Windows)
 ├── components/                  # Composants React Frontend
 │   ├── dashboard/               # Widgets graphiques (Admin / User Dashboard)
 │   ├── features/                # Sous-composants métiers modulaires
