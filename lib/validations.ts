@@ -295,8 +295,6 @@ export const paymentCreateSchema = z.object({
     .min(1, "La méthode de paiement est requise")
     .max(255, "La méthode de paiement ne peut pas dépasser 255 caractères"),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)"),
-  // AUDIT FIX: reference (cheque number, transfer ID, etc.) was silently stripped by Zod.
-  // Now explicitly declared to pass through Zod validation and be stored in SQLite.
   reference: z.string()
     .max(255, "La référence ne peut pas dépasser 255 caractères")
     .nullable()
