@@ -4,6 +4,7 @@ import { getNextNumber } from '@/lib/api/numbering';
 import { DbInvoice, DbSettings, CreditNoteCreateRequest } from '@/lib/types/api';
 import { calculateFiscalCascade } from '@/lib/fiscal';
 import { INVOICE_STATUS } from '@/lib/constants';
+import { computeTotals } from '@/lib/api/invoice-logic';
 
 export class CreditNoteServiceError extends Error {
   constructor(public message: string, public status: number) {
@@ -36,15 +37,13 @@ export const CreditNoteService = {
     const insertCreditNote = db.transaction(() => {
       const number = getNextNumber('credit_note');
 
-      // The original manual calculation from the route
-      const rawSubtotal = Math.round(
-        items.reduce((acc, item) => acc + item.quantity * item.unitPrice, 0)
-      );
-      const cssAmount = Math.round(rawSubtotal * (settings.cssRate / 100));
-      const taxBase = rawSubtotal + cssAmount;
-      const tpsAmount = Math.round(taxBase * ((settings.tpsRate ?? 0) / 100));
-      const tvaAmount = Math.round(taxBase * (settings.tvaRate / 100));
-      const creditNoteTotal = taxBase + tpsAmount + tvaAmount;
+      // --- AN-4 FIX: Compute all financial totals SERVER-SIDE ---
+      const rates = {
+        tvaRate: settings.tvaRate,
+        tpsRate: settings.tpsRate ?? null,
+        cssRate: settings.cssRate,
+      };
+      const computed = computeTotals(items, 0, rates);
 
       db.prepare(`
         INSERT INTO credit_notes (
@@ -59,12 +58,12 @@ export const CreditNoteService = {
         invoice.clientName,
         new Date().toISOString().split('T')[0],
         reason,
-        rawSubtotal,
-        taxBase,
-        tvaAmount,
-        tpsAmount,
-        cssAmount,
-        creditNoteTotal,
+        computed.subtotal,
+        computed.taxBase,
+        computed.tvaAmount,
+        computed.tpsAmount,
+        computed.cssAmount,
+        computed.total,
         'open',
         userId
       );
@@ -87,7 +86,7 @@ export const CreditNoteService = {
 
       // --- AN-5 FIX: Only cancel the invoice if the credit note covers its FULL total ---
       const invoiceTotal = Math.round(invoice.total);
-      if (creditNoteTotal >= invoiceTotal) {
+      if (computed.total >= invoiceTotal) {
         db.prepare(`UPDATE invoices SET status = '${INVOICE_STATUS.CANCELLED}' WHERE id = ?`).run(invoice.id);
       }
 
