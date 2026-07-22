@@ -129,7 +129,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
           const updated = { ...item, [field]: value }
           if (field === "quantity" || field === "unitPrice") {
             if (Number(updated.unitPrice) < 0) updated.unitPrice = 0
-            updated.total = (Number(updated.quantity) || 0) * (Number(updated.unitPrice) || 0)
+            updated.total = Math.round((Number(updated.quantity) || 0) * (Number(updated.unitPrice) || 0))
           }
 
           // Auto-population from catalog
@@ -137,7 +137,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             const matchedService = services.find(s => s.name.toLowerCase() === value.toLowerCase());
             if (matchedService) {
                 updated.unitPrice = matchedService.unitPrice;
-                updated.total = (Number(updated.quantity) || 0) * updated.unitPrice;
+                updated.total = Math.round((Number(updated.quantity) || 0) * updated.unitPrice);
             }
           }
 
