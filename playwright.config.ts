@@ -46,7 +46,7 @@ export default defineConfig({
     },
     {
       name: 'other-tests',
-      testMatch: /critical-path\.spec\.ts|api-resilience\.spec\.ts/,
+      testMatch: /.*\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
       },
@@ -61,6 +61,7 @@ export default defineConfig({
       TEST_DB_PATH: testDbPath,
       DB_FILE_NAME: 'test.sqlite',
       SESSION_SECRET: 'super-secret-key-for-playwright-e2e-tests-32-chars!!',
+      PASSWORD_SALT: 'letoile-gabon-2026',
     },
   },
 });
