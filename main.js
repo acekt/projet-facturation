@@ -253,6 +253,9 @@ function killNextProcess() {
  * @returns {Promise<void>} - Résout quand le serveur est prêt
  */
 async function startNextServer(port) {
+  const crypto = require('crypto');
+  const sessionSecret = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+
   nextProcess = spawn(process.execPath, [STANDALONE_SERVER], {
     env: {
       ...process.env,
@@ -260,9 +263,13 @@ async function startNextServer(port) {
       PORT: String(port),
       NODE_ENV: 'production',
       NEXT_TELEMETRY_DISABLED: '1',
+      SESSION_SECRET: sessionSecret,
     },
-    stdio: 'ignore',  // En prod, ne pas polluer stdout du processus principal
+    stdio: 'pipe',  // Capturer la sortie pour tracer l'Erreur 500
   });
+
+  nextProcess.stdout.on('data', (data) => console.log(`[Next.js]: ${data.toString()}`));
+  nextProcess.stderr.on('data', (data) => console.error(`[Next.js ERROR]: ${data.toString()}`));
 
   nextProcess.on('error', (err) => {
     console.error('[main] Erreur du processus Next.js:', err.message);
