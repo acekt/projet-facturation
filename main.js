@@ -28,7 +28,8 @@
 
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron');
+Menu.setApplicationMenu(null);
 const { spawn }                               = require('child_process');
 const path                                    = require('path');
 const http                                    = require('http');
@@ -311,14 +312,29 @@ async function createWindow(port) {
 
   const appUrl = `http://127.0.0.1:${port}`;
 
+  const loadApp = () => {
+    mainWindow.loadURL(appUrl).catch((err) => {
+      mainWindow.loadURL(
+        `data:text/html,<html><body style="background:#0a0a0a;color:#f87171;font-family:sans-serif;padding:2rem">` +
+        `<h1>Erreur de chargement</h1><pre style="color:#94a3b8">${err.message}</pre>` +
+        `<p style="color:#64748b">Lancez d'abord <code>npm run dev</code> puis relancez Electron.</p></body></html>`
+      );
+    });
+  };
+
   if (!isServerReady) {
     createSplashWindow();
     console.log(`[main] Attente de disponibilité sur /api/health avant affichage...`);
-    try {
-      await waitForServer(`http://127.0.0.1:${port}`, 25000);
-    } catch (err) {
-      console.error('[main] Avertissement health check:', err.message);
-    }
+    waitForServer(`http://127.0.0.1:${port}`, 25000)
+      .then(() => {
+        loadApp();
+      })
+      .catch((err) => {
+        console.error('[main] Avertissement health check:', err.message);
+        loadApp(); // Fallback to loading anyway so we don't stay stuck on splash
+      });
+  } else {
+    loadApp();
   }
 
   mainWindow.once('ready-to-show', () => {
@@ -329,14 +345,6 @@ async function createWindow(port) {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.show();
     }
-  });
-
-  mainWindow.loadURL(appUrl).catch((err) => {
-    mainWindow.loadURL(
-      `data:text/html,<html><body style="background:#0a0a0a;color:#f87171;font-family:sans-serif;padding:2rem">` +
-      `<h1>Erreur de chargement</h1><pre style="color:#94a3b8">${err.message}</pre>` +
-      `<p style="color:#64748b">Lancez d'abord <code>npm run dev</code> puis relancez Electron.</p></body></html>`
-    );
   });
 
   // [FIX-3] En dev, si le chargement échoue, tenter de re-scanner le bon port
@@ -369,7 +377,7 @@ async function createWindow(port) {
   });
 
   // DevTools uniquement en dev
-  if (isDev) {
+  if (!app.isPackaged) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
 
