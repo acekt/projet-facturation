@@ -69,20 +69,56 @@ export async function PATCH(request: Request) {
     }
 
     const data: SettingsUpdateRequest = validation.data;
+
+    // ── UPSERT via INSERT OR REPLACE ─────────────────────────────────────
+    // Problème du simple UPDATE : si la ligne id=1 n'existe pas (première
+    // configuration en production), UPDATE ne fait rien (changes=0) mais
+    // ne lève PAS d'exception → l'API retourne silencieusement une erreur.
+    //
+    // INSERT OR REPLACE supprime l'ancienne ligne (si elle existe) et insère
+    // la nouvelle, garantissant que la ligne id=1 existe toujours après l'appel.
+    // C'est l'équivalent SQLite d'un UPSERT atomique.
+    // ─────────────────────────────────────────────────────────────────────
     const fields = Object.keys(data);
-    const setClause = fields.map(field => `${field} = ?`).join(', ');
+    const columns = ['id', ...fields].join(', ');
+    const placeholders = ['1', ...fields.map(() => '?')].join(', ');
     const values = Object.values(data);
 
-    db.prepare(`UPDATE settings SET ${setClause} WHERE id = 1`).run(...values);
+    try {
+      const result = db.prepare(
+        `INSERT OR REPLACE INTO settings (${columns}) VALUES (${placeholders})`
+      ).run(...values);
+
+      if (result.changes === 0) {
+        // Ne devrait jamais arriver avec INSERT OR REPLACE, mais on le détecte quand même
+        console.error('[API Settings PATCH] UPSERT a retourné changes=0 — inattendu.');
+        return NextResponse.json(
+          { error: "L'enregistrement n'a pas modifié la base de données." },
+          { status: 500 }
+        );
+      }
+    } catch (dbError: any) {
+      // Expose le message SQLite exact (ex: "table has no column named X")
+      // pour permettre le diagnostic sans accès au serveur.
+      console.error('[API Settings PATCH] Erreur SQLite:', dbError);
+      return NextResponse.json(
+        {
+          error: 'Erreur lors de l\'enregistrement des paramètres.',
+          detail: dbError?.message ?? String(dbError),
+        },
+        { status: 500 }
+      );
+    }
 
     logAudit('UPDATE', 'settings', '1', 'Paramètres mis à jour', session.userId, session.name || session.username || null);
 
     const settings = db.prepare('SELECT * FROM settings WHERE id = 1').get() as DbSettings;
     return NextResponse.json(settings);
-  } catch (error) {
-    console.error('[API Settings PATCH] Error:', error);
+  } catch (error: any) {
+    console.error('[API Settings PATCH] Erreur inattendue:', error);
     const errorResponse: ErrorResponse = {
-      error: 'Failed to update settings',
+      error: 'Erreur interne du serveur.',
+      ...(process.env.NODE_ENV !== 'production' && { detail: error?.message }),
     };
     return NextResponse.json(errorResponse, { status: 500 });
   }

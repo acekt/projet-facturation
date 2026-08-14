@@ -27,7 +27,9 @@ import {
 import { useStore, type Quote } from "@/lib/store"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
-import { DocumentPreview } from "@/components/document-preview"
+import { DocumentA4 } from "@/components/document-a4"
+import { printElement } from "@/lib/electron-print"
+import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer"
 import { PrintableDocument } from "@/components/printable-document"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
@@ -76,7 +78,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 10
-  const [previewQuote, setPreviewQuote] = React.useState<Quote | null>(null)
+
   const [selectedQuote, setSelectedQuote] = React.useState<Quote | null>(null)
   const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
   const [quoteToDeleteId, setQuoteToDeleteId] = React.useState<string | null>(null)
@@ -305,7 +307,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                      <DropdownMenuItem className="gap-2" onClick={() => setPreviewQuote(quote)}>
+                      <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
                         <Eye className="w-4 h-4" /> Aperçu
                       </DropdownMenuItem>
                       <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
@@ -406,7 +408,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                          <DropdownMenuItem className="gap-2" onClick={() => setPreviewQuote(quote)}>
+                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
                             <Eye className="w-4 h-4" /> Aperçu
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
@@ -503,7 +505,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                        <DropdownMenuItem className="gap-2" onClick={() => setPreviewQuote(quote)}>
+                        <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
                           <Eye className="w-4 h-4" /> Aperçu
                         </DropdownMenuItem>
                         <DropdownMenuItem className="gap-2" onClick={() => setSelectedQuote(quote)}>
@@ -592,49 +594,18 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {previewQuote && (
-        <DocumentPreview
-          open={!!previewQuote}
-          onOpenChange={(open) => !open && setPreviewQuote(null)}
-          type="Quote"
-          data={previewQuote}
+
+
+      {selectedQuote && (
+        <FullScreenDocumentViewer
+          data={selectedQuote}
+          type="devis"
+          title={`Devis N° ${selectedQuote.number}`}
+          onClose={() => setSelectedQuote(null)}
+          onDownloadPDF={() => handleDownloadPDF(selectedQuote)}
+          isDownloading={isDownloading === selectedQuote.id}
         />
       )}
-
-      <Dialog open={!!selectedQuote} onOpenChange={() => setSelectedQuote(null)}>
-        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
-          <VisuallyHidden>
-            <DialogTitle>Impression du devis {selectedQuote?.number}</DialogTitle>
-            <DialogDescription>Aperçu du devis avant impression physique ou PDF</DialogDescription>
-          </VisuallyHidden>
-          <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
-            <h2 className="font-bold text-black">Aperçu avant impression</h2>
-            <Button
-              disabled={isPrinting}
-              onClick={async () => {
-                setIsPrinting(true)
-                try {
-                  if (window.electron) {
-                    await window.electron.print()
-                  } else {
-                    window.print()
-                  }
-                } catch (err) {
-                  console.error('[Print] IPC error:', err)
-                  toast.error("Erreur lors du lancement de l'impression")
-                } finally {
-                  setIsPrinting(false)
-                }
-              }}
-              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              <Printer className={`w-4 h-4 ${isPrinting ? 'animate-spin' : ''}`} />
-              {isPrinting ? 'En cours...' : "Lancer l'impression"}
-            </Button>
-          </div>
-          {selectedQuote && <PrintableDocument document={selectedQuote} type="devis" />}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

@@ -33,12 +33,18 @@ const nextConfig = {
   },
   // Serveur Node.js autonome pour le packaging Electron
   output: 'standalone',
-  // better-sqlite3 est un module natif Node.js — il doit rester côté serveur
-  serverExternalPackages: ['better-sqlite3'],
+  serverExternalPackages: ['better-sqlite3', '@react-pdf/renderer'],
   compress: false,           // Electron gère la compression nativement
   productionBrowserSourceMaps: false,
   experimental: {
     optimizeCss: false,
+  },
+  webpack: (config, { dev, isServer }) => {
+    if (!dev && !isServer) {
+      // Désactive totalement la minification (contournement du crash mémoire OOM Rust SWC sur Next 15)
+      config.optimization.minimize = false;
+    }
+    return config;
   },
 }
 

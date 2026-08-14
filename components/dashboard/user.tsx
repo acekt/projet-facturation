@@ -16,7 +16,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { formatCurrency } from "@/lib/utils"
-import { DocumentPreview } from "@/components/document-preview"
+import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer"
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
+import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
@@ -395,12 +397,12 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
             </CardContent>
       </Card>
 
-      {previewData && (
-        <DocumentPreview
-            open={previewOpen}
-            onOpenChange={setPreviewOpen}
-            type="Invoice"
-            data={previewData}
+      {previewOpen && previewData && (
+        <FullScreenDocumentViewer
+          type="facture"
+          data={previewData as any}
+          title={`Document N° ${(previewData as any).number || 'Inconnu'}`}
+          onClose={() => setPreviewOpen(false)}
         />
       )}
     </div>

@@ -4,74 +4,131 @@ import fs from 'fs';
 import os from 'os';
 
 /**
- * Résolution robuste du chemin de la base de données (Electron & Next.js).
- */
-/**
- * Résolution robuste et persistante du chemin de la base de données (Electron & Next.js).
- * Garantie sans :memory: et stockée dans un sous-dossier persistant 'data'.
+ * Résolution du chemin de la base de données SQLite — Architecture 3 niveaux.
+ *
+ * NIVEAU 1 (Production Electron) :
+ *   Source de vérité : ELECTRON_USERDATA_PATH injecté par main.js via spawn().env.
+ *   Pointe vers AppData/Roaming sur Windows, ~/Library sur macOS.
+ *   Ce répertoire est TOUJOURS accessible en écriture. Aucune exception.
+ *
+ * NIVEAU 2 (Développement local) :
+ *   Utilisé UNIQUEMENT si NODE_ENV !== 'production'.
+ *   Pointe vers <racine_projet>/data (process.cwd() est sûr en dev).
+ *   Inclut la migration automatique de l'ancienne base à la racine.
+ *
+ * NIVEAU 3 (Fallback absolu) :
+ *   Dernier recours si les deux niveaux précédents échouent.
+ *   Pointe vers ~/.letoile-invoicing/data (jamais en lecture seule).
+ *
+ * ⚠️ process.cwd() N'EST JAMAIS UTILISÉ EN PRODUCTION.
+ *    En production (Electron packagé), cwd() pointe vers le répertoire
+ *    d'installation (ex: C:\Program Files\L'Etoile) qui est en lecture seule
+ *    pour les utilisateurs non-administrateurs — crash SQLite garanti.
  */
 function resolveDatabasePath(): string {
+  // ── TEST : chemin forcé pour la suite de tests (isolement total)
   if (process.env.TEST_DB_PATH) {
     return path.resolve(process.env.TEST_DB_PATH);
   }
-  const dbFileName = process.env.DB_FILE_NAME || 'database.sqlite';
-  const electronUserDataPath = process.env.ELECTRON_USERDATA_PATH;
 
+  const dbFileName = process.env.DB_FILE_NAME || 'database.sqlite';
+
+  // ── NIVEAU 1 : Production Electron (ELECTRON_USERDATA_PATH injecté par main.js)
+  const electronUserDataPath = process.env.ELECTRON_USERDATA_PATH;
   if (electronUserDataPath) {
+    const dataDir = path.join(electronUserDataPath, 'data');
     try {
-      const dataDir = path.join(electronUserDataPath, 'data');
       if (!fs.existsSync(dataDir)) {
         fs.mkdirSync(dataDir, { recursive: true });
       }
-      return path.resolve(path.join(dataDir, dbFileName));
+      const dbPath = path.resolve(path.join(dataDir, dbFileName));
+      console.log(`[db] Niveau 1 (Electron userData) : ${dbPath}`);
+      return dbPath;
     } catch (err) {
-      console.warn('[db] Impossible d\'écrire dans ELECTRON_USERDATA_PATH, fallback sur le répertoire de travail:', err);
+      // Ne jamais bloquer — descendre au niveau suivant
+      console.error('[db] NIVEAU 1 ÉCHOUÉ — impossible d\'écrire dans ELECTRON_USERDATA_PATH :', err);
     }
   }
 
-  const cwd = process.cwd();
-  try {
-    const dataDir = path.join(cwd, 'data');
-    if (!fs.existsSync(dataDir)) {
-      fs.mkdirSync(dataDir, { recursive: true });
-    }
-    const targetDbPath = path.resolve(path.join(dataDir, dbFileName));
+  // ── NIVEAU 2 : Développement local (npm run dev)
+  // process.cwd() est interdit en production car il pointe vers le
+  // répertoire d'installation, en lecture seule sous Windows/macOS.
+  if (process.env.NODE_ENV !== 'production') {
+    const cwd = process.cwd();
+    try {
+      const dataDir = path.join(cwd, 'data');
+      if (!fs.existsSync(dataDir)) {
+        fs.mkdirSync(dataDir, { recursive: true });
+      }
+      const targetDbPath = path.resolve(path.join(dataDir, dbFileName));
 
-    // Migration automatique d'une ancienne base située à la racine de cwd pour éviter toute perte lors de la transition
-    if (dbFileName === 'database.sqlite') {
-      const legacyDbPath = path.resolve(path.join(cwd, 'database.sqlite'));
-      if (!fs.existsSync(targetDbPath) && fs.existsSync(legacyDbPath)) {
-        try {
-          fs.copyFileSync(legacyDbPath, targetDbPath);
-          console.log(`[db] Ancienne base de données (racine) migrée vers ${targetDbPath}`);
-        } catch (migErr) {
-          console.warn('[db] Erreur lors de la migration de l\'ancienne base:', migErr);
+      // Migration automatique : si une ancienne base existe à la racine du projet,
+      // la déplacer dans /data pour éviter toute perte de données.
+      if (dbFileName === 'database.sqlite') {
+        const legacyDbPath = path.resolve(path.join(cwd, 'database.sqlite'));
+        if (!fs.existsSync(targetDbPath) && fs.existsSync(legacyDbPath)) {
+          try {
+            fs.copyFileSync(legacyDbPath, targetDbPath);
+            console.log(`[db] Migration : ancienne base déplacée vers ${targetDbPath}`);
+          } catch (migErr) {
+            console.warn('[db] Échec de la migration de l\'ancienne base :', migErr);
+          }
         }
       }
-    }
 
-    fs.accessSync(dataDir, fs.constants.W_OK);
-    return targetDbPath;
-  } catch (err) {
-    const fallbackDir = path.join(os.homedir(), '.letoile-invoicing', 'data');
+      // Vérification explicite des droits d'écriture avant de valider ce chemin
+      fs.accessSync(dataDir, fs.constants.W_OK);
+      console.log(`[db] Niveau 2 (Dev/cwd) : ${targetDbPath}`);
+      return targetDbPath;
+    } catch (err) {
+      console.error('[db] NIVEAU 2 ÉCHOUÉ — process.cwd()/data non accessible en écriture :', err);
+    }
+  }
+
+  // ── NIVEAU 3 : Fallback absolu (homedir — jamais en lecture seule)
+  // Utilisé si NODE_ENV=production sans ELECTRON_USERDATA_PATH (ex: serveur CI, standalone manuel).
+  const fallbackDir = path.join(os.homedir(), '.letoile-invoicing', 'data');
+  try {
     if (!fs.existsSync(fallbackDir)) {
       fs.mkdirSync(fallbackDir, { recursive: true });
     }
-    console.warn(`[db] process.cwd()/data non accessible en écriture, fallback sur: ${fallbackDir}`);
-    return path.resolve(path.join(fallbackDir, dbFileName));
+  } catch (err) {
+    console.error('[db] NIVEAU 3 ÉCHOUÉ — impossible de créer le répertoire homedir :', err);
   }
+  const fallbackPath = path.resolve(path.join(fallbackDir, dbFileName));
+  console.warn(`[db] Niveau 3 (Fallback homedir) : ${fallbackPath}`);
+  return fallbackPath;
 }
 
 const globalForDb = globalThis as unknown as {
   db: Database.Database;
   statementCache: Map<string, any>;
   isClosing: boolean;
+  db_ready: boolean;
 };
 
 const dbPath = resolveDatabasePath();
-const db = globalForDb.db || new Database(dbPath, { timeout: 5000 });
-if (!globalForDb.db) {
-  globalForDb.db = db;
+
+// ── Ouverture de la base de données avec gestion d'erreur explicite
+// Un crash ici (ABI mismatch, EACCES, corruption) retournait jusqu'ici
+// une erreur 500 illisible côté API. On l'intercepte et on l'écrit
+// dans stderr (capturé par le logger de main.js) puis on laisse le
+// processus continuer en mode dégradé pour que le frontend puisse
+// afficher un message d'erreur lisible plutôt qu'un écran blanc.
+let db: Database.Database;
+try {
+  db = globalForDb.db || new Database(dbPath, { timeout: 5000 });
+  if (!globalForDb.db) {
+    globalForDb.db = db;
+    globalForDb.db_ready = false; // Sera mis à true après la migration
+  }
+} catch (fatalErr: any) {
+  // Écriture dans stderr → capturé par logToFile('[ERROR]') dans main.js
+  process.stderr.write(`[db] FATAL: Impossible d'ouvrir la base de données : ${dbPath}\n`);
+  process.stderr.write(`[db] FATAL: ${fatalErr?.message || fatalErr}\n`);
+  process.stderr.write(`[db] FATAL: Vérifiez l'ABI de better_sqlite3.node et les droits d'accès au répertoire.\n`);
+  // Re-throw pour que Next.js signale une erreur 503 à l'API plutôt qu'un crash total
+  throw fatalErr;
 }
 
 // [QA-Phase 2] Configuration de la base de données pour la concurrence et la robustesse
@@ -121,9 +178,9 @@ if (!globalForDb.isClosing) {
 
 // Cache global pour les requêtes préparées (Statement Cache)
 const statementCache = globalForDb.statementCache || new Map<string, ReturnType<typeof db.prepare>>();
-if (process.env.NODE_ENV !== 'production') {
-  globalForDb.statementCache = statementCache;
-}
+// Toujours enregistrer dans globalThis (dev ET prod) pour éviter les fuites mémoire
+// liées aux rechargements de module hot en dev ou aux workers en prod.
+globalForDb.statementCache = statementCache;
 
 /**
  * Récupère une requête préparée mise en cache ou la compile si elle n'existe pas.
@@ -138,8 +195,12 @@ export function prepareCached(sql: string) {
   return stmt;
 }
 
-// Initialize database
-db.exec(`
+// ── Initialisation du schéma — exécution synchrone au démarrage du serveur
+// CREATE TABLE IF NOT EXISTS = idempotent : sans danger sur une base existante.
+// En cas d'échec (ABI wrong, READONLY, etc.), l'erreur est écrite dans stderr
+// et capturée par le logger de main.js → visible dans main.log.
+try {
+  db.exec(`
   CREATE TABLE IF NOT EXISTS settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     companyName TEXT,
@@ -191,7 +252,7 @@ db.exec(`
     tvaAmount REAL DEFAULT 0,
     cssAmount REAL DEFAULT 0,
     total REAL DEFAULT 0,
-    status TEXT DEFAULT 'EN_ATTENTE', -- EN_ATTENTE, CONVERTI
+    status TEXT DEFAULT 'EN_ATTENTE',
     notes TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     deletedAt DATETIME,
@@ -212,7 +273,7 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS invoices (
     id TEXT PRIMARY KEY,
     number TEXT UNIQUE NOT NULL,
-    quoteId TEXT, -- Link to quote if converted
+    quoteId TEXT,
     clientId TEXT NOT NULL,
     clientName TEXT,
     clientEmail TEXT,
@@ -224,7 +285,7 @@ db.exec(`
     tvaAmount REAL DEFAULT 0,
     cssAmount REAL DEFAULT 0,
     total REAL DEFAULT 0,
-    status TEXT DEFAULT 'UNPAID', -- draft, UNPAID, PARTIALLY_PAID, PAID, overdue, cancelled
+    status TEXT DEFAULT 'UNPAID',
     notes TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     deletedAt DATETIME,
@@ -247,7 +308,7 @@ db.exec(`
     id TEXT PRIMARY KEY,
     invoiceId TEXT NOT NULL,
     amount REAL NOT NULL,
-    paymentMethod TEXT NOT NULL, -- airtel, moov, virement, cash
+    paymentMethod TEXT NOT NULL,
     date TEXT NOT NULL,
     reference TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -276,10 +337,9 @@ db.exec(`
     created_by TEXT
   );
 
-  -- New User Table Schema (v4.0)
   CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,
-    username TEXT UNIQUE NOT NULL, -- used as email in logic
+    username TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE,
     password TEXT NOT NULL,
     name TEXT NOT NULL,
@@ -307,7 +367,7 @@ db.exec(`
     tvaAmount REAL DEFAULT 0,
     cssAmount REAL DEFAULT 0,
     total REAL DEFAULT 0,
-    status TEXT DEFAULT 'open', -- open, closed
+    status TEXT DEFAULT 'open',
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     created_by TEXT,
     deletedAt DATETIME,
@@ -330,13 +390,19 @@ db.exec(`
     userId TEXT,
     userName TEXT,
     action TEXT NOT NULL,
-    entityType TEXT NOT NULL, -- quote, invoice, client, etc.
+    entityType TEXT NOT NULL,
     entityId TEXT,
     details TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
-
 `);
+  globalForDb.db_ready = true;
+  process.stdout.write(`[db] Schéma initialisé avec succès : ${dbPath}\n`);
+} catch (schemaErr: any) {
+  process.stderr.write(`[db] FATAL: Échec de l'initialisation du schéma sur : ${dbPath}\n`);
+  process.stderr.write(`[db] FATAL: ${schemaErr?.message || schemaErr}\n`);
+  throw schemaErr;
+}
 
 // --- Migrations begin ---
 // Note: Indices are created after migrations to prevent "no such column" errors

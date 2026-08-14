@@ -32,7 +32,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useStore, type InvoiceItem, type DraftItem, type Quote } from "@/lib/store"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
-import { DocumentPreview } from "@/components/document-preview"
+import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer"
 
 interface QuoteEditorProps {
   onBack: () => void
@@ -565,15 +565,18 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
       </div>
 
       {previewOpen && selectedClient && (
-        <DocumentPreview
-          open={previewOpen}
-          onOpenChange={setPreviewOpen}
-          type="Quote"
+        <FullScreenDocumentViewer
+          type="devis"
+          title="Brouillon - Devis"
+          onClose={() => setPreviewOpen(false)}
           data={{
+            id: "draft",
+            number: "BROUILLON",
+            clientId: selectedClient.id,
             clientName: selectedClient.name,
             clientEmail: selectedClient.email,
             date: quoteDate,
-            items: items,
+            items: items as any,
             subtotal: subtotal,
             discount: discount,
             taxBase: taxBase,
@@ -581,8 +584,10 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             tvaAmount: tvaAmount,
             cssAmount: cssAmount,
             total: total,
-            notes: notes
-          }}
+            notes: notes,
+            status: "draft",
+            createdAt: new Date().toISOString()
+          } as any}
         />
       )}
     </motion.div>

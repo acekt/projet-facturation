@@ -32,8 +32,10 @@ import {
 import { useStore, type Invoice, type Payment } from "@/lib/store"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
-import { PrintableDocument } from "@/components/printable-document"
-import { DocumentPreview } from "@/components/document-preview"
+import { DocumentA4 } from "@/components/document-a4"
+import { printElement } from "@/lib/electron-print"
+import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer"
+
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
@@ -88,7 +90,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 10
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
-  const [previewInvoice, setPreviewInvoice] = React.useState<Invoice | null>(null)
+
   const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false)
   const [paymentInvoice, setPaymentInvoice] = React.useState<Invoice | null>(null)
@@ -390,7 +392,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                      <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
+                      <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
                         <Eye className="w-4 h-4" /> Aperçu
                       </DropdownMenuItem>
                       <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
@@ -487,7 +489,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                          <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
+                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
                             <Eye className="w-4 h-4" /> Aperçu
                           </DropdownMenuItem>
                           <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
@@ -581,7 +583,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                        <DropdownMenuItem className="gap-2" onClick={() => setPreviewInvoice(invoice)}>
+                        <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
                           <Eye className="w-4 h-4" /> Aperçu
                         </DropdownMenuItem>
                         <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
@@ -642,46 +644,16 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         onPageChange={setCurrentPage}
       />
 
-      <Dialog open={!!selectedInvoice} onOpenChange={() => setSelectedInvoice(null)}>
-        <DialogContent className="max-w-[900px] max-h-[90vh] overflow-y-auto p-0 border-none bg-white">
-          <VisuallyHidden>
-            <DialogTitle>Impression de la facture {selectedInvoice?.number}</DialogTitle>
-            <DialogDescription>Aperçu de la facture avant impression physique ou PDF</DialogDescription>
-          </VisuallyHidden>
-          <div className="no-print p-4 bg-gray-50 border-b flex justify-between items-center sticky top-0 z-10">
-            <h2 className="font-bold text-black">Aperçu avant impression</h2>
-            <Button
-              disabled={isPrinting}
-              onClick={async () => {
-                setIsPrinting(true)
-                try {
-                  if (window.electron) {
-                    await window.electron.print()
-                  } else {
-                    window.print()
-                  }
-                } catch (err) {
-                  // L'utilisateur a fermé la boîte de dialogue : annulation volontaire, ne pas afficher d'erreur
-                  const msg = err instanceof Error ? err.message.toLowerCase() : String(err).toLowerCase()
-                  if (msg.includes('cancel') || msg.includes('annul')) {
-                    // Annulation silencieuse — pas de toast, pas de log
-                  } else {
-                    console.error('[Print] IPC error:', err)
-                    toast.error("Erreur lors du lancement de l'impression")
-                  }
-                } finally {
-                  setIsPrinting(false)
-                }
-              }}
-              className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
-            >
-              <Printer className={`w-4 h-4 ${isPrinting ? 'animate-spin' : ''}`} />
-              {isPrinting ? 'En cours...' : "Lancer l'impression"}
-            </Button>
-          </div>
-          {selectedInvoice && <PrintableDocument document={selectedInvoice} type="facture" />}
-        </DialogContent>
-      </Dialog>
+      {selectedInvoice && (
+        <FullScreenDocumentViewer
+          data={selectedInvoice}
+          type="facture"
+          title={`Facture N° ${selectedInvoice.number}`}
+          onClose={() => setSelectedInvoice(null)}
+          onDownloadPDF={() => handleDownloadPDF(selectedInvoice)}
+          isDownloading={isDownloading === selectedInvoice.id}
+        />
+      )}
 
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
         <DialogContent className="bg-card border-border max-w-sm">
@@ -760,14 +732,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         </DialogContent>
       </Dialog>
 
-      {previewInvoice && (
-        <DocumentPreview
-          open={!!previewInvoice}
-          onOpenChange={(open) => !open && setPreviewInvoice(null)}
-          type="Invoice"
-          data={previewInvoice}
-        />
-      )}
+
 
       <AlertDialog open={invoiceToDeleteId !== null} onOpenChange={(open) => !open && !isDeleting && setInvoiceToDeleteId(null)}>
         <AlertDialogContent className="bg-card border-border">

@@ -11,6 +11,9 @@ __v0_jsx-dev-runtime.ts
 
 # Common ignores
 node_modules
+dist/
+dist-electron/
+out/
 .next/
 .DS_Store
 *.sqlite

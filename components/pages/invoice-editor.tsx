@@ -32,7 +32,7 @@ import { useStore, type InvoiceItem, type DraftItem, type Invoice } from "@/lib/
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
-import { DocumentPreview } from "@/components/document-preview"
+import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer"
 
 interface InvoiceEditorProps {
   onBack: () => void
@@ -547,15 +547,19 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       </div>
 
       {previewOpen && selectedClient && (
-        <DocumentPreview
-          open={previewOpen}
-          onOpenChange={setPreviewOpen}
-          type="Invoice"
+        <FullScreenDocumentViewer
+          type="facture"
+          title="Brouillon - Facture"
+          onClose={() => setPreviewOpen(false)}
           data={{
+            id: "draft",
+            number: "BROUILLON",
+            clientId: selectedClient.id,
             clientName: selectedClient.name,
             clientEmail: selectedClient.email,
             date: invoiceDate,
-            items: items,
+            dueDate: invoiceDate,
+            items: items as any,
             subtotal: subtotal,
             discount: discount,
             taxBase: taxBase,
@@ -563,7 +567,10 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             tvaAmount: tvaAmount,
             cssAmount: cssAmount,
             total: total,
-            notes: notes
+            notes: notes,
+            status: "draft",
+            payments: [],
+            createdAt: new Date().toISOString()
           }}
         />
       )}

@@ -15,6 +15,11 @@ declare global {
       print: () => Promise<{ success: boolean }>;
 
       /**
+       * Prints a specific HTML document using a hidden window.
+       */
+      printDocument: (htmlContent: string) => Promise<{ success: boolean }>;
+
+      /**
        * The platform string (e.g. 'win32', 'darwin', 'linux').
        * Exposed from preload.js for conditional cross-platform UI logic.
        */

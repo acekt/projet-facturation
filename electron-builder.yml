@@ -2,22 +2,25 @@
 # electron-builder.yml — Configuration de Packaging "L'Étoile"
 # =============================================================================
 #
-# ARCHITECTURE STANDALONE (Phase 3) :
-#   next build  →  .next/standalone/server.js  (serveur Node.js embarqué)
-#   electron-builder lit ce fichier pour produire le binaire final.
+# ARCHITECTURE STANDALONE APLATIE (Audit Phase 4) :
+#   Le contenu de .next/standalone/ est copié à la RACINE du dossier app.
+#   Ainsi, server.js se retrouve côte à côte avec main.js, ce qui correspond
+#   exactement à ce que Next.js attend pour résoudre public/ et .next/static/.
 #
-# COMMANDE DE BUILD :
-#   npm run dist          → Build + Package pour la plateforme courante
-#   npm run dist:win      → Installateur Windows (.exe NSIS)
-#   npm run dist:mac      → Image disque macOS (.dmg)
+# FLUX DE BUILD COMPLET :
+#   npm run dist
+#   └── electron-builder install-app-deps  ← Recompile better-sqlite3 pour Electron
+#   └── next build                         ← Génère .next/standalone/
+#   └── npm run sync-sqlite                ← Copie le .node recompilé dans standalone
+#   └── electron-builder                   ← Package l'app
 #
-# STRUCTURE DU PAQUET FINAL :
-#   ├── main.js                        # Processus principal Electron
-#   ├── preload.js                     # Script de préchargement sécurisé
-#   ├── package.json                   # Métadonnées (version, main)
-#   ├── .next/standalone/              # Serveur Next.js autonome + ses node_modules
-#   ├── .next/static/                  # Assets CSS, JS chunks (client-side)
-#   └── public/                        # Icônes, images statiques globales
+# STRUCTURE DU PAQUET FINAL (app/) :
+#   ├── main.js                  # Processus principal Electron
+#   ├── preload.js               # Script de préchargement sécurisé
+#   ├── server.js                # Serveur Next.js (aplati depuis standalone/)
+#   ├── node_modules/            # Dépendances Node.js de standalone (tree-shaked)
+#   ├── public/                  # Assets statiques globaux
+#   └── .next/static/            # CSS, JS chunks, polices (client-side)
 #
 # =============================================================================
 
@@ -27,11 +30,21 @@ appId: com.letoile.invoicing
 productName: "L'Etoile"
 copyright: "© 2026 L'Étoile — Tous droits réservés"
 
-# ── Inclusion des fichiers dans l'archive ────────────────────────────────────
+# ── ASAR désactivé ────────────────────────────────────────────────────────────
 #
-# RÈGLE CRITIQUE STANDALONE :
-#   .next/standalone/ contient DÉJÀ ses propres node_modules tree-shaked.
-#   Le node_modules racine (~500MB) ne doit JAMAIS être inclus.
+# Raison : better-sqlite3 (.node) et le serveur Next.js doivent pouvoir être
+# exécutés directement par le filesystem. L'ASAR empêche l'exécution native.
+# Sans ASAR, electron-builder génère un dossier app/ non archivé.
+#
+asar: false
+
+# ── Inclusion des fichiers dans le paquet ────────────────────────────────────
+#
+# STRATÉGIE D'APLATISSEMENT STANDALONE :
+#   Le dossier .next/standalone/ est copié à la RACINE (to: ".").
+#   Résultat : server.js est au même niveau que main.js.
+#   Next.js Standalone cherche public/ et .next/static/ relatifs à son CWD,
+#   qui correspond maintenant à la racine de l'app — les deux y sont bien présents.
 #
 files:
   # Fichiers du processus principal Electron
@@ -39,23 +52,31 @@ files:
   - preload.js
   - package.json
 
-  # Serveur Next.js standalone (avec ses node_modules légers intégrés)
-  - .next/standalone/**/*
+  # Aplatissement du standalone : server.js + node_modules de Next.js → racine
+  # Les .node natifs sont EXCLUS ici car electron-builder les rebuild séparément
+  - from: .next/standalone
+    to: "."
+    filter:
+      - "**/*"
+      - "!**/*.node"  # Binaires natifs : injectés par install-app-deps + sync-sqlite
 
-  # Assets statiques Next.js (CSS, JS chunks, fonts)
-  - .next/static/**/*
+  # Assets statiques Next.js (CSS, JS chunks, polices)
+  - from: .next/static
+    to: .next/static
+    filter:
+      - "**/*"
 
-  # Assets statiques globaux (icônes, images)
-  - public/**/*
+  # Assets statiques globaux (icônes, splash, images)
+  - from: public
+    to: public
+    filter:
+      - "**/*"
 
   # ── EXCLUSIONS EXPLICITES ─────────────────────────────────────────────────
-  # node_modules racine : inutile et très lourd (~500MB)
-  - "!node_modules/**/*"
-  # Sources TypeScript/React : jamais dans le binaire final
+  - "!node_modules/**/*"        # node_modules racine : lourd et inutile
   - "!**/*.ts"
   - "!**/*.tsx"
   - "!**/*.map"
-  # Configs de développement
   - "!tsconfig*.json"
   - "!next.config.mjs"
   - "!postcss.config.mjs"
@@ -64,48 +85,19 @@ files:
   - "!.gitignore"
   - "!audit_report.md"
   - "!SPECIFICATIONS.md"
-  # Tests et scripts de développement
   - "!__tests__/**/*"
   - "!tests/**/*"
   - "!seed*.ts"
   - "!reset-db.ts"
-  - "!migrate.ts"
-  - "!fix_tests.js"
-  - "!seed-analytics.ts"
-  - "!seed-test.ts"
-  # La BDD de dev ne va PAS dans le paquet
-  # (créée dans userData au premier lancement)
-  - "!database.sqlite"
-  # Cache et Git
+  - "!database.sqlite"          # BDD créée dans userData au premier lancement
   - "!.git/**/*"
   - "!.next/cache/**/*"
 
-# ── Copie des assets statiques au bon emplacement ────────────────────────────
-#
-# PROBLÈME CONNU output: 'standalone' :
-#   Le serveur standalone sert les assets depuis son propre sous-dossier
-#   .next/standalone/.next/static/ mais next build ne copie pas automatiquement
-#   .next/static/ à cet endroit. extraResources gère cette copie.
-#
-extraResources:
-  - from: .next/static
-    to: .next/standalone/.next/static
-    filter:
-      - "**/*"
-
-# ── Répertoires ───────────────────────────────────────────────────────────────
-directories:
-  # Dossier contenant les icônes sources : build/icon.png (512x512),
-  # build/icon.ico (Windows), build/icon.icns (macOS)
-  buildResources: build
-  # Dossier de sortie des installateurs générés
-  output: dist
-
 # ── Rebuild des modules natifs (better-sqlite3) ───────────────────────────────
 #
-# better-sqlite3 contient des binaires natifs (.node) compilés pour une
-# architecture CPU spécifique. electron-builder doit les recompiler pour
-# la version d'Electron (v42.x) via electron-rebuild automatiquement.
+# electron-builder recompile les .node pour la version d'Electron cible.
+# sync-sqlite copie ensuite le .node recompilé dans standalone/node_modules/
+# pour garantir la cohérence ABI entre le process principal et le child process.
 #
 npmRebuild: true
 

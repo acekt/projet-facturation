@@ -15,10 +15,17 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electron', {
   /**
-   * Déclenche la boîte de dialogue d'impression native.
+   * Déclenche la boîte de dialogue d'impression native (Ancien système).
    * @returns {Promise<{ success: boolean }>}
    */
   print: () => ipcRenderer.invoke('print-to-pdf'),
+
+  /**
+   * Imprime un document spécifique via une fenêtre cachée en envoyant son code HTML.
+   * @param {string} htmlContent - Le code HTML complet à imprimer.
+   * @returns {Promise<{ success: boolean }>}
+   */
+  printDocument: (htmlContent) => ipcRenderer.invoke('print-document', htmlContent),
 
   /**
    * Récupère la version de l'application (depuis package.json via main).
