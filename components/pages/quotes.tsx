@@ -28,7 +28,7 @@ import { useStore, type Quote } from "@/lib/store"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { DocumentA4 } from "@/components/document-a4"
-import { printElement } from "@/lib/electron-print"
+import { printElement, buildPrintHtml } from "@/lib/electron-print"
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer"
 import { PrintableDocument } from "@/components/printable-document"
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -137,6 +137,13 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   }
 
   const handleDownloadPDF = async (quote: Quote) => {
+    // ── Moteur natif Electron : ouvre le viewer (PDF intégré dans la topbar) ──
+    if (window.electron?.exportPDF) {
+      setSelectedQuote(quote)
+      return
+    }
+
+    // ── Fallback : navigateur web sans Electron ──────────────────────────
     try {
       setIsDownloading(quote.id)
       const { pdf } = await import('@react-pdf/renderer')
@@ -602,8 +609,6 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
           type="devis"
           title={`Devis N° ${selectedQuote.number}`}
           onClose={() => setSelectedQuote(null)}
-          onDownloadPDF={() => handleDownloadPDF(selectedQuote)}
-          isDownloading={isDownloading === selectedQuote.id}
         />
       )}
     </div>

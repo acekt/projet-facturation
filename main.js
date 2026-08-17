@@ -21,7 +21,7 @@
 
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, dialog } = require('electron');
 Menu.setApplicationMenu(null);
 const { spawn, execSync }                     = require('child_process');
 const path                                    = require('path');
@@ -643,7 +643,7 @@ ipcMain.handle('print-to-pdf', async () => {
     throw new Error('[IPC:print-to-pdf] Aucune fenêtre disponible pour l\'impression.');
   }
   return new Promise((resolve, reject) => {
-    win.webContents.print({ silent: false, printBackground: true, pageSize: 'A4', marginsType: 1 }, (success, errorType) => {
+    win.webContents.print({ silent: false, printBackground: true }, (success, errorType) => {
       if (success) {
         resolve({ success: true });
       } else {
@@ -689,8 +689,7 @@ ipcMain.handle('print-document', async (event, htmlContent) => {
       printWin.webContents.print({ 
         silent: false, 
         printBackground: true,
-        pageSize: 'A4',
-        marginsType: 1
+        // On peut forcer des paramètres spécifiques ici si besoin
       }, (success, errorType) => {
         // Nettoyage : fermeture de la fenêtre et suppression du fichier temp
         printWin.destroy();
@@ -733,3 +732,94 @@ ipcMain.handle('app:get-version', () => app.getVersion());
  * Ce chemin est aussi injecté dans le processus enfant Next.js via spawn().env.
  */
 ipcMain.handle('app:get-userData-path', () => USER_DATA_PATH);
+
+// ══════════════════════════════════════════════════════════════════════
+// HANDLER : export-pdf
+// Génère un PDF haute fidélité via printToPDF (fond complet inclus)
+// et sauvegarde via la boîte de dialogue native du système.
+// ══════════════════════════════════════════════════════════════════════
+
+/**
+ * Handler IPC — 'export-pdf'
+ *
+ * @param {Electron.IpcMainInvokeEvent} event
+ * @param {string} htmlContent       - HTML complet à rendre (généré par electron-print.ts)
+ * @param {string} defaultFilename   - Nom de fichier par défaut (ex: "FACTURE_001.pdf")
+ * @returns {Promise<{ saved: boolean, filePath?: string }>}
+ */
+ipcMain.handle('export-pdf', async (event, htmlContent, defaultFilename = 'document.pdf') => {
+  const tempPath = path.join(USER_DATA_PATH, `pdf_temp_${Date.now()}.html`);
+  let pdfWin = null;
+
+  try {
+    // 1. Écriture du HTML dans un fichier temporaire (physique, pas data URI)
+    //    Évite les limites de taille et garantit le chargement de Tailwind CDN.
+    fs.writeFileSync(tempPath, htmlContent, 'utf8');
+    logToFile('INFO', `[PDF] Fichier HTML temp écrit : ${tempPath}`);
+
+    // 2. Création d'une fenêtre Chromium invisible pour le rendu
+    pdfWin = new BrowserWindow({
+      show: false,
+      width: 794,   // Largeur A4 à 96 dpi
+      height: 1123, // Hauteur A4 à 96 dpi
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+        // Pas de preload nécessaire — fenêtre interne sans UI React
+      },
+    });
+
+    // 3. Chargement du HTML et attente du rendu complet
+    await pdfWin.loadFile(tempPath);
+    logToFile('INFO', '[PDF] Fenêtre cachée chargée, démarrage de printToPDF...');
+
+    // 4. Génération du buffer PDF via l'API native Chromium
+    //    printBackground: true — OBLIGATOIRE pour préserver les fonds Tailwind
+    //    marginsType: 1        — marges nulles (gérées par @page dans le CSS)
+    const pdfBuffer = await pdfWin.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'A4',
+      marginsType: 1, // 0=défaut, 1=aucune marge, 2=marges minimales
+      landscape: false,
+    });
+    logToFile('INFO', `[PDF] Buffer généré (${pdfBuffer.length} octets)`);
+
+    // 5. Boîte de dialogue de sauvegarde native
+    const { canceled, filePath } = await dialog.showSaveDialog({
+      title: 'Enregistrer le document PDF',
+      defaultPath: path.join(app.getPath('documents'), defaultFilename),
+      filters: [{ name: 'Fichier PDF', extensions: ['pdf'] }],
+    });
+
+    if (canceled || !filePath) {
+      logToFile('INFO', '[PDF] Sauvegarde annulée par l\'utilisateur.');
+      return { saved: false };
+    }
+
+    // 6. Écriture du fichier PDF sur le disque
+    await fs.promises.writeFile(filePath, pdfBuffer);
+    logToFile('INFO', `[PDF] Fichier sauvegardé : ${filePath}`);
+
+    // 7. (Optionnel) Ouvre le dossier de destination dans l'explorateur
+    // shell.showItemInFolder(filePath);
+
+    return { saved: true, filePath };
+
+  } catch (err) {
+    logToFile('ERROR', `[PDF] Erreur lors de la génération : ${err.message}`);
+    throw err; // Re-throw — le renderer recev ra une rejection via IPC
+
+  } finally {
+    // 8. Nettoyage systématique — même en cas d'erreur
+    if (pdfWin && !pdfWin.isDestroyed()) {
+      pdfWin.destroy();
+      pdfWin = null;
+    }
+    try {
+      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      logToFile('INFO', `[PDF] Fichier temp nettoyé : ${tempPath}`);
+    } catch (cleanErr) {
+      logToFile('WARN', `[PDF] Impossible de nettoyer le temp : ${cleanErr.message}`);
+    }
+  }
+});

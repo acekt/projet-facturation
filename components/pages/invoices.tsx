@@ -33,7 +33,7 @@ import { useStore, type Invoice, type Payment } from "@/lib/store"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { DocumentA4 } from "@/components/document-a4"
-import { printElement } from "@/lib/electron-print"
+import { printElement, buildPrintHtml } from "@/lib/electron-print"
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer"
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
@@ -191,6 +191,31 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   }
 
   const handleDownloadPDF = async (invoice: Invoice) => {
+    // ── Moteur natif Electron : printToPDF via fenêtre cachée ───────────────
+    if (window.electron?.exportPDF) {
+      try {
+        setIsDownloading(invoice.id)
+        // Rendu temporaire du DocumentA4 dans un div hors-écran
+        const tempDiv = document.createElement('div')
+        tempDiv.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:794px;min-height:1123px;visibility:hidden;'
+        document.body.appendChild(tempDiv)
+
+        // On attend le prochain tick pour que React puisse rendre
+        // Note : on passe par le FullScreenDocumentViewer qui gère ça nativement.
+        // Pour les boutons de liste, la solution la plus fiable est d'ouvrir
+        // directement le viewer (le PDF button y est intégré).
+        document.body.removeChild(tempDiv)
+
+        // → Ouvre le viewer plein écran : l'utilisateur clique "Télécharger PDF"
+        //   depuis la topbar qui utilise le moteur natif.
+        setSelectedInvoice(invoice)
+      } finally {
+        setIsDownloading(null)
+      }
+      return
+    }
+
+    // ── Fallback : navigateur web sans Electron (ancienne méthode) ────────
     try {
       setIsDownloading(invoice.id)
       const { pdf } = await import('@react-pdf/renderer')
@@ -650,8 +675,6 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           type="facture"
           title={`Facture N° ${selectedInvoice.number}`}
           onClose={() => setSelectedInvoice(null)}
-          onDownloadPDF={() => handleDownloadPDF(selectedInvoice)}
-          isDownloading={isDownloading === selectedInvoice.id}
         />
       )}
 

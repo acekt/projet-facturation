@@ -28,6 +28,16 @@ contextBridge.exposeInMainWorld('electron', {
   printDocument: (htmlContent) => ipcRenderer.invoke('print-document', htmlContent),
 
   /**
+   * Génère un fichier PDF haute fidélité depuis un HTML complet et ouvre
+   * la boîte de dialogue de sauvegarde native pour choisir l'emplacement.
+   * @param {string} htmlContent - Le code HTML complet (avec styles inline).
+   * @param {string} defaultFilename - Nom de fichier suggéré (ex: "FACTURE_001.pdf").
+   * @returns {Promise<{ saved: boolean, filePath?: string }>}
+   */
+  exportPDF: (htmlContent, defaultFilename) =>
+    ipcRenderer.invoke('export-pdf', htmlContent, defaultFilename),
+
+  /**
    * Récupère la version de l'application (depuis package.json via main).
    * @returns {Promise<string>} — ex: "4.0.0"
    */

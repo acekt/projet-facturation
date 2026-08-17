@@ -17,7 +17,11 @@ export interface DocumentA4Props {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function fmt(n: number): string {
-  return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n) + ' FCFA'
+  // On utilise fr-FR pour le séparateur de milliers, puis on remplace tout espace
+  // (incluant l'espace fine insécable \u202F) par un espace insécable classique \u00A0
+  // pour éviter tout retour à la ligne non désiré.
+  const formatted = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
+  return formatted.replace(/\s/g, '\u00A0') + '\u00A0FCFA';
 }
 
 function fmtDate(s: string): string {
@@ -113,11 +117,13 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
 
       {/* ── A4 SHEET ─────────────────────────────────────────────────────────── */}
       <div
+        id="printable-a4-document"
         className={[
           'doc-a4',
           'bg-white text-black',
           'flex flex-col',
           'p-[12mm]',
+          'pb-[40mm]',
           'box-border mx-auto',
           'shadow-2xl print:shadow-none print:m-0',
         ].join(' ')}
@@ -125,80 +131,112 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
           width: '210mm',
           minWidth: '210mm',
           minHeight: '297mm',
+          height: 'auto',
           color: '#1e293b',
           background: '#ffffff',
         }}
       >
 
         {/* ══════════════════════════════════════════════════════════════════════
-            1 · HEADER — Logo + Company left, Document label right
+            1 · HEADER PREMIUM — Logo + entreprise à gauche | Document à droite
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="flex justify-between items-start mb-3">
+        <div className="flex justify-between items-start mb-4">
 
-          {/* LEFT — Logo + company block */}
+          {/* LEFT — Logo + Bloc entreprise */}
           <div className="flex items-start gap-3">
             {s.logo ? (
-              <img src={s.logo} alt="Logo" className="h-12 w-auto object-contain flex-shrink-0" />
+              <img src={s.logo} alt="Logo" className="h-14 w-auto object-contain flex-shrink-0" />
             ) : (
-              <div className="h-12 w-12 rounded bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-400 text-[7px] font-bold flex-shrink-0">
+              <div className="h-14 w-14 rounded-sm bg-[#1e3a5f] flex items-center justify-center text-white text-[7px] font-bold tracking-widest flex-shrink-0">
                 LOGO
               </div>
             )}
-            <div>
-              <p className="text-[13px] font-bold text-slate-900 uppercase leading-tight tracking-wide">
+            <div className="flex flex-col justify-center">
+              <p className="text-[14px] font-extrabold text-[#1e3a5f] uppercase leading-tight tracking-wide">
                 {s.companyName || 'NOM ENTREPRISE'}
               </p>
-              {s.legalForm  && <p className="text-[8px] text-slate-400 font-medium">{s.legalForm}</p>}
-              {s.address    && <p className="text-[8px] text-slate-500 mt-0.5">{s.address}</p>}
-              {(s.email || s.phone) && (
-                <p className="text-[8px] text-slate-500">
-                  {[s.email, s.phone].filter(Boolean).join('    ')}
+              {s.legalForm && (
+                <p className="text-[8px] text-slate-400 font-medium tracking-wider mt-0.5">{s.legalForm}</p>
+              )}
+              {s.address && (
+                <p className="text-[8px] text-slate-500 mt-0.5">{s.address}</p>
+              )}
+              {(s.phone || s.email) && (
+                <p className="text-[8px] text-slate-500 mt-0.5">
+                  {[s.phone && `Tél : ${s.phone}`, s.email].filter(Boolean).join('  ·  ')}
                 </p>
               )}
             </div>
           </div>
 
-          {/* RIGHT — Document type + number + date */}
-          <div className="text-right">
-            <p className="text-[28px] font-extrabold text-[#1e3a5f] tracking-widest leading-none">
+          {/* RIGHT — Type de document + N° complet + Dates */}
+          <div className="text-right flex flex-col items-end gap-0.5">
+            {/* Label principal : FACTURE / DEVIS / AVOIR */}
+            <p className="text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">
               {labelOf(type)}
             </p>
-            <p className="text-[9px] font-semibold text-slate-600 mt-1">
+            {/* N° de document avec préfixe redondant */}
+            <p className="text-[9px] font-bold text-slate-700 mt-1 tracking-wide">
               {numberLabel(type)}-{data.number}
             </p>
-            <p className="text-[8px] text-slate-500 mt-0.5">
-              Date d&apos;émission : <span className="font-medium text-slate-700">{fmtDate(data.date)}</span>
+            <div className="w-full h-px bg-slate-200 my-1" />
+            <p className="text-[8px] text-slate-500">
+              Date d&apos;émission :{' '}
+              <span className="font-semibold text-slate-700">{fmtDate(data.date)}</span>
             </p>
             {dueDate && (
               <p className="text-[8px] text-slate-500">
-                Échéance : <span className="font-medium text-slate-700">{fmtDate(dueDate)}</span>
+                Échéance :{' '}
+                <span className="font-semibold text-red-600">{fmtDate(dueDate)}</span>
               </p>
             )}
           </div>
         </div>
 
-        {/* Thin separator */}
-        <div className="border-t border-slate-200 mb-3" />
+        {/* Séparateur pleine largeur */}
+        <div className="w-full h-[2px] mb-4" style={{ background: 'linear-gradient(90deg, #1e3a5f 0%, #93c5fd 60%, transparent 100%)' }} />
 
         {/* ══════════════════════════════════════════════════════════════════════
-            2 · ADDRESSES — Émetteur | Destinataire in a bordered grid
+            2 · BLOCS ÉMETTEUR / DESTINATAIRE — Grille ouverte premium
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 border border-slate-200 rounded mb-3">
+        <div className="grid grid-cols-2 gap-8 mb-4">
 
-          <div className="px-4 py-2.5 border-r border-slate-200">
-            <p className="text-[7px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Émetteur</p>
-            <p className="text-[10px] font-bold text-[#1e3a5f]">{s.companyName}</p>
-            {s.nif  && <p className="text-[8.5px] text-slate-600 mt-0.5">NIF : <span className="font-medium text-slate-700">{s.nif}</span></p>}
-            {s.rccm && <p className="text-[8.5px] text-slate-600">RCCM : <span className="font-medium text-slate-700">{s.rccm}</span></p>}
-            {s.address && <p className="text-[8.5px] text-slate-500 mt-0.5">{s.address}</p>}
+          {/* ─ GAUCHE : ÉMETTEUR ─ */}
+          <div className="bg-slate-50 rounded px-4 py-3">
+            <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">
+              Émetteur
+            </p>
+            <p className="text-[11px] font-extrabold text-[#1e3a5f] leading-tight">
+              {s.companyName || '—'}
+            </p>
+            {s.legalForm && (
+              <p className="text-[8px] text-slate-400 font-medium mt-0.5">{s.legalForm}</p>
+            )}
+            <div className="mt-2 space-y-0.5 text-[8.5px] text-slate-600">
+              {s.nif    && <p><span className="font-semibold text-slate-700">NIF :</span> {s.nif}</p>}
+              {s.rccm   && <p><span className="font-semibold text-slate-700">RCCM :</span> {s.rccm}</p>}
+              {s.address && <p className="text-slate-500 mt-1">{s.address}</p>}
+              {s.phone  && <p className="text-slate-500">Tél : {s.phone}</p>}
+            </div>
           </div>
 
-          <div className="px-4 py-2.5">
-            <p className="text-[7px] font-bold uppercase tracking-widest text-slate-400 mb-1.5">Destinataire</p>
-            <p className="text-[10px] font-bold text-[#1e3a5f]">{data.clientName}</p>
-            {clientEmail && <p className="text-[8.5px] text-slate-500">{clientEmail}</p>}
-            <div className="mt-0.5 text-[8.5px] text-slate-600 space-y-0.5">
-              <p>Objet : <span className="font-medium text-slate-700">{notes || reason || 'Prestations de services'}</span></p>
+          {/* ─ DROITE : DESTINATAIRE ─ */}
+          <div className="bg-slate-50 rounded px-4 py-3">
+            <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">
+              Destinataire
+            </p>
+            <p className="text-[11px] font-extrabold text-[#1e3a5f] leading-tight">
+              {data.clientName}
+            </p>
+            {clientEmail && (
+              <p className="text-[8.5px] text-slate-500 mt-0.5">{clientEmail}</p>
+            )}
+            {/* Séparateur discret avant l'objet */}
+            <div className="border-t border-slate-200 mt-2 pt-2">
+              <p className="text-[8.5px] text-slate-600">
+                <span className="font-semibold text-slate-700">Objet :</span>{' '}
+                {notes || reason || 'Prestations de services'}
+              </p>
             </div>
           </div>
         </div>
@@ -208,48 +246,49 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
             table-fixed + colgroup locks column widths
         ══════════════════════════════════════════════════════════════════════ */}
         <div className="flex-grow min-h-0">
-          <table className="w-full table-fixed border-collapse text-[8.5px]" style={{ tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+          <table className="w-full table-fixed border-collapse" style={{ tableLayout: 'fixed', borderCollapse: 'collapse' }}>
             <colgroup>
               <col style={{ width: '50%' }} />
               <col style={{ width: '15%' }} />
               <col style={{ width: '15%' }} />
               <col style={{ width: '20%' }} />
             </colgroup>
-            <thead className="tbl-head">
-              <tr style={{ backgroundColor: '#1e3a5f' }}>
-                <th className="text-left py-2 px-3 font-semibold uppercase tracking-wider text-white text-[8px]">
+            <thead className="table-header-group tbl-head">
+              <tr style={{ backgroundColor: '#1e293b' }}>
+                <th className="text-left py-2.5 px-3 font-bold uppercase tracking-widest text-white text-[10px]">
                   Désignation
                 </th>
-                <th className="text-right py-2 px-3 font-semibold uppercase tracking-wider text-white text-[8px]">
+                <th className="text-center py-2.5 px-3 font-bold uppercase tracking-widest text-white text-[10px]">
                   Qté
                 </th>
-                <th className="text-right py-2 px-3 font-semibold uppercase tracking-wider text-white text-[8px]">
+                <th className="text-right py-2.5 px-3 font-bold uppercase tracking-widest text-white text-[10px]">
                   P.U (HT)
                 </th>
-                <th className="text-right py-2 px-3 font-semibold uppercase tracking-wider text-white text-[8px]">
+                <th className="text-right py-2.5 px-3 font-bold uppercase tracking-widest text-white text-[10px]">
                   Total (HT)
                 </th>
               </tr>
             </thead>
-            <tbody>
-              {data.items.map((item, i) => (
+            <tbody className="table-row-group">
+              {data.items.map((item) => (
                 <tr
                   key={item.id}
-                  style={{ borderBottom: '1px solid #e2e8f0', backgroundColor: i % 2 === 0 ? '#fff' : '#f8fafc' }}
+                  className="border-b border-gray-100 print:break-inside-avoid"
+                  style={{ backgroundColor: '#fff' }}
                 >
-                  <td className="py-1.5 px-3 align-top font-medium text-slate-800 break-words whitespace-normal">{item.description}</td>
-                  <td className="py-1.5 px-3 text-right tabular-nums text-slate-600 align-top">{item.quantity}</td>
-                  <td className="py-1.5 px-3 text-right tabular-nums text-slate-600 align-top">{fmt(item.unitPrice)}</td>
-                  <td className="py-1.5 px-3 text-right tabular-nums font-semibold text-slate-800 align-top">{fmt(item.total)}</td>
+                  <td className="py-3 px-3 align-top font-medium text-slate-800 break-words whitespace-normal text-[11px] leading-relaxed">{item.description}</td>
+                  <td className="py-3 px-3 text-center tabular-nums text-slate-600 align-top text-[11px] leading-relaxed">{item.quantity}</td>
+                  <td className="py-3 px-3 text-right tabular-nums text-slate-600 align-top text-[11px] leading-relaxed">{fmt(item.unitPrice)}</td>
+                  <td className="py-3 px-3 text-right tabular-nums font-bold text-slate-800 align-top text-[11px] leading-relaxed">{fmt(item.total)}</td>
                 </tr>
               ))}
               {/* Padding rows to fill minimum height */}
               {Array.from({ length: padRows }).map((_, i) => (
-                <tr key={`pad-${i}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td className="py-1.5 px-3 text-transparent select-none break-words" aria-hidden="true">.</td>
-                  <td className="py-1.5 px-3" />
-                  <td className="py-1.5 px-3" />
-                  <td className="py-1.5 px-3" />
+                <tr key={`pad-${i}`} className="border-b border-gray-100 print:break-inside-avoid" style={{ backgroundColor: '#fff' }}>
+                  <td className="py-3 px-3 text-transparent select-none break-words text-[11px]" aria-hidden="true">.</td>
+                  <td className="py-3 px-3" />
+                  <td className="py-3 px-3" />
+                  <td className="py-3 px-3" />
                 </tr>
               ))}
             </tbody>
@@ -257,141 +296,154 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════════
-            4 · BOTTOM SECTION — Bank info + Signature (left) | Totals (right)
-            This mirrors exactly the reference PDF layout.
+            4 · GRILLE INFÉRIEURE — Coordonnées bancaires & Signatures (gauche) | Totaux (droite)
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="flex gap-4 mt-3">
+        <div className="grid grid-cols-2 mt-auto pt-6 gap-8">
 
-          {/* ── LEFT COLUMN — Bank + Payment terms + Signature ── */}
-          <div className="flex-1 flex flex-col gap-2">
-
-            {/* Bank info box */}
-            <div className="border border-slate-200 rounded p-2.5">
-              <p className="text-[7px] font-bold uppercase tracking-widest text-[#1e3a5f] mb-1.5">
+          {/* ─ COLONNE GAUCHE : BANQUE & SIGNATURE ─ */}
+          <div className="flex flex-col gap-4">
+            {/* Encadré Bancaire */}
+            <div className="border border-slate-200 rounded px-3 py-2.5 bg-slate-50">
+              <p className="text-[8px] font-bold uppercase tracking-widest text-[#1e3a5f] mb-2">
                 Coordonnées pour Virement Bancaire
               </p>
-              <div className="text-[8px] text-slate-600 space-y-0.5">
+              <div className="text-[8.5px] text-slate-600 space-y-0.5">
                 {s.bankName      && <p><span className="font-semibold text-slate-700">Banque :</span> {s.bankName}</p>}
                 {s.bankAgency    && <p><span className="font-semibold text-slate-700">Agence :</span> {s.bankAgency}</p>}
                 {s.accountNumber && <p><span className="font-semibold text-slate-700">N° Compte :</span> {s.accountNumber}</p>}
                 {s.swiftCode     && <p><span className="font-semibold text-slate-700">SWIFT/BIC :</span> {s.swiftCode}</p>}
-                {s.iban          && <p><span className="font-semibold text-slate-700">IBAN/RIB :</span> <span className="font-mono text-[7.5px]">{s.iban}</span></p>}
+                {s.iban          && <p><span className="font-semibold text-slate-700">IBAN/RIB :</span> <span className="font-mono text-[8px]">{s.iban}</span></p>}
               </div>
             </div>
 
-            {/* Payment terms */}
-            <div className="text-[8px] text-slate-500">
-              <p>
-                <span className="font-semibold text-slate-700">Règlement :</span>{' '}
-                Espèces · Chèques · Virements
-              </p>
-              <p>
-                <span className="font-semibold text-slate-700">Délais :</span> Au comptant
-              </p>
+            {/* Conditions de règlement */}
+            <div className="text-[8.5px] text-slate-500 flex flex-col gap-0.5">
+              <p><span className="font-semibold text-slate-700">Règlement :</span> Espèces · Chèques · Virements</p>
+              <p><span className="font-semibold text-slate-700">Délais :</span> Au comptant</p>
             </div>
 
-            {/* Signature zone */}
-            <div className="mt-auto pt-2">
-              <p className="text-[9px] font-bold text-slate-700">La Direction</p>
-              <div className="border-b border-slate-400 w-28 mt-6 mb-0.5" />
-              <p className="text-[7.5px] text-slate-400">Signature</p>
+            {/* Signature */}
+            <div className="mt-4">
+              <p className="text-[10px] font-bold text-[#1e3a5f] uppercase tracking-wider">La Direction</p>
+              <div className="border-b border-slate-300 w-32 mt-10 mb-1" />
+              <p className="text-[8px] text-slate-400 font-medium">Cachet & Signature</p>
             </div>
           </div>
 
-          {/* ── RIGHT COLUMN — Vertical totals list + NET À PAYER box ── */}
-          <div style={{ width: '220px', flexShrink: 0 }}>
+          {/* ─ COLONNE DROITE : TOTAUX DYNAMIQUES ─ */}
+          <div className="flex flex-col items-end">
+            <div className="w-[240px]">
 
-            {/* Totals rows */}
-            <div className="text-[8.5px]">
-              {/* Brut HT */}
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Brut HT</span>
-                <span className="font-semibold text-slate-800 tabular-nums">{fmt(data.subtotal)}</span>
+              {/* Lignes standards */}
+              <div className="text-[9px] mb-2 space-y-1">
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Brut HT</span>
+                  <span className="font-semibold text-slate-800 tabular-nums">{fmt(data.subtotal)}</span>
+                </div>
+                {discount > 0 && (
+                  <div className="flex justify-between py-1 border-b border-slate-100">
+                    <span className="text-slate-500">Remise</span>
+                    <span className="font-semibold text-slate-600 tabular-nums">− {fmt(discount)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">Net HT</span>
+                  <span className="font-semibold text-slate-800 tabular-nums">{fmt(netHT)}</span>
+                </div>
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">CSS ({s.cssRate ?? 1}%)</span>
+                  <span className="font-semibold text-slate-800 tabular-nums">{fmt(data.cssAmount)}</span>
+                </div>
+                {tpsAmt > 0 && (
+                  <div className="flex justify-between py-1 border-b border-slate-100">
+                    <span className="text-slate-500">TPS ({s.tpsRate ?? 9.5}%)</span>
+                    <span className="font-semibold text-slate-800 tabular-nums">{fmt(tpsAmt)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between py-1 border-b border-slate-100">
+                  <span className="text-slate-500">TVA ({s.tvaRate ?? 18}%)</span>
+                  <span className="font-semibold text-slate-800 tabular-nums">{fmt(data.tvaAmount)}</span>
+                </div>
               </div>
 
-              {/* Remise (only if > 0) */}
-              {discount > 0 && (
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">Remise</span>
-                  <span className="font-semibold text-slate-600 tabular-nums">− {fmt(discount)}</span>
+              {/* LOGIQUE CONDITIONNELLE (DEVIS vs FACTURE/AVOIR) */}
+              {type === 'devis' ? (
+                // Ligne finale DEVIS
+                <div className="mt-2 bg-slate-50 p-3 rounded-lg flex justify-between items-center print:break-inside-avoid">
+                  <span className="text-[14px] font-extrabold text-slate-800 uppercase tracking-widest">
+                    Net à Payer
+                  </span>
+                  <span className="text-[14px] font-extrabold text-slate-800 tabular-nums leading-none">
+                    {fmt(data.total)}
+                  </span>
+                </div>
+              ) : (
+                // Bloc complet FACTURE / AVOIR
+                <div className="mt-2">
+                  <div className="bg-[#1e3a5f] rounded px-3 py-2.5 flex justify-between items-center net-box">
+                    <span className="text-[10px] font-bold text-white uppercase tracking-widest">
+                      Total TTC
+                    </span>
+                    <span className="text-[14px] font-extrabold text-white tabular-nums leading-none">
+                      {fmt(data.total)}
+                    </span>
+                  </div>
+
+                  {/* Lignes de paiements (Réglé & Reste) */}
+                  <div className="mt-2 text-[9px] flex flex-col gap-1.5 px-1 pt-1">
+                    <div className="flex justify-between items-center">
+                      <span className="text-slate-500 font-medium">Réglé</span>
+                      <span className="text-slate-600 font-semibold tabular-nums">{fmt(totalPaid)}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="font-bold text-[#1e3a5f]">Reste à Payer</span>
+                      <span className="font-bold text-red-600 tabular-nums text-[11px]">{fmt(remaining)}</span>
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {/* Net HT */}
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">Net HT</span>
-                <span className="font-semibold text-slate-800 tabular-nums">{fmt(netHT)}</span>
-              </div>
-
-              {/* CSS */}
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">CSS ({s.cssRate ?? 1}%)</span>
-                <span className="font-semibold text-slate-800 tabular-nums">{fmt(data.cssAmount)}</span>
-              </div>
-
-              {/* TPS (optional) */}
-              {tpsAmt > 0 && (
-                <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">TPS ({s.tpsRate ?? 9.5}%)</span>
-                  <span className="font-semibold text-slate-800 tabular-nums">{fmt(tpsAmt)}</span>
-                </div>
-              )}
-
-              {/* TVA */}
-              <div className="flex justify-between py-1 border-b border-slate-100">
-                <span className="text-slate-500">TVA ({s.tvaRate ?? 18}%)</span>
-                <span className="font-semibold text-slate-800 tabular-nums">{fmt(data.tvaAmount)}</span>
-              </div>
             </div>
-
-            {/* NET À PAYER — dark navy highlight box */}
-            <div
-              className="net-box mt-1 rounded px-3 py-2.5 flex justify-between items-center"
-              style={{ backgroundColor: '#1e3a5f' }}
-            >
-              <span className="text-[9px] font-bold text-white uppercase tracking-wide">
-                {payments.length > 0 ? 'Total TTC' : 'Net à Payer'}
-              </span>
-              <span className="text-[14px] font-extrabold text-white tabular-nums leading-none">
-                {fmt(data.total)}
-              </span>
-            </div>
-
-            {/* Partial payments */}
-            {payments.length > 0 && (
-              <div className="mt-1.5 text-[8px] text-right space-y-0.5">
-                <p className="text-slate-500">
-                  Réglé : <span className="font-semibold text-slate-700">{fmt(totalPaid)}</span>
-                </p>
-                <p className="font-bold text-red-600">
-                  Reste : {fmt(remaining)}
-                </p>
-              </div>
-            )}
           </div>
         </div>
 
         {/* ══════════════════════════════════════════════════════════════════════
-            5 · LEGAL FOOTER — centered, small, gray
+            5 · FOOTER LÉGAL ABSOLU — Identité | Banque | Réf fiscale
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="mt-3 pt-2 border-t border-slate-100 text-center text-[7px] text-slate-400 leading-snug">
-          <p>
+        <div className="fixed bottom-0 left-0 w-full px-[15mm] pb-[15mm] text-center bg-white text-[8px] text-gray-500">
+          {/* Ligne décorative */}
+          <div className="w-12 h-[2px] mx-auto mb-2" style={{ backgroundColor: '#1e3a5f' }} />
+
+          {/* Ligne 1 : Identité complète de l'entreprise */}
+          <p className="text-[8px] text-slate-400 text-center leading-tight">
             {[
               s.companyName,
               s.legalForm,
-              s.nif  ? `NIF : ${s.nif}` : null,
-              s.rccm ? `RCCM : ${s.rccm}` : null,
+              s.nif   ? `NIF : ${s.nif}`   : null,
+              s.rccm  ? `RCCM : ${s.rccm}` : null,
               s.phone ? `Tél : ${s.phone}` : null,
-              s.email ? `Email : ${s.email}` : null,
+              s.email ? s.email            : null,
             ].filter(Boolean).join(' | ')}
           </p>
-          {(s.bankName && s.accountNumber) && (
-            <p className="mt-0.5">
-              {s.bankName} — N° {s.accountNumber}{s.iban ? ` | IBAN : ${s.iban}` : ''}
+
+          {/* Ligne 2 : Coordonnées bancaires */}
+          {(s.bankName || s.accountNumber) && (
+            <p className="text-[8px] text-slate-400 text-center leading-tight mt-0.5">
+              {[s.bankName && `Banque : ${s.bankName}`, s.accountNumber && `N° Compte : ${s.accountNumber}`, s.iban && `IBAN : ${s.iban}`].filter(Boolean).join(' | ')}
             </p>
           )}
-          {s.mentionsLegales && <p className="italic mt-0.5">{s.mentionsLegales}</p>}
-          <p className="mt-0.5 font-mono text-slate-300 text-[6.5px]">{hash}</p>
+
+          {/* Ligne 3 : Mention légale libre */}
+          {s.mentionsLegales && (
+            <p className="text-[7.5px] text-slate-400 italic text-center leading-tight mt-0.5">
+              {s.mentionsLegales}
+            </p>
+          )}
+
+          {/* Ligne 4 : Référence de validation fiscale DGI */}
+          <p className="text-[7px] font-mono text-slate-300 text-center mt-1 tracking-wider">
+            {hash}
+          </p>
         </div>
 
       </div>

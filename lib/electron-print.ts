@@ -1,70 +1,72 @@
 /**
- * electron-print.ts — Utilitaire d'impression natif Electron
- * ============================================================
- * Capture le HTML du composant <DocumentA4 /> (élément masqué en taille
- * réelle) et l'envoie au Main Process via IPC pour impression dans une
- * fenêtre Chromium cachée.
+ * electron-print.ts — Utilitaire d'impression/export natif Electron
+ * ==================================================================
+ * Fournit deux exports publics :
  *
- * Architecture :
- *  - Le <DocumentA4 /> caché (id="document-a4-container") est rendu en
- *    taille native 210×297mm sans scale.
- *  - On l'emballe dans un squelette HTML complet avec le CDN Tailwind CSS
- *    pour garantir que toutes les classes utilitaires sont disponibles
- *    dans la fenêtre cachée (qui n'a pas accès au bundle Next.js).
- *  - Un script inline déclenche window.print() APRÈS le chargement de
- *    Tailwind pour éviter que l'impression parte avant le rendu des styles.
+ *  buildPrintHtml(contentHtml)  — construit le document HTML complet prêt
+ *                                  à être chargé dans une fenêtre Chromium
+ *                                  cachée (impression OU export PDF).
+ *
+ *  printElement(elementId)      — capture le HTML d'un élément du DOM et
+ *                                  l'envoie au Main Process via IPC pour
+ *                                  impression avec la boîte de dialogue native.
  */
 
-export async function printElement(elementId: string): Promise<void> {
-  const element = document.getElementById(elementId)
 
-  if (!element) {
-    throw new Error(`[print] Élément #${elementId} introuvable.`)
-  }
 
-  // ── Fallback navigateur (dev mode sans Electron) ──────────────────────────
-  if (!window.electron?.printDocument) {
-    window.print()
-    return
-  }
+/**
+ * Enveloppe un fragment HTML (outerHTML d'un <DocumentA4 />) dans un
+ * squelette HTML complet prêt à être chargé dans une fenêtre Chromium cachée.
+ *
+ * Points clés :
+ *  - Tailwind CDN est chargé pour que les classes arbitraires (ex: w-[210mm])
+ *    soient disponibles sans accès au bundle Next.js.
+ *  - `print-color-adjust: exact` est forcé sur body pour que Chromium
+ *    préserve les fonds de couleur (économie d'encre désactivée).
+ *  - Le script window.print() n'est inclus que pour l'impression ;
+ *    printToPDF n'en a pas besoin (il rend directement sans boîte de dialogue).
+ *
+ * @param contentHtml       - outerHTML du <DocumentA4 /> capté dans le DOM
+ * @param includePrintScript - true pour l'impression, false pour export PDF
+ */
+export function buildPrintHtml(contentHtml: string, includePrintScript = true): string {
+  const printScript = includePrintScript
+    ? `
+  <script>
+    (function() {
+      var printed = false;
+      function doPrint() {
+        if (printed) return;
+        printed = true;
+        setTimeout(function() { window.print(); }, 150);
+      }
+      if (document.readyState === 'complete') {
+        setTimeout(doPrint, 500);
+      } else {
+        window.addEventListener('load', function() { setTimeout(doPrint, 500); });
+      }
+    })();
+  </script>`
+    : ''
 
-  // ── Capture du HTML natif du DocumentA4 ──────────────────────────────────
-  const contentHtml = element.outerHTML
-
-  // ── Construction du document HTML complet ────────────────────────────────
-  // On utilise le CDN Tailwind avec la configuration explicite pour s'assurer
-  // que les classes arbitraires (ex: w-[210mm], h-[297mm], text-[9px]) et
-  // les variantes print: fonctionnent correctement.
-  const htmlDoc = `<!DOCTYPE html>
+  return `<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
 
-  <!--
-    Tailwind CDN — chargé AVANT l'impression.
-    Le script inline ci-dessous ne déclenche window.print()
-    qu'après que Tailwind ait fini de traiter toutes les classes.
-  -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    // Tailwind CDN expose un callback window.tailwind.config.
-    // On configure les classes arbitraires pour les dimensions mm.
-    tailwind.config = {
-      theme: {
-        extend: {}
-      }
-    }
+    tailwind.config = { theme: { extend: {} } }
   </script>
 
   <style>
-    /* Reset de base — le body ne doit rien ajouter autour de la feuille */
     *, *::before, *::after { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
-      background: #f1f5f9; /* bg-slate-100 — visible brièvement avant impression */
+      background: #f1f5f9;
       display: flex;
       justify-content: center;
       align-items: flex-start;
@@ -82,14 +84,12 @@ export async function printElement(elementId: string): Promise<void> {
         margin: 0 !important;
         padding: 0 !important;
         display: block !important;
+        /* Force Chromium à reproduire les fonds de couleur (sans économie d'encre) */
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
-      #printable-a4-document {
-        box-shadow: none !important;
-        margin: 0 !important;
-      }
-      /* Assure que la feuille A4 prend toute la page sans décalage */
+
+      /* Feuille A4 : colle au coin supérieur gauche, zero décalage */
       .doc-a4 {
         position: absolute !important;
         left: 0 !important;
@@ -100,7 +100,14 @@ export async function printElement(elementId: string): Promise<void> {
         margin: 0 !important;
         box-shadow: none !important;
       }
-      /* Force le fond sombre du thead à l'impression */
+
+      /* Cible l'ID stable — double sécurité contre l'ombre résiduelle */
+      #printable-a4-document {
+        box-shadow: none !important;
+        margin: 0 !important;
+      }
+
+      /* En-tête tableau : fond navy forcé */
       .doc-a4 .items-table thead tr {
         background-color: #1e293b !important;
         -webkit-print-color-adjust: exact;
@@ -109,6 +116,8 @@ export async function printElement(elementId: string): Promise<void> {
       .doc-a4 .items-table thead th {
         color: #ffffff !important;
       }
+
+      /* Bloc "Net à payer" : fond bleu clair forcé */
       .doc-a4 .net-a-payer {
         background-color: #eff6ff !important;
         -webkit-print-color-adjust: exact;
@@ -119,37 +128,31 @@ export async function printElement(elementId: string): Promise<void> {
 </head>
 <body>
   ${contentHtml}
-
-  <script>
-    /**
-     * Déclenche l'impression UNIQUEMENT après que Tailwind ait fini de
-     * calculer et d'appliquer tous les styles. On écoute l'événement
-     * personnalisé que Tailwind CDN émet quand il a terminé, avec un
-     * fallback sur un délai de 800ms si l'événement n'est pas émis.
-     */
-    (function() {
-      var printed = false;
-
-      function doPrint() {
-        if (printed) return;
-        printed = true;
-        // Léger délai pour laisser le moteur de rendu finir les reflows
-        setTimeout(function() { window.print(); }, 150);
-      }
-
-      // Tailwind CDN v3 n'émet pas d'événement de fin explicite,
-      // mais il est synchrone sur le premier rendu après DOMContentLoaded.
-      if (document.readyState === 'complete') {
-        setTimeout(doPrint, 500);
-      } else {
-        window.addEventListener('load', function() {
-          setTimeout(doPrint, 500);
-        });
-      }
-    })();
-  </script>
+${printScript}
 </body>
 </html>`
+}
+
+/**
+ * Capture le HTML d'un élément du DOM et l'envoie au Main Process via IPC
+ * pour impression via la boîte de dialogue d'impression native.
+ *
+ * @param elementId - ID de l'élément <DocumentA4 /> caché à capturer
+ */
+export async function printElement(elementId: string): Promise<void> {
+  const element = document.getElementById(elementId)
+
+  if (!element) {
+    throw new Error(`[print] Élément #${elementId} introuvable.`)
+  }
+
+  // ── Fallback navigateur (dev mode sans Electron) ──────────────────────────
+  if (!window.electron?.printDocument) {
+    window.print()
+    return
+  }
+
+  const htmlDoc = buildPrintHtml(element.outerHTML, /* includePrintScript */ true)
 
   // ── Envoi au Main Process via IPC ─────────────────────────────────────────
   await window.electron.printDocument(htmlDoc)
