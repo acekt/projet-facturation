@@ -200,12 +200,6 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             items,
             notes,
             discount,
-            subtotal,
-            taxBase,
-            tpsAmount,
-            tvaAmount,
-            cssAmount,
-            total,
             status
           }),
         })

@@ -17,7 +17,7 @@
     "reset-db": "npx ts-node --project tsconfig.json reset-db.ts",
     "rebuild:node": "npm rebuild better-sqlite3",
     "rebuild:electron": "node -e \"const fs=require('fs'),p=require('path'),d=p.resolve('node_modules/better-sqlite3/build');if(fs.existsSync(d)){fs.rmSync(d,{recursive:true,force:true});console.log('[purge] Cache ABI supprimé:',d);}else{console.log('[purge] Rien à purger.');}\" && electron-builder install-app-deps",
-    "sync-sqlite": "node -e \"const fs=require('fs'); const p=require('path'); const src=p.resolve('node_modules/better-sqlite3/build/Release/better_sqlite3.node'); const dst=p.resolve('.next/standalone/node_modules/better-sqlite3/build/Release/better_sqlite3.node'); fs.mkdirSync(p.dirname(dst),{recursive:true}); fs.copyFileSync(src,dst); console.log('[sync-sqlite] Binaire natif synchronis\u00e9 :', dst);\"",
+    "sync-sqlite": "node -e \"const fs=require('fs'); const p=require('path'); const src=p.resolve('node_modules/better-sqlite3/build/Release/better_sqlite3.node'); const dst=p.resolve('.next/standalone/node_modules/better-sqlite3/build/Release/better_sqlite3.node'); fs.mkdirSync(p.dirname(dst),{recursive:true}); fs.copyFileSync(src,dst); console.log('[sync-sqlite] Binaire natif synchronisé :', dst);\"",
     "build:electron": "set NEXT_TELEMETRY_DISABLED=1 && npm run rebuild:node && next build && npm run rebuild:electron && npm run sync-sqlite",
     "dist": "npm run build:electron && electron-builder",
     "dist:win": "npm run build:electron && electron-builder --win",
@@ -31,11 +31,8 @@
       "buildResources": "build",
       "output": "dist"
     },
-
     "asar": false,
-
     "npmRebuild": true,
-
     "files": [
       "main.js",
       "preload.js",
@@ -47,31 +44,37 @@
       "!.next",
       "!.git"
     ],
-
     "extraResources": [
       {
         "from": ".next/standalone",
         "to": "standalone",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": ".next/static",
         "to": "standalone/.next/static",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       },
       {
         "from": "public",
         "to": "standalone/public",
-        "filter": ["**/*"]
+        "filter": [
+          "**/*"
+        ]
       }
     ],
-
     "win": {
       "icon": "build/icon.ico",
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
@@ -89,14 +92,25 @@
       "icon": "build/icon.icns",
       "category": "public.app-category.finance",
       "target": [
-        { "target": "dmg", "arch": ["x64", "arm64"] }
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
       ]
     },
     "linux": {
       "icon": "build/icon.png",
       "category": "Finance",
       "target": [
-        { "target": "AppImage", "arch": ["x64"] }
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
       ]
     }
   },

@@ -192,12 +192,6 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             items,
             notes,
             discount,
-            subtotal,
-            taxBase,
-            tpsAmount,
-            tvaAmount,
-            cssAmount,
-            total,
             status
           }),
         })
