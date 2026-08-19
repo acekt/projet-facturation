@@ -45,24 +45,42 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   const setInvoices = useStore((state) => state.setInvoices)
   const services = useStore((state) => state.services)
   // Zustand Draft Connection
-  const draft = useStore((state) => state.invoiceDraft)
+  const globalDraft = useStore((state) => state.invoiceDraft)
   const setInvoiceDraft = useStore((state) => state.setInvoiceDraft)
   const clearInvoiceDraft = useStore((state) => state.clearInvoiceDraft)
 
-  const selectedClient = draft.selectedClient
-  const items = draft.items
-  const invoiceDate = draft.invoiceDate
-  const discount = draft.discount
-  const notes = draft.notes
+  // Local State to prevent global re-renders on every keystroke
+  const [localDraft, setLocalDraft] = React.useState(globalDraft)
 
-  const setSelectedClient = (client: typeof clients[0] | null) => setInvoiceDraft({ selectedClient: client })
-  const setDiscount = (val: number) => setInvoiceDraft({ discount: val })
-  const setNotes = (val: string) => setInvoiceDraft({ notes: val })
-  const setInvoiceDate = (val: string) => setInvoiceDraft({ invoiceDate: val })
+  const selectedClient = localDraft.selectedClient
+  const items = localDraft.items
+  const invoiceDate = localDraft.invoiceDate
+  const discount = localDraft.discount
+  const notes = localDraft.notes
+
+  const setSelectedClient = (client: typeof clients[0] | null) => setLocalDraft(prev => ({ ...prev, selectedClient: client }))
+  const setDiscount = (val: number) => setLocalDraft(prev => ({ ...prev, discount: val }))
+  const setNotes = (val: string) => setLocalDraft(prev => ({ ...prev, notes: val }))
+  const setInvoiceDate = (val: string) => setLocalDraft(prev => ({ ...prev, invoiceDate: val }))
   const setItems = (newItems: DraftItem[] | ((prev: DraftItem[]) => DraftItem[])) => {
-    const updatedItems = typeof newItems === 'function' ? newItems(draft.items) : newItems
-    setInvoiceDraft({ items: updatedItems })
+    setLocalDraft(prev => ({
+      ...prev,
+      items: typeof newItems === 'function' ? newItems(prev.items) : newItems
+    }))
   }
+
+  // Sync back to global store manually when explicitly saving as draft
+  const handleSaveDraft = () => {
+    setInvoiceDraft(localDraft);
+    toast.success("Brouillon enregistré temporairement.");
+  };
+
+  // Sync to global store automatically when unmounting if we haven't submitted
+  React.useEffect(() => {
+    return () => {
+       setInvoiceDraft(localDraft);
+    };
+  }, [localDraft, setInvoiceDraft]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false)
   const [clientSearch, setClientSearch] = React.useState("")

@@ -28,19 +28,51 @@ export const QuoteRepository = {
     return db.prepare(sql).all(...params) as (DbQuote & { items: string })[];
   },
 
-  findById(id: string): (DbQuote & { created_by?: string }) | undefined {
-    return db.prepare('SELECT * FROM quotes WHERE id = ? AND deletedAt IS NULL').get(id) as (DbQuote & { created_by?: string }) | undefined;
+  findById(id: string, userId?: string, role?: string): (DbQuote & { created_by?: string }) | undefined {
+    let sql = 'SELECT * FROM quotes WHERE id = ? AND deletedAt IS NULL';
+    const params: unknown[] = [id];
+
+    if (role && role !== ROLES.ADMIN && userId) {
+      sql += ' AND created_by = ?';
+      params.push(userId);
+    }
+
+    return db.prepare(sql).get(...params) as (DbQuote & { created_by?: string }) | undefined;
   },
 
-  findWithStatus(id: string): (DbQuote & { created_by?: string }) | undefined {
-    return db.prepare('SELECT status, deletedAt, created_by FROM quotes WHERE id = ?').get(id) as (DbQuote & { created_by?: string }) | undefined;
+  findWithStatus(id: string, userId?: string, role?: string): (DbQuote & { created_by?: string }) | undefined {
+    let sql = 'SELECT status, deletedAt, created_by FROM quotes WHERE id = ?';
+    const params: unknown[] = [id];
+
+    if (role && role !== ROLES.ADMIN && userId) {
+      sql += ' AND created_by = ?';
+      params.push(userId);
+    }
+
+    return db.prepare(sql).get(...params) as (DbQuote & { created_by?: string }) | undefined;
   },
 
-  softDelete(id: string): void {
-    db.prepare("UPDATE quotes SET deletedAt = datetime('now') WHERE id = ?").run(id);
+  softDelete(id: string, userId?: string, role?: string): { changes: number } {
+    let sql = "UPDATE quotes SET deletedAt = datetime('now') WHERE id = ?";
+    const params: unknown[] = [id];
+
+    if (role && role !== ROLES.ADMIN && userId) {
+      sql += ' AND created_by = ?';
+      params.push(userId);
+    }
+
+    return db.prepare(sql).run(...params);
   },
 
-  updateStatus(id: string, status: string): void {
-    db.prepare('UPDATE quotes SET status = ? WHERE id = ?').run(status, id);
+  updateStatus(id: string, status: string, userId?: string, role?: string): { changes: number } {
+    let sql = 'UPDATE quotes SET status = ? WHERE id = ?';
+    const params: unknown[] = [status, id];
+
+    if (role && role !== ROLES.ADMIN && userId) {
+      sql += ' AND created_by = ?';
+      params.push(userId);
+    }
+
+    return db.prepare(sql).run(...params);
   }
 };

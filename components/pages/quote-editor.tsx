@@ -45,26 +45,44 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   const setQuotes = useStore((state) => state.setQuotes)
   const services = useStore((state) => state.services)
   // Zustand Draft Connection
-  const draft = useStore((state) => state.quoteDraft)
+  const globalDraft = useStore((state) => state.quoteDraft)
   const setQuoteDraft = useStore((state) => state.setQuoteDraft)
   const clearQuoteDraft = useStore((state) => state.clearQuoteDraft)
 
-  const selectedClient = draft.selectedClient
-  const items = draft.items
-  const quoteDate = draft.quoteDate
-  const discount = draft.discount
-  const notes = draft.notes
-  const status = draft.status
+  // Local State to prevent global re-renders on every keystroke
+  const [localDraft, setLocalDraft] = React.useState(globalDraft)
 
-  const setSelectedClient = (client: typeof clients[0] | null) => setQuoteDraft({ selectedClient: client })
-  const setDiscount = (val: number) => setQuoteDraft({ discount: val })
-  const setNotes = (val: string) => setQuoteDraft({ notes: val })
-  const setQuoteDate = (val: string) => setQuoteDraft({ quoteDate: val })
-  const setStatus = (val: Quote['status']) => setQuoteDraft({ status: val })
+  const selectedClient = localDraft.selectedClient
+  const items = localDraft.items
+  const quoteDate = localDraft.quoteDate
+  const discount = localDraft.discount
+  const notes = localDraft.notes
+  const status = localDraft.status
+
+  const setSelectedClient = (client: typeof clients[0] | null) => setLocalDraft(prev => ({ ...prev, selectedClient: client }))
+  const setDiscount = (val: number) => setLocalDraft(prev => ({ ...prev, discount: val }))
+  const setNotes = (val: string) => setLocalDraft(prev => ({ ...prev, notes: val }))
+  const setQuoteDate = (val: string) => setLocalDraft(prev => ({ ...prev, quoteDate: val }))
+  const setStatus = (val: Quote['status']) => setLocalDraft(prev => ({ ...prev, status: val }))
   const setItems = (newItems: DraftItem[] | ((prev: DraftItem[]) => DraftItem[])) => {
-    const updatedItems = typeof newItems === 'function' ? newItems(draft.items) : newItems
-    setQuoteDraft({ items: updatedItems })
+    setLocalDraft(prev => ({
+      ...prev,
+      items: typeof newItems === 'function' ? newItems(prev.items) : newItems
+    }))
   }
+
+  // Sync back to global store manually when explicitly saving as draft
+  const handleSaveDraft = () => {
+    setQuoteDraft(localDraft);
+    toast.success("Brouillon enregistré temporairement.");
+  };
+
+  // Sync to global store automatically when unmounting if we haven't submitted
+  React.useEffect(() => {
+    return () => {
+       setQuoteDraft(localDraft);
+    };
+  }, [localDraft, setQuoteDraft]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false)
   const [clientSearch, setClientSearch] = React.useState("")
