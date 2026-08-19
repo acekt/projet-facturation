@@ -42,15 +42,13 @@ export function useInvoices() {
 
       toast.success(deleteAssociatedQuote ? "Facture et devis associé supprimés" : "Facture supprimée");
 
-      // Refresh related data if a quote was touched
+      // Refresh related data sequentially to avoid Zustand race conditions
       if (deleteAssociatedQuote) {
-        const [updatedInvoices, updatedQuotes, updatedNotes] = await Promise.all([
-            fetch('/api/invoices').then(res => res.json()),
-            fetch('/api/quotes').then(res => res.json()),
-            fetch('/api/credit-notes').then(res => res.json())
-        ]);
+        const updatedInvoices = await fetch('/api/invoices').then(res => res.json());
         setInvoices(updatedInvoices);
+        const updatedQuotes = await fetch('/api/quotes').then(res => res.json());
         setQuotes(updatedQuotes);
+        const updatedNotes = await fetch('/api/credit-notes').then(res => res.json());
         setCreditNotes(updatedNotes);
       } else {
         await fetchInvoices();
