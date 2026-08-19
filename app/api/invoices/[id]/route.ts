@@ -23,19 +23,14 @@ export async function GET(
       return NextResponse.json(errorResponse, { status: 401 });
     }
 
-    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id) as (DbInvoice & { created_by?: string }) | undefined;
+    const invoice = InvoiceRepository.findById(id, session.userId, session.role);
     if (!invoice) {
-      const errorResponse: ErrorResponse = {
-        error: 'Invoice not found',
-      };
-      return NextResponse.json(errorResponse, { status: 404 });
-    }
-
-    if (session.role !== 'admin' && invoice.created_by !== session.userId) {
-      const errorResponse: ErrorResponse = {
-        error: 'Forbidden: You can only access your own invoices',
-      };
-      return NextResponse.json(errorResponse, { status: 403 });
+      // Return 404 or 403 depending on whether it actually doesn't exist or just isn't theirs
+      const exists = InvoiceRepository.findById(id);
+      if (exists) {
+        return NextResponse.json({ error: 'Forbidden: You can only access your own invoices' }, { status: 403 });
+      }
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
     const items = db.prepare('SELECT * FROM invoice_items WHERE invoiceId = ?').all(id) as DbInvoiceItem[];
@@ -106,37 +101,21 @@ export async function DELETE(
     const body = await request.json().catch(() => ({}));
     const { deleteQuote = false } = body as { deleteQuote?: boolean };
 
-    // Get invoice details
-    const invoice = InvoiceRepository.findById(id);
+    // Get invoice details (ensuring RBAC in query)
+    const invoice = InvoiceRepository.findById(id, session.userId, session.role);
     if (!invoice) {
-      const errorResponse: ErrorResponse = {
-        error: 'Invoice not found',
-      };
-      return NextResponse.json(errorResponse, { status: 404 });
-    }
-
-    if (session.role !== 'admin' && invoice.created_by !== session.userId) {
-      const errorResponse: ErrorResponse = {
-        error: 'Forbidden: You can only delete your own invoices',
-      };
-      return NextResponse.json(errorResponse, { status: 403 });
-    }
-
-    if (session.role !== 'admin' && invoice.created_by !== session.userId) {
-      const errorResponse: ErrorResponse = {
-        error: 'Forbidden: You can only delete your own invoices',
-      };
-      return NextResponse.json(errorResponse, { status: 403 });
+      const exists = InvoiceRepository.findById(id);
+      if (exists) {
+        return NextResponse.json({ error: 'Forbidden: You can only delete your own invoices' }, { status: 403 });
+      }
+      return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
     }
 
     // RULE 5: Enforce Soft Delete to maintain fiscal audit trail
-    const result = db.prepare("UPDATE invoices SET deletedAt = datetime('now'), status = 'cancelled' WHERE id = ?").run(id);
+    const result = InvoiceRepository.softDelete(id, session.userId, session.role);
 
     if (result.changes === 0) {
-      const errorResponse: ErrorResponse = {
-        error: 'Invoice not found',
-      };
-      return NextResponse.json(errorResponse, { status: 404 });
+      return NextResponse.json({ error: 'Invoice not found or unauthorized' }, { status: 404 });
     }
 
     // Convert linked quote back to draft status

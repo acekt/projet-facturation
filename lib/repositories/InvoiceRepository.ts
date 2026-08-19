@@ -34,12 +34,28 @@ export const InvoiceRepository = {
     return db.prepare(query).all(...params) as (DbInvoice & { items: string; payments: string })[];
   },
 
-  findById(id: string): DbInvoice | undefined {
-    return db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL').get(id) as DbInvoice | undefined;
+  findById(id: string, userId?: string, role?: string): DbInvoice | undefined {
+    let query = 'SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL';
+    const params: unknown[] = [id];
+
+    if (role && role !== ROLES.ADMIN && userId) {
+      query += ' AND created_by = ?';
+      params.push(userId);
+    }
+
+    return db.prepare(query).get(...params) as DbInvoice | undefined;
   },
 
-  softDelete(id: string): void {
-    db.prepare(`UPDATE invoices SET deletedAt = datetime('now'), status = '${INVOICE_STATUS.CANCELLED}' WHERE id = ?`).run(id);
+  softDelete(id: string, userId?: string, role?: string): { changes: number } {
+    let query = `UPDATE invoices SET deletedAt = datetime('now'), status = '${INVOICE_STATUS.CANCELLED}' WHERE id = ?`;
+    const params: unknown[] = [id];
+
+    if (role && role !== ROLES.ADMIN && userId) {
+      query += ' AND created_by = ?';
+      params.push(userId);
+    }
+
+    return db.prepare(query).run(...params);
   },
 
   updateQuoteStatus(quoteId: string, status: string): void {

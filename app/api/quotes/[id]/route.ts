@@ -31,19 +31,13 @@ export async function GET(
       return NextResponse.json(errorResponse, { status: 401 });
     }
 
-    const quote = QuoteRepository.findById(id);
+    const quote = QuoteRepository.findById(id, session.userId, session.role);
     if (!quote) {
-      const errorResponse: ErrorResponse = {
-        error: 'Quote not found',
-      };
-      return NextResponse.json(errorResponse, { status: 404 });
-    }
-
-    if (session.role !== 'admin' && quote.created_by !== session.userId) {
-      const errorResponse: ErrorResponse = {
-        error: 'Forbidden: You can only access your own quotes',
-      };
-      return NextResponse.json(errorResponse, { status: 403 });
+      const exists = QuoteRepository.findById(id);
+      if (exists) {
+        return NextResponse.json({ error: 'Forbidden: You can only access your own quotes' }, { status: 403 });
+      }
+      return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
     }
 
     const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(id) as DbQuoteItem[];
@@ -98,19 +92,13 @@ export async function PUT(
     }
 
     // Fetch existing quote
-    const existingQuote = QuoteRepository.findWithStatus(id);
+    const existingQuote = QuoteRepository.findWithStatus(id, session.userId, session.role);
     if (!existingQuote || existingQuote.deletedAt !== null) {
-      const errorResponse: ErrorResponse = {
-        error: 'Quote not found',
-      };
-      return NextResponse.json(errorResponse, { status: 404 });
-    }
-
-    if (session.role !== 'admin' && existingQuote.created_by !== session.userId) {
-      const errorResponse: ErrorResponse = {
-        error: 'Forbidden: You can only update your own quotes',
-      };
-      return NextResponse.json(errorResponse, { status: 403 });
+      const exists = QuoteRepository.findWithStatus(id);
+      if (exists && exists.deletedAt === null) {
+        return NextResponse.json({ error: 'Forbidden: You can only update your own quotes' }, { status: 403 });
+      }
+      return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
     }
 
     if (existingQuote.status === 'CONVERTI') {
@@ -222,26 +210,13 @@ export async function DELETE(
       return NextResponse.json(errorResponse, { status: 401 });
     }
 
-    const quote = QuoteRepository.findWithStatus(id);
+    const quote = QuoteRepository.findWithStatus(id, session.userId, session.role);
     if (!quote || quote.deletedAt !== null) {
-      const errorResponse: ErrorResponse = {
-        error: 'Quote not found',
-      };
-      return NextResponse.json(errorResponse, { status: 404 });
-    }
-
-    if (session.role !== 'admin' && quote.created_by !== session.userId) {
-      const errorResponse: ErrorResponse = {
-        error: 'Forbidden: You can only delete your own quotes',
-      };
-      return NextResponse.json(errorResponse, { status: 403 });
-    }
-
-    if (session.role !== 'admin' && quote.created_by !== session.userId) {
-      const errorResponse: ErrorResponse = {
-        error: 'Forbidden: You can only delete your own quotes',
-      };
-      return NextResponse.json(errorResponse, { status: 403 });
+      const exists = QuoteRepository.findWithStatus(id);
+      if (exists && exists.deletedAt === null) {
+        return NextResponse.json({ error: 'Forbidden: You can only delete your own quotes' }, { status: 403 });
+      }
+      return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
     }
 
     // Business rule: A quote cannot be deleted if it has already been converted to an invoice
@@ -255,7 +230,7 @@ export async function DELETE(
     // AN-3 FIX: Soft delete using deletedAt as the sole marker of deletion.
     // The original status (EN_ATTENTE) is preserved for fiscal audit purposes.
     // 'rejected' was a phantom status from a legacy version — removed.
-    QuoteRepository.softDelete(id);
+    QuoteRepository.softDelete(id, session.userId, session.role);
     logAudit('DELETE', 'quote', id, `Devis supprimé: ${quote.number || id}`, session.userId, session.name || session.username || null);
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -290,13 +265,13 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const quote = QuoteRepository.findWithStatus(id);
+    const quote = QuoteRepository.findWithStatus(id, session.userId, session.role);
     if (!quote || quote.deletedAt !== null) {
+      const exists = QuoteRepository.findWithStatus(id);
+      if (exists && exists.deletedAt === null) {
+        return NextResponse.json({ error: 'Forbidden: You can only update your own quotes' }, { status: 403 });
+      }
       return NextResponse.json({ error: 'Quote not found' }, { status: 404 });
-    }
-
-    if (session.role !== 'admin' && quote.created_by !== session.userId) {
-      return NextResponse.json({ error: 'Forbidden: You can only update your own quotes' }, { status: 403 });
     }
 
     const body = await request.json() as { status?: string };
@@ -311,7 +286,7 @@ export async function PATCH(
       );
     }
 
-    QuoteRepository.updateStatus(id, body.status);
+    QuoteRepository.updateStatus(id, body.status, session.userId, session.role);
     logAudit('UPDATE', 'quote', id, `Changement de statut devis: ${quote.status} -> ${body.status}`, session.userId, session.name || session.username || null);
 
     return NextResponse.json({ success: true, status: body.status });
