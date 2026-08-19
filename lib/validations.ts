@@ -50,7 +50,6 @@ export const invoiceItemSchema = z.object({
   // XAF RULE: quantities can be fractional (0.5 hours), but unit prices and totals must be integers.
   quantity: z.number().min(0.01, "La quantité doit être supérieure à 0"),
   unitPrice: z.number().int("Le prix unitaire doit être un entier (XAF, pas de décimales)").min(0, "Le prix unitaire ne peut pas être négatif"),
-  total: z.number().int().optional(), // Ignored server-side: computed from Math.round(quantity × unitPrice)
 });
 
 export const quoteItemSchema = z.object({
@@ -60,7 +59,6 @@ export const quoteItemSchema = z.object({
   // XAF RULE: quantities can be fractional, but unit prices must be integers.
   quantity: z.number().min(0.01, "La quantité doit être supérieure à 0"),
   unitPrice: z.number().int("Le prix unitaire doit être un entier (XAF, pas de décimales)").min(0, "Le prix unitaire ne peut pas être négatif"),
-  total: z.number().int().optional(), // Ignored server-side: computed from Math.round(quantity × unitPrice)
 });
 
 // ============================================================================
