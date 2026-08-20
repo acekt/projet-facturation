@@ -167,13 +167,12 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       setInvoiceToCancel(null);
       setDeleteAssociatedQuote(false);
 
-      const [updatedInvoices, updatedQuotes, updatedNotes] = await Promise.all([
-          fetch('/api/invoices').then(res => res.json()),
-          fetch('/api/quotes').then(res => res.json()),
-          fetch('/api/credit-notes').then(res => res.json())
-      ]);
+      // Replace Promise.all with sequential fetches to prevent Zustand race conditions
+      const updatedInvoices = await fetch('/api/invoices').then(res => res.json());
       setInvoices(updatedInvoices);
+      const updatedQuotes = await fetch('/api/quotes').then(res => res.json());
       setQuotes(updatedQuotes);
+      const updatedNotes = await fetch('/api/credit-notes').then(res => res.json());
       setCreditNotes(updatedNotes);
     } catch (error) {
       toast.error("Erreur lors de l'annulation de la facture");
@@ -270,12 +269,10 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
 
             toast.success("Paiement enregistré")
 
-            const [updatedInvoices, updatedPayments] = await Promise.all([
-                fetch('/api/invoices').then(res => res.json()),
-                fetch('/api/payments').then(res => res.json())
-            ]);
-
+            // Replace Promise.all with sequential fetches to prevent Zustand race conditions
+            const updatedInvoices = await fetch('/api/invoices').then(res => res.json());
             setInvoices(updatedInvoices);
+            const updatedPayments = await fetch('/api/payments').then(res => res.json());
             setPayments(updatedPayments);
             setPaymentDialogOpen(false);
             setPaymentInvoice(null);

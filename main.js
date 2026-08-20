@@ -682,8 +682,28 @@ ipcMain.handle('print-document', async (event, htmlContent) => {
       return reject(new Error('Erreur de préparation du document.'));
     }
 
+    let isSettled = false;
+
+    // Timeout de sécurité (15s) pour éviter un memory leak si le chargement bloque
+    const timer = setTimeout(() => {
+      if (!isSettled) {
+        isSettled = true;
+        logToFile('ERROR', `[Print] Timeout de 15s atteint lors de la génération.`);
+        if (printWin && !printWin.isDestroyed()) {
+          printWin.webContents.removeAllListeners('did-finish-load');
+          printWin.webContents.removeAllListeners('did-fail-load');
+          printWin.destroy();
+          printWin = null;
+        }
+        try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch (e) {}
+        reject(new Error('Timeout lors de la préparation du document.'));
+      }
+    }, 15000);
+
     // 3. Une fois chargé, on lance l'impression
     printWin.webContents.on('did-finish-load', () => {
+      if (isSettled) return;
+
       logToFile('INFO', '[Print] Fenêtre cachée chargée, lancement de print()');
       
       printWin.webContents.print({ 
@@ -691,8 +711,14 @@ ipcMain.handle('print-document', async (event, htmlContent) => {
         printBackground: true,
         // On peut forcer des paramètres spécifiques ici si besoin
       }, (success, errorType) => {
+        if (isSettled) return;
+        isSettled = true;
+        clearTimeout(timer);
+
         // Nettoyage : fermeture de la fenêtre et suppression du fichier temp
-        printWin.destroy();
+        if (printWin && !printWin.isDestroyed()) {
+          printWin.destroy();
+        }
         printWin = null;
         
         try {
@@ -712,15 +738,21 @@ ipcMain.handle('print-document', async (event, htmlContent) => {
 
     // Gestion des erreurs de chargement
     printWin.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+      if (isSettled) return;
+      isSettled = true;
+      clearTimeout(timer);
+
       logToFile('ERROR', `[Print] Échec du chargement de la page d'impression: ${errorDescription}`);
-      printWin.destroy();
+      if (printWin && !printWin.isDestroyed()) {
+        printWin.destroy();
+      }
       printWin = null;
       try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch (e) {}
       reject(new Error('Échec du rendu du document.'));
     });
 
     // 4. Chargement du fichier
-    printWin.loadFile(tempPath);
+    printWin.loadFile(tempPath).catch(() => {});
   });
 });
 
@@ -769,19 +801,29 @@ ipcMain.handle('export-pdf', async (event, htmlContent, defaultFilename = 'docum
       },
     });
 
+    // Timeout de sécurité (15s)
+    const loadPromise = pdfWin.loadFile(tempPath);
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Timeout lors du chargement de la page pour le PDF.")), 15000);
+    });
+
     // 3. Chargement du HTML et attente du rendu complet
-    await pdfWin.loadFile(tempPath);
+    await Promise.race([loadPromise, timeoutPromise]);
     logToFile('INFO', '[PDF] Fenêtre cachée chargée, démarrage de printToPDF...');
 
-    // 4. Génération du buffer PDF via l'API native Chromium
-    //    printBackground: true — OBLIGATOIRE pour préserver les fonds Tailwind
-    //    marginsType: 1        — marges nulles (gérées par @page dans le CSS)
-    const pdfBuffer = await pdfWin.webContents.printToPDF({
+    // 4. Génération du buffer PDF via l'API native Chromium avec Timeout
+    const printPromise = pdfWin.webContents.printToPDF({
       printBackground: true,
       pageSize: 'A4',
       marginsType: 1, // 0=défaut, 1=aucune marge, 2=marges minimales
       landscape: false,
     });
+
+    const printTimeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Timeout lors de la génération du PDF.")), 15000);
+    });
+
+    const pdfBuffer = await Promise.race([printPromise, printTimeoutPromise]);
     logToFile('INFO', `[PDF] Buffer généré (${pdfBuffer.length} octets)`);
 
     // 5. Boîte de dialogue de sauvegarde native

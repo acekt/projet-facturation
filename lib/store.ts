@@ -290,7 +290,7 @@ export const useStore = create<AppState>()(
         clients: state.clients.map((c) => (c.id === tempId ? confirmed : c)),
       })),
 
-      setQuotes: (quotes) => set({ quotes }),
+      setQuotes: (quotes) => set((state) => ({ ...state, quotes })),
       addQuote: (quote) => set((state) => ({ quotes: [quote, ...state.quotes] })),
       removeQuote: (id) => set((state) => ({ quotes: state.quotes.filter((q) => q.id !== id) })),
       updateQuote: (id, data) => set((state) => ({
@@ -299,7 +299,7 @@ export const useStore = create<AppState>()(
       replaceQuote: (tempId, confirmed) => set((state) => ({
         quotes: state.quotes.map((q) => (q.id === tempId ? confirmed : q)),
       })),
-      setInvoices: (invoices) => set({ invoices }),
+      setInvoices: (invoices) => set((state) => ({ ...state, invoices })),
       addInvoice: (invoice) => set((state) => ({ invoices: [invoice, ...state.invoices] })),
       removeInvoice: (id) => set((state) => ({ invoices: state.invoices.filter((i) => i.id !== id) })),
       updateInvoice: (id, data) => set((state) => ({
@@ -329,7 +329,7 @@ export const useStore = create<AppState>()(
       replacePayment: (tempId, confirmed) => set((state) => ({
         payments: state.payments.map((p) => (p.id === tempId ? confirmed : p)),
       })),
-      setCreditNotes: (creditNotes) => set({ creditNotes }),
+      setCreditNotes: (creditNotes) => set((state) => ({ ...state, creditNotes })),
       setSettings: (settings) => set({ settings }),
       updateSettings: (updates) => set((state) => ({
         settings: { ...state.settings, ...updates },

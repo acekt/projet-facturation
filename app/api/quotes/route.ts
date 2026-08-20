@@ -112,7 +112,7 @@ export async function POST(request: Request) {
 
     const id = crypto.randomUUID();
 
-    const insertQuote = db.transaction(() => {
+    const insertQuote = db.transaction((quoteItems: any[]) => {
       const number = getNextNumber('quote');
 
       db.prepare(`
@@ -145,7 +145,7 @@ export async function POST(request: Request) {
         VALUES (?, ?, ?, ?, ?, ?)
       `);
 
-      for (const item of data.items) {
+      for (const item of quoteItems) {
         insertItem.run(
           crypto.randomUUID(),
           id,
@@ -160,7 +160,7 @@ export async function POST(request: Request) {
       return { id, number };
     });
 
-    const result = insertQuote();
+    const result = insertQuote(data.items);
     return NextResponse.json(result);
   } catch (error) {
     console.error('[API Quotes POST] Error:', error);
