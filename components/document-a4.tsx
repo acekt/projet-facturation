@@ -77,7 +77,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
         .doc-a4 {
           font-family: 'Inter', 'Arial', sans-serif !important;
           background: #ffffff !important;
-          color: #1e293b !important;
+          color: var(--color-brand-secondary) !important;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
@@ -85,14 +85,14 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
 
         /* Force dark thead in print */
         .doc-a4 .tbl-head tr {
-          background-color: #1e3a5f !important;
+          background-color: var(--color-brand-primary) !important;
         }
         .doc-a4 .tbl-head th {
           color: #ffffff !important;
         }
         /* Force NET À PAYER blue in print */
         .doc-a4 .net-box {
-          background-color: #1e3a5f !important;
+          background-color: var(--color-brand-primary) !important;
         }
         .doc-a4 .net-box * {
           color: #ffffff !important;
@@ -132,7 +132,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
           minWidth: '210mm',
           minHeight: '297mm',
           height: 'auto',
-          color: '#1e293b',
+          color: 'var(--color-brand-secondary)',
           background: '#ffffff',
         }}
       >
@@ -147,12 +147,12 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
             {s.logo ? (
               <img src={s.logo} alt="Logo" className="h-14 w-auto object-contain flex-shrink-0" />
             ) : (
-              <div className="h-14 w-14 rounded-sm bg-[#1e3a5f] flex items-center justify-center text-white text-[7px] font-bold tracking-widest flex-shrink-0">
+              <div className="h-14 w-14 rounded-sm bg-brand-primary flex items-center justify-center text-white text-[7px] font-bold tracking-widest flex-shrink-0">
                 LOGO
               </div>
             )}
             <div className="flex flex-col justify-center">
-              <p className="text-[14px] font-extrabold text-[#1e3a5f] uppercase leading-tight tracking-wide">
+              <p className="text-[14px] font-extrabold text-brand-primary uppercase leading-tight tracking-wide">
                 {s.companyName || 'NOM ENTREPRISE'}
               </p>
               {s.legalForm && (
@@ -194,7 +194,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
         </div>
 
         {/* Séparateur pleine largeur */}
-        <div className="w-full h-[2px] mb-4" style={{ background: 'linear-gradient(90deg, #1e3a5f 0%, #93c5fd 60%, transparent 100%)' }} />
+        <div className="w-full h-[2px] mb-4" style={{ background: 'linear-gradient(90deg, var(--color-brand-primary) 0%, #93c5fd 60%, transparent 100%)' }} />
 
         {/* ══════════════════════════════════════════════════════════════════════
             2 · BLOCS ÉMETTEUR / DESTINATAIRE — Grille ouverte premium
@@ -206,7 +206,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
             <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">
               Émetteur
             </p>
-            <p className="text-[11px] font-extrabold text-[#1e3a5f] leading-tight">
+            <p className="text-[11px] font-extrabold text-brand-primary leading-tight">
               {s.companyName || '—'}
             </p>
             {s.legalForm && (
@@ -225,7 +225,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
             <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">
               Destinataire
             </p>
-            <p className="text-[11px] font-extrabold text-[#1e3a5f] leading-tight">
+            <p className="text-[11px] font-extrabold text-brand-primary leading-tight">
               {data.clientName}
             </p>
             {clientEmail && (
@@ -254,7 +254,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
               <col style={{ width: '20%' }} />
             </colgroup>
             <thead className="table-header-group tbl-head">
-              <tr style={{ backgroundColor: '#1e293b' }}>
+              <tr style={{ backgroundColor: 'var(--color-brand-secondary)' }}>
                 <th className="text-left py-2.5 px-3 font-bold uppercase tracking-widest text-white text-[10px]">
                   Désignation
                 </th>
@@ -304,7 +304,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
           <div className="flex flex-col gap-4">
             {/* Encadré Bancaire */}
             <div className="border border-slate-200 rounded px-3 py-2.5 bg-slate-50">
-              <p className="text-[8px] font-bold uppercase tracking-widest text-[#1e3a5f] mb-2">
+              <p className="text-[8px] font-bold uppercase tracking-widest text-brand-primary mb-2">
                 Coordonnées pour Virement Bancaire
               </p>
               <div className="text-[8.5px] text-slate-600 space-y-0.5">
@@ -324,7 +324,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
 
             {/* Signature */}
             <div className="mt-4">
-              <p className="text-[10px] font-bold text-[#1e3a5f] uppercase tracking-wider">La Direction</p>
+              <p className="text-[10px] font-bold text-brand-primary uppercase tracking-wider">La Direction</p>
               <div className="border-b border-slate-300 w-32 mt-10 mb-1" />
               <p className="text-[8px] text-slate-400 font-medium">Cachet & Signature</p>
             </div>
@@ -380,7 +380,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
               ) : (
                 // Bloc complet FACTURE / AVOIR
                 <div className="mt-2">
-                  <div className="bg-[#1e3a5f] rounded px-3 py-2.5 flex justify-between items-center net-box">
+                  <div className="bg-brand-primary rounded px-3 py-2.5 flex justify-between items-center net-box">
                     <span className="text-[10px] font-bold text-white uppercase tracking-widest">
                       Total TTC
                     </span>
@@ -396,7 +396,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
                       <span className="text-slate-600 font-semibold tabular-nums">{fmt(totalPaid)}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="font-bold text-[#1e3a5f]">Reste à Payer</span>
+                      <span className="font-bold text-brand-primary">Reste à Payer</span>
                       <span className="font-bold text-red-600 tabular-nums text-[11px]">{fmt(remaining)}</span>
                     </div>
                   </div>
@@ -412,7 +412,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
         ══════════════════════════════════════════════════════════════════════ */}
         <div className="fixed bottom-0 left-0 w-full px-[15mm] pb-[15mm] text-center bg-white text-[8px] text-gray-500">
           {/* Ligne décorative */}
-          <div className="w-12 h-[2px] mx-auto mb-2" style={{ backgroundColor: '#1e3a5f' }} />
+          <div className="w-12 h-[2px] mx-auto mb-2" style={{ backgroundColor: 'var(--color-brand-primary)' }} />
 
           {/* Ligne 1 : Identité complète de l'entreprise */}
           <p className="text-[8px] text-slate-400 text-center leading-tight">
