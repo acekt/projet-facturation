@@ -58,10 +58,30 @@ export function buildPrintHtml(contentHtml: string, includePrintScript = true): 
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { theme: { extend: {} } }
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              primary: '#1e3a5f',
+              secondary: '#1e293b',
+              accent: '#3b82f6',
+              muted: '#f8fafc'
+            }
+          }
+        }
+      }
+    }
   </script>
 
   <style>
+    /* Polyfill pour les variables CSS (au cas où Chromium cache ne parse pas Tailwind v4 nativement via CDN v3) */
+    :root {
+      --color-brand-primary: #1e3a5f;
+      --color-brand-secondary: #1e293b;
+      --color-brand-accent: #3b82f6;
+      --color-brand-muted: #f8fafc;
+    }
     *, *::before, *::after { box-sizing: border-box; }
     html, body {
       margin: 0;
@@ -109,7 +129,7 @@ export function buildPrintHtml(contentHtml: string, includePrintScript = true): 
 
       /* En-tête tableau : fond navy forcé */
       .doc-a4 .items-table thead tr {
-        background-color: #1e293b !important;
+        background-color: var(--color-brand-secondary) !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
@@ -119,7 +139,7 @@ export function buildPrintHtml(contentHtml: string, includePrintScript = true): 
 
       /* Bloc "Net à payer" : fond bleu clair forcé */
       .doc-a4 .net-a-payer {
-        background-color: #eff6ff !important;
+        background-color: var(--color-brand-muted) !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
       }
