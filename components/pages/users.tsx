@@ -33,15 +33,17 @@ import { useStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { StatusBadge } from "@/components/ui/status-badge"
+import { UserResponse } from "@/lib/types/api"
 
-const checkIsActive = (u: any): boolean => {
+const checkIsActive = (u: UserResponse): boolean => {
   if (!u) return false;
   if (u.deletedAt && u.deletedAt !== null) return false;
-  if (u.isActive !== undefined && u.isActive !== null) {
-    return u.isActive === true || u.isActive === 1 || u.isActive === "1" || u.isActive === "ACTIF";
+  if ('isActive' in u && (u as unknown as Record<string, unknown>).isActive !== undefined && (u as unknown as Record<string, unknown>).isActive !== null) {
+    const isActive = (u as unknown as Record<string, unknown>).isActive;
+    return isActive === true || isActive === 1 || isActive === "1" || isActive === "ACTIF";
   }
   if (u.is_active !== undefined && u.is_active !== null) {
-    return u.is_active === true || u.is_active === 1 || u.is_active === "1" || u.is_active === "ACTIF";
+    return u.is_active === 1 || u.is_active === true as unknown as number;
   }
   if (u.role === 'admin') return true;
   return false;
@@ -72,7 +74,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   const [isResetModalOpen, setIsResetModalOpen] = React.useState(false)
   const [isPasswordDisplayOpen, setIsPasswordDisplayOpen] = React.useState(false)
 
-  const [selectedUser, setSelectedUser] = React.useState<any>(null)
+  const [selectedUser, setSelectedUser] = React.useState<UserResponse | null>(null)
   const [tempPassword, setTempPassword] = React.useState("")
   const [deleteConfirmName, setDeleteConfirmName] = React.useState("")
 
@@ -184,6 +186,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   }
 
   const handleUpdateUser = async () => {
+    if (!selectedUser) return;
     try {
         const res = await fetch(`/api/users/${selectedUser.id}`, {
             method: 'PATCH',
@@ -209,6 +212,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   }
 
   const handleToggleStatus = async () => {
+    if (!selectedUser) return;
     try {
         const currentActive = checkIsActive(selectedUser);
         const newStatus = !currentActive; // Invert status as boolean
@@ -236,6 +240,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   }
 
   const handleDeleteUser = async () => {
+    if (!selectedUser) return;
     if (deleteConfirmName !== selectedUser.name) {
         toast.error("Le nom saisi ne correspond pas")
         return
@@ -257,6 +262,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   }
 
   const handleResetPassword = async () => {
+    if (!selectedUser) return;
     const pw = generatePassword()
     try {
         const res = await fetch(`/api/users/${selectedUser.id}`, {
@@ -514,9 +520,9 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
       <Dialog open={isStatusModalOpen} onOpenChange={setIsStatusModalOpen}>
         <DialogContent className="bg-card border-border">
           <DialogHeader>
-            <DialogTitle>{checkIsActive(selectedUser) ? "Désactiver" : "Réactiver"} le compte</DialogTitle>
+            <DialogTitle>{selectedUser && checkIsActive(selectedUser) ? "Désactiver" : "Réactiver"} le compte</DialogTitle>
             <DialogDescription>
-                {checkIsActive(selectedUser)
+                {selectedUser && checkIsActive(selectedUser)
                     ? `Voulez-vous désactiver le compte de ${selectedUser?.name} ? Il ne pourra plus se connecter à l'application.`
                     : `Voulez-vous réactiver le compte de ${selectedUser?.name} ?`
                 }
@@ -525,7 +531,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsStatusModalOpen(false)}>Annuler</Button>
             <Button
-                variant={checkIsActive(selectedUser) ? "destructive" : "default"}
+                variant={selectedUser && checkIsActive(selectedUser) ? "destructive" : "default"}
                 onClick={handleToggleStatus}
                 disabled={selectedUser?.id === currentUser?.id}
             >

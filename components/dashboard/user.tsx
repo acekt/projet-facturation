@@ -23,38 +23,19 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts'
 import { type Invoice } from "@/lib/store"
+import { DashboardMetricsResponse } from "@/lib/types/api"
 
 interface DashboardUserProps {
   onNavigate: (page: string) => void
 }
 
-interface UserDashboardState {
-  totalRevenue?: number;
-  growth?: number | string;
-  pendingRevenue?: number;
-  overdueRevenue?: number;
-  paidCount?: number;
-  unpaidCount?: number;
-  partiallyPaidCount?: number;
-  totalInvoicesCount?: number;
-  pendingQuotesCount?: number;
-  metrics?: {
-    totalRevenue: number;
-    growth: number | string;
-    pendingRevenue: number;
-    overdueRevenue: number;
-    paidCount: number;
-    unpaidCount: number;
-    partiallyPaidCount: number;
-    totalInvoicesCount: number;
-    pendingQuotesCount: number;
-  };
-  revenueData?: Array<{ label: string; value: number; date?: string; revenue?: number }>;
+interface UserDashboardState extends Omit<Partial<DashboardMetricsResponse>, 'userPerformance' | 'revenueData'> {
+  metrics?: DashboardMetricsResponse;
+  revenueData?: Array<{ label?: string; value?: number; date: string; revenue: number }>;
   paymentMethodData?: Array<{ method: string; amount: number }>;
   recentInvoices?: Invoice[];
   activityTimeline?: Array<{ id: string; action: string; client: string; time: string }>;
-  topClients?: Array<{ clientName: string; totalRevenue: number }>;
-  userPerformance?: any[];
+  userPerformance?: Array<{ username: string; total_collected: number }>;
 }
 
 export function DashboardUser({ onNavigate }: DashboardUserProps) {
@@ -65,14 +46,16 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
   const [data, setData] = useState<UserDashboardState>({
     metrics: {
       totalRevenue: 0,
-      growth: 0,
+      growth: "0",
       pendingRevenue: 0,
       overdueRevenue: 0,
       paidCount: 0,
       unpaidCount: 0,
       partiallyPaidCount: 0,
       totalInvoicesCount: 0,
-      pendingQuotesCount: 0
+      pendingQuotesCount: 0,
+      topClients: [],
+      userPerformance: []
     },
     revenueData: [],
     paymentMethodData: [],
@@ -143,7 +126,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
             userPerformance: d.userPerformance || [],
           }
           setData(normalizedData)
-          useStore.getState().setDashboardMetrics(normalizedData as any)
+          useStore.getState().setDashboardMetrics(normalizedData as unknown as DashboardMetricsResponse)
         }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return
@@ -152,14 +135,16 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
           setData({
             metrics: {
               totalRevenue: 0,
-              growth: 0,
+              growth: "0",
               pendingRevenue: 0,
               overdueRevenue: 0,
               paidCount: 0,
               unpaidCount: 0,
               partiallyPaidCount: 0,
               totalInvoicesCount: 0,
-              pendingQuotesCount: 0
+              pendingQuotesCount: 0,
+              topClients: [],
+              userPerformance: []
             },
             revenueData: [],
             paymentMethodData: [],
@@ -190,10 +175,10 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
     )
   }
 
-  const rawMetrics: any = data?.metrics || {}
+  const rawMetrics: Partial<DashboardMetricsResponse> = data?.metrics || {}
   const metrics = {
     totalRevenue: rawMetrics.totalRevenue ?? data?.totalRevenue ?? 0,
-    growth: rawMetrics.growth ?? data?.growth ?? 0,
+    growth: String(rawMetrics.growth ?? data?.growth ?? 0),
     pendingRevenue: rawMetrics.pendingRevenue ?? data?.pendingRevenue ?? 0,
     overdueRevenue: rawMetrics.overdueRevenue ?? data?.overdueRevenue ?? 0,
     paidCount: rawMetrics.paidCount ?? data?.paidCount ?? 0,
@@ -330,7 +315,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
                         />
                         <Tooltip
                             contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))', borderRadius: '8px', fontSize: '10px' }}
-                            formatter={(val: any) => [formatCurrency(val), 'Encaissé']}
+                            formatter={(val: number) => [formatCurrency(val), 'Encaissé']}
                         />
                         <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={2} fillOpacity={1} fill="url(#colorRevUser)" />
                     </AreaChart>
@@ -379,7 +364,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
             </CardHeader>
             <CardContent className="p-0">
                 <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-border/50">
-                    {(data.activityTimeline || []).map((log: any) => (
+                    {(data.activityTimeline || []).map((log) => (
                         <div key={log.id} className="flex items-center justify-between p-3 hover:bg-secondary/20 transition-colors">
                             <div className="flex items-center gap-3">
                                 <div className="w-8 h-8 rounded-lg bg-indigo-500/10 flex items-center justify-center">
@@ -400,8 +385,8 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
       {previewOpen && previewData && (
         <FullScreenDocumentViewer
           type="facture"
-          data={previewData as any}
-          title={`Document N° ${(previewData as any).number || 'Inconnu'}`}
+          data={previewData as Invoice}
+          title={`Document N° ${(previewData as Invoice).number || 'Inconnu'}`}
           onClose={() => setPreviewOpen(false)}
         />
       )}
