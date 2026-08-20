@@ -128,7 +128,7 @@ export async function PUT(
     const rates = getTaxRates();
     const computed = computeTotals(data.items, data.discount, rates);
 
-    const updateQuoteTx = db.transaction(() => {
+    const updateQuoteTx = db.transaction((quoteItems: any[]) => {
       // Update quote header
       db.prepare(`
         UPDATE quotes
@@ -161,7 +161,7 @@ export async function PUT(
         VALUES (?, ?, ?, ?, ?, ?)
       `);
 
-      for (const item of data.items) {
+      for (const item of quoteItems) {
         insertItem.run(
           crypto.randomUUID(),
           id,
@@ -176,7 +176,7 @@ export async function PUT(
       return { id };
     });
 
-    const result = updateQuoteTx();
+    const result = updateQuoteTx(data.items);
     return NextResponse.json(result);
   } catch (error) {
     console.error('[API Quotes PUT] Error:', error);
