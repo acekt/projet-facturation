@@ -14,7 +14,7 @@ export default defineConfig({
   fullyParallel: false,
   retries: 0,
   workers: 1,
-  reporter: 'list',
+  reporter: [['list'], ['html', { outputFolder: 'tests/artifacts/report' }]],
   use: {
     baseURL: 'http://localhost:3050',
     trace: 'on-first-retry',

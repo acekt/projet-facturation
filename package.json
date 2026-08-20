@@ -13,6 +13,7 @@
     "electron": "electron .",
     "electron:prod": "npm run build:electron && electron .",
     "test": "vitest run",
+    "test:e2e:report": "playwright test --reporter=html",
     "seed": "npx ts-node --project tsconfig.json seed.ts",
     "reset-db": "npx ts-node --project tsconfig.json reset-db.ts",
     "rebuild:node": "npm rebuild better-sqlite3",
