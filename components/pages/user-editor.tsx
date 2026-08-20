@@ -57,7 +57,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
       const res = await fetch(`/api/users`)
       if (res.ok) {
         const users = await res.json()
-        const user = users.find((u: any) => u.id === editingId)
+        const user = users.find((u: { id: string }) => u.id === editingId)
         if (user) {
           setFormData({
             name: user.name,

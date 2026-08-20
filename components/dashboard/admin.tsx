@@ -16,6 +16,7 @@ import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   PieChart, Pie, Cell, Legend
 } from 'recharts'
+import { DashboardMetricsResponse } from "@/lib/types/api"
 
 interface DashboardAdminProps {
   onNavigate: (page: string) => void
@@ -84,7 +85,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
         const d = await res.json().catch(() => null) as DashboardAdminData | null
         if (d && typeof d === 'object' && !('error' in d)) {
           setData(d)
-          setDashboardMetrics(d as any)
+          setDashboardMetrics(d as DashboardMetricsResponse)
         }
       } catch (err) {
         console.error('[Dashboard Admin] Error fetching metrics:', err)
