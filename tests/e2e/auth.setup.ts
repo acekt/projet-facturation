@@ -14,12 +14,9 @@ setup('Purge DB, initialisation des données et génération des Storage States'
     fs.mkdirSync(authDir, { recursive: true });
   }
 
-  const dataDir = path.join(process.cwd(), 'data');
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
+  const os = require('os');
   const dbName = process.env.DB_FILE_NAME || 'test.sqlite';
-  const dbPath = process.env.TEST_DB_PATH || path.join(dataDir, dbName);
+  const dbPath = process.env.TEST_DB_PATH || path.join(os.tmpdir(), dbName);
   const db = new Database(dbPath);
   db.pragma('journal_mode = WAL');
   db.pragma('synchronous = NORMAL');

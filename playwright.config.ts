@@ -20,6 +20,8 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     viewport: { width: 1280, height: 800 },
+    actionTimeout: 10000,
+    navigationTimeout: 15000,
   },
   projects: [
     {
@@ -62,6 +64,7 @@ export default defineConfig({
       DB_FILE_NAME: 'test.sqlite',
       SESSION_SECRET: 'super-secret-key-for-playwright-e2e-tests-32-chars!!',
       PASSWORD_SALT: 'letoile-gabon-2026',
+      NODE_ENV: 'test',
     },
   },
 });
