@@ -44,6 +44,19 @@ const nextConfig = {
       // Désactive totalement la minification (contournement du crash mémoire OOM Rust SWC sur Next 15)
       config.optimization.minimize = false;
     }
+
+    if (dev) {
+      config.watchOptions = {
+        ...config.watchOptions,
+        ignored: [
+          '**/data/**',
+          '**/*.sqlite*',
+          '**/test-results/**',
+          '**/tests/artifacts/**'
+        ]
+      };
+    }
+
     return config;
   },
 }

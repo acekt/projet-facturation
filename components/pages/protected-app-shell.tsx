@@ -77,6 +77,17 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
 
   // Si l'utilisateur est connecté mais que les données SQLite sont en cours de chargement,
   // on monte l'ossature visuelle (Sidebar, TopBar) et on affiche le spinner uniquement au centre du contenu.
+  const [initTimeout, setInitTimeout] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!isDataLoaded) {
+      const timer = setTimeout(() => setInitTimeout(true), 3000);
+      return () => clearTimeout(timer);
+    } else {
+      setInitTimeout(false);
+    }
+  }, [isDataLoaded]);
+
   if (!isDataLoaded) {
     return (
       <div className="h-screen bg-background overflow-hidden flex flex-col">
@@ -95,8 +106,18 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
           className="h-screen pt-16 flex flex-col overflow-hidden"
         >
           <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-background">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-muted-foreground font-medium">Initialisation des modules locaux...</p>
+            {initTimeout ? (
+              <>
+                <div className="w-8 h-8 border-4 border-destructive rounded-full" />
+                <p className="text-sm text-destructive font-medium">Délai d'attente dépassé pour l'initialisation.</p>
+                <button onClick={() => window.location.reload()} className="text-sm underline text-muted-foreground">Recharger</button>
+              </>
+            ) : (
+              <>
+                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+                <p className="text-sm text-muted-foreground font-medium">Initialisation des modules locaux...</p>
+              </>
+            )}
           </div>
         </motion.main>
       </div>
