@@ -48,11 +48,11 @@ test.describe('Invoices QA (Création, Calculs, Affichage)', () => {
     await expect(page).toHaveURL('/', { timeout: 15000 });
 
     // 2. Navigation vers factures
-    await page.getByRole('button', { name: 'Factures', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Factures', exact: true })).toBeVisible();
+    await page.locator('a:has-text("Factures"), button:has-text("Factures")').first().click();
+    await expect(page.locator('h1:has-text("Factures"), h2:has-text("Factures")').first()).toBeVisible();
 
     // 3. Création
-    await page.locator('.border-dashed').getByRole('button', { name: 'Nouvelle facture', exact: true }).click();
+    await page.locator('.border-dashed').getByRole('button', { name: /nouvelle facture/i }).click();
 
     // Sélection client
     await page.getByText('Sélectionner un client').click();
@@ -75,8 +75,8 @@ test.describe('Invoices QA (Création, Calculs, Affichage)', () => {
     await page.screenshot({ path: 'tests/artifacts/screenshots/invoices-form-filled.png', fullPage: true });
 
     // 4. Sauvegarde
-    await page.getByRole('button', { name: 'Créer la Facture', exact: true }).click();
-    await expect(page.locator('text=Facture créée avec succès')).toBeVisible({ timeout: 10000 });
+    await page.getByRole('button', { name: /créer la facture/i }).click();
+    await expect(page.getByText(/facture créée avec succès/i)).toBeVisible({ timeout: 10000 });
 
     // 5. Validation visuelle de la liste
     await expect(page.getByText('QA Client')).toBeVisible();
