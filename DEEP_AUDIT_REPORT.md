@@ -41,7 +41,7 @@
   createInvoice(data: InvoiceData, userId: string, role: string) {
   ```
 
-### Code Mort (Exemple potentiel déduit)
+### Code Mort
 - **Fichiers concernés:** Les imports de modules de base (ex: `import * as React from "react"` si inutilisés), ou d'anciennes constantes de test souvent trouvées dans les API. (Nécessite un balayage `tsc --noEmit` / ESLint strict).
 - **Remédiation:** Supprimer tout code mort et nettoyer les imports (ex: via le plugin `eslint-plugin-unused-imports`).
 
