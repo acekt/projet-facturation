@@ -429,7 +429,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                         {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
                       </DropdownMenuItem>
                       {invoice.status !== 'PAID' && user?.role === 'user' && invoice.created_by === user?.id && (
-                        <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
+                        <DropdownMenuItem className="gap-2 text-accent" onClick={() => markAsPaid(invoice)}>
                           <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                         </DropdownMenuItem>
                       )}
@@ -526,7 +526,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                             {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
                           </DropdownMenuItem>
                           {invoice.status !== 'PAID' && user?.role === 'user' && invoice.created_by === user?.id && (
-                            <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
+                            <DropdownMenuItem className="gap-2 text-accent" onClick={() => markAsPaid(invoice)}>
                               <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                             </DropdownMenuItem>
                           )}
@@ -620,7 +620,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
                         </DropdownMenuItem>
                         {invoice.status !== 'PAID' && user?.role === 'user' && invoice.created_by === user?.id && (
-                          <DropdownMenuItem className="gap-2 text-emerald-600" onClick={() => markAsPaid(invoice)}>
+                          <DropdownMenuItem className="gap-2 text-accent" onClick={() => markAsPaid(invoice)}>
                             <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                           </DropdownMenuItem>
                         )}
@@ -745,7 +745,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                 </SelectContent>
               </Select>
             </div>
-            <Button onClick={confirmPayment} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-11">
+            <Button variant="success" onClick={confirmPayment} className="w-full font-bold h-11">
               Valider l'encaissement
             </Button>
           </div>

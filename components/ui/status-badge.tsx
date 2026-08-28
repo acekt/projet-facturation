@@ -30,7 +30,7 @@ import { formatCurrency } from "@/lib/utils"
 const VARIANT_MAP = {
   // Factures — statuts de paiement
   "invoice-paid": {
-    base: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    base: "bg-accent-light text-accent border-accent/20",
     label: "Soldé",
   },
   "invoice-partial": {
@@ -43,11 +43,11 @@ const VARIANT_MAP = {
   },
   // Devis — statuts de cycle de vie
   "quote-pending": {
-    base: "bg-amber-100 text-amber-700 border-amber-200",
+    base: "bg-primary-light text-primary border-primary/20",
     label: "En Attente",
   },
   "quote-converted": {
-    base: "bg-green-100 text-green-700 border-green-200",
+    base: "bg-accent-light text-accent border-accent/20",
     label: "Converti",
   },
   "quote-sent": {
@@ -64,7 +64,7 @@ const VARIANT_MAP = {
   },
   // Génériques
   active: {
-    base: "bg-emerald-50 text-emerald-700 border-emerald-200",
+    base: "bg-accent-light text-accent border-accent/20",
     label: "Actif",
   },
   inactive: {

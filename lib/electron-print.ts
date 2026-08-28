@@ -63,10 +63,10 @@ export function buildPrintHtml(contentHtml: string, includePrintScript = true): 
         extend: {
           colors: {
             brand: {
-              primary: '#1e3a5f',
-              secondary: '#1e293b',
-              accent: '#3b82f6',
-              muted: '#f8fafc'
+              primary: '#003399',
+              secondary: '#002277',
+              accent: '#2CA02C',
+              muted: '#E6F0FF'
             }
           }
         }
@@ -77,10 +77,10 @@ export function buildPrintHtml(contentHtml: string, includePrintScript = true): 
   <style>
     /* Polyfill pour les variables CSS (au cas où Chromium cache ne parse pas Tailwind v4 nativement via CDN v3) */
     :root {
-      --color-brand-primary: #1e3a5f;
-      --color-brand-secondary: #1e293b;
-      --color-brand-accent: #3b82f6;
-      --color-brand-muted: #f8fafc;
+      --color-brand-primary: #003399;
+      --color-brand-secondary: #002277;
+      --color-brand-accent: #2CA02C;
+      --color-brand-muted: #E6F0FF;
     }
     *, *::before, *::after { box-sizing: border-box; }
     html, body {
