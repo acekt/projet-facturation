@@ -50,7 +50,8 @@ export default function LoginClient() {
         toast.success("Connexion réussie. Bienvenue dans L'Étoile !")
         setUser(data.user)
         await new Promise(resolve => setTimeout(resolve, 250))
-        window.location.href = '/'
+        router.push('/')
+        router.refresh()
       } else {
         toast.error(data.error || "Identifiants invalides")
       }

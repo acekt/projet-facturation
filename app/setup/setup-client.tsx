@@ -11,6 +11,7 @@
  */
 
 import * as React from 'react'
+import { useRouter } from 'next/navigation'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -35,6 +36,7 @@ import {
 } from "lucide-react"
 
 export default function SetupClient() {
+  const router = useRouter()
   const [step, setStep] = React.useState<1 | 2>(1)
   const [loading, setLoading] = React.useState(false)
   const [showPassword, setShowPassword] = React.useState(false)
@@ -105,7 +107,8 @@ export default function SetupClient() {
           setUser(data.user)
         }
         await new Promise(resolve => setTimeout(resolve, 300))
-        window.location.href = '/'
+        router.push('/')
+        router.refresh()
       } else {
         toast.error(data.error || "Erreur lors de l'initialisation")
       }
