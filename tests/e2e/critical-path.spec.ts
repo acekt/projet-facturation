@@ -8,13 +8,13 @@ import crypto from 'crypto';
  * TEST E2E PLAYWRIGHT — LE PARCOURS CRITIQUE (LE TUNNEL DE VENTE)
  * ================================================================
  * Ce scénario simule un parcours opérateur complet de bout en bout :
- * 1. Connexion en tant qu'opérateur (operateur@letoile.ga)
+ * 1. Connexion en tant qu'opérateur (operateur@lfacturier.ga)
  * 2. Création d'un nouveau client via la modale dédiée
  * 3. Création d'un devis pour ce client, ajout d'une ligne de service, enregistrement et conversion en facture
  * 4. Navigation vers la facture convertie, enregistrement d'un paiement partiel (acompte) et vérification du statut "Partiel"
  */
 
-test.describe('Parcours Critique E2E — Le Tunnel de Vente (L\'Étoile)', () => {
+test.describe('Parcours Critique E2E — Le Tunnel de Vente (L\'Facturier)', () => {
 
   test.beforeEach(async () => {
     const dataDir = path.join(process.cwd(), 'data');
@@ -53,14 +53,14 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (L\'Étoile)', () =>
     db.prepare(`
       INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
       VALUES (?, ?, ?, ?, 'user', ?, 1, CURRENT_TIMESTAMP)
-    `).run(operatorId, 'operateur@letoile.ga', 'operateur@letoile.ga', operatorHash, 'Jean-Baptiste Moussavou');
+    `).run(operatorId, 'operateur@lfacturier.ga', 'operateur@lfacturier.ga', operatorHash, 'Jean-Baptiste Moussavou');
 
     const adminId = crypto.randomUUID();
     const adminHash = bcrypt.hashSync('admin123', 10);
     db.prepare(`
       INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
       VALUES (?, ?, ?, ?, 'admin', ?, 1, CURRENT_TIMESTAMP)
-    `).run(adminId, 'admin@letoile.ga', 'admin@letoile.ga', adminHash, 'Administrateur Système');
+    `).run(adminId, 'admin@lfacturier.ga', 'admin@lfacturier.ga', adminHash, 'Administrateur Système');
 
     // Création d'un service au catalogue
     const serviceId = crypto.randomUUID();
@@ -78,7 +78,7 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (L\'Étoile)', () =>
     // ══════════════════════════════════════════════════════════════════════
     await page.goto('/login');
 
-    await page.getByLabel('Identifiant ou Email').fill('operateur@letoile.ga');
+    await page.getByLabel('Identifiant ou Email').fill('operateur@lfacturier.ga');
     await page.getByLabel('Mot de passe').fill('operateur123');
     await page.getByRole('button', { name: /Se connecter/i }).click();
 

@@ -1,5 +1,5 @@
 /**
- * Root Layout — L'Étoile (Desktop Electron)
+ * Root Layout — Facturier (Desktop Electron)
  *
  * Corrections AXE 2 :
  *  ✅ Suppression de @vercel/analytics (tentait des requêtes réseau vers vitals.vercel-insights.com)
@@ -14,7 +14,7 @@ import { AppErrorBoundary } from '@/components/error-boundary'
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: "L'Étoile — Gestion & Facturation",
+  title: "Facturier — Gestion & Facturation",
   // Pas de description SEO inutile pour une app desktop offline
 }
 

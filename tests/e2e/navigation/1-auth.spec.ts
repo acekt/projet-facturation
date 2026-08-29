@@ -42,7 +42,7 @@ test.describe('Navigation Phase 1 : Onboarding et Authentification', () => {
 
     // Validation du setup
     const responsePromise = page.waitForResponse(response => response.url().includes('/api/setup') && response.status() === 201);
-    await page.getByRole('button', { name: "Initialiser L'Étoile et se connecter" }).click();
+    await page.getByRole('button', { name: "Initialiser Facturier et se connecter" }).click();
     await responsePromise;
 
     // Vérifier la redirection
@@ -57,7 +57,7 @@ test.describe('Navigation Phase 1 : Onboarding et Authentification', () => {
     await page.getByLabel('Mot de passe (min. 6 caractères) *').fill('password123');
     await page.getByRole('button', { name: 'Étape suivante : Profil Entreprise' }).click();
     await page.getByLabel("Nom de l'entreprise *").fill('Entreprise Test 2');
-    await page.getByRole('button', { name: "Initialiser L'Étoile et se connecter" }).click();
+    await page.getByRole('button', { name: "Initialiser Facturier et se connecter" }).click();
     await page.waitForURL('**/dashboard');
 
     // Maintenant, on se déconnecte
@@ -94,7 +94,7 @@ test.describe('Navigation Phase 1 : Onboarding et Authentification', () => {
     await page.getByLabel('Mot de passe (min. 6 caractères) *').fill('password123');
     await page.getByRole('button', { name: 'Étape suivante : Profil Entreprise' }).click();
     await page.getByLabel("Nom de l'entreprise *").fill('Entreprise Test 3');
-    await page.getByRole('button', { name: "Initialiser L'Étoile et se connecter" }).click();
+    await page.getByRole('button', { name: "Initialiser Facturier et se connecter" }).click();
     await page.waitForURL('**/dashboard');
 
     // 2. Se déconnecter pour effacer le cookie de session de ce contexte

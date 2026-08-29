@@ -28,13 +28,13 @@ describe('🚨 PHASE 10/10 : AUDIT TDD — TABLEAU DE BORD OPÉRATIONNEL (AGRÉG
     db.prepare(`
       INSERT INTO users (id, name, email, username, password, role, is_active, created_at)
       VALUES 
-        ('admin-dash', 'Admin Dash', 'admin.dash@letoile.ga', 'admindash', 'hash', 'admin', 1, datetime('now')),
-        ('oper-dash', 'Oper Dash', 'oper.dash@letoile.ga', 'operdash', 'hash', 'user', 1, datetime('now'))
+        ('admin-dash', 'Admin Dash', 'admin.dash@lfacturier.ga', 'admindash', 'hash', 'admin', 1, datetime('now')),
+        ('oper-dash', 'Oper Dash', 'oper.dash@lfacturier.ga', 'operdash', 'hash', 'user', 1, datetime('now'))
     `).run();
 
     db.prepare(`
       INSERT INTO clients (id, name, email, created_by)
-      VALUES ('client-1', 'Client Test', 'client.test@letoile.ga', 'admin-dash')
+      VALUES ('client-1', 'Client Test', 'client.test@lfacturier.ga', 'admin-dash')
     `).run();
   });
 

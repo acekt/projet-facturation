@@ -1,4 +1,4 @@
-# QA MASTER REPORT — L'ÉTOILE DEPLOYMENT READINESS
+# QA MASTER REPORT — FACTURIER DEPLOYMENT READINESS
 
 | Module | Statut Global | Unitaire | Intégration | E2E (Visuel) |
 |---|---|---|---|---|

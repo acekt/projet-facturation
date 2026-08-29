@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 
 /**
- * Health Check Endpoint — L'Étoile
+ * Health Check Endpoint — Facturier
  * =================================
  * Permet au processus principal Electron (main.js) de vérifier
  * que le serveur Next.js est pleinement démarré et prêt à servir
