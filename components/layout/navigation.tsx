@@ -143,10 +143,10 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
             </div>
             {!collapsed && (
               <div className="flex flex-col">
-                <span className="font-bold text-foreground tracking-tight text-lg">L'ÉTOILE</span>
+                <span className="font-bold text-primary tracking-tight text-lg">L'ÉTOILE</span>
                 <span className={cn(
                     "text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded w-fit",
-                    user?.role === 'admin' ? "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400" : "bg-indigo-100 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-400"
+                    user?.role === 'admin' ? "bg-accent-light text-accent dark:bg-accent/20 dark:text-accent-light" : "bg-primary-light text-primary dark:bg-primary/20 dark:text-primary-light"
                 )}>
                     {user?.role === 'admin' ? "Administration" : "Opérations"}
                 </span>
@@ -161,9 +161,8 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="outline"
                   className={cn(
-                    "w-full border-primary/20 hover:bg-primary hover:text-primary-foreground text-primary transition-all shadow-sm",
+                    "w-full bg-primary hover:bg-primary-hover text-white transition-all shadow-sm",
                     collapsed ? "justify-center px-2" : "justify-start gap-2"
                   )}
                   onClick={() => onPageChange("new-quote")}

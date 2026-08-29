@@ -117,7 +117,7 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#8DBE6A',
+    backgroundColor: '#E6F0FF',
     borderWidth: 1,
     borderColor: '#000',
   },
@@ -188,7 +188,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 10,
     paddingHorizontal: 8,
-    backgroundColor: '#1a365d',
+    backgroundColor: '#003399',
     color: '#fff',
     borderRadius: 4,
     marginTop: 5,
@@ -240,9 +240,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderWidth: 1,
-    borderColor: '#1a365d33',
-    backgroundColor: '#1a365d08',
-    color: '#1a365d',
+    borderColor: '#00339933',
+    backgroundColor: '#00339908',
+    color: '#003399',
     borderRadius: 2,
   },
   bottomCenter: {
@@ -374,9 +374,9 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
            <Text style={{ fontWeight: 'bold', marginBottom: 10 }}>
              Arrêter {type === 'devis' ? 'Le Présent devis' : 'La Présente facture'} à la Somme totale de : ... FCFA TTC
            </Text>
-           <Text style={{ color: 'blue', fontSize: 9 }}>N.B:</Text>
-           <Text style={{ color: 'red', fontSize: 9 }}>- Les modes de règlement: *Espèces ; *Chèques ; *Virements .</Text>
-           <Text style={{ color: 'red', fontSize: 9 }}>- Les délais de règlement: *Au Comptant;</Text>
+           <Text style={{ color: '#003399', fontSize: 9, fontWeight: 'bold' }}>N.B:</Text>
+           <Text style={{ color: '#2CA02C', fontSize: 9 }}>- Les modes de règlement: *Espèces ; *Chèques ; *Virements .</Text>
+           <Text style={{ color: '#2CA02C', fontSize: 9 }}>- Les délais de règlement: *Au Comptant;</Text>
         </View>
 
         <View style={{ alignItems: 'flex-end', marginBottom: 60 }} wrap={false}>

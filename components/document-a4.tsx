@@ -187,7 +187,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
             {dueDate && (
               <p className="text-[8px] text-slate-500">
                 Échéance :{' '}
-                <span className="font-semibold text-red-600">{fmtDate(dueDate)}</span>
+                <span className="font-semibold text-[var(--color-brand-accent)]">{fmtDate(dueDate)}</span>
               </p>
             )}
           </div>
@@ -397,7 +397,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-brand-primary">Reste à Payer</span>
-                      <span className="font-bold text-red-600 tabular-nums text-[11px]">{fmt(remaining)}</span>
+                      <span className="font-bold text-[var(--color-brand-accent)] tabular-nums text-[11px]">{fmt(remaining)}</span>
                     </div>
                   </div>
                 </div>

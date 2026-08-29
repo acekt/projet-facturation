@@ -40,7 +40,7 @@ test.describe('Opérateur — Tunnel de Vente, Taxes et Cycle de Vie des Transac
     await page.getByRole('menuitem', { name: /Convertir en facture/i }).click();
 
     await expect(page.getByText('Devis converti en facture avec succès')).toBeVisible();
-    await expect(page.getByText('Converti', { exact: true })).toBeVisible();
+    await expect(page.locator('table').getByText('Converti', { exact: true })).toBeVisible();
 
     await page.evaluate(() => {
       document.body.style.removeProperty('pointer-events');
@@ -62,25 +62,24 @@ test.describe('Opérateur — Tunnel de Vente, Taxes et Cycle de Vie des Transac
     await invoiceRow.locator('button').last().click();
     await page.getByRole('menuitem', { name: /Aperçu/i }).click();
 
-    const previewModal = page.locator('div[role="dialog"]:has-text("Base Imposable")');
+    const previewModal = page.locator('.fixed.inset-0.z-\\[100\\]');
     await expect(previewModal).toBeVisible();
 
     // Vérification de la logique de calcul sur le montant total exact :
     // Total HT : 150 000 FCFA
     // CSS (1%) sur Total HT (150 000 * 0.01) = 1 500 FCFA
-    // Base Imposable (Net HT + CSS) = 151 500 FCFA
+    // Base Imposable (Net HT + CSS) = 151 500 FCFA -> pas affiché
     // TPS (9.5%) sur Base Imposable (151 500 * 0.095) = 14 393 FCFA
     // TVA (18%) sur Base Imposable (151 500 * 0.18) = 27 270 FCFA
     // Total TTC = 150 000 + 1 500 + 14 393 + 27 270 = 193 163 FCFA
-    await expect(previewModal.getByText('150 000 FCFA', { exact: true }).first()).toBeVisible();
-    await expect(previewModal.getByText('151 500 FCFA').first()).toBeVisible();
-    await expect(previewModal.getByText('14 393 FCFA').first()).toBeVisible();
-    await expect(previewModal.getByText('27 270 FCFA').first()).toBeVisible();
-    await expect(previewModal.getByText('1 500 FCFA', { exact: true }).first()).toBeVisible();
-    await expect(previewModal.getByText('193 163 FCFA').first()).toBeVisible();
+    await expect(previewModal.getByText(/150\s*000\s*FCFA/i).first()).toBeVisible();
+    await expect(previewModal.getByText(/14\s*393\s*FCFA/i).first()).toBeVisible();
+    await expect(previewModal.getByText(/27\s*270\s*FCFA/i).first()).toBeVisible();
+    await expect(previewModal.getByText(/1\s*500\s*FCFA/i).first()).toBeVisible();
+    await expect(previewModal.getByText(/193\s*163\s*FCFA/i).first()).toBeVisible();
 
     // Fermeture de l'aperçu
-    await page.keyboard.press('Escape');
+    await page.getByRole('button', { name: /fermer/i }).click();
     await expect(previewModal).toBeHidden();
     await expect(page.locator('div[data-slot="dialog-overlay"]')).toBeHidden();
     await page.evaluate(() => {

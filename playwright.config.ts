@@ -51,7 +51,9 @@ export default defineConfig({
       testMatch: /.*\.spec\.ts/,
       use: {
         ...devices['Desktop Chrome'],
+        storageState: './tests/e2e/.auth/adminState.json',
       },
+      dependencies: ['setup'],
     },
   ],
   webServer: {
