@@ -65,7 +65,7 @@ export default defineConfig({
       TEST_DB_PATH: testDbPath,
       DB_FILE_NAME: 'test.sqlite',
       SESSION_SECRET: 'super-secret-key-for-playwright-e2e-tests-32-chars!!',
-      PASSWORD_SALT: 'letoile-gabon-2026',
+      PASSWORD_SALT: 'lfacturier-gabon-2026',
       NODE_ENV: 'test',
     },
   },

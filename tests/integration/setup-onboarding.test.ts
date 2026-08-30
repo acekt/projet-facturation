@@ -42,15 +42,15 @@ describe('🚨 MISSION ARCHITECTURE : FLUX D\'INITIALISATION (FIRST-RUN SETUP) �
 
       const setupPayload = {
         name: 'Admin Gabon',
-        email: 'admin@etoile.ga',
+        email: 'admin@facturier.ga',
         password: 'Password123!',
         phone: '+241 01 02 03 04',
-        companyName: 'L\'Étoile S.A.',
+        companyName: 'L\'Facturier S.A.',
         nif: '123456NIF',
         rccm: 'GA-LBV-2026-B01',
         address: 'Quartier Louis, Libreville',
         companyPhone: '+241 01 00 00 00',
-        companyEmail: 'contact@etoile.ga',
+        companyEmail: 'contact@facturier.ga',
       };
 
       const req = new Request('http://localhost:3000/api/setup', {
@@ -65,17 +65,17 @@ describe('🚨 MISSION ARCHITECTURE : FLUX D\'INITIALISATION (FIRST-RUN SETUP) �
       expect(res.status).toBe(201);
       expect(data.success).toBe(true);
       expect(data.user.role).toBe('admin');
-      expect(data.user.email).toBe('admin@etoile.ga');
+      expect(data.user.email).toBe('admin@facturier.ga');
 
       // Vérification en base de données
-      const userInDb = testDb.prepare('SELECT * FROM users WHERE email = ?').get('admin@etoile.ga') as any;
+      const userInDb = testDb.prepare('SELECT * FROM users WHERE email = ?').get('admin@facturier.ga') as any;
       expect(userInDb).toBeDefined();
       expect(userInDb.role).toBe('admin');
       expect(userInDb.is_active).toBe(1);
 
       const settingsInDb = testDb.prepare('SELECT * FROM settings WHERE id = 1').get() as any;
       expect(settingsInDb).toBeDefined();
-      expect(settingsInDb.companyName).toBe('L\'Étoile S.A.');
+      expect(settingsInDb.companyName).toBe('L\'Facturier S.A.');
       expect(settingsInDb.nif).toBe('123456NIF');
       expect(settingsInDb.tvaRate).toBe(18.0);
 
@@ -87,19 +87,19 @@ describe('🚨 MISSION ARCHITECTURE : FLUX D\'INITIALISATION (FIRST-RUN SETUP) �
       const auditLog = testDb.prepare("SELECT * FROM audit_logs WHERE details LIKE '%FIRST_RUN_SETUP%'").get() as any;
       expect(auditLog).toBeDefined();
       expect(auditLog.action).toBe('CREATE');
-      expect(auditLog.details).toContain('L\'Étoile S.A.');
+      expect(auditLog.details).toContain('L\'Facturier S.A.');
     });
 
     it('devrait retourner 403 Forbidden dès qu\'un utilisateur existe dans la base (`count > 0`)', async () => {
       // On insère un utilisateur dans la base
       testDb.prepare(`
         INSERT INTO users (id, username, email, password, name, role, is_active)
-        VALUES ('existing-id', 'existing@letoile.ga', 'existing@letoile.ga', 'hashed', 'Existing User', 'admin', 1)
+        VALUES ('existing-id', 'existing@facturier.ga', 'existing@facturier.ga', 'hashed', 'Existing User', 'admin', 1)
       `).run();
 
       const setupPayload = {
         name: 'Hacker Attempt',
-        email: 'hacker@etoile.ga',
+        email: 'hacker@facturier.ga',
         password: 'Password123!',
         companyName: 'Fake Company',
       };
@@ -124,7 +124,7 @@ describe('🚨 MISSION ARCHITECTURE : FLUX D\'INITIALISATION (FIRST-RUN SETUP) �
     it('devrait retourner 400 si les données de configuration sont incomplètes', async () => {
       const setupPayload = {
         name: 'Admin sans entreprise',
-        email: 'admin@etoile.ga',
+        email: 'admin@facturier.ga',
         password: '123', // trop court
         companyName: '', // vide requis
       };
@@ -152,7 +152,7 @@ describe('🚨 MISSION ARCHITECTURE : FLUX D\'INITIALISATION (FIRST-RUN SETUP) �
     it('SetupPage devrait rediriger vers /login si un compte existe (`userCount > 0`)', async () => {
       testDb.prepare(`
         INSERT INTO users (id, username, email, password, name, role, is_active)
-        VALUES ('admin-id', 'admin@letoile.ga', 'admin@letoile.ga', 'hashed', 'Admin', 'admin', 1)
+        VALUES ('admin-id', 'admin@facturier.ga', 'admin@facturier.ga', 'hashed', 'Admin', 'admin', 1)
       `).run();
 
       await SetupPage();

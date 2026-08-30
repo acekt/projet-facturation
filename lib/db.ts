@@ -18,11 +18,11 @@ import os from 'os';
  *
  * NIVEAU 3 (Fallback absolu) :
  *   Dernier recours si les deux niveaux précédents échouent.
- *   Pointe vers ~/.letoile-invoicing/data (jamais en lecture seule).
+ *   Pointe vers ~/.facturier-invoicing/data (jamais en lecture seule).
  *
  * ⚠️ process.cwd() N'EST JAMAIS UTILISÉ EN PRODUCTION.
  *    En production (Electron packagé), cwd() pointe vers le répertoire
- *    d'installation (ex: C:\Program Files\L'Etoile) qui est en lecture seule
+ *    d'installation (ex: C:\Program Files\Facturier) qui est en lecture seule
  *    pour les utilisateurs non-administrateurs — crash SQLite garanti.
  */
 function resolveDatabasePath(): string {
@@ -87,7 +87,7 @@ function resolveDatabasePath(): string {
 
   // ── NIVEAU 3 : Fallback absolu (homedir — jamais en lecture seule)
   // Utilisé si NODE_ENV=production sans ELECTRON_USERDATA_PATH (ex: serveur CI, standalone manuel).
-  const fallbackDir = path.join(os.homedir(), '.letoile-invoicing', 'data');
+  const fallbackDir = path.join(os.homedir(), '.facturier-invoicing', 'data');
   try {
     if (!fs.existsSync(fallbackDir)) {
       fs.mkdirSync(fallbackDir, { recursive: true });

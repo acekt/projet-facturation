@@ -133,8 +133,8 @@ setup('Purge DB, initialisation des données et génération des Storage States'
       id, companyName, legalForm, nif, rccm, address, email, phone,
       tvaRate, tpsRate, cssRate, sessionTimeout, invoicePrefix, quotePrefix, companyCode
     ) VALUES (
-      1, 'L''Étoile SARL', 'SARL', 'NIF123456', 'RCCM98765', 'Libreville, Gabon',
-      'contact@letoile.ga', '+241 01 23 45 67', 18.0, 9.5, 1.0, 60, 'FACT-', 'DEV-', 'ETO'
+      1, 'Facturier SARL', 'SARL', 'NIF123456', 'RCCM98765', 'Libreville, Gabon',
+      'contact@facturier.ga', '+241 01 23 45 67', 18.0, 9.5, 1.0, 60, 'FACT-', 'DEV-', 'ETO'
     )
   `).run();
 
@@ -145,14 +145,14 @@ setup('Purge DB, initialisation des données et génération des Storage States'
   db.prepare(`
     INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
     VALUES (?, ?, ?, ?, 'user', ?, 1, CURRENT_TIMESTAMP)
-  `).run(operatorId, 'operateur@letoile.ga', 'operateur@letoile.ga', operatorHash, 'Jean-Baptiste Moussavou');
+  `).run(operatorId, 'operateur@facturier.ga', 'operateur@facturier.ga', operatorHash, 'Jean-Baptiste Moussavou');
 
   const adminId = crypto.randomUUID();
   const adminHash = bcrypt.hashSync('admin123', 10);
   db.prepare(`
     INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
     VALUES (?, ?, ?, ?, 'admin', ?, 1, CURRENT_TIMESTAMP)
-  `).run(adminId, 'admin@letoile.ga', 'admin@letoile.ga', adminHash, 'Administrateur Système');
+  `).run(adminId, 'admin@facturier.ga', 'admin@facturier.ga', adminHash, 'Administrateur Système');
 
   // Création d'un service au catalogue
   const serviceId = crypto.randomUUID();
@@ -181,7 +181,7 @@ setup('Purge DB, initialisation des données et génération des Storage States'
   await page.waitForLoadState('domcontentloaded');
   await page.waitForSelector('#username');
   await page.waitForTimeout(1000);
-  await page.fill('#username', 'admin@letoile.ga');
+  await page.fill('#username', 'admin@facturier.ga');
   await page.fill('#password', 'admin123');
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL('http://localhost:3050/', { timeout: 45000 });
@@ -195,7 +195,7 @@ setup('Purge DB, initialisation des données et génération des Storage States'
   await operatorPage.waitForLoadState('domcontentloaded');
   await operatorPage.waitForSelector('#username');
   await operatorPage.waitForTimeout(1000);
-  await operatorPage.fill('#username', 'operateur@letoile.ga');
+  await operatorPage.fill('#username', 'operateur@facturier.ga');
   await operatorPage.fill('#password', 'operateur123');
   await operatorPage.click('button[type="submit"]');
   await expect(operatorPage).toHaveURL('http://localhost:3050/', { timeout: 45000 });

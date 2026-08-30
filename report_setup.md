@@ -1,6 +1,6 @@
 ### MISSION AUDIT : SÉCURITÉ ET ARCHITECTURE DU SETUP
 
-Voici mon rapport détaillé concernant l'initialisation de l'application L'Étoile et la conformité N-Tier du processus de configuration (Onboarding).
+Voici mon rapport détaillé concernant l'initialisation de l'application Facturier et la conformité N-Tier du processus de configuration (Onboarding).
 
 #### PHASE 1 : AUDIT DU ROUTAGE ET DU BLOCAGE (MIDDLEWARE)
 🔴 **Fuite Logique (Vérification dans les Pages React)** : L'application détecte si la base de données est vierge en effectuant des requêtes SQL (`db.prepare('SELECT COUNT(*) FROM users')`) **directement à l'intérieur des composants de rendu** Server-Side (`app/setup/page.tsx` et `app/login/page.tsx`).

@@ -375,7 +375,7 @@ export const useStore = create<AppState>()(
       })),
     }),
     {
-      name: 'letoile-storage',
+      name: 'facturier-storage',
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
         user: state.user,

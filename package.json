@@ -1,7 +1,7 @@
 {
   "name": "facturier",
   "version": "1.0.0",
-  "description": "L'Étoile — Logiciel de Gestion et Facturation Desktop",
+  "description": "Facturier — Logiciel de Gestion et Facturation Desktop",
   "private": true,
   "main": "main.js",
   "scripts": {
@@ -25,9 +25,9 @@
     "pack": "electron-builder"
   },
   "build": {
-    "appId": "com.letoile.invoicing",
-    "productName": "L'Etoile",
-    "copyright": "© 2026 L'Étoile — Tous droits réservés",
+    "appId": "com.facturier.invoicing",
+    "productName": "Facturier",
+    "copyright": "© 2026 Facturier — Tous droits réservés",
     "directories": {
       "buildResources": "build",
       "output": "dist"
@@ -86,7 +86,7 @@
       "deleteAppDataOnUninstall": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
-      "shortcutName": "L'Etoile",
+      "shortcutName": "Facturier",
       "artifactName": "${productName}-Setup-${version}.${ext}"
     },
     "mac": {
@@ -160,7 +160,7 @@
     "@types/node": "^22",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "@vitejs/plugin-react": "^6.1.0",
+    "@vitejs/plugin-react": "^6.1.1",
     "electron": "^42.3.0",
     "electron-builder": "^25.1.8",
     "jsdom": "^29.1.1",

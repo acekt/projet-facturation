@@ -1,5 +1,5 @@
 /**
- * next.config.mjs — Configuration Next.js pour L'Étoile (Desktop Electron)
+ * next.config.mjs — Configuration Next.js pour Facturier (Desktop Electron)
  * =========================================================================
  *
  * ARCHITECTURE DE BUILD PRODUCTION :

@@ -1,5 +1,5 @@
 # =============================================================================
-# electron-builder.yml — Configuration de Packaging "L'Étoile"
+# electron-builder.yml — Configuration de Packaging "Facturier"
 # =============================================================================
 #
 # ARCHITECTURE STANDALONE APLATIE (Audit Phase 4) :
@@ -26,9 +26,9 @@
 
 # ── Identité de l'application ─────────────────────────────────────────────────
 
-appId: com.letoile.invoicing
-productName: "L'Etoile"
-copyright: "© 2026 L'Étoile — Tous droits réservés"
+appId: com.facturier.invoicing
+productName: "Facturier"
+copyright: "© 2026 Facturier — Tous droits réservés"
 
 # ── ASAR désactivé ────────────────────────────────────────────────────────────
 #
@@ -121,8 +121,8 @@ nsis:
   deleteAppDataOnUninstall: false
   createDesktopShortcut: true
   createStartMenuShortcut: true
-  shortcutName: "L'Etoile"
-  # Nom du fichier généré : dist/L'Etoile-Setup-1.0.0.exe
+  shortcutName: "Facturier"
+  # Nom du fichier généré : dist/Facturier-Setup-1.0.0.exe
   artifactName: "${productName}-Setup-${version}.${ext}"
 
 # ── MACOS ─────────────────────────────────────────────────────────────────────

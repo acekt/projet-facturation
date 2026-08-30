@@ -1,7 +1,7 @@
-# 🏛️ Architecture & Documentation Technique (L'Étoile)
+# 🏛️ Architecture & Documentation Technique (Facturier)
 
 ## 1. Vue d'Ensemble
-L'Étoile est une application Desktop (Electron) propulsée par des technologies web modernes (Next.js 15, React 19, Tailwind CSS). Elle utilise une architecture **N-Tier** robuste permettant une séparation claire des responsabilités (Separation of Concerns).
+Facturier est une application Desktop (Electron) propulsée par des technologies web modernes (Next.js 15, React 19, Tailwind CSS). Elle utilise une architecture **N-Tier** robuste permettant une séparation claire des responsabilités (Separation of Concerns).
 
 La persistance des données s'effectue localement via SQLite (`better-sqlite3`), garantissant l'indépendance de l'application vis-à-vis d'une connexion internet. La gestion de l'état global côté client est assurée par Zustand, tandis que la sécurité (RBAC, Authentification) est protégée par des signatures HMAC cryptographiques.
 
@@ -81,7 +81,7 @@ La persistance des données s'effectue localement via SQLite (`better-sqlite3`),
 │   └── unit/                    # Tests Vitest (Mathématiques fiscales isolées)
 ├── types/                       # Typages globaux de l'environnement (ex: Electron)
 ├── ARCHITECTURE.md              # Ce document de référence
-├── SPECIFICATIONS.md            # Cahier des charges du logiciel L'Étoile
+├── SPECIFICATIONS.md            # Cahier des charges du logiciel Facturier
 ├── electron-builder.yml         # Configuration du package final Desktop (Windows/Mac/Linux)
 ├── main.js                      # Processus Main d'Electron (Orchestrateur Desktop)
 ├── preload.js                   # Processus Preload d'Electron (Pont IPC / Sécurité)

@@ -35,7 +35,7 @@ describe('🚨 PHASE 5/10 : AUDIT TDD — GESTION DES DEVIS (NUMÉROTATION, ÉTA
     // Ensure settings table has companyCode 'GAB'
     db.prepare(`
       INSERT OR REPLACE INTO settings (id, companyName, legalForm, nif, rccm, address, email, phone, bankName, bankAgency, accountNumber, swiftCode, iban, tvaRate, tpsRate, cssRate, sessionTimeout, invoicePrefix, quotePrefix, companyCode)
-      VALUES (1, 'Letoile', 'SARL', 'NIF123', 'RCCM123', 'Libreville', 'contact@letoile.ga', '01020304', 'BGFI', 'AG1', 'ACC123', 'SWIFT1', 'IBAN1', 18, 9.5, 1, 3600, 'FAC', 'DEV', 'GAB')
+      VALUES (1, 'Facturier', 'SARL', 'NIF123', 'RCCM123', 'Libreville', 'contact@facturier.ga', '01020304', 'BGFI', 'AG1', 'ACC123', 'SWIFT1', 'IBAN1', 18, 9.5, 1, 3600, 'FAC', 'DEV', 'GAB')
     `).run();
   });
 

@@ -217,7 +217,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                     type="email"
                     value={formData.email || ""}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="jean@letoile.ga"
+                    placeholder="jean@facturier.ga"
                     className="bg-secondary border-border text-foreground"
                     disabled={!!editingId}
                   />

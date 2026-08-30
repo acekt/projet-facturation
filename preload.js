@@ -1,5 +1,5 @@
 /**
- * preload.js — Script de Préchargement Electron "L'Étoile"
+ * preload.js — Script de Préchargement Electron "Facturier"
  * ==========================================================
  * RÈGLES DE SÉCURITÉ (contextIsolation = true) :
  *  ✅ Exposer uniquement des fonctions sûres via contextBridge
@@ -45,7 +45,7 @@ contextBridge.exposeInMainWorld('electron', {
 
   /**
    * Récupère le chemin du dossier userData (pour debug dans l'UI Paramètres).
-   * @returns {Promise<string>} — ex: "C:\\Users\\User\\AppData\\Roaming\\L'Etoile"
+   * @returns {Promise<string>} — ex: "C:\\Users\\User\\AppData\\Roaming\\Facturier"
    */
   getUserDataPath: () => ipcRenderer.invoke('app:get-userData-path'),
 

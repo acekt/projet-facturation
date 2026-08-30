@@ -7,7 +7,7 @@
  * UX/UI :
  *  - Étape 1 : Informations de l'Administrateur (Nom, Email, Mot de passe, Téléphone)
  *  - Étape 2 : Informations de l'Entreprise (Nom, NIF, RCCM, Adresse, Téléphone, Email)
- *  - Charte SaaS L'Étoile avec carte centrée, dégradés subtils, et validation interactive.
+ *  - Charte SaaS Facturier avec carte centrée, dégradés subtils, et validation interactive.
  */
 
 import * as React from 'react'
@@ -100,7 +100,7 @@ export default function SetupClient() {
 
       const data = await res.json()
       if (res.ok) {
-        toast.success("Initialisation de L'Étoile réussie !")
+        toast.success("Initialisation de Facturier réussie !")
         if (data.user) {
           setUser(data.user)
         }
@@ -134,7 +134,7 @@ export default function SetupClient() {
               <Star className="w-5 h-5 text-white" />
             </div>
             <div>
-              <span className="font-bold text-slate-900 dark:text-zinc-50 tracking-tight text-lg block leading-none">L'ÉTOILE</span>
+              <span className="font-bold text-slate-900 dark:text-zinc-50 tracking-tight text-lg block leading-none">FACTURIER</span>
               <span className="text-[9px] font-bold text-slate-600 dark:text-zinc-400 uppercase tracking-wider">Configuration Initiale</span>
             </div>
           </div>
@@ -226,7 +226,7 @@ export default function SetupClient() {
                   Informations de l'Administrateur
                 </h3>
                 <p className="text-sm text-slate-600 dark:text-zinc-400">
-                  Cet utilisateur aura le contrôle total et les permissions d'administration sur L'Étoile.
+                  Cet utilisateur aura le contrôle total et les permissions d'administration sur Facturier.
                 </p>
               </div>
 
@@ -255,7 +255,7 @@ export default function SetupClient() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="admin@letoile.ga"
+                      placeholder="admin@facturier.ga"
                       className="pl-10 h-11 bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800 text-sm focus-visible:ring-blue-600 text-slate-900 dark:text-zinc-50"
                       required
                     />
@@ -343,7 +343,7 @@ export default function SetupClient() {
                       type="text"
                       value={companyName}
                       onChange={(e) => setCompanyName(e.target.value)}
-                      placeholder="ex: L'Étoile S.A."
+                      placeholder="ex: Facturier S.A."
                       className="pl-10 h-11 bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800 text-sm focus-visible:ring-blue-600 text-slate-900 dark:text-zinc-50"
                       required
                     />
@@ -427,7 +427,7 @@ export default function SetupClient() {
                         type="email"
                         value={companyEmail}
                         onChange={(e) => setCompanyEmail(e.target.value)}
-                        placeholder="contact@letoile.ga"
+                        placeholder="contact@facturier.ga"
                         className="pl-10 h-11 bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800 text-sm focus-visible:ring-blue-600 text-slate-900 dark:text-zinc-50"
                       />
                     </div>
@@ -453,7 +453,7 @@ export default function SetupClient() {
                   className="flex-1 h-11 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white gap-2 shadow-lg shadow-blue-500/10 transition-all duration-200"
                   disabled={loading}
                 >
-                  {loading ? "Initialisation en cours..." : "Initialiser L'Étoile et se connecter"}
+                  {loading ? "Initialisation en cours..." : "Initialiser Facturier et se connecter"}
                   {!loading && <ChevronRight className="w-4 h-4" />}
                 </Button>
               </div>
