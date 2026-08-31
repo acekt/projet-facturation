@@ -11,6 +11,7 @@
  */
 
 import * as React from 'react'
+import { useRouter } from 'next/navigation'
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -35,6 +36,7 @@ import {
 } from "lucide-react"
 
 export default function SetupClient() {
+  const router = useRouter()
   const [step, setStep] = React.useState<1 | 2>(1)
   const [loading, setLoading] = React.useState(false)
   const [showPassword, setShowPassword] = React.useState(false)
@@ -105,7 +107,8 @@ export default function SetupClient() {
           setUser(data.user)
         }
         await new Promise(resolve => setTimeout(resolve, 300))
-        window.location.href = '/'
+        router.push('/')
+        router.refresh()
       } else {
         toast.error(data.error || "Erreur lors de l'initialisation")
       }
@@ -255,7 +258,7 @@ export default function SetupClient() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="admin@facturier.ga"
+                      placeholder="admin@lfacturier.ga"
                       className="pl-10 h-11 bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800 text-sm focus-visible:ring-blue-600 text-slate-900 dark:text-zinc-50"
                       required
                     />
@@ -427,7 +430,7 @@ export default function SetupClient() {
                         type="email"
                         value={companyEmail}
                         onChange={(e) => setCompanyEmail(e.target.value)}
-                        placeholder="contact@facturier.ga"
+                        placeholder="contact@lfacturier.ga"
                         className="pl-10 h-11 bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800 text-sm focus-visible:ring-blue-600 text-slate-900 dark:text-zinc-50"
                       />
                     </div>

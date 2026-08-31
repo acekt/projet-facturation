@@ -225,6 +225,7 @@ export interface InvoiceResponse {
   cssAmount: number;
   total: number;
   notes?: string;
+  subject?: string;
   status: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'overdue' | 'draft' | 'cancelled' | 'pending';
   items: InvoiceItem[];
   payments: PaymentResponse[];
@@ -250,6 +251,7 @@ export interface DbInvoice {
   cssAmount: number;
   total: number;
   notes?: string;
+  subject?: string;
   status: 'PAID' | 'PARTIALLY_PAID' | 'UNPAID' | 'overdue' | 'draft' | 'cancelled' | 'pending';
   deletedAt?: string;
   createdAt: string;
@@ -403,6 +405,8 @@ export interface QuoteCreateRequest {
   date: string;
   discount: number;
   notes?: string;
+  subject?: string;
+  validUntil?: string;
   items: Array<{
     description: string;
     quantity: number;
@@ -425,7 +429,9 @@ export interface QuoteResponse {
   cssAmount: number;
   total: number;
   notes?: string;
-  status: 'EN_ATTENTE' | 'CONVERTI';
+  subject?: string;
+  validUntil?: string;
+  status: 'EN_ATTENTE' | 'CONVERTI' | 'ENVOYE' | 'REFUSE' | 'EXPIRE' | 'EXPIRED';
   items: QuoteItem[];
   deletedAt?: string;
   createdAt: string;
@@ -447,7 +453,9 @@ export interface DbQuote {
   cssAmount: number;
   total: number;
   notes?: string;
-  status: 'EN_ATTENTE' | 'CONVERTI';
+  subject?: string;
+  validUntil?: string;
+  status: 'EN_ATTENTE' | 'CONVERTI' | 'ENVOYE' | 'REFUSE' | 'EXPIRE' | 'EXPIRED';
   deletedAt?: string | null;
   createdAt: string;
   created_by?: string;

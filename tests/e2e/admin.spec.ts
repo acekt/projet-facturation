@@ -13,7 +13,7 @@ test.describe('Admin — Référentiel Commun (Clients & Services)', () => {
     // 2. Création d'un nouveau client
     await page.getByRole('button', { name: /Nouveau client/i }).first().click();
     await page.fill('#name', 'Client Admin Spec');
-    await page.fill('#email', 'adminclient@facturier.ga');
+    await page.fill('#email', 'adminclient@lfacturier.ga');
     await page.fill('#phone', '+241 01 11 22 33');
     await page.fill('#address', 'Quartier Louis, Libreville');
     await page.getByRole('button', { name: /Enregistrer le client/i }).click();

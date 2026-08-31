@@ -1,17 +1,21 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { useStore } from "@/lib/store"
-import type { InvoiceResponse, QuoteResponse, CreditNoteResponse } from "@/lib/types/api"
+import * as React from "react";
+import { useStore } from "@/lib/store";
+import type {
+  InvoiceResponse,
+  QuoteResponse,
+  CreditNoteResponse,
+} from "@/lib/types/api";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type SupportedDocument = InvoiceResponse | QuoteResponse | CreditNoteResponse
-type DocumentType = 'facture' | 'devis' | 'avoir'
+type SupportedDocument = InvoiceResponse | QuoteResponse | CreditNoteResponse;
+type DocumentType = "facture" | "devis" | "avoir";
 
 export interface DocumentA4Props {
-  data: SupportedDocument
-  type: DocumentType
+  data: SupportedDocument;
+  type: DocumentType;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -20,53 +24,82 @@ function fmt(n: number): string {
   // On utilise fr-FR pour le séparateur de milliers, puis on remplace tout espace
   // (incluant l'espace fine insécable \u202F) par un espace insécable classique \u00A0
   // pour éviter tout retour à la ligne non désiré.
-  const formatted = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(n);
-  return formatted.replace(/\s/g, '\u00A0') + '\u00A0FCFA';
+  const formatted = new Intl.NumberFormat("fr-FR", {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  }).format(n);
+  return formatted.replace(/\s/g, "\u00A0") + "\u00A0FCFA";
 }
 
 function fmtDate(s: string): string {
-  if (!s) return ''
+  if (!s) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s.trim())) {
+    const [year, month, day] = s.trim().split('-');
+    return `${day}/${month}/${year}`;
+  }
   try {
-    return new Intl.DateTimeFormat('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(new Date(s))
-  } catch { return s }
+    return new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }).format(new Date(s));
+  } catch {
+    return s;
+  }
 }
 
 function labelOf(type: DocumentType) {
-  return type === 'facture' ? 'FACTURE' : type === 'devis' ? 'DEVIS' : 'AVOIR'
+  return type === "facture" ? "FACTURE" : type === "devis" ? "DEVIS" : "AVOIR";
 }
 
-function numberLabel(type: DocumentType) {
-  return type === 'facture' ? 'N° FAC' : type === 'devis' ? 'N° DEV' : 'N° AV'
-}
 
 function buildHash(doc: SupportedDocument, type: string): string {
-  const raw = `${type}-${doc.number}-${doc.date}-${doc.total}-${doc.clientId}`
-  let h = 0
-  for (let i = 0; i < raw.length; i++) { h = ((h << 5) - h) + raw.charCodeAt(i); h = h & h }
-  const hex = Math.abs(h).toString(16).toUpperCase().padStart(8, '0')
-  return `DGI-VAL-${hex.slice(0, 4)}-${hex.slice(4, 8)}-${(Math.round(doc.total) % 997).toString().padStart(3, '0')}`
+  const raw = `${type}-${doc.number}-${doc.date}-${doc.total}-${doc.clientId}`;
+  let h = 0;
+  for (let i = 0; i < raw.length; i++) {
+    h = (h << 5) - h + raw.charCodeAt(i);
+    h = h & h;
+  }
+  const hex = Math.abs(h).toString(16).toUpperCase().padStart(8, "0");
+  return `DGI-VAL-${hex.slice(0, 4)}-${hex.slice(4, 8)}-${(Math.round(doc.total) % 997).toString().padStart(3, "0")}`;
 }
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function DocumentA4({ data, type }: DocumentA4Props) {
-  const s = useStore((x) => x.settings)
+  const s = useStore((x) => x.settings);
 
-  const payments    = 'payments' in data ? (data as InvoiceResponse).payments ?? [] : []
-  const totalPaid   = payments.reduce((a, p) => a + p.amount, 0)
-  const remaining   = data.total - totalPaid
-  const dueDate     = 'dueDate' in data ? (data as InvoiceResponse).dueDate : undefined
-  const discount    = 'discount' in data ? (data as InvoiceResponse | QuoteResponse).discount : 0
-  const notes       = 'notes' in data ? (data as InvoiceResponse | QuoteResponse).notes : undefined
-  const reason      = 'reason' in data ? (data as CreditNoteResponse).reason : undefined
-  const clientEmail = 'clientEmail' in data ? (data as InvoiceResponse | QuoteResponse).clientEmail : undefined
-  const tpsAmt      = data.tpsAmount ?? 0
-  const netHT       = data.taxBase - data.cssAmount
-  const hash        = buildHash(data, type)
+  const payments =
+    "payments" in data ? ((data as InvoiceResponse).payments ?? []) : [];
+  const totalPaid = payments.reduce((a, p) => a + p.amount, 0);
+  const remaining = data.total - totalPaid;
+  const dueDate =
+    "dueDate" in data ? (data as InvoiceResponse).dueDate : undefined;
+  const discount =
+    "discount" in data ? (data as InvoiceResponse | QuoteResponse).discount : 0;
+  const notes =
+    "notes" in data
+      ? (data as InvoiceResponse | QuoteResponse).notes
+      : undefined;
+  const subject =
+    "subject" in data
+      ? (data as InvoiceResponse | QuoteResponse).subject
+      : undefined;
+  const validUntil =
+    "validUntil" in data ? (data as QuoteResponse).validUntil : undefined;
+  const reason =
+    "reason" in data ? (data as CreditNoteResponse).reason : undefined;
+  const clientEmail =
+    "clientEmail" in data
+      ? (data as InvoiceResponse | QuoteResponse).clientEmail
+      : undefined;
+  const tpsAmt = data.tpsAmount ?? 0;
+  const netHT = data.taxBase - data.cssAmount;
+  const hash = buildHash(data, type);
 
   // Minimum visible rows in the table body
-  const MIN_ROWS = 8
-  const padRows  = Math.max(0, MIN_ROWS - data.items.length)
+  const MIN_ROWS = 8;
+  const padRows = Math.max(0, MIN_ROWS - data.items.length);
 
   return (
     <>
@@ -119,33 +152,35 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
       <div
         id="printable-a4-document"
         className={[
-          'doc-a4',
-          'bg-white text-black',
-          'flex flex-col',
-          'p-[12mm]',
-          'pb-[40mm]',
-          'box-border mx-auto',
-          'shadow-2xl print:shadow-none print:m-0',
-        ].join(' ')}
+          "doc-a4",
+          "bg-white text-black",
+          "flex flex-col",
+          "p-[12mm]",
+          "pb-[40mm]",
+          "box-border mx-auto",
+          "shadow-2xl print:shadow-none print:m-0",
+        ].join(" ")}
         style={{
-          width: '210mm',
-          minWidth: '210mm',
-          minHeight: '297mm',
-          height: 'auto',
-          color: 'var(--color-brand-secondary)',
-          background: '#ffffff',
+          width: "210mm",
+          minWidth: "210mm",
+          minHeight: "297mm",
+          height: "auto",
+          color: "var(--color-brand-secondary)",
+          background: "#ffffff",
         }}
       >
-
         {/* ══════════════════════════════════════════════════════════════════════
             1 · HEADER PREMIUM — Logo + entreprise à gauche | Document à droite
         ══════════════════════════════════════════════════════════════════════ */}
         <div className="flex justify-between items-start mb-4">
-
           {/* LEFT — Logo + Bloc entreprise */}
           <div className="flex items-start gap-3">
             {s.logo ? (
-              <img src={s.logo} alt="Logo" className="h-14 w-auto object-contain flex-shrink-0" />
+              <img
+                src={s.logo}
+                alt="Logo"
+                className="h-14 w-auto object-contain flex-shrink-0"
+              />
             ) : (
               <div className="h-14 w-14 rounded-sm bg-brand-primary flex items-center justify-center text-white text-[7px] font-bold tracking-widest flex-shrink-0">
                 LOGO
@@ -153,17 +188,21 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
             )}
             <div className="flex flex-col justify-center">
               <p className="text-[14px] font-extrabold text-brand-primary uppercase leading-tight tracking-wide">
-                {s.companyName || 'NOM ENTREPRISE'}
+                {s.companyName || "NOM ENTREPRISE"}
               </p>
               {s.legalForm && (
-                <p className="text-[8px] text-slate-400 font-medium tracking-wider mt-0.5">{s.legalForm}</p>
+                <p className="text-[8px] text-slate-400 font-medium tracking-wider mt-0.5">
+                  {s.legalForm}
+                </p>
               )}
               {s.address && (
                 <p className="text-[8px] text-slate-500 mt-0.5">{s.address}</p>
               )}
               {(s.phone || s.email) && (
                 <p className="text-[8px] text-slate-500 mt-0.5">
-                  {[s.phone && `Tél : ${s.phone}`, s.email].filter(Boolean).join('  ·  ')}
+                  {[s.phone && `Tél : ${s.phone}`, s.email]
+                    .filter(Boolean)
+                    .join("  ·  ")}
                 </p>
               )}
             </div>
@@ -175,15 +214,25 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
             <p className="text-3xl font-black text-slate-800 tracking-tight leading-none uppercase">
               {labelOf(type)}
             </p>
-            {/* N° de document avec préfixe redondant */}
+            {/* N° de document avec préfixe redondant corrigé */}
             <p className="text-[9px] font-bold text-slate-700 mt-1 tracking-wide">
-              {numberLabel(type)}-{data.number}
+              N° {data.number}
             </p>
             <div className="w-full h-px bg-slate-200 my-1" />
             <p className="text-[8px] text-slate-500">
-              Date d&apos;émission :{' '}
-              <span className="font-semibold text-slate-700">{fmtDate(data.date)}</span>
+              Date d&apos;émission :{" "}
+              <span className="font-semibold text-slate-700">
+                {fmtDate(data.date)}
+              </span>
             </p>
+            {type === "devis" && validUntil && (
+              <p className="text-[8px] text-slate-500 mt-0.5">
+                Date de validité :{" "}
+                <span className="font-semibold text-slate-700">
+                  {fmtDate(validUntil)}
+                </span>
+              </p>
+            )}
             {dueDate && (
               <p className="text-[8px] text-slate-500">
                 Échéance :{' '}
@@ -194,31 +243,18 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
         </div>
 
         {/* Séparateur pleine largeur */}
-        <div className="w-full h-[2px] mb-4" style={{ background: 'linear-gradient(90deg, var(--color-brand-primary) 0%, #93c5fd 60%, transparent 100%)' }} />
+        <div
+          className="w-full h-[2px] mb-4"
+          style={{
+            background:
+              "linear-gradient(90deg, var(--color-brand-primary) 0%, #93c5fd 60%, transparent 100%)",
+          }}
+        />
 
         {/* ══════════════════════════════════════════════════════════════════════
             2 · BLOCS ÉMETTEUR / DESTINATAIRE — Grille ouverte premium
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 gap-8 mb-4">
-
-          {/* ─ GAUCHE : ÉMETTEUR ─ */}
-          <div className="bg-slate-50 rounded px-4 py-3">
-            <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">
-              Émetteur
-            </p>
-            <p className="text-[11px] font-extrabold text-brand-primary leading-tight">
-              {s.companyName || '—'}
-            </p>
-            {s.legalForm && (
-              <p className="text-[8px] text-slate-400 font-medium mt-0.5">{s.legalForm}</p>
-            )}
-            <div className="mt-2 space-y-0.5 text-[8.5px] text-slate-600">
-              {s.nif    && <p><span className="font-semibold text-slate-700">NIF :</span> {s.nif}</p>}
-              {s.rccm   && <p><span className="font-semibold text-slate-700">RCCM :</span> {s.rccm}</p>}
-              {s.address && <p className="text-slate-500 mt-1">{s.address}</p>}
-              {s.phone  && <p className="text-slate-500">Tél : {s.phone}</p>}
-            </div>
-          </div>
+        <div className="flex justify-end mb-4">
 
           {/* ─ DROITE : DESTINATAIRE ─ */}
           <div className="bg-slate-50 rounded px-4 py-3">
@@ -229,32 +265,42 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
               {data.clientName}
             </p>
             {clientEmail && (
-              <p className="text-[8.5px] text-slate-500 mt-0.5">{clientEmail}</p>
-            )}
-            {/* Séparateur discret avant l'objet */}
-            <div className="border-t border-slate-200 mt-2 pt-2">
-              <p className="text-[8.5px] text-slate-600">
-                <span className="font-semibold text-slate-700">Objet :</span>{' '}
-                {notes || reason || 'Prestations de services'}
+              <p className="text-[8.5px] text-slate-500 mt-0.5">
+                {clientEmail}
               </p>
-            </div>
+            )}
           </div>
         </div>
+
+        {/* ─ OBJET ─ */}
+        {(subject || notes || reason) && (
+          <div className="mb-4">
+            <p className="text-[11px] text-slate-800">
+              <span className="font-bold">Objet :</span>{" "}
+              <span className="font-semibold">
+                {subject || notes || reason}
+              </span>
+            </p>
+          </div>
+        )}
 
         {/* ══════════════════════════════════════════════════════════════════════
             3 · ITEMS TABLE — flex-grow pushes footer to the bottom
             table-fixed + colgroup locks column widths
         ══════════════════════════════════════════════════════════════════════ */}
         <div className="flex-grow min-h-0">
-          <table className="w-full table-fixed border-collapse" style={{ tableLayout: 'fixed', borderCollapse: 'collapse' }}>
+          <table
+            className="w-full table-fixed border-collapse"
+            style={{ tableLayout: "fixed", borderCollapse: "collapse" }}
+          >
             <colgroup>
-              <col style={{ width: '50%' }} />
-              <col style={{ width: '15%' }} />
-              <col style={{ width: '15%' }} />
-              <col style={{ width: '20%' }} />
+              <col style={{ width: "50%" }} />
+              <col style={{ width: "15%" }} />
+              <col style={{ width: "15%" }} />
+              <col style={{ width: "20%" }} />
             </colgroup>
             <thead className="table-header-group tbl-head">
-              <tr style={{ backgroundColor: 'var(--color-brand-secondary)' }}>
+              <tr style={{ backgroundColor: "var(--color-brand-secondary)" }}>
                 <th className="text-left py-2.5 px-3 font-bold uppercase tracking-widest text-white text-[10px]">
                   Désignation
                 </th>
@@ -274,18 +320,35 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
                 <tr
                   key={item.id}
                   className="border-b border-gray-100 print:break-inside-avoid"
-                  style={{ backgroundColor: '#fff' }}
+                  style={{ backgroundColor: "#fff" }}
                 >
-                  <td className="py-3 px-3 align-top font-medium text-slate-800 break-words whitespace-normal text-[11px] leading-relaxed">{item.description}</td>
-                  <td className="py-3 px-3 text-center tabular-nums text-slate-600 align-top text-[11px] leading-relaxed">{item.quantity}</td>
-                  <td className="py-3 px-3 text-right tabular-nums text-slate-600 align-top text-[11px] leading-relaxed">{fmt(item.unitPrice)}</td>
-                  <td className="py-3 px-3 text-right tabular-nums font-bold text-slate-800 align-top text-[11px] leading-relaxed">{fmt(item.total)}</td>
+                  <td className="py-3 px-3 align-top font-medium text-slate-800 break-words whitespace-normal text-[11px] leading-relaxed">
+                    {item.description}
+                  </td>
+                  <td className="py-3 px-3 text-center tabular-nums text-slate-600 align-top text-[11px] leading-relaxed">
+                    {item.quantity}
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums text-slate-600 align-top text-[11px] leading-relaxed">
+                    {fmt(item.unitPrice)}
+                  </td>
+                  <td className="py-3 px-3 text-right tabular-nums font-bold text-slate-800 align-top text-[11px] leading-relaxed">
+                    {fmt(item.total)}
+                  </td>
                 </tr>
               ))}
               {/* Padding rows to fill minimum height */}
               {Array.from({ length: padRows }).map((_, i) => (
-                <tr key={`pad-${i}`} className="border-b border-gray-100 print:break-inside-avoid" style={{ backgroundColor: '#fff' }}>
-                  <td className="py-3 px-3 text-transparent select-none break-words text-[11px]" aria-hidden="true">.</td>
+                <tr
+                  key={`pad-${i}`}
+                  className="border-b border-gray-100 print:break-inside-avoid"
+                  style={{ backgroundColor: "#fff" }}
+                >
+                  <td
+                    className="py-3 px-3 text-transparent select-none break-words text-[11px]"
+                    aria-hidden="true"
+                  >
+                    .
+                  </td>
                   <td className="py-3 px-3" />
                   <td className="py-3 px-3" />
                   <td className="py-3 px-3" />
@@ -299,7 +362,6 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
             4 · GRILLE INFÉRIEURE — Coordonnées bancaires & Signatures (gauche) | Totaux (droite)
         ══════════════════════════════════════════════════════════════════════ */}
         <div className="grid grid-cols-2 mt-auto pt-6 gap-8">
-
           {/* ─ COLONNE GAUCHE : BANQUE & SIGNATURE ─ */}
           <div className="flex flex-col gap-4">
             {/* Encadré Bancaire */}
@@ -308,66 +370,130 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
                 Coordonnées pour Virement Bancaire
               </p>
               <div className="text-[8.5px] text-slate-600 space-y-0.5">
-                {s.bankName      && <p><span className="font-semibold text-slate-700">Banque :</span> {s.bankName}</p>}
-                {s.bankAgency    && <p><span className="font-semibold text-slate-700">Agence :</span> {s.bankAgency}</p>}
-                {s.accountNumber && <p><span className="font-semibold text-slate-700">N° Compte :</span> {s.accountNumber}</p>}
-                {s.swiftCode     && <p><span className="font-semibold text-slate-700">SWIFT/BIC :</span> {s.swiftCode}</p>}
-                {s.iban          && <p><span className="font-semibold text-slate-700">IBAN/RIB :</span> <span className="font-mono text-[8px]">{s.iban}</span></p>}
+                {s.bankName && (
+                  <p>
+                    <span className="font-semibold text-slate-700">
+                      Banque :
+                    </span>{" "}
+                    {s.bankName}
+                  </p>
+                )}
+                {s.bankAgency && (
+                  <p>
+                    <span className="font-semibold text-slate-700">
+                      Agence :
+                    </span>{" "}
+                    {s.bankAgency}
+                  </p>
+                )}
+                {s.accountNumber && (
+                  <p>
+                    <span className="font-semibold text-slate-700">
+                      N° Compte :
+                    </span>{" "}
+                    {s.accountNumber}
+                  </p>
+                )}
+                {s.swiftCode && (
+                  <p>
+                    <span className="font-semibold text-slate-700">
+                      SWIFT/BIC :
+                    </span>{" "}
+                    {s.swiftCode}
+                  </p>
+                )}
+                {s.iban && (
+                  <p>
+                    <span className="font-semibold text-slate-700">
+                      IBAN/RIB :
+                    </span>{" "}
+                    <span className="font-mono text-[8px]">{s.iban}</span>
+                  </p>
+                )}
               </div>
             </div>
 
             {/* Conditions de règlement */}
             <div className="text-[8.5px] text-slate-500 flex flex-col gap-0.5">
-              <p><span className="font-semibold text-slate-700">Règlement :</span> Espèces · Chèques · Virements</p>
-              <p><span className="font-semibold text-slate-700">Délais :</span> Au comptant</p>
+              <p>
+                <span className="font-semibold text-slate-700">
+                  Règlement :
+                </span>{" "}
+                Espèces · Chèques · Virements
+              </p>
+              <p>
+                <span className="font-semibold text-slate-700">Délais :</span>{" "}
+                Au comptant
+              </p>
             </div>
 
             {/* Signature */}
             <div className="mt-4">
-              <p className="text-[10px] font-bold text-brand-primary uppercase tracking-wider">La Direction</p>
+              <p className="text-[10px] font-bold text-brand-primary uppercase tracking-wider">
+                La Direction
+              </p>
               <div className="border-b border-slate-300 w-32 mt-10 mb-1" />
-              <p className="text-[8px] text-slate-400 font-medium">Cachet & Signature</p>
+              <p className="text-[8px] text-slate-400 font-medium">
+                Cachet & Signature
+              </p>
             </div>
           </div>
 
           {/* ─ COLONNE DROITE : TOTAUX DYNAMIQUES ─ */}
           <div className="flex flex-col items-end">
             <div className="w-[240px]">
-
               {/* Lignes standards */}
               <div className="text-[9px] mb-2 space-y-1">
                 <div className="flex justify-between py-1 border-b border-slate-100">
                   <span className="text-slate-500">Brut HT</span>
-                  <span className="font-semibold text-slate-800 tabular-nums">{fmt(data.subtotal)}</span>
+                  <span className="font-semibold text-slate-800 tabular-nums">
+                    {fmt(data.subtotal)}
+                  </span>
                 </div>
                 {discount > 0 && (
                   <div className="flex justify-between py-1 border-b border-slate-100">
                     <span className="text-slate-500">Remise</span>
-                    <span className="font-semibold text-slate-600 tabular-nums">− {fmt(discount)}</span>
+                    <span className="font-semibold text-slate-600 tabular-nums">
+                      − {fmt(discount)}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between py-1 border-b border-slate-100">
                   <span className="text-slate-500">Net HT</span>
-                  <span className="font-semibold text-slate-800 tabular-nums">{fmt(netHT)}</span>
+                  <span className="font-semibold text-slate-800 tabular-nums">
+                    {fmt(netHT)}
+                  </span>
                 </div>
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">CSS ({s.cssRate ?? 1}%)</span>
-                  <span className="font-semibold text-slate-800 tabular-nums">{fmt(data.cssAmount)}</span>
+                  <span className="text-slate-500">
+                    CSS ({s.cssRate ?? 1}%)
+                  </span>
+                  <span className="font-semibold text-slate-800 tabular-nums">
+                    {fmt(data.cssAmount)}
+                  </span>
                 </div>
                 {tpsAmt > 0 && (
                   <div className="flex justify-between py-1 border-b border-slate-100">
-                    <span className="text-slate-500">TPS ({s.tpsRate ?? 9.5}%)</span>
-                    <span className="font-semibold text-slate-800 tabular-nums">{fmt(tpsAmt)}</span>
+                    <span className="text-slate-500">
+                      TPS ({s.tpsRate ?? 9.5}%)
+                    </span>
+                    <span className="font-semibold text-slate-800 tabular-nums">
+                      {fmt(tpsAmt)}
+                    </span>
                   </div>
                 )}
                 <div className="flex justify-between py-1 border-b border-slate-100">
-                  <span className="text-slate-500">TVA ({s.tvaRate ?? 18}%)</span>
-                  <span className="font-semibold text-slate-800 tabular-nums">{fmt(data.tvaAmount)}</span>
+                  <span className="text-slate-500">
+                    TVA ({s.tvaRate ?? 18}%)
+                  </span>
+                  <span className="font-semibold text-slate-800 tabular-nums">
+                    {fmt(data.tvaAmount)}
+                  </span>
                 </div>
               </div>
 
               {/* LOGIQUE CONDITIONNELLE (DEVIS vs FACTURE/AVOIR) */}
-              {type === 'devis' ? (
+              {type === "devis" ? (
                 // Ligne finale DEVIS
                 <div className="mt-2 bg-slate-50 p-3 rounded-lg flex justify-between items-center print:break-inside-avoid">
                   <span className="text-[14px] font-extrabold text-slate-800 uppercase tracking-widest">
@@ -393,7 +519,9 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
                   <div className="mt-2 text-[9px] flex flex-col gap-1.5 px-1 pt-1">
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500 font-medium">Réglé</span>
-                      <span className="text-slate-600 font-semibold tabular-nums">{fmt(totalPaid)}</span>
+                      <span className="text-slate-600 font-semibold tabular-nums">
+                        {fmt(totalPaid)}
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="font-bold text-brand-primary">Reste à Payer</span>
@@ -402,7 +530,6 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
                   </div>
                 </div>
               )}
-
             </div>
           </div>
         </div>
@@ -412,24 +539,35 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
         ══════════════════════════════════════════════════════════════════════ */}
         <div className="fixed bottom-0 left-0 w-full px-[15mm] pb-[15mm] text-center bg-white text-[8px] text-gray-500">
           {/* Ligne décorative */}
-          <div className="w-12 h-[2px] mx-auto mb-2" style={{ backgroundColor: 'var(--color-brand-primary)' }} />
+          <div
+            className="w-12 h-[2px] mx-auto mb-2"
+            style={{ backgroundColor: "var(--color-brand-primary)" }}
+          />
 
           {/* Ligne 1 : Identité complète de l'entreprise */}
           <p className="text-[8px] text-slate-400 text-center leading-tight">
             {[
               s.companyName,
               s.legalForm,
-              s.nif   ? `NIF : ${s.nif}`   : null,
-              s.rccm  ? `RCCM : ${s.rccm}` : null,
+              s.nif ? `NIF : ${s.nif}` : null,
+              s.rccm ? `RCCM : ${s.rccm}` : null,
               s.phone ? `Tél : ${s.phone}` : null,
-              s.email ? s.email            : null,
-            ].filter(Boolean).join(' | ')}
+              s.email ? s.email : null,
+            ]
+              .filter(Boolean)
+              .join(" | ")}
           </p>
 
           {/* Ligne 2 : Coordonnées bancaires */}
           {(s.bankName || s.accountNumber) && (
             <p className="text-[8px] text-slate-400 text-center leading-tight mt-0.5">
-              {[s.bankName && `Banque : ${s.bankName}`, s.accountNumber && `N° Compte : ${s.accountNumber}`, s.iban && `IBAN : ${s.iban}`].filter(Boolean).join(' | ')}
+              {[
+                s.bankName && `Banque : ${s.bankName}`,
+                s.accountNumber && `N° Compte : ${s.accountNumber}`,
+                s.iban && `IBAN : ${s.iban}`,
+              ]
+                .filter(Boolean)
+                .join(" | ")}
             </p>
           )}
 
@@ -445,8 +583,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
             {hash}
           </p>
         </div>
-
       </div>
     </>
-  )
+  );
 }

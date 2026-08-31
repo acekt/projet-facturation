@@ -538,19 +538,45 @@ async function createWindow(port) {
     mainWindow.webContents.openDevTools({ mode: 'detach' });
   }
 
-  // Intercepter les liens externes → navigateur OS
+  // ══════════════════════════════════════════════════════════════════════
+  // CONFINEMENT STRICT — Aucune navigation ne doit s'échapper vers le
+  // navigateur système. Toutes les URLs locales restent dans la
+  // BrowserWindow. Seules les URLs véritablement externes (mailto:, etc.)
+  // sont envoyées au navigateur OS.
+  // ══════════════════════════════════════════════════════════════════════
+
+  const LOCAL_ORIGIN = `http://127.0.0.1:${port}`;
+
+  // Bloque TOUTES les pop-ups (window.open, target="_blank", etc.).
+  // Les URLs locales sont chargées dans la fenêtre principale.
+  // Les URLs véritablement externes (pas localhost/127.0.0.1) sont ignorées silencieusement.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http://') || url.startsWith('https://')) {
-      shell.openExternal(url);
+    if (url.startsWith(LOCAL_ORIGIN) || url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
+      // URL locale → charger dans la fenêtre principale au lieu d'ouvrir une pop-up
+      mainWindow.loadURL(url);
+    } else {
+      // URL externe → NE PAS ouvrir dans le navigateur système
+      // On pourrait utiliser shell.openExternal(url) ici si on voulait,
+      // mais la consigne est de ne JAMAIS ouvrir le navigateur OS.
+      logToFile('WARN', `[Confinement] Pop-up externe bloquée: ${url}`);
     }
     return { action: 'deny' };
   });
 
+  // Intercepte les navigations de page (redirections serveur, clics sur <a>, etc.).
+  // Les URLs locales sont autorisées. Tout le reste est bloqué silencieusement.
   mainWindow.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(`http://127.0.0.1:${port}`)) {
-      event.preventDefault();
-      shell.openExternal(url);
+    // Autorise la navigation vers le serveur local (Next.js)
+    if (url.startsWith(LOCAL_ORIGIN) || url.startsWith('http://localhost') || url.startsWith('http://127.0.0.1')) {
+      return; // Navigation autorisée — pas de event.preventDefault()
     }
+    // Autorise les data: URIs (utilisés par le fallback UI)
+    if (url.startsWith('data:')) {
+      return;
+    }
+    // Toute autre URL → bloquer silencieusement
+    event.preventDefault();
+    logToFile('WARN', `[Confinement] Navigation externe bloquée: ${url}`);
   });
 
   mainWindow.on('closed', () => {

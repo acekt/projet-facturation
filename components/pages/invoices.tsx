@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
+import { exportInvoicesToExcel } from "@/lib/services/ExportService"
 import {
   Plus,
   Search,
@@ -328,22 +329,18 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           <>
             <Button
               variant="outline"
-              onClick={() => {
-                const headers = ["Numero", "Client", "Date", "Total", "Statut"];
-                const rows = invoices.map(i => [i.number, i.clientName, i.date, i.total, i.status]);
-                const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-                const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-                const link = document.createElement("a");
-                link.href = URL.createObjectURL(blob);
-                link.setAttribute("download", `factures_${new Date().toISOString().split('T')[0]}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
+              onClick={async () => {
+                try {
+                  await exportInvoicesToExcel(invoices);
+                } catch (err) {
+                  console.error("Export Excel failed:", err);
+                  toast.error("Erreur lors de la génération du fichier Excel.");
+                }
               }}
               className="gap-2 hidden sm:flex"
             >
               <DownloadCloud className="w-4 h-4" />
-              Export CSV
+              Export Excel
             </Button>
             {user?.role === 'user' && (
               <Button
@@ -358,13 +355,51 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         }
       />
 
-      {/* ── Barre de recherche + sélecteur de vue (Design System) ──────── */}
-      <SearchBar
-        placeholder="Rechercher une facture..."
-        value={searchQuery}
-        onChange={setSearchQuery}
-        viewFormatKey="invoices"
-      />
+      {/* ── Barre de recherche et filtres ──────── */}
+      <div className="flex flex-col sm:flex-row gap-4 mb-4">
+        <div className="flex-1">
+          <SearchBar
+            placeholder="Rechercher une facture..."
+            value={searchQuery}
+            onChange={setSearchQuery}
+            viewFormatKey="invoices"
+          />
+        </div>
+        <div className="flex flex-wrap gap-2 items-center">
+          <Button
+            variant={statusFilter === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("all")}
+            className="rounded-full"
+          >
+            Toutes
+          </Button>
+          <Button
+            variant={statusFilter === "PAID" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("PAID")}
+            className="rounded-full"
+          >
+            Payées
+          </Button>
+          <Button
+            variant={statusFilter === "UNPAID" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("UNPAID")}
+            className="rounded-full"
+          >
+            Non payées
+          </Button>
+          <Button
+            variant={statusFilter === "OVERDUE" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatusFilter("OVERDUE")}
+            className="rounded-full"
+          >
+            En retard
+          </Button>
+        </div>
+      </div>
 
       {/* ── Vue Tableau (Design System) ─────────────────────────────────── */}
       {(!viewFormat.invoices || viewFormat.invoices === 'table') && (

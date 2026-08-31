@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
+import { exportPaymentsToExcel } from "@/lib/services/ExportService"
 import { useTheme } from "next-themes"
 import {
   Search,
@@ -207,25 +208,18 @@ export function PaymentsPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => {
-              const headers = ["ID", "Facture", "Montant", "Méthode", "Date", "Référence"];
-              const rows = payments.map(p => {
-                const inv = invoices.find(i => i.id === p.invoiceId);
-                return [p.id, inv?.number || p.invoiceId, p.amount, p.paymentMethod, p.date, p.reference || ''];
-              });
-              const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
-              const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-              const link = document.createElement("a");
-              link.href = URL.createObjectURL(blob);
-              link.setAttribute("download", `paiements_${new Date().toISOString().split('T')[0]}.csv`);
-              document.body.appendChild(link);
-              link.click();
-              document.body.removeChild(link);
+            onClick={async () => {
+              try {
+                await exportPaymentsToExcel(payments, invoices);
+              } catch (err) {
+                console.error("Export Excel failed:", err);
+                toast.error("Erreur lors de la génération du fichier Excel.");
+              }
             }}
             className="gap-2 hidden sm:flex"
           >
             <DownloadCloud className="w-4 h-4" />
-            Export CSV
+            Export Excel
           </Button>
           <Button
             variant="outline"
@@ -329,7 +323,11 @@ export function PaymentsPage() {
                   <YAxis
                     stroke={chartColors.axis}
                     tick={{ fill: chartColors.tick, fontSize: 12 }}
-                    tickFormatter={(value) => formatCurrency(value)}
+                    tickFormatter={(value) => {
+                      if (value >= 1_000_000) return `${(value / 1_000_000).toFixed(1).replace('.0', '')}M FCFA`;
+                      if (value >= 1_000) return `${(value / 1_000).toFixed(0)}k FCFA`;
+                      return `${value} FCFA`;
+                    }}
                     axisLine={false}
                     tickLine={false}
                   />

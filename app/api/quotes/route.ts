@@ -119,8 +119,8 @@ export async function POST(request: Request) {
         INSERT INTO quotes (
           id, number, clientId, clientName, clientEmail, date,
           subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount,
-          total, notes, status, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          total, notes, subject, validUntil, status, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         id,
         number,
@@ -136,6 +136,8 @@ export async function POST(request: Request) {
         computed.cssAmount,
         computed.total,
         data.notes ?? null,
+        data.subject ?? null,
+        data.validUntil ?? null,
         'EN_ATTENTE', // Status is always set server-side, never trusted from client
         session.userId,
       );

@@ -41,7 +41,7 @@ setup('Purge DB, initialisation des données et génération des Storage States'
       clientName TEXT, clientEmail TEXT, date TEXT NOT NULL, subtotal REAL DEFAULT 0,
       discount REAL DEFAULT 0, taxBase REAL DEFAULT 0, tpsAmount REAL DEFAULT 0,
       tvaAmount REAL DEFAULT 0, cssAmount REAL DEFAULT 0, total REAL DEFAULT 0,
-      status TEXT DEFAULT 'EN_ATTENTE', notes TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      status TEXT DEFAULT 'EN_ATTENTE', notes TEXT, subject TEXT, validUntil TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       deletedAt DATETIME, created_by TEXT, FOREIGN KEY (clientId) REFERENCES clients(id)
     );
     CREATE TABLE IF NOT EXISTS quote_items (
@@ -54,7 +54,7 @@ setup('Purge DB, initialisation des données et génération des Storage States'
       clientName TEXT, clientEmail TEXT, date TEXT NOT NULL, subtotal REAL DEFAULT 0,
       discount REAL DEFAULT 0, taxBase REAL DEFAULT 0, tpsAmount REAL DEFAULT 0,
       tvaAmount REAL DEFAULT 0, cssAmount REAL DEFAULT 0, total REAL DEFAULT 0,
-      status TEXT DEFAULT 'pending', notes TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      status TEXT DEFAULT 'pending', notes TEXT, subject TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       deletedAt DATETIME, created_by TEXT, FOREIGN KEY (clientId) REFERENCES clients(id),
       FOREIGN KEY (quoteId) REFERENCES quotes(id)
     );
@@ -134,7 +134,7 @@ setup('Purge DB, initialisation des données et génération des Storage States'
       tvaRate, tpsRate, cssRate, sessionTimeout, invoicePrefix, quotePrefix, companyCode
     ) VALUES (
       1, 'L''Facturier SARL', 'SARL', 'NIF123456', 'RCCM98765', 'Libreville, Gabon',
-      'contact@facturier.ga', '+241 01 23 45 67', 18.0, 9.5, 1.0, 60, 'FACT-', 'DEV-', 'ETO'
+      'contact@lfacturier.ga', '+241 01 23 45 67', 18.0, 9.5, 1.0, 60, 'FACT-', 'DEV-', 'ETO'
     )
   `).run();
 
@@ -145,14 +145,14 @@ setup('Purge DB, initialisation des données et génération des Storage States'
   db.prepare(`
     INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
     VALUES (?, ?, ?, ?, 'user', ?, 1, CURRENT_TIMESTAMP)
-  `).run(operatorId, 'operateur@facturier.ga', 'operateur@facturier.ga', operatorHash, 'Jean-Baptiste Moussavou');
+  `).run(operatorId, 'operateur@lfacturier.ga', 'operateur@lfacturier.ga', operatorHash, 'Jean-Baptiste Moussavou');
 
   const adminId = crypto.randomUUID();
   const adminHash = bcrypt.hashSync('admin123', 10);
   db.prepare(`
     INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
     VALUES (?, ?, ?, ?, 'admin', ?, 1, CURRENT_TIMESTAMP)
-  `).run(adminId, 'admin@facturier.ga', 'admin@facturier.ga', adminHash, 'Administrateur Système');
+  `).run(adminId, 'admin@lfacturier.ga', 'admin@lfacturier.ga', adminHash, 'Administrateur Système');
 
   // Création d'un service au catalogue
   const serviceId = crypto.randomUUID();
@@ -181,7 +181,7 @@ setup('Purge DB, initialisation des données et génération des Storage States'
   await page.waitForLoadState('domcontentloaded');
   await page.waitForSelector('#username');
   await page.waitForTimeout(1000);
-  await page.fill('#username', 'admin@facturier.ga');
+  await page.fill('#username', 'admin@lfacturier.ga');
   await page.fill('#password', 'admin123');
   await page.click('button[type="submit"]');
   await expect(page).toHaveURL('http://localhost:3050/', { timeout: 45000 });
@@ -195,7 +195,7 @@ setup('Purge DB, initialisation des données et génération des Storage States'
   await operatorPage.waitForLoadState('domcontentloaded');
   await operatorPage.waitForSelector('#username');
   await operatorPage.waitForTimeout(1000);
-  await operatorPage.fill('#username', 'operateur@facturier.ga');
+  await operatorPage.fill('#username', 'operateur@lfacturier.ga');
   await operatorPage.fill('#password', 'operateur123');
   await operatorPage.click('button[type="submit"]');
   await expect(operatorPage).toHaveURL('http://localhost:3050/', { timeout: 45000 });

@@ -1,21 +1,14 @@
-"use client"
+"use client";
 
-import * as React from "react"
-import { motion } from "framer-motion"
-import {
-  ArrowLeft,
-  Send,
-  Eye,
-  Plus,
-  Trash2,
-  User,
-  Search,
-} from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+import * as React from "react";
+import { motion } from "framer-motion";
+import { ArrowLeft, Send, Eye, Plus, Trash2, User, Search } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { DatePicker } from "@/components/ui/date-picker";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -23,51 +16,85 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogDescription,
-} from "@/components/ui/dialog"
-import { VisuallyHidden } from "@/components/ui/visually-hidden"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+} from "@/components/ui/dialog";
+import { VisuallyHidden } from "@/components/ui/visually-hidden";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
-
-import { useStore, type InvoiceItem, type DraftItem, type Invoice } from "@/lib/store"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { toast } from "sonner"
-import { formatCurrency } from "@/lib/utils"
-import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer"
+import {
+  useStore,
+  type InvoiceItem,
+  type DraftItem,
+  type Invoice,
+} from "@/lib/store";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { toast } from "sonner";
+import { formatCurrency } from "@/lib/utils";
+import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
 
 interface InvoiceEditorProps {
-  onBack: () => void
-  editingId?: string | null
+  onBack: () => void;
+  editingId?: string | null;
 }
 
 export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
-  const clients = useStore((state) => state.clients)
-  const settings = useStore((state) => state.settings)
-  const setInvoices = useStore((state) => state.setInvoices)
-  const services = useStore((state) => state.services)
-  // Zustand Draft Connection
-  const globalDraft = useStore((state) => state.invoiceDraft)
-  const setInvoiceDraft = useStore((state) => state.setInvoiceDraft)
-  const clearInvoiceDraft = useStore((state) => state.clearInvoiceDraft)
+  const clients = useStore((state) => state.clients);
+  const settings = useStore((state) => state.settings);
+  const setInvoices = useStore((state) => state.setInvoices);
+  const services = useStore((state) => state.services);
+  const setInvoiceDraft = useStore((state) => state.setInvoiceDraft);
+  const clearInvoiceDraft = useStore((state) => state.clearInvoiceDraft);
 
-  // Local State to prevent global re-renders on every keystroke
-  const [localDraft, setLocalDraft] = React.useState(globalDraft)
+  // ── NEW vs EDIT: strict lifecycle ──
+  const isNew = !editingId;
 
-  const selectedClient = localDraft.selectedClient
-  const items = localDraft.items
-  const invoiceDate = localDraft.invoiceDate
-  const discount = localDraft.discount
-  const notes = localDraft.notes
+  // Build a fresh blank draft (used for NEW mode)
+  const freshDraft = React.useMemo(() => {
+    const today = new Date();
+    return {
+      selectedClient: null as (typeof clients)[0] | null,
+      items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }] as DraftItem[],
+      invoiceDate: today.toISOString().split("T")[0],
+      discount: 0,
+      notes: "",
+      subject: "",
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // intentionally stable — only computed once on mount
 
-  const setSelectedClient = (client: typeof clients[0] | null) => setLocalDraft(prev => ({ ...prev, selectedClient: client }))
-  const setDiscount = (val: number) => setLocalDraft(prev => ({ ...prev, discount: val }))
-  const setNotes = (val: string) => setLocalDraft(prev => ({ ...prev, notes: val }))
-  const setInvoiceDate = (val: string) => setLocalDraft(prev => ({ ...prev, invoiceDate: val }))
-  const setItems = (newItems: DraftItem[] | ((prev: DraftItem[]) => DraftItem[])) => {
-    setLocalDraft(prev => ({
+  // Local State: always start blank, then load from API in EDIT mode
+  const [localDraft, setLocalDraft] = React.useState(freshDraft);
+
+  const selectedClient = localDraft.selectedClient;
+  const items = localDraft.items;
+  const invoiceDate = localDraft.invoiceDate;
+  const discount = localDraft.discount;
+  const notes = localDraft.notes;
+  const subject = localDraft.subject;
+
+  const setSelectedClient = (client: (typeof clients)[0] | null) =>
+    setLocalDraft((prev) => ({ ...prev, selectedClient: client }));
+  const setDiscount = (val: number) =>
+    setLocalDraft((prev) => ({ ...prev, discount: val }));
+  const setNotes = (val: string) =>
+    setLocalDraft((prev) => ({ ...prev, notes: val }));
+  const setSubject = (val: string) =>
+    setLocalDraft((prev) => ({ ...prev, subject: val }));
+  const setInvoiceDate = (val: string) =>
+    setLocalDraft((prev) => ({ ...prev, invoiceDate: val }));
+  const setItems = (
+    newItems: DraftItem[] | ((prev: DraftItem[]) => DraftItem[]),
+  ) => {
+    setLocalDraft((prev) => ({
       ...prev,
-      items: typeof newItems === 'function' ? newItems(prev.items) : newItems
-    }))
-  }
+      items: typeof newItems === "function" ? newItems(prev.items) : newItems,
+    }));
+  };
 
   // Sync back to global store manually when explicitly saving as draft
   const handleSaveDraft = () => {
@@ -75,18 +102,22 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     toast.success("Brouillon enregistré temporairement.");
   };
 
-  // Sync to global store automatically when unmounting if we haven't submitted
+  // Cleanup: purge global draft on unmount to prevent ghost data
   React.useEffect(() => {
+    if (isNew) {
+      clearInvoiceDraft();
+    }
     return () => {
-       setInvoiceDraft(localDraft);
+      clearInvoiceDraft();
     };
-  }, [localDraft, setInvoiceDraft]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-  const [clientSearchOpen, setClientSearchOpen] = React.useState(false)
-  const [clientSearch, setClientSearch] = React.useState("")
-  const [previewOpen, setPreviewOpen] = React.useState(false)
-  const [isSubmitting, startSubmitTransition] = React.useTransition()
-  const [isLoading, setIsLoading] = React.useState(!!editingId)
+  const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
+  const [clientSearch, setClientSearch] = React.useState("");
+  const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [isSubmitting, startSubmitTransition] = React.useTransition();
+  const [isLoading, setIsLoading] = React.useState(!!editingId);
 
   React.useEffect(() => {
     if (!editingId) return;
@@ -99,109 +130,137 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
           if (res.status === 404) {
             toast.error("Facture introuvable ou supprimée");
           } else {
-            toast.error(`Erreur serveur (${res.status}) — impossible de charger la facture`);
+            toast.error(
+              `Erreur serveur (${res.status}) — impossible de charger la facture`,
+            );
           }
           onBack();
           return;
         }
         const data = await res.json();
-        setSelectedClient(clients.find(c => c.id === data.clientId) || {
-          id: data.clientId,
-          name: data.clientName,
-          email: data.clientEmail,
-          phone: '',
-          address: '',
-        });
+        setSelectedClient(
+          clients.find((c) => c.id === data.clientId) || {
+            id: data.clientId,
+            name: data.clientName,
+            email: data.clientEmail,
+            phone: "",
+            address: "",
+          },
+        );
         setItems(data.items);
         setInvoiceDate(data.date);
+        setSubject(data.subject || "");
         setDiscount(data.discount);
         setNotes(data.notes || "");
         setIsLoading(false);
       })
       .catch((err: unknown) => {
-        if (err instanceof Error && err.name === 'AbortError') return;
-        toast.error("Impossible de charger la facture — vérifiez la connexion au serveur");
+        if (err instanceof Error && err.name === "AbortError") return;
+        toast.error(
+          "Impossible de charger la facture — vérifiez la connexion au serveur",
+        );
         onBack();
       });
 
     return () => controller.abort();
   }, [editingId]);
 
-  const TAX_RATE = (settings.tvaRate ?? 0) / 100
-  const TPS_RATE = (settings.tpsRate ?? 9.5) / 100
-  const CSS_RATE = (settings.cssRate ?? 0) / 100
+  const TAX_RATE = (settings.tvaRate ?? 0) / 100;
+  const TPS_RATE = (settings.tpsRate ?? 9.5) / 100;
+  const CSS_RATE = (settings.cssRate ?? 0) / 100;
 
   const filteredClients = clients.filter(
     (client) =>
       client.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
-      client.email.toLowerCase().includes(clientSearch.toLowerCase())
-  )
+      client.email.toLowerCase().includes(clientSearch.toLowerCase()),
+  );
 
-  const updateItem = (itemId: string, field: keyof InvoiceItem, value: string | number) => {
+  const updateItem = (
+    itemId: string,
+    field: keyof InvoiceItem,
+    value: string | number,
+  ) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === itemId) {
-          const updated = { ...item, [field]: value }
+          const updated = { ...item, [field]: value };
           if (field === "quantity" || field === "unitPrice") {
-            if (Number(updated.unitPrice) < 0) updated.unitPrice = 0
-            updated.total = Math.round((Number(updated.quantity) || 0) * (Number(updated.unitPrice) || 0))
+            if (Number(updated.unitPrice) < 0) updated.unitPrice = 0;
+            updated.total = Math.round(
+              (Number(updated.quantity) || 0) *
+                (Number(updated.unitPrice) || 0),
+            );
           }
 
           // Auto-population from catalog
-          if (field === "description" && typeof value === 'string') {
-            const matchedService = services.find(s => s.name.toLowerCase() === value.toLowerCase());
+          if (field === "description" && typeof value === "string") {
+            const matchedService = services.find(
+              (s) => s.name.toLowerCase() === value.toLowerCase(),
+            );
             if (matchedService) {
-                updated.unitPrice = matchedService.unitPrice;
-                updated.total = Math.round((Number(updated.quantity) || 0) * updated.unitPrice);
+              updated.unitPrice = matchedService.unitPrice;
+              updated.total = Math.round(
+                (Number(updated.quantity) || 0) * updated.unitPrice,
+              );
             }
           }
 
-          return updated
+          return updated;
         }
-        return item
-      })
-    )
-  }
+        return item;
+      }),
+    );
+  };
 
   const addItem = () => {
     setItems((prev) => [
       ...prev,
-      { id: String(Date.now()), description: "", quantity: 1, unitPrice: 0, total: 0 },
-    ])
-  }
+      {
+        id: String(Date.now()),
+        description: "",
+        quantity: 1,
+        unitPrice: 0,
+        total: 0,
+      },
+    ]);
+  };
 
   const removeItem = (id: string) => {
     if (items.length > 1) {
-      setItems((prev) => prev.filter((item) => item.id !== id))
+      setItems((prev) => prev.filter((item) => item.id !== id));
     }
-  }
+  };
 
-  const subtotal = Math.round(items.reduce((acc, item) => acc + item.total, 0))
-  const netHT = Math.max(0, subtotal - Math.round(discount))
-  const cssAmount = Math.round(netHT * CSS_RATE)
-  const taxBase = netHT + cssAmount
-  const tpsAmount = Math.round(taxBase * TPS_RATE)
-  const tvaAmount = Math.round(taxBase * TAX_RATE)
-  const total = netHT + cssAmount + tpsAmount + tvaAmount
+  const subtotal = Math.round(items.reduce((acc, item) => acc + item.total, 0));
+  const netHT = Math.max(0, subtotal - Math.round(discount));
+  const cssAmount = Math.round(netHT * CSS_RATE);
+  const taxBase = netHT + cssAmount;
+  const tpsAmount = Math.round(taxBase * TPS_RATE);
+  const tvaAmount = Math.round(taxBase * TAX_RATE);
+  const total = netHT + cssAmount + tpsAmount + tvaAmount;
 
-  const handleSave = (status: Invoice['status']) => {
+  const handleSave = (status: Invoice["status"]) => {
     if (!selectedClient) {
-      toast.error("Veuillez sélectionner un client")
-      return
+      toast.error("Veuillez sélectionner un client");
+      return;
     }
 
-    if (items.some(item => !item.description || item.quantity <= 0 || item.unitPrice < 0)) {
-      toast.error("Veuillez remplir correctement tous les articles")
-      return
+    if (
+      items.some(
+        (item) => !item.description || item.quantity <= 0 || item.unitPrice < 0,
+      )
+    ) {
+      toast.error("Veuillez remplir correctement tous les articles");
+      return;
     }
 
     startSubmitTransition(async () => {
       try {
-        const url = editingId ? `/api/invoices/${editingId}` : '/api/invoices'
-        const method = editingId ? 'PUT' : 'POST'
+        const url = editingId ? `/api/invoices/${editingId}` : "/api/invoices";
+        const method = editingId ? "PUT" : "POST";
         const response = await fetch(url, {
           method,
-          headers: { 'Content-Type': 'application/json' },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             clientId: selectedClient.id,
             clientName: selectedClient.name,
@@ -209,25 +268,28 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             date: invoiceDate,
             items,
             notes,
+            subject: subject || undefined,
             discount,
-            status
+            status,
           }),
-        })
+        });
 
-        if (!response.ok) throw new Error('Failed to save invoice')
+        if (!response.ok) throw new Error("Failed to save invoice");
 
-        const newInvoices = await fetch('/api/invoices').then(res => res.json())
-        setInvoices(newInvoices)
+        const newInvoices = await fetch("/api/invoices").then((res) =>
+          res.json(),
+        );
+        setInvoices(newInvoices);
 
-        toast.success("Facture créée avec succès")
-        clearInvoiceDraft()
-        onBack()
+        toast.success("Facture créée avec succès");
+        clearInvoiceDraft();
+        onBack();
       } catch (error) {
-        console.error('[InvoiceEditor] handleSave error:', error)
-        toast.error("Erreur lors de l'enregistrement de la facture")
+        console.error("[InvoiceEditor] handleSave error:", error);
+        toast.error("Erreur lors de l'enregistrement de la facture");
       }
-    })
-  }
+    });
+  };
 
   return (
     <motion.div
@@ -238,37 +300,20 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onBack}
-          >
+          <Button variant="ghost" size="sm" onClick={onBack}>
             <ArrowLeft className="w-4 h-4 mr-2" />
             Retour
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Nouvelle Facture</h1>
-            <p className="text-muted-foreground mt-1">Créez une facture commerciale (sans devis associé)</p>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">
+              Nouvelle Facture
+            </h1>
+            <p className="text-muted-foreground mt-1">
+              Créez une facture commerciale (sans devis associé)
+            </p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Button
-            variant="outline"
-            className="gap-2 bg-secondary"
-            onClick={() => setPreviewOpen(true)}
-            disabled={isSubmitting || !selectedClient}
-          >
-            <Eye className="w-4 h-4" />
-            Aperçu
-          </Button>
-          <Button
-            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
-            onClick={() => handleSave('UNPAID')}
-            disabled={isSubmitting}
-          >
-            <Send className="w-4 h-4" />
-            Créer la Facture
-          </Button>
         </div>
       </div>
 
@@ -276,19 +321,32 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         <div className="lg:col-span-2 space-y-6">
           <Card className="bg-card border-border">
             <CardHeader className="pb-4">
-              <CardTitle className="text-foreground font-semibold text-base">Informations de la Facture</CardTitle>
+              <CardTitle className="text-foreground font-semibold text-base">
+                Informations de la Facture
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-sm">Date d'émission</Label>
-                  <Input
-                    type="date"
-                    value={invoiceDate}
-                    onChange={(e) => setInvoiceDate(e.target.value)}
-                    className="bg-secondary border-border text-foreground"
+                  <Label className="text-muted-foreground text-sm">
+                    Date d'émission
+                  </Label>
+                  <DatePicker
+                    value={invoiceDate || ""}
+                    onChange={setInvoiceDate}
                   />
                 </div>
+              </div>
+              <div className="space-y-2 pt-2">
+                <Label className="text-muted-foreground text-sm">
+                  Objet de la facture
+                </Label>
+                <Input
+                  value={subject || ""}
+                  onChange={(e) => setSubject(e.target.value)}
+                  placeholder="Ex: Prestation de services informatiques"
+                  className="bg-secondary border-border text-foreground"
+                />
               </div>
             </CardContent>
           </Card>
@@ -296,7 +354,9 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
           {/* Client Selection */}
           <Card className="bg-card border-border">
             <CardHeader className="pb-4">
-              <CardTitle className="text-foreground font-semibold text-base">Client</CardTitle>
+              <CardTitle className="text-foreground font-semibold text-base">
+                Client
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {selectedClient ? (
@@ -304,12 +364,20 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                   <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10 ring-2 ring-border">
                       <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-sm font-medium">
-                        {selectedClient.name.split(" ").map((n) => n[0]).join("").slice(0, 2)}
+                        {selectedClient.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .slice(0, 2)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="text-foreground font-medium">{selectedClient.name}</p>
-                      <p className="text-muted-foreground text-sm">{selectedClient.email}</p>
+                      <p className="text-foreground font-medium">
+                        {selectedClient.name}
+                      </p>
+                      <p className="text-muted-foreground text-sm">
+                        {selectedClient.email}
+                      </p>
                     </div>
                   </div>
                   <Button
@@ -321,27 +389,37 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                   </Button>
                 </div>
               ) : (
-                <Dialog open={clientSearchOpen} onOpenChange={setClientSearchOpen}>
+                <Dialog
+                  open={clientSearchOpen}
+                  onOpenChange={setClientSearchOpen}
+                >
                   <DialogTrigger asChild>
-                    <button
-                      className="w-full p-4 rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-all text-left group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                    >
+                    <button className="w-full p-4 rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-all text-left group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
                           <User className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
                         </div>
                         <div>
-                          <p className="text-muted-foreground font-medium group-hover:text-foreground">Sélectionner un client</p>
-                          <p className="text-muted-foreground/60 text-sm">Cliquez pour rechercher dans votre base</p>
+                          <p className="text-muted-foreground font-medium group-hover:text-foreground">
+                            Sélectionner un client
+                          </p>
+                          <p className="text-muted-foreground/60 text-sm">
+                            Cliquez pour rechercher dans votre base
+                          </p>
                         </div>
                       </div>
                     </button>
                   </DialogTrigger>
                   <DialogContent className="bg-card border-border">
                     <DialogHeader>
-                      <DialogTitle className="text-foreground">Rechercher un client</DialogTitle>
+                      <DialogTitle className="text-foreground">
+                        Rechercher un client
+                      </DialogTitle>
                       <VisuallyHidden>
-                        <DialogDescription>Sélectionnez un client dans votre base de données pour cette facture</DialogDescription>
+                        <DialogDescription>
+                          Sélectionnez un client dans votre base de données pour
+                          cette facture
+                        </DialogDescription>
                       </VisuallyHidden>
                     </DialogHeader>
                     <div className="mt-4 space-y-4">
@@ -359,8 +437,8 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                           <button
                             key={client.id}
                             onClick={() => {
-                              setSelectedClient(client)
-                              setClientSearchOpen(false)
+                              setSelectedClient(client);
+                              setClientSearchOpen(false);
                             }}
                             className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                           >
@@ -370,8 +448,12 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                               </AvatarFallback>
                             </Avatar>
                             <div className="flex-1">
-                              <p className="text-foreground font-medium text-sm">{client.name}</p>
-                              <p className="text-muted-foreground text-xs">{client.email}</p>
+                              <p className="text-foreground font-medium text-sm">
+                                {client.name}
+                              </p>
+                              <p className="text-muted-foreground text-xs">
+                                {client.email}
+                              </p>
                             </div>
                           </button>
                         ))}
@@ -387,7 +469,9 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
           <Card className="bg-card border-border">
             <CardHeader className="pb-4">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-foreground font-semibold text-base">Prestations & Produits</CardTitle>
+                <CardTitle className="text-foreground font-semibold text-base">
+                  Prestations & Produits
+                </CardTitle>
                 <Button
                   variant="ghost"
                   size="sm"
@@ -409,21 +493,28 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                 </div>
 
                 {items.map((item, index) => (
-                  <div key={item.id} className="grid grid-cols-12 gap-2 md:gap-4 items-start p-3 rounded-xl bg-muted/30">
+                  <div
+                    key={item.id}
+                    className="grid grid-cols-12 gap-2 md:gap-4 items-start p-3 rounded-xl bg-muted/30"
+                  >
                     <div className="col-span-12 md:col-span-6">
                       <Select
-                        onValueChange={(val) => updateItem(item.id, "description", val)}
-                        value={item.description}
+                        onValueChange={(val) =>
+                          updateItem(item.id, "description", val)
+                        }
+                        value={item.description || ""}
                       >
                         <SelectTrigger className="bg-transparent border-0 md:border md:bg-secondary focus:ring-1 text-foreground">
                           <SelectValue placeholder="Sélectionner un service..." />
                         </SelectTrigger>
                         <SelectContent className="bg-card border-border">
-                          {services.map(s => (
+                          {services.map((s) => (
                             <SelectItem key={s.id} value={s.name}>
                               <div className="flex flex-col">
                                 <span className="font-medium">{s.name}</span>
-                                <span className="text-[10px] text-muted-foreground uppercase">{s.category} • {formatCurrency(s.unitPrice)}</span>
+                                <span className="text-[10px] text-muted-foreground uppercase">
+                                  {s.category} • {formatCurrency(s.unitPrice)}
+                                </span>
                               </div>
                             </SelectItem>
                           ))}
@@ -433,16 +524,28 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                     <div className="col-span-4 md:col-span-2">
                       <Input
                         type="number"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(item.id, "quantity", parseFloat(e.target.value) || 0)}
+                        value={item.quantity ?? 1}
+                        onChange={(e) =>
+                          updateItem(
+                            item.id,
+                            "quantity",
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
                         className="text-right"
                       />
                     </div>
                     <div className="col-span-4 md:col-span-2">
                       <Input
                         type="number"
-                        value={item.unitPrice}
-                        onChange={(e) => updateItem(item.id, "unitPrice", parseFloat(e.target.value) || 0)}
+                        value={item.unitPrice ?? 0}
+                        onChange={(e) =>
+                          updateItem(
+                            item.id,
+                            "unitPrice",
+                            parseFloat(e.target.value) || 0,
+                          )
+                        }
                         className="text-right"
                       />
                     </div>
@@ -468,11 +571,13 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
 
           <Card className="bg-card border-border">
             <CardHeader className="pb-3">
-              <CardTitle className="text-foreground font-semibold text-base">Notes et Conditions</CardTitle>
+              <CardTitle className="text-foreground font-semibold text-base">
+                Notes et Conditions
+              </CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea
-                value={notes}
+                value={notes || ""}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Indiquez les conditions de règlement, coordonnées bancaires ou toute mention complémentaire..."
                 className="min-h-[90px] resize-y bg-secondary/30 border-border text-sm focus:ring-1"
@@ -485,23 +590,31 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         <div className="space-y-6">
           <Card className="bg-card border-border sticky top-24">
             <CardHeader className="pb-4">
-              <CardTitle className="text-foreground font-semibold text-base">Récapitulatif Financier</CardTitle>
+              <CardTitle className="text-foreground font-semibold text-base">
+                Récapitulatif Financier
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total HT Brut</span>
-                  <span className="text-foreground font-medium">{formatCurrency(subtotal)}</span>
+                  <span className="text-foreground font-medium">
+                    {formatCurrency(subtotal)}
+                  </span>
                 </div>
 
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-sm items-center">
-                    <span className="text-muted-foreground">Remise Commerciale</span>
+                    <span className="text-muted-foreground">
+                      Remise Commerciale
+                    </span>
                     <Input
                       type="number"
                       className="w-24 h-7 text-right text-sm"
-                      value={discount}
-                      onChange={(e) => setDiscount(parseFloat(e.target.value) || 0)}
+                      value={discount || 0}
+                      onChange={(e) =>
+                        setDiscount(parseFloat(e.target.value) || 0)
+                      }
                     />
                   </div>
                 </div>
@@ -514,8 +627,12 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                 </div>
 
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">CSS ({settings.cssRate}%)</span>
-                  <span className="text-foreground">{formatCurrency(cssAmount)}</span>
+                  <span className="text-muted-foreground">
+                    CSS ({settings.cssRate}%)
+                  </span>
+                  <span className="text-foreground">
+                    {formatCurrency(cssAmount)}
+                  </span>
                 </div>
 
                 <div className="pt-1 border-t border-dashed border-border/30">
@@ -526,31 +643,52 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                 </div>
 
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">TPS ({settings.tpsRate || 9.5}%)</span>
-                  <span className="text-foreground">{formatCurrency(tpsAmount)}</span>
+                  <span className="text-muted-foreground">
+                    TPS ({settings.tpsRate || 9.5}%)
+                  </span>
+                  <span className="text-foreground">
+                    {formatCurrency(tpsAmount)}
+                  </span>
                 </div>
 
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">TVA ({settings.tvaRate}%)</span>
-                  <span className="text-foreground">{formatCurrency(tvaAmount)}</span>
+                  <span className="text-muted-foreground">
+                    TVA ({settings.tvaRate}%)
+                  </span>
+                  <span className="text-foreground">
+                    {formatCurrency(tvaAmount)}
+                  </span>
                 </div>
               </div>
 
               <div className="pt-4 border-t border-border">
                 <div className="flex justify-between items-center">
-                  <span className="text-foreground font-bold">TOTAL TTC (XAF)</span>
-                  <span className="text-2xl font-bold text-primary">{formatCurrency(total)}</span>
+                  <span className="text-foreground font-bold">
+                    TOTAL TTC (XAF)
+                  </span>
+                  <span className="text-2xl font-bold text-primary">
+                    {formatCurrency(total)}
+                  </span>
                 </div>
               </div>
 
-                <div className="pt-4 space-y-3">
+              <div className="pt-4 space-y-3">
                 <Button
-                    onClick={() => handleSave('UNPAID')}
+                  variant="outline"
+                  className="w-full h-12 gap-2 bg-secondary"
+                  onClick={() => setPreviewOpen(true)}
+                  disabled={isSubmitting || !selectedClient}
+                >
+                  <Eye className="w-4 h-4" />
+                  Aperçu
+                </Button>
+                <Button
+                  onClick={() => handleSave("UNPAID")}
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12"
                   disabled={isSubmitting}
                 >
-                    <Send className="w-4 h-4 mr-2" />
-                    Générer la Facture
+                  <Send className="w-4 h-4 mr-2" />
+                  Générer la Facture
                 </Button>
               </div>
             </CardContent>
@@ -582,10 +720,10 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             notes: notes,
             status: "draft",
             payments: [],
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
           }}
         />
       )}
     </motion.div>
-  )
+  );
 }

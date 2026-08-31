@@ -50,7 +50,8 @@ export default function LoginClient() {
         toast.success("Connexion réussie. Bienvenue dans Facturier !")
         setUser(data.user)
         await new Promise(resolve => setTimeout(resolve, 250))
-        window.location.href = '/'
+        router.push('/')
+        router.refresh()
       } else {
         toast.error(data.error || "Identifiants invalides")
       }
@@ -64,11 +65,11 @@ export default function LoginClient() {
   // Raccourci pour remplir les comptes de démo
   const fillDemoCredentials = (role: 'admin' | 'operator') => {
     if (role === 'admin') {
-      setUsername('admin@facturier.ga')
+      setUsername('admin@lfacturier.ga')
       setPassword('admin123')
       toast.info("Identifiants Administrateur insérés")
     } else {
-      setUsername('operateur@facturier.ga')
+      setUsername('operateur@lfacturier.ga')
       setPassword('operateur123')
       toast.info("Identifiants Opérateur insérés")
     }
@@ -166,7 +167,7 @@ export default function LoginClient() {
                     type="text"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="nom@facturier.ga"
+                    placeholder="nom@lfacturier.ga"
                     className="pl-10 h-11 bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800 text-sm focus-visible:ring-primary focus-visible:ring-offset-0 text-slate-900 dark:text-zinc-50 placeholder:text-slate-400 dark:placeholder:text-zinc-500"
                     required
                     disabled={loading}

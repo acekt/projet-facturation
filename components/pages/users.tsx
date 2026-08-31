@@ -340,8 +340,8 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-auto min-h-0">
-              <table className="w-full text-left border-collapse">
+            <div className="flex-1 overflow-auto overflow-x-auto min-h-0">
+              <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
                     <tr className="bg-secondary/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                         <th className="px-6 py-4">Utilisateur</th>
@@ -460,7 +460,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             </div>
             <div className="space-y-2">
                 <Label htmlFor="add-email">Email</Label>
-                <Input id="add-email" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="jean@facturier.ga" className="bg-secondary" />
+                <Input id="add-email" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="jean@lfacturier.ga" className="bg-secondary" />
             </div>
             <div className="space-y-2">
                 <Label htmlFor="add-role">Rôle</Label>

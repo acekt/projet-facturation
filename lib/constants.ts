@@ -10,6 +10,7 @@ export const QUOTE_STATUS = {
   ENVOYE: 'ENVOYE',
   REFUSE: 'REFUSE',
   EXPIRE: 'EXPIRE',
+  EXPIRED: 'EXPIRED',
 } as const;
 
 export const INVOICE_STATUS = {

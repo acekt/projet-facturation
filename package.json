@@ -14,7 +14,7 @@
     "electron:prod": "npm run build:electron && electron .",
     "test": "vitest run",
     "test:e2e:report": "playwright test --reporter=html",
-    "seed": "npx ts-node --project tsconfig.json seed.ts",
+    "seed": "npx ts-node --project tsconfig.json scripts/seed.ts",
     "reset-db": "npx ts-node --project tsconfig.json reset-db.ts",
     "rebuild:node": "npm rebuild better-sqlite3",
     "rebuild:electron": "node -e \"const fs=require('fs'),p=require('path'),d=p.resolve('node_modules/better-sqlite3/build');if(fs.existsSync(d)){fs.rmSync(d,{recursive:true,force:true});console.log('[purge] Cache ABI supprimé:',d);}else{console.log('[purge] Rien à purger.');}\" && electron-builder install-app-deps",
@@ -25,7 +25,7 @@
     "pack": "electron-builder"
   },
   "build": {
-    "appId": "com.facturier.invoicing",
+    "appId": "com.letoile.invoicing",
     "productName": "Facturier",
     "copyright": "© 2026 Facturier — Tous droits réservés",
     "directories": {
@@ -138,6 +138,8 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "1.1.1",
+    "date-fns": "^4.4.0",
+    "exceljs": "^4.4.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^0.564.0",
     "next": "15.1.0",

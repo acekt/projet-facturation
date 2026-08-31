@@ -14,6 +14,11 @@ export const dynamic = 'force-dynamic';
  */
 export async function GET() {
   try {
+    const session = await getSession();
+    if (!session || session.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const settings = db.prepare('SELECT * FROM settings WHERE id = 1').get() as DbSettings | undefined;
     if (!settings) {
       const errorResponse: ErrorResponse = {
@@ -42,10 +47,7 @@ export async function PATCH(request: Request) {
     // RBAC Check - Only Admin can update settings
     const session = await getSession();
     if (!session || session.role !== 'admin') {
-      const errorResponse: ErrorResponse = {
-        error: 'Forbidden: Admin access required',
-      };
-      return NextResponse.json(errorResponse, { status: 403 });
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
     if (!session.userId) {
       const errorResponse: ErrorResponse = {

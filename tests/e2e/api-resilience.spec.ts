@@ -9,11 +9,11 @@ import { test, expect } from '@playwright/test';
  */
 test.describe('Résilience UI & Contrat d\'Erreur API — Module Factures', () => {
 
-  // Fonction utilitaire de connexion Opérateur standard (operateur@facturier.ga) avant chaque test
+  // Fonction utilitaire de connexion Opérateur standard (operateur@lfacturier.ga) avant chaque test
   async function loginAsUser(page: any) {
     await page.goto('/login');
     await page.waitForSelector('#username');
-    await page.fill('#username', 'operateur@facturier.ga');
+    await page.fill('#username', 'operateur@lfacturier.ga');
     await page.fill('#password', 'operateur123');
     await page.click('button[type="submit"]');
     await page.waitForSelector('button:has-text("Factures")', { timeout: 15000 });

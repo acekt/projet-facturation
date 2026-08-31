@@ -18,7 +18,7 @@ import os from 'os';
  *
  * NIVEAU 3 (Fallback absolu) :
  *   Dernier recours si les deux niveaux précédents échouent.
- *   Pointe vers ~/.facturier-invoicing/data (jamais en lecture seule).
+ *   Pointe vers ~/.lfacturier-invoicing/data (jamais en lecture seule).
  *
  * ⚠️ process.cwd() N'EST JAMAIS UTILISÉ EN PRODUCTION.
  *    En production (Electron packagé), cwd() pointe vers le répertoire
@@ -87,7 +87,7 @@ function resolveDatabasePath(): string {
 
   // ── NIVEAU 3 : Fallback absolu (homedir — jamais en lecture seule)
   // Utilisé si NODE_ENV=production sans ELECTRON_USERDATA_PATH (ex: serveur CI, standalone manuel).
-  const fallbackDir = path.join(os.homedir(), '.facturier-invoicing', 'data');
+  const fallbackDir = path.join(os.homedir(), '.lfacturier-invoicing', 'data');
   try {
     if (!fs.existsSync(fallbackDir)) {
       fs.mkdirSync(fallbackDir, { recursive: true });
@@ -254,6 +254,8 @@ try {
     total REAL DEFAULT 0,
     status TEXT DEFAULT 'EN_ATTENTE',
     notes TEXT,
+    subject TEXT,
+    validUntil TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     deletedAt DATETIME,
     created_by TEXT,
@@ -287,6 +289,7 @@ try {
     total REAL DEFAULT 0,
     status TEXT DEFAULT 'UNPAID',
     notes TEXT,
+    subject TEXT,
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     deletedAt DATETIME,
     created_by TEXT,
@@ -448,10 +451,19 @@ try {
   if (!quotesColumns.some(c => c.name === 'created_by')) {
     db.prepare("ALTER TABLE quotes ADD COLUMN created_by TEXT").run();
   }
+  if (!quotesColumns.some(c => c.name === 'subject')) {
+    db.prepare("ALTER TABLE quotes ADD COLUMN subject TEXT").run();
+  }
+  if (!quotesColumns.some(c => c.name === 'validUntil')) {
+    db.prepare("ALTER TABLE quotes ADD COLUMN validUntil TEXT").run();
+  }
 
   const invoicesColumns = db.prepare("PRAGMA table_info(invoices)").all() as Array<{ name: string }>;
   if (!invoicesColumns.some(c => c.name === 'created_by')) {
     db.prepare("ALTER TABLE invoices ADD COLUMN created_by TEXT").run();
+  }
+  if (!invoicesColumns.some(c => c.name === 'subject')) {
+    db.prepare("ALTER TABLE invoices ADD COLUMN subject TEXT").run();
   }
 
   const servicesColumns = db.prepare("PRAGMA table_info(services)").all() as Array<{ name: string }>;

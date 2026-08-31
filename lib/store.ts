@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
 
 // ============================================================================
 // Re-export canonical types from the Single Source of Truth
@@ -17,21 +17,21 @@ import type {
   CreditNoteResponse,
   SettingsResponse,
   DashboardMetricsResponse,
-} from '@/lib/types/api';
+} from "@/lib/types/api";
 
 // Re-export InvoiceItem type to avoid breakage in editor components
-export type { InvoiceItem } from '@/lib/types/api';
+export type { InvoiceItem } from "@/lib/types/api";
 
 // ============================================================================
 // Store-local type aliases for backward compatibility
 // ============================================================================
-export type Client     = ClientResponse;
-export type Invoice    = InvoiceResponse;
-export type Quote      = QuoteResponse;
-export type Payment    = PaymentResponse;
-export type Service    = ServiceResponse;
+export type Client = ClientResponse;
+export type Invoice = InvoiceResponse;
+export type Quote = QuoteResponse;
+export type Payment = PaymentResponse;
+export type Service = ServiceResponse;
 export type CreditNote = CreditNoteResponse;
-export type Settings   = SettingsResponse;
+export type Settings = SettingsResponse;
 
 /**
  * DraftItem — item used inside the editor before the invoice/quote is saved.
@@ -55,6 +55,7 @@ export interface InvoiceDraft {
   invoiceDate: string;
   discount: number;
   notes: string;
+  subject?: string;
 }
 
 export interface QuoteDraft {
@@ -63,7 +64,9 @@ export interface QuoteDraft {
   quoteDate: string;
   discount: number;
   notes: string;
-  status: Quote['status'];
+  subject?: string;
+  validUntil?: string;
+  status: Quote["status"];
 }
 
 // ============================================================================
@@ -72,7 +75,7 @@ export interface QuoteDraft {
 interface User {
   id: string;
   name: string;
-  role: 'admin' | 'user';
+  role: "admin" | "user";
 }
 
 interface RolePermissions {
@@ -121,11 +124,11 @@ const USER_PERMISSIONS: RolePermissions = {
 };
 
 interface ViewFormat {
-  quotes: 'table' | 'horizontal' | 'block';
-  invoices: 'table' | 'horizontal' | 'block';
-  clients: 'table' | 'horizontal' | 'block';
-  services: 'table' | 'horizontal' | 'block';
-  creditNotes: 'table' | 'horizontal' | 'block';
+  quotes: "table" | "horizontal" | "block";
+  invoices: "table" | "horizontal" | "block";
+  clients: "table" | "horizontal" | "block";
+  services: "table" | "horizontal" | "block";
+  creditNotes: "table" | "horizontal" | "block";
 }
 
 // ============================================================================
@@ -189,7 +192,10 @@ interface AppState {
   setCreditNotes: (creditNotes: CreditNote[]) => void;
   setSettings: (settings: Settings) => void;
   updateSettings: (updates: Partial<Settings>) => void;
-  setViewFormat: (page: keyof ViewFormat, format: ViewFormat[keyof ViewFormat]) => void;
+  setViewFormat: (
+    page: keyof ViewFormat,
+    format: ViewFormat[keyof ViewFormat],
+  ) => void;
   setUsers: (users: UserResponse[]) => void;
   addUser: (user: UserResponse) => void;
   updateUser: (id: string, updates: Partial<UserResponse>) => void;
@@ -249,133 +255,205 @@ export const useStore = create<AppState>()(
       users: [],
       dashboardMetrics: null,
       viewFormat: {
-        quotes: 'table',
-        invoices: 'table',
-        clients: 'block',
-        services: 'block',
-        creditNotes: 'horizontal',
+        quotes: "table",
+        invoices: "table",
+        clients: "block",
+        services: "block",
+        creditNotes: "horizontal",
       },
       invoiceDraft: {
         selectedClient: null,
-        items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
+        items: [
+          { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
+        ],
         invoiceDate: new Date().toISOString().split("T")[0],
         discount: 0,
         notes: "",
       },
       quoteDraft: {
         selectedClient: null,
-        items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
+        items: [
+          { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
+        ],
         quoteDate: new Date().toISOString().split("T")[0],
         discount: 0,
         notes: "",
-        status: 'EN_ATTENTE',
+        status: "EN_ATTENTE",
       },
 
       setIsDataLoaded: (isDataLoaded) => set({ isDataLoaded }),
       setDashboardMetrics: (dashboardMetrics) => set({ dashboardMetrics }),
       setUser: (user) => {
         const permissions = user
-          ? (user.role === 'admin' ? ADMIN_PERMISSIONS : USER_PERMISSIONS)
+          ? user.role === "admin"
+            ? ADMIN_PERMISSIONS
+            : USER_PERMISSIONS
           : null;
         set({ user, permissions, isAuthenticated: !!user });
       },
       setClients: (clients) => set({ clients }),
       // Atomic client mutations: each reads fresh state via set(state => ...) — no stale closure.
-      addClient: (client) => set((state) => ({ clients: [...state.clients, client] })),
-      removeClient: (id) => set((state) => ({ clients: state.clients.filter((c) => c.id !== id) })),
-      updateClient: (id, data) => set((state) => ({
-        clients: state.clients.map((c) => (c.id === id ? { ...c, ...data } : c)),
-      })),
-      replaceClient: (tempId, confirmed) => set((state) => ({
-        clients: state.clients.map((c) => (c.id === tempId ? confirmed : c)),
-      })),
+      addClient: (client) =>
+        set((state) => ({ clients: [...state.clients, client] })),
+      removeClient: (id) =>
+        set((state) => ({ clients: state.clients.filter((c) => c.id !== id) })),
+      updateClient: (id, data) =>
+        set((state) => ({
+          clients: state.clients.map((c) =>
+            c.id === id ? { ...c, ...data } : c,
+          ),
+        })),
+      replaceClient: (tempId, confirmed) =>
+        set((state) => ({
+          clients: state.clients.map((c) => (c.id === tempId ? confirmed : c)),
+        })),
 
       setQuotes: (quotes) => set((state) => ({ ...state, quotes })),
-      addQuote: (quote) => set((state) => ({ quotes: [quote, ...state.quotes] })),
-      removeQuote: (id) => set((state) => ({ quotes: state.quotes.filter((q) => q.id !== id) })),
-      updateQuote: (id, data) => set((state) => ({
-        quotes: state.quotes.map((q) => (q.id === id ? { ...q, ...data } : q)),
-      })),
-      replaceQuote: (tempId, confirmed) => set((state) => ({
-        quotes: state.quotes.map((q) => (q.id === tempId ? confirmed : q)),
-      })),
+      addQuote: (quote) =>
+        set((state) => ({ quotes: [quote, ...state.quotes] })),
+      removeQuote: (id) =>
+        set((state) => ({ quotes: state.quotes.filter((q) => q.id !== id) })),
+      updateQuote: (id, data) =>
+        set((state) => ({
+          quotes: state.quotes.map((q) =>
+            q.id === id ? { ...q, ...data } : q,
+          ),
+        })),
+      replaceQuote: (tempId, confirmed) =>
+        set((state) => ({
+          quotes: state.quotes.map((q) => (q.id === tempId ? confirmed : q)),
+        })),
       setInvoices: (invoices) => set((state) => ({ ...state, invoices })),
-      addInvoice: (invoice) => set((state) => ({ invoices: [invoice, ...state.invoices] })),
-      removeInvoice: (id) => set((state) => ({ invoices: state.invoices.filter((i) => i.id !== id) })),
-      updateInvoice: (id, data) => set((state) => ({
-        invoices: state.invoices.map((i) => (i.id === id ? { ...i, ...data } : i)),
-      })),
-      replaceInvoice: (tempId, confirmed) => set((state) => ({
-        invoices: state.invoices.map((i) => (i.id === tempId ? confirmed : i)),
-      })),
+      addInvoice: (invoice) =>
+        set((state) => ({ invoices: [invoice, ...state.invoices] })),
+      removeInvoice: (id) =>
+        set((state) => ({
+          invoices: state.invoices.filter((i) => i.id !== id),
+        })),
+      updateInvoice: (id, data) =>
+        set((state) => ({
+          invoices: state.invoices.map((i) =>
+            i.id === id ? { ...i, ...data } : i,
+          ),
+        })),
+      replaceInvoice: (tempId, confirmed) =>
+        set((state) => ({
+          invoices: state.invoices.map((i) =>
+            i.id === tempId ? confirmed : i,
+          ),
+        })),
 
       setServices: (services) => set({ services }),
       // Atomic service mutations: same pattern as clients.
-      addService: (service) => set((state) => ({ services: [...state.services, service] })),
-      removeService: (id) => set((state) => ({ services: state.services.filter((s) => s.id !== id) })),
-      updateService: (id, data) => set((state) => ({
-        services: state.services.map((s) => (s.id === id ? { ...s, ...data } : s)),
-      })),
-      replaceService: (tempId, confirmed) => set((state) => ({
-        services: state.services.map((s) => (s.id === tempId ? confirmed : s)),
-      })),
+      addService: (service) =>
+        set((state) => ({ services: [...state.services, service] })),
+      removeService: (id) =>
+        set((state) => ({
+          services: state.services.filter((s) => s.id !== id),
+        })),
+      updateService: (id, data) =>
+        set((state) => ({
+          services: state.services.map((s) =>
+            s.id === id ? { ...s, ...data } : s,
+          ),
+        })),
+      replaceService: (tempId, confirmed) =>
+        set((state) => ({
+          services: state.services.map((s) =>
+            s.id === tempId ? confirmed : s,
+          ),
+        })),
 
       setPayments: (payments) => set({ payments }),
-      addPayment: (payment) => set((state) => ({ payments: [payment, ...state.payments] })),
-      removePayment: (id) => set((state) => ({ payments: state.payments.filter((p) => p.id !== id) })),
-      updatePayment: (id, data) => set((state) => ({
-        payments: state.payments.map((p) => (p.id === id ? { ...p, ...data } : p)),
-      })),
-      replacePayment: (tempId, confirmed) => set((state) => ({
-        payments: state.payments.map((p) => (p.id === tempId ? confirmed : p)),
-      })),
-      setCreditNotes: (creditNotes) => set((state) => ({ ...state, creditNotes })),
+      addPayment: (payment) =>
+        set((state) => ({ payments: [payment, ...state.payments] })),
+      removePayment: (id) =>
+        set((state) => ({
+          payments: state.payments.filter((p) => p.id !== id),
+        })),
+      updatePayment: (id, data) =>
+        set((state) => ({
+          payments: state.payments.map((p) =>
+            p.id === id ? { ...p, ...data } : p,
+          ),
+        })),
+      replacePayment: (tempId, confirmed) =>
+        set((state) => ({
+          payments: state.payments.map((p) =>
+            p.id === tempId ? confirmed : p,
+          ),
+        })),
+      setCreditNotes: (creditNotes) =>
+        set((state) => ({ ...state, creditNotes })),
       setSettings: (settings) => set({ settings }),
-      updateSettings: (updates) => set((state) => ({
-        settings: { ...state.settings, ...updates },
-      })),
-      setViewFormat: (page, format) => set((state) => ({
-        viewFormat: { ...state.viewFormat, [page]: format },
-      })),
+      updateSettings: (updates) =>
+        set((state) => ({
+          settings: { ...state.settings, ...updates },
+        })),
+      setViewFormat: (page, format) =>
+        set((state) => ({
+          viewFormat: { ...state.viewFormat, [page]: format },
+        })),
       setUsers: (users) => set({ users }),
       addUser: (user) => set((state) => ({ users: [...state.users, user] })),
-      updateUser: (id, updates) => set((state) => ({
-        users: state.users.map((u) => (u.id === id ? { ...u, ...updates } : u)),
-      })),
-      removeUser: (id) => set((state) => ({
-        users: state.users.map((u) =>
-          u.id === id ? { ...u, is_active: 0, deletedAt: new Date().toISOString() } : u
-        ),
-      })),
+      updateUser: (id, updates) =>
+        set((state) => ({
+          users: state.users.map((u) =>
+            u.id === id ? { ...u, ...updates } : u,
+          ),
+        })),
+      removeUser: (id) =>
+        set((state) => ({
+          users: state.users.map((u) =>
+            u.id === id
+              ? { ...u, is_active: 0, deletedAt: new Date().toISOString() }
+              : u,
+          ),
+        })),
 
-      setInvoiceDraft: (draft) => set((state) => ({
-        invoiceDraft: { ...state.invoiceDraft, ...draft },
-      })),
-      clearInvoiceDraft: () => set((state) => ({
-        invoiceDraft: {
-          selectedClient: null,
-          items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
-          invoiceDate: new Date().toISOString().split("T")[0],
-          discount: 0,
-          notes: state.settings.mentionsLegales || "",
-        },
-      })),
-      setQuoteDraft: (draft) => set((state) => ({
-        quoteDraft: { ...state.quoteDraft, ...draft },
-      })),
-      clearQuoteDraft: () => set((state) => ({
-        quoteDraft: {
-          selectedClient: null,
-          items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
-          quoteDate: new Date().toISOString().split("T")[0],
-          discount: 0,
-          notes: state.settings.mentionsLegales || "",
-          status: 'EN_ATTENTE',
-        },
-      })),
+      setInvoiceDraft: (draft) =>
+        set((state) => ({
+          invoiceDraft: { ...state.invoiceDraft, ...draft },
+        })),
+      clearInvoiceDraft: () =>
+        set((state) => ({
+          invoiceDraft: {
+            selectedClient: null,
+            items: [
+              { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
+            ],
+            invoiceDate: new Date().toISOString().split("T")[0],
+            discount: 0,
+            notes: state.settings.mentionsLegales || "",
+            subject: "",
+          },
+        })),
+      setQuoteDraft: (draft) =>
+        set((state) => ({
+          quoteDraft: { ...state.quoteDraft, ...draft },
+        })),
+      clearQuoteDraft: () => {
+        const today = new Date();
+        const next30Days = new Date(today);
+        next30Days.setDate(today.getDate() + 30);
+        return set((state) => ({
+          quoteDraft: {
+            selectedClient: null,
+            items: [
+              { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
+            ],
+            quoteDate: today.toISOString().split("T")[0],
+            discount: 0,
+            notes: state.settings.mentionsLegales || "",
+            subject: "",
+            validUntil: next30Days.toISOString().split("T")[0],
+            status: "EN_ATTENTE",
+          },
+        }));
+      },
     }),
     {
-      name: 'facturier-storage',
+      name: 'lfacturier-storage',
       storage: createJSONStorage(() => sessionStorage),
       partialize: (state) => ({
         user: state.user,
@@ -384,6 +462,6 @@ export const useStore = create<AppState>()(
         settings: state.settings,
         viewFormat: state.viewFormat,
       }),
-    }
-  )
+    },
+  ),
 );
