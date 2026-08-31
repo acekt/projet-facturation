@@ -58,7 +58,7 @@ const navItems = [
   { id: "credit-notes", label: "Avoirs", icon: RefreshCcw, roles: ['admin', 'user'], group: 'business' },
 
   // Bas de Sidebar
-  { id: "settings", label: "Paramètres", icon: Settings, roles: ['admin', 'user'], group: 'bottom' },
+  { id: "settings", label: "Paramètres", icon: Settings, roles: ['admin'], group: 'bottom' },
 ]
 
 export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: SidebarProps) {
@@ -157,7 +157,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
 
         {/* Action Button (User Only) */}
         {user?.role === 'user' && (
-          <div className="p-3">
+          <div className="p-3 space-y-2">
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
@@ -173,6 +173,22 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
                 </Button>
               </TooltipTrigger>
               {collapsed && <TooltipContent side="right">Nouveau devis</TooltipContent>}
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  className={cn(
+                    "w-full border-indigo-500/20 hover:bg-indigo-500 hover:text-white text-indigo-500 transition-all shadow-sm",
+                    collapsed ? "justify-center px-2" : "justify-start gap-2"
+                  )}
+                  onClick={() => onPageChange("new-invoice")}
+                >
+                  <Plus className="w-4 h-4" />
+                  {!collapsed && <span className="text-sm font-medium">Nouvelle facture</span>}
+                </Button>
+              </TooltipTrigger>
+              {collapsed && <TooltipContent side="right">Nouvelle facture</TooltipContent>}
             </Tooltip>
           </div>
         )}

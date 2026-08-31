@@ -134,7 +134,7 @@ export async function PUT(
         UPDATE quotes
         SET clientId = ?, clientName = ?, clientEmail = ?, date = ?,
             subtotal = ?, discount = ?, taxBase = ?, tvaAmount = ?, tpsAmount = ?, cssAmount = ?,
-            total = ?, notes = ?
+            total = ?, notes = ?, subject = ?, validUntil = ?
         WHERE id = ?
       `).run(
         data.clientId,
@@ -149,6 +149,8 @@ export async function PUT(
         computed.cssAmount,
         computed.total,
         data.notes ?? null,
+        data.subject ?? null,
+        data.validUntil ?? null,
         id
       );
 

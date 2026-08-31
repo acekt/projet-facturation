@@ -25,7 +25,16 @@ export const QuoteRepository = {
 
     sql += ` ORDER BY createdAt DESC`;
 
-    return db.prepare(sql).all(...params) as (DbQuote & { items: string })[];
+    const quotes = db.prepare(sql).all(...params) as (DbQuote & { items: string })[];
+    
+    // RÈGLE MÉTIER CRITIQUE : forcer le statut à EXPIRED si validUntil est dépassé
+    const now = new Date();
+    return quotes.map(quote => {
+      if (quote.validUntil && quote.status !== 'CONVERTI' && new Date(quote.validUntil) < now) {
+        return { ...quote, status: 'EXPIRED' };
+      }
+      return quote;
+    });
   },
 
   findById(id: string, userId?: string, role?: string): (DbQuote & { created_by?: string }) | undefined {
@@ -37,7 +46,13 @@ export const QuoteRepository = {
       params.push(userId);
     }
 
-    return db.prepare(sql).get(...params) as (DbQuote & { created_by?: string }) | undefined;
+    const quote = db.prepare(sql).get(...params) as (DbQuote & { created_by?: string }) | undefined;
+    
+    if (quote && quote.validUntil && quote.status !== 'CONVERTI' && new Date(quote.validUntil) < new Date()) {
+      return { ...quote, status: 'EXPIRED' };
+    }
+    
+    return quote;
   },
 
   findWithStatus(id: string, userId?: string, role?: string): (DbQuote & { created_by?: string }) | undefined {

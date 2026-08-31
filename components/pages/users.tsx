@@ -340,8 +340,8 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
           </div>
         ) : (
           <>
-            <div className="flex-1 overflow-auto min-h-0">
-              <table className="w-full text-left border-collapse">
+            <div className="flex-1 overflow-auto overflow-x-auto min-h-0">
+              <table className="w-full text-left border-collapse min-w-[700px]">
                 <thead>
                     <tr className="bg-secondary/30 border-b border-border text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                         <th className="px-6 py-4">Utilisateur</th>

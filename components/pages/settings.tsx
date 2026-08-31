@@ -21,12 +21,22 @@ export function SettingsPage() {
   const settings = useStore(state => state.settings)
   const setSettings = useStore(state => state.setSettings)
   const user = useStore(state => state.user)
+  const isAdmin = user?.role === 'admin'
+
+  React.useEffect(() => {
+    if (user && !isAdmin) {
+      window.location.href = '/'
+    }
+  }, [user, isAdmin])
+
   const [formData, setFormData] = React.useState(settings)
   const [isSaving, setIsSaving] = React.useState(false)
   const [isDragging, setIsDragging] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  const isAdmin = user?.role === 'admin'
+  if (!isAdmin) {
+    return null
+  }
 
   React.useEffect(() => {
     setFormData(settings)
@@ -202,7 +212,7 @@ export function SettingsPage() {
                     <Label htmlFor="company-name">Nom Commercial</Label>
                     <Input
                       id="company-name"
-                      value={formData.companyName}
+                      value={formData.companyName || ""}
                       onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
                       className="bg-secondary/50 border-border"
                       disabled={!isAdmin}
@@ -212,7 +222,7 @@ export function SettingsPage() {
                     <Label htmlFor="legal-form">Forme Juridique</Label>
                     <Input
                       id="legal-form"
-                      value={formData.legalForm}
+                      value={formData.legalForm || ""}
                       onChange={(e) => setFormData({ ...formData, legalForm: e.target.value })}
                       className="bg-secondary/50 border-border"
                       placeholder="Ex: SARL, SA..."
@@ -222,7 +232,7 @@ export function SettingsPage() {
                   <div className="space-y-2">
                     <Label>Email contact</Label>
                     <Input
-                      value={formData.email}
+                      value={formData.email || ""}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                       className="bg-secondary/50 border-border"
                       disabled={!isAdmin}
@@ -240,7 +250,7 @@ export function SettingsPage() {
                   <div className="space-y-2">
                     <Label>NIF</Label>
                     <Input
-                      value={formData.nif}
+                      value={formData.nif || ""}
                       onChange={(e) => setFormData({ ...formData, nif: e.target.value })}
                       className="bg-secondary/50 border-border"
                       disabled={!isAdmin}
@@ -249,7 +259,7 @@ export function SettingsPage() {
                   <div className="space-y-2">
                     <Label>RCCM</Label>
                     <Input
-                      value={formData.rccm}
+                      value={formData.rccm || ""}
                       onChange={(e) => setFormData({ ...formData, rccm: e.target.value })}
                       className="bg-secondary/50 border-border"
                       disabled={!isAdmin}
@@ -259,7 +269,7 @@ export function SettingsPage() {
                     <Label htmlFor="company-address">Adresse complète</Label>
                     <Input
                         id="company-address"
-                        value={formData.address}
+                        value={formData.address || ""}
                         onChange={(e) => setFormData({ ...formData, address: e.target.value })}
                         className="bg-secondary/50 border-border"
                         disabled={!isAdmin}
@@ -286,9 +296,9 @@ export function SettingsPage() {
                   <Label>TVA (%)</Label>
                   <Input
                     type="number"
-                    value={formData.tvaRate}
+                    value={formData.tvaRate ?? 0}
+                    onChange={(e) => setFormData({ ...formData, tvaRate: parseFloat(e.target.value) || 0 })}
                     className="bg-secondary/50 border-border"
-                    disabled
                   />
                   <p className="text-[10px] text-muted-foreground italic">Fixé à 18% (DGI)</p>
                 </div>
@@ -296,29 +306,26 @@ export function SettingsPage() {
                   <Label>CSS (%)</Label>
                   <Input
                     type="number"
-                    value={formData.cssRate}
+                    value={formData.cssRate ?? 0}
                     onChange={(e) => setFormData({ ...formData, cssRate: parseFloat(e.target.value) || 0 })}
                     className="bg-secondary/50 border-border"
-                    disabled={!isAdmin}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>TPS (%)</Label>
                   <Input
                     type="number"
-                    value={formData.tpsRate}
+                    value={formData.tpsRate ?? 0}
                     onChange={(e) => setFormData({ ...formData, tpsRate: parseFloat(e.target.value) || 0 })}
                     className="bg-secondary/50 border-border"
-                    disabled={!isAdmin}
                   />
                 </div>
                 <div className="space-y-2">
                   <Label>Code Entreprise (Ex: GM)</Label>
                   <Input
-                    value={formData.companyCode}
+                    value={formData.companyCode || ""}
                     onChange={(e) => setFormData({ ...formData, companyCode: e.target.value })}
                     className="bg-secondary/50 border-border"
-                    disabled={!isAdmin}
                   />
                 </div>
               </div>
@@ -334,7 +341,6 @@ export function SettingsPage() {
                   onChange={(e) => setFormData({ ...formData, mentionsLegales: e.target.value })}
                   placeholder="Ex: Conditions générales de vente..."
                   className="bg-secondary/50 border-border min-h-[120px]"
-                  disabled={!isAdmin}
                 />
               </div>
             </CardContent>
@@ -355,7 +361,7 @@ export function SettingsPage() {
                 <div className="space-y-2">
                   <Label>Banque</Label>
                   <Input
-                    value={formData.bankName}
+                    value={formData.bankName || ""}
                     onChange={(e) => setFormData({ ...formData, bankName: e.target.value })}
                     className="bg-secondary/50 border-border"
                     placeholder="Ex: BGFI Bank, BICIG..."
@@ -365,7 +371,7 @@ export function SettingsPage() {
                 <div className="space-y-2">
                   <Label>Agence</Label>
                   <Input
-                    value={formData.bankAgency}
+                    value={formData.bankAgency || ""}
                     onChange={(e) => setFormData({ ...formData, bankAgency: e.target.value })}
                     className="bg-secondary/50 border-border"
                     disabled={!isAdmin}
@@ -374,7 +380,7 @@ export function SettingsPage() {
                 <div className="space-y-2">
                   <Label>N° de compte</Label>
                   <Input
-                    value={formData.accountNumber}
+                    value={formData.accountNumber || ""}
                     onChange={(e) => setFormData({ ...formData, accountNumber: e.target.value })}
                     className="bg-secondary/50 border-border font-mono"
                     disabled={!isAdmin}
@@ -383,7 +389,7 @@ export function SettingsPage() {
                 <div className="space-y-2">
                   <Label>Code SWIFT / BIC</Label>
                   <Input
-                    value={formData.swiftCode}
+                    value={formData.swiftCode || ""}
                     onChange={(e) => setFormData({ ...formData, swiftCode: e.target.value })}
                     className="bg-secondary/50 border-border font-mono"
                     disabled={!isAdmin}
@@ -392,7 +398,7 @@ export function SettingsPage() {
                 <div className="col-span-2 space-y-2">
                   <Label>IBAN</Label>
                   <Input
-                    value={formData.iban}
+                    value={formData.iban || ""}
                     onChange={(e) => setFormData({ ...formData, iban: e.target.value })}
                     className="bg-secondary/50 border-border font-mono"
                     disabled={!isAdmin}

@@ -127,6 +127,7 @@ export function CreditNotesPage() {
 
       {format === 'table' ? (
         <div className="flex-1 overflow-auto bg-card rounded-xl border border-border shadow-sm">
+          <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10">
               <tr>
@@ -164,6 +165,7 @@ export function CreditNotesPage() {
               ))}
             </tbody>
           </table>
+          </div>
           {paginated.length === 0 && (
             <div className="p-8 text-center text-muted-foreground">
               Aucun avoir émis.

@@ -135,7 +135,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
       </div>
 
       {/* Cartes KPI */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="pb-2">
             <CardDescription className="uppercase text-[10px] font-medium tracking-widest flex items-center gap-2">
