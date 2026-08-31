@@ -235,10 +235,8 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
             )}
             {dueDate && (
               <p className="text-[8px] text-slate-500">
-                Échéance :{" "}
-                <span className="font-semibold text-red-600">
-                  {fmtDate(dueDate)}
-                </span>
+                Échéance :{' '}
+                <span className="font-semibold text-[var(--color-brand-accent)]">{fmtDate(dueDate)}</span>
               </p>
             )}
           </div>
@@ -256,37 +254,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
         {/* ══════════════════════════════════════════════════════════════════════
             2 · BLOCS ÉMETTEUR / DESTINATAIRE — Grille ouverte premium
         ══════════════════════════════════════════════════════════════════════ */}
-        <div className="grid grid-cols-2 gap-8 mb-4">
-          {/* ─ GAUCHE : ÉMETTEUR ─ */}
-          <div className="bg-slate-50 rounded px-4 py-3">
-            <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">
-              Émetteur
-            </p>
-            <p className="text-[11px] font-extrabold text-brand-primary leading-tight">
-              {s.companyName || "—"}
-            </p>
-            {s.legalForm && (
-              <p className="text-[8px] text-slate-400 font-medium mt-0.5">
-                {s.legalForm}
-              </p>
-            )}
-            <div className="mt-2 space-y-0.5 text-[8.5px] text-slate-600">
-              {s.nif && (
-                <p>
-                  <span className="font-semibold text-slate-700">NIF :</span>{" "}
-                  {s.nif}
-                </p>
-              )}
-              {s.rccm && (
-                <p>
-                  <span className="font-semibold text-slate-700">RCCM :</span>{" "}
-                  {s.rccm}
-                </p>
-              )}
-              {s.address && <p className="text-slate-500 mt-1">{s.address}</p>}
-              {s.phone && <p className="text-slate-500">Tél : {s.phone}</p>}
-            </div>
-          </div>
+        <div className="flex justify-end mb-4">
 
           {/* ─ DROITE : DESTINATAIRE ─ */}
           <div className="bg-slate-50 rounded px-4 py-3">
@@ -556,12 +524,8 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
                       </span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="font-bold text-brand-primary">
-                        Reste à Payer
-                      </span>
-                      <span className="font-bold text-red-600 tabular-nums text-[11px]">
-                        {fmt(remaining)}
-                      </span>
+                      <span className="font-bold text-brand-primary">Reste à Payer</span>
+                      <span className="font-bold text-[var(--color-brand-accent)] tabular-nums text-[11px]">{fmt(remaining)}</span>
                     </div>
                   </div>
                 </div>

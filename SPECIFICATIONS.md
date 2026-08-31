@@ -1,4 +1,4 @@
-# ✦ L'ÉTOILE
+# ✦ FACTURIER
 ## Application Desktop de Facturation & Gestion de Devis
 ### CAHIER DES CHARGES FONCTIONNEL ET TECHNIQUE
 
@@ -11,7 +11,7 @@
 ---
 
 ## 1. PRÉSENTATION GÉNÉRALE ET OBJECTIFS
-L'Étoile est une application desktop fintech dédiée à la facturation et à la gestion de devis pour les PME et prestataires de services opérant sur le marché gabonais. Elle repose sur une architecture 100 % locale (monoposte, hors-ligne) et s'inspire des standards visuels de Linear, Stripe et Vercel pour offrir une expérience utilisateur premium.
+Facturier est une application desktop fintech dédiée à la facturation et à la gestion de devis pour les PME et prestataires de services opérant sur le marché gabonais. Elle repose sur une architecture 100 % locale (monoposte, hors-ligne) et s'inspire des standards visuels de Linear, Stripe et Vercel pour offrir une expérience utilisateur premium.
 
 - **Hors-ligne :** Aucune dépendance réseau : toutes les données restent sur la machine hôte.
 - **Conformité :** Respect strict de la cascade fiscale DGI (TVA, CSS, XAF).
@@ -306,4 +306,4 @@ L'écran de liste des devis est la vue centrale de suivi. Il offre les capacité
 - Mentions légales et conditions de paiement.
 - Signature et cachet de l'entreprise (espace réservé sur le PDF).
 
-L'Étoile · CDCFT v2.0 · Confidentiel · Mai 2026
+Facturier · CDCFT v2.0 · Confidentiel · Mai 2026

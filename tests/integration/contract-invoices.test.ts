@@ -93,13 +93,13 @@ describe('Contrat Front-API — Module Factures (Invoices)', () => {
     const createPayload = {
       clientId,
       clientName: 'Client Contrat Test',
-      clientEmail: 'contrat@letoile.ga',
+      clientEmail: 'contrat@lfacturier.ga',
       date: '2026-07-07',
       discount: 5000,
       notes: 'Test de résilience et de contrat Front-API',
       items: [
         {
-          description: 'Licence Logiciel L\'Étoile Desktop',
+          description: 'Licence Logiciel L\'Facturier Desktop',
           quantity: 2,
           unitPrice: 150000, // Entier XAF obligatoire
         },

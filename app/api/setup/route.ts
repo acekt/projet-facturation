@@ -69,7 +69,7 @@ export async function POST(request: Request) {
       if (settingsCount === 0) {
         db.prepare(`
           INSERT INTO settings (id, companyName, nif, rccm, address, phone, email, tvaRate, tpsRate, cssRate, invoicePrefix, quotePrefix, companyCode)
-          VALUES (1, ?, ?, ?, ?, ?, ?, 18.0, 9.5, 1.0, 'FAC-', 'DEV-', 'ETOILE')
+          VALUES (1, ?, ?, ?, ?, ?, ?, 18.0, 9.5, 1.0, 'FAC-', 'DEV-', 'FACTURIER')
         `).run(
           companyName || '',
           nif || '',
