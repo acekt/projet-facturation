@@ -1,4 +1,4 @@
-# ✦ L'ÉTOILE
+# ✦ FACTURIER
 ## Application Desktop de Facturation & Gestion de Devis
 ### CAHIER DES CHARGES FONCTIONNEL ET TECHNIQUE
 

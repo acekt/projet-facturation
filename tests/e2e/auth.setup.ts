@@ -133,7 +133,7 @@ setup('Purge DB, initialisation des données et génération des Storage States'
       id, companyName, legalForm, nif, rccm, address, email, phone,
       tvaRate, tpsRate, cssRate, sessionTimeout, invoicePrefix, quotePrefix, companyCode
     ) VALUES (
-      1, 'Facturier SARL', 'SARL', 'NIF123456', 'RCCM98765', 'Libreville, Gabon',
+      1, 'L''Facturier SARL', 'SARL', 'NIF123456', 'RCCM98765', 'Libreville, Gabon',
       'contact@facturier.ga', '+241 01 23 45 67', 18.0, 9.5, 1.0, 60, 'FACT-', 'DEV-', 'ETO'
     )
   `).run();
