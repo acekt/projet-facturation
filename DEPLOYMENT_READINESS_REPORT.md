@@ -1,4 +1,4 @@
-# DEPLOYMENT READINESS REPORT — L'ÉTOILE
+# DEPLOYMENT READINESS REPORT — FACTURIER
 
 ## 1. Phase 1 & 2 : Intégrité Logique et Optimisations Base de données
 - **RBAC (verifyDocumentOwnership)** : Tests unitaires passant à 100%. La fonction sécurise l'accès et renvoie correctement un 403 Forbidden quand un utilisateur tente de manipuler un document qui ne lui appartient pas (sauf pour les admins).

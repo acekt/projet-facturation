@@ -143,7 +143,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
             </div>
             {!collapsed && (
               <div className="flex flex-col">
-                <span className="font-bold text-primary tracking-tight text-lg">L'ÉTOILE</span>
+                <span className="font-bold text-primary tracking-tight text-lg">FACTURIER</span>
                 <span className={cn(
                     "text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded w-fit",
                     user?.role === 'admin' ? "bg-accent-light text-accent dark:bg-accent/20 dark:text-accent-light" : "bg-primary-light text-primary dark:bg-primary/20 dark:text-primary-light"

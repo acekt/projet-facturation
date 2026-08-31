@@ -1,5 +1,5 @@
 /**
- * main.js — Processus Principal Electron "L'Étoile"
+ * main.js — Processus Principal Electron "Facturier"
  * ===================================================
  *
  * CORRECTIONS PHASE 3-BIS (Stabilité & Conflits de ports) :
@@ -39,7 +39,7 @@ const USER_DATA_PATH = app.getPath('userData');
 
 // ══════════════════════════════════════════════════════════════════════
 // [AUDIT-1] LOGGER FICHIER PERSISTANT
-// Écrit dans AppData/Roaming/L'Etoile/main.log
+// Écrit dans AppData/Roaming/Facturier/main.log
 // Console.log() disparaît en prod — ce fichier reste pour le support.
 // ══════════════════════════════════════════════════════════════════════
 const LOG_PATH = path.join(USER_DATA_PATH, 'main.log');
@@ -426,7 +426,7 @@ async function createWindow(port) {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: "L'Étoile — Gestion & Facturation",
+    title: "Facturier — Gestion & Facturation",
     titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
     webPreferences: {
       nodeIntegration: false,

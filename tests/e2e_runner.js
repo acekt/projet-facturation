@@ -67,7 +67,7 @@ async function run() {
     await page.screenshot({ path: path.join(SCREENSHOT_DIR, '01_login_page.png') });
 
     console.log('🔑 Logging in as Admin...');
-    await page.fill('#username', 'admin@letoile.ga');
+    await page.fill('#username', 'admin@lfacturier.ga');
     await page.fill('#password', 'admin123');
     await page.click('button[type="submit"]');
 
@@ -94,7 +94,7 @@ async function run() {
     // 2. STANDARD OPERATOR USER E2E AUDIT
     // ==========================================
     console.log('🔑 Logging in as Standard Operator...');
-    await page.fill('#username', 'user@letoile.ga');
+    await page.fill('#username', 'user@lfacturier.ga');
     await page.fill('#password', 'admin123');
     await page.click('button[type="submit"]');
 
