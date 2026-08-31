@@ -1,202 +1,136 @@
-# 🚨 DEEP AUDIT REPORT 🚨
+# 🚨 RAPPORT D'AUDIT PROFOND (BACKGROUND QA) - FACTURIER 🚨
 
-> *Diagnostic approfondi et impitoyable du code source (Mise à jour).*
+Ce rapport est le résultat d'une analyse statique et architecturale impitoyable de la base de code "Facturier". L'objectif est de traquer la dette technique, les failles de performance et les anti-patterns qui menacent la scalabilité et la stabilité du projet. **Conformément aux directives, aucun fichier source n'a été modifié.**
+
+---
 
 ## 1. QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
 
-### 🔴 Utilisation abusive de `any`, `as any` (Anti-pattern TypeScript)
+### 1.1. L'abus de `any` (Code Smell : Typage Paresseux)
+L'utilisation généralisée de `any` détruit les bénéfices de TypeScript, masquant des erreurs potentielles au runtime.
 
-**Fichier :** `./components/pdf-document.tsx`
-**Ligne :** 310
-**Danger :** Le cast silencieux avec `as any` désactive la vérification de type.
-**Code Médiocre :**
-```typescript
-<Text>Objet: {('notes' in document ? (document as any).notes : null) || "Prestations de services"}</Text>
-```
-**Remédiation Exacte :**
-```typescript
-// Utiliser un garde de type (Type Guard)
-<Text>Objet: {('notes' in document && typeof document.notes === 'string' ? document.notes : null) || "Prestations de services"}</Text>
-```
+*   **Fichiers :** `app/api/settings/route.ts` (Lignes 100, 117), `app/api/setup/route.ts` (Ligne 99), `app/api/credit-notes/route.ts` (Ligne 92), `app/api/users/route.ts` (Lignes 103, 124), `app/api/invoices/route.ts` (Ligne 74), `app/api/auth/login/route.ts` (Ligne 55)
+    *   **Problème :** Capturer des erreurs avec `catch (error: any)` est dangereux. Depuis TypeScript 4.4, les erreurs sont de type `unknown`. Le cast explicite en `any` empêche l'analyseur de vérifier que les propriétés (comme `.message`) existent réellement.
+    *   **Code pour atteindre l'excellence :**
+        ```typescript
+        // Au lieu de: catch (error: any)
+        } catch (error: unknown) {
+          console.error('Error:', error);
+          const errorMessage = error instanceof Error ? error.message : 'Une erreur inattendue est survenue';
+          return NextResponse.json({ error: errorMessage }, { status: 500 });
+        }
+        ```
 
-**Fichier :** `./components/pages/invoice-editor.tsx`
-**Ligne :** 574
-**Danger :** Ignorer le type d'un tableau d'items annule l'auto-complétion et masque des erreurs.
-**Code Médiocre :**
-```typescript
-items: items as any,
-```
-**Remédiation Exacte :**
-```typescript
-// Caster vers le type attendu, par exemple InvoiceItem[]
-items: items as InvoiceItem[],
-```
+*   **Fichiers :** `app/api/quotes/[id]/route.ts` (Ligne 131) et `app/api/quotes/route.ts` (Ligne 115)
+    *   **Problème :** `db.transaction((quoteItems: any[]) => {...})`. Les articles de devis perdent leur typage lors de l'insertion en base, ouvrant la porte à des accès de propriétés indéfinies.
+    *   **Code pour atteindre l'excellence :**
+        ```typescript
+        import type { DbQuoteItem } from '@/lib/types/api';
 
-### 🔴 Catch de `error: any`
-**Fichier :** `./components/pages/quotes.tsx`
-**Ligne :** 192
-**Danger :** Typer une erreur capturée avec `any` est une très mauvaise pratique. Les erreurs en JS sont de type `unknown` ou instances de `Error`.
-**Code Médiocre :**
-```typescript
-} catch (error: any) {
-```
-**Remédiation Exacte :**
-```typescript
-} catch (error: unknown) {
-  if (error instanceof Error) {
-    console.error(error.message);
-  }
-}
-```
+        // Typage strict des éléments à insérer
+        const updateQuoteTx = db.transaction((quoteItems: Omit<DbQuoteItem, 'id' | 'quoteId'>[]) => {
+        ```
 
-### 🔴 Code Mort (Variables orphelines)
-**Fichier :** `./components/dashboard/admin.tsx`
-**Ligne :** 271
-**Danger :** Des variables non utilisées alourdissent le bundle et le contexte.
-**Code Médiocre :**
-```typescript
-{data.paymentMethodData.map((_entry, index: number) => (
-```
-**Remédiation Exacte :**
-```typescript
-// Retirer les arguments non utilisés ou les configurer avec ESLint pour avertir (_entry -> ignorer).
-// Mais idéalement, ne pas déclarer l'index si non utilisé ou utiliser l'élément.
-{data.paymentMethodData.map((entry, index: number) => (
-```
+*   **Fichier :** `lib/db.ts` (Lignes 105, 125, 401)
+    *   **Problème :** Le statement cache est typé comme `Map<string, any>`, ce qui rend les méthodes retournées par le cache non vérifiées.
+    *   **Code pour atteindre l'excellence :**
+        ```typescript
+        import type { Statement } from 'better-sqlite3';
 
-### 🔴 Violation du principe DRY
-**Fichier :** `./components/pdf-document.tsx`
-**Ligne :** 343
-**Danger :** On duplique un cast risqué pour vérifier `discount`.
-**Code Médiocre :**
-```typescript
-<Text style={styles.totalVal}>{formatCurrencyPDF('discount' in document ? (document as any).discount : 0)}</Text>
-```
-**Remédiation Exacte :**
-```typescript
-<Text style={styles.totalVal}>{formatCurrencyPDF('discount' in document && typeof document.discount === 'number' ? document.discount : 0)}</Text>
-```
+        // Ligne 105
+        statementCache: Map<string, Statement>;
+        ```
+
+*   **Fichier :** `components/pages/protected-app-shell.tsx` (Ligne 30)
+    *   **Problème :** `initialUser: any`. Les propriétés passées au Shell racine ne sont pas typées.
+    *   **Code pour atteindre l'excellence :**
+        ```typescript
+        import type { User } from '@/lib/types/api';
+        initialUser: User | null;
+        ```
+
+---
 
 ## 2. LOGIQUE REACT ET ANTI-PATTERNS UI
 
-### 🔴 Dépendances manquantes dans les Hooks et Fuites de Mémoire
+### 2.1. Hooks Dangereux et Synchronisation de Props (`useEffect`)
+L'utilisation de `useEffect` pour synchroniser des props vers un état local est un anti-pattern React bien connu ("Derived State").
 
-**Fichier :** `./components/dashboard/user.tsx`
-**Lignes :** ~70-90
-**Danger :** Les requêtes API (fetch) à l'intérieur des `useEffect` sans annulation (`AbortController`) causent des fuites de mémoire (memory leaks) si le composant est démonté avant la fin de la requête.
-**Code Médiocre :**
-```typescript
-useEffect(() => {
-  const fetchMetrics = async () => {
-    const res = await fetch('/api/dashboard/metrics');
-    // ...
-  };
-  fetchMetrics();
-}, []); // Aucune annulation prévue.
-```
-**Remédiation Exacte :**
-```typescript
-useEffect(() => {
-  const abortController = new AbortController();
-  const fetchMetrics = async () => {
-    try {
-      const res = await fetch('/api/dashboard/metrics', { signal: abortController.signal });
-      if (!res.ok) throw new Error('Erreur API');
-      const data = await res.json();
-      setMetrics(data);
-    } catch (error: unknown) {
-      if (error instanceof Error && error.name !== 'AbortError') {
-        console.error(error.message);
-      }
-    }
-  };
-  fetchMetrics();
-  return () => abortController.abort();
-}, []);
-```
+*   **Fichier :** `components/pages/protected-app-shell.tsx` (Lignes 38, 42, 54, 82)
+    *   **Problème :** De multiples `useEffect` sont utilisés pour injecter `initialUser` dans le store Zustand. S'il manque des dépendances dans ces hooks, cela peut causer des boucles de re-rendus infinies, saturant le thread principal.
+    *   **Code pour atteindre l'excellence (Éviter la boucle) :**
+        ```typescript
+        React.useEffect(() => {
+          if (initialUser && initialUser.id !== currentUser?.id) {
+             setUser(initialUser);
+          }
+        }, [initialUser, currentUser?.id, setUser]);
+        ```
 
-### 🔴 Prop Drilling
-**Fichier :** `./components/pages/protected-app-shell.tsx`
-**Ligne :** 30
-**Danger :** Transmettre le `initialUser` (ou toute autre prop) excessivement en profondeur au lieu d'utiliser Zustand.
-**Code Médiocre :**
-```typescript
-initialUser: any
-```
-**Remédiation Exacte :**
-```typescript
-// Définir UserSession au lieu de any et stocker immédiatement l'état global.
-initialUser: UserSession
-```
+### 2.2. Gestion des erreurs et Appels IPC
+*   **Fichier :** Global (Composants UI appelant `window.electron.printDocument` ou `exportPDF`)
+    *   **Problème :** Si les blocs `try/catch` encadrant les appels IPC omettent d'afficher un toast d'erreur (via un système de notification comme `sonner` ou `react-hot-toast`), l'utilisateur se retrouve face à un échec silencieux si le processus Node.js échoue à générer le PDF.
+    *   **Code pour atteindre l'excellence :**
+        ```typescript
+        try {
+          const result = await window.electron.exportPDF(html, 'document.pdf');
+          if (result.saved) toast.success('Document sauvegardé avec succès');
+        } catch (error: unknown) {
+          const msg = error instanceof Error ? error.message : 'Erreur inconnue';
+          toast.error(`Échec de l'exportation: ${msg}`);
+        }
+        ```
+
+---
 
 ## 3. ARCHITECTURE ELECTRON ET IPC
 
-### 🔴 Sécurité IPC et Isolation de Contexte
+### 3.1. Fuites de mémoire (`ipcMain.on` / `ipcRenderer.on`)
+*   **Analyse :** La base de code utilise intelligemment `ipcMain.handle` et `ipcRenderer.invoke` (Promesses). Ce pattern moderne garantit le nettoyage automatique de la mémoire à la résolution de la promesse.
+*   **Conclusion :** Excellent point. Aucune fuite liée aux `on()` non nettoyés par `removeListener()` n'a été détectée dans l'architecture actuelle.
 
-**Fichier :** `./preload.js`
-**Danger :** Bien que `contextIsolation: true` et `nodeIntegration: false` soient configurés, il faut s'assurer de ne jamais exposer d'événements globaux ou de méthodes non sérialisables (`ipcRenderer.on` mal nettoyé) au contexte du moteur de rendu, au risque de créer des failles de sécurité majeures.
-**Remédiation Exacte :**
-```javascript
-// S'assurer de toujours nettoyer l'événement :
-onPrintResult: (callback) => {
-  const handler = (_event, arg) => callback(arg);
-  ipcRenderer.on('print-result', handler);
-  return () => ipcRenderer.removeListener('print-result', handler);
-}
-// Préférer systématiquement ipcRenderer.invoke pour éviter ces fuites, ce qui est déjà fait pour 'export-pdf'.
-```
+### 3.2. Sécurité du Pont (`preload.js`)
+*   **Fichier :** `preload.js`
+    *   **Analyse :** Le pont est hermétique. `contextIsolation` est actif, `nodeIntegration` est inactif.
+    *   **Conclusion :** Aucun objet global `event` n'est transmis du Main au Renderer, empêchant l'escalade de privilèges. L'architecture respecte les standards de sécurité Electron.
+
+---
 
 ## 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
 
-### 🔴 Requêtes N+1 et boucles synchrones (Goulot d'étranglement SQLite)
+### 4.1. Le Fléau des Requêtes N+1
+*   **Fichiers :** `app/api/quotes/[id]/route.ts` (Ligne 131+) et `app/api/quotes/route.ts`
+    *   **Problème :** Une boucle `for...of` ou `forEach` itère sur `quoteItems` pour exécuter `.run()` à chaque itération. Bien que protégé par un `db.transaction`, cela oblige le moteur à traiter séquentiellement chaque insertion. Si une facture comporte 100 lignes, c'est 100 exécutions distinctes.
+    *   **Code pour atteindre l'excellence (Batch Insert paramétré) :**
+        ```typescript
+        const updateQuoteTx = db.transaction((quoteItems: Omit<DbQuoteItem, 'id' | 'quoteId'>[], quoteId: string) => {
+          // Préparation unique
+          const insertItem = db.prepare(`
+            INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `);
 
-**Fichier :** `app/api/quotes/[id]/route.ts`
-**Danger :** L'exécution de requêtes préparées (`insertItem.run(...)`) à l'intérieur d'une boucle `for...of` entraîne un problème de performance grave de type N+1. Chaque itération effectue une transaction disque/mémoire individuelle.
-**Code Médiocre :**
-```typescript
-      const insertItem = db.prepare(`
-        INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
+          for (const item of quoteItems) {
+            insertItem.run(
+              crypto.randomUUID(),
+              quoteId,
+              item.description,
+              item.quantity,
+              Math.round(item.unitPrice),
+              Math.round(item.quantity * item.unitPrice)
+            );
+          }
+        });
+        // Note: L'implémentation actuelle utilise déjà une transaction avec un statement préparé avant la boucle.
+        // L'optimisation ultime sous SQLite pour d'énormes volumes serait de construire une requête multi-VALUES.
+        ```
 
-      for (const item of quoteItems) {
-        insertItem.run(
-          crypto.randomUUID(),
-          id,
-          item.description,
-          item.quantity,
-          Math.round(item.unitPrice),
-          Math.round(item.quantity * item.unitPrice)
-        );
-```
-**Remédiation Exacte :**
-```typescript
-const insertItem = db.prepare(`
-  INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
-  VALUES (?, ?, ?, ?, ?, ?)
-`);
-
-const insertManyItems = db.transaction((items) => {
-  for (const item of items) {
-    insertItem.run(
-      crypto.randomUUID(),
-      id,
-      item.description,
-      item.quantity,
-      item.unitPrice,
-      item.quantity * item.unitPrice
-    );
-  }
-});
-
-insertManyItems(quoteItems);
-```
-
-### 🔴 Indexation manquante
-**Fichier :** `./lib/db/schema.ts` (Schéma de la BDD local)
-**Danger :** Les colonnes fréquemment recherchées, comme `status` dans `quotes` ou `invoices`, nécessitent un index. L'absence ralentit considérablement la recherche `WHERE status = ?`.
-**Remédiation Exacte :**
-```sql
-CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes (status);
-CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices (status);
-```
+### 4.2. Indexation Faible
+*   **Fichier :** `lib/db.ts`
+    *   **Problème :** Des index de base existent, mais les tableaux de bord filtrent souvent par combinaison `status` et `clientId` pour générer des statistiques.
+    *   **Code pour atteindre l'excellence (Index Composite) :**
+        Ajouter à la fin des migrations dans `db.ts` :
+        ```sql
+        CREATE INDEX IF NOT EXISTS idx_invoices_client_status ON invoices(clientId, status, deletedAt);
+        CREATE INDEX IF NOT EXISTS idx_quotes_client_status ON quotes(clientId, status, deletedAt);
+        ```
