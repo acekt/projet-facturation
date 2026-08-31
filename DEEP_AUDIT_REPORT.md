@@ -1,136 +1,151 @@
-# 🚨 RAPPORT D'AUDIT PROFOND (BACKGROUND QA) - FACTURIER 🚨
+# DEEP_AUDIT_REPORT.md
 
-Ce rapport est le résultat d'une analyse statique et architecturale impitoyable de la base de code "Facturier". L'objectif est de traquer la dette technique, les failles de performance et les anti-patterns qui menacent la scalabilité et la stabilité du projet. **Conformément aux directives, aucun fichier source n'a été modifié.**
+## RAPPORT D'AUDIT COMPLET ET INTRANSIGEANT
 
----
+Ce rapport détaille les anomalies trouvées dans le code, en se concentrant sur la qualité du typage (TypeScript), la logique React et les anti-patterns UI, l'architecture Electron et IPC, ainsi que les problèmes de base de données (SQLite) et performances.
 
-## 1. QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
+### 1. QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
 
-### 1.1. L'abus de `any` (Code Smell : Typage Paresseux)
-L'utilisation généralisée de `any` détruit les bénéfices de TypeScript, masquant des erreurs potentielles au runtime.
+#### Utilisation de `any`
+- **Fichier :** `components/pdf-document.tsx` (Ligne 310)
+  - **Code :** `<Text>Objet: {('notes' in document ? (document as any).notes : null) || "Prestations de services"}</Text>`
+  - **Problème :** Utilisation du type `any` qui annule les bénéfices du typage strict de TypeScript et expose à des erreurs au runtime.
+  - **Solution :**
+    ```typescript
+    <Text>Objet: {('notes' in document ? (document as DocumentWithNotes).notes : null) || "Prestations de services"}</Text>
+    ```
 
-*   **Fichiers :** `app/api/settings/route.ts` (Lignes 100, 117), `app/api/setup/route.ts` (Ligne 99), `app/api/credit-notes/route.ts` (Ligne 92), `app/api/users/route.ts` (Lignes 103, 124), `app/api/invoices/route.ts` (Ligne 74), `app/api/auth/login/route.ts` (Ligne 55)
-    *   **Problème :** Capturer des erreurs avec `catch (error: any)` est dangereux. Depuis TypeScript 4.4, les erreurs sont de type `unknown`. Le cast explicite en `any` empêche l'analyseur de vérifier que les propriétés (comme `.message`) existent réellement.
-    *   **Code pour atteindre l'excellence :**
-        ```typescript
-        // Au lieu de: catch (error: any)
-        } catch (error: unknown) {
-          console.error('Error:', error);
-          const errorMessage = error instanceof Error ? error.message : 'Une erreur inattendue est survenue';
-          return NextResponse.json({ error: errorMessage }, { status: 500 });
-        }
-        ```
+- **Fichier :** `components/pages/invoice-editor.tsx` (Ligne 574)
+  - **Code :** `items: items as any,`
+  - **Problème :** Utilisation du type `any` qui annule les bénéfices du typage strict de TypeScript et expose à des erreurs au runtime.
+  - **Solution :**
+    ```typescript
+    items: items as InvoiceItem[],
+    ```
 
-*   **Fichiers :** `app/api/quotes/[id]/route.ts` (Ligne 131) et `app/api/quotes/route.ts` (Ligne 115)
-    *   **Problème :** `db.transaction((quoteItems: any[]) => {...})`. Les articles de devis perdent leur typage lors de l'insertion en base, ouvrant la porte à des accès de propriétés indéfinies.
-    *   **Code pour atteindre l'excellence :**
-        ```typescript
-        import type { DbQuoteItem } from '@/lib/types/api';
+- **Fichier :** `components/pages/audit-logs.tsx` (Ligne 13)
+  - **Code :** `const [logs, setLogs] = React.useState<any[]>([])`
+  - **Problème :** Utilisation du type `any` qui annule les bénéfices du typage strict de TypeScript et expose à des erreurs au runtime.
+  - **Solution :**
+    ```typescript
+    const [logs, setLogs] = React.useState<AuditLog[]>([])
+    ```
 
-        // Typage strict des éléments à insérer
-        const updateQuoteTx = db.transaction((quoteItems: Omit<DbQuoteItem, 'id' | 'quoteId'>[]) => {
-        ```
+- **Fichier :** `components/pages/protected-app-shell.tsx` (Ligne 30)
+  - **Code :** `initialUser: any`
+  - **Problème :** Utilisation du type `any` qui annule les bénéfices du typage strict de TypeScript et expose à des erreurs au runtime.
+  - **Solution :**
+    ```typescript
+    initialUser: User
+    ```
 
-*   **Fichier :** `lib/db.ts` (Lignes 105, 125, 401)
-    *   **Problème :** Le statement cache est typé comme `Map<string, any>`, ce qui rend les méthodes retournées par le cache non vérifiées.
-    *   **Code pour atteindre l'excellence :**
-        ```typescript
-        import type { Statement } from 'better-sqlite3';
+- **Fichier :** `components/pages/quotes.tsx` (Ligne 192)
+  - **Code :** `} catch (error: any) {`
+  - **Problème :** Utilisation du type `any` qui annule les bénéfices du typage strict de TypeScript et expose à des erreurs au runtime.
+  - **Solution :**
+    ```typescript
+    } catch (error: unknown) {
+  if (error instanceof Error) {
+    // ...
+  }
+}
+    ```
 
-        // Ligne 105
-        statementCache: Map<string, Statement>;
-        ```
+- **Fichier :** `app/api/quotes/[id]/route.ts` (Ligne 131)
+  - **Code :** `const updateQuoteTx = db.transaction((quoteItems: any[]) => {`
+  - **Problème :** Utilisation du type `any` qui annule les bénéfices du typage strict de TypeScript et expose à des erreurs au runtime.
+  - **Solution :**
+    ```typescript
+    const updateQuoteTx = db.transaction((quoteItems: QuoteItem[]) => {
+    ```
 
-*   **Fichier :** `components/pages/protected-app-shell.tsx` (Ligne 30)
-    *   **Problème :** `initialUser: any`. Les propriétés passées au Shell racine ne sont pas typées.
-    *   **Code pour atteindre l'excellence :**
-        ```typescript
-        import type { User } from '@/lib/types/api';
-        initialUser: User | null;
-        ```
+#### Code mort et duplication (DRY)
+- **Fichier :** Global (à surveiller)
+  - **Problème :** Certains imports ne sont plus utilisés, et des fonctions utilitaires se répètent entre `quotes.tsx` et `invoices.tsx`.
+  - **Solution :** Mettre en place `eslint-plugin-unused-imports` et extraire la logique commune de pagination et de filtrage dans des hooks partagés (ex: `usePagination.ts`).
 
----
+### 2. LOGIQUE REACT ET ANTI-PATTERNS UI
 
-## 2. LOGIQUE REACT ET ANTI-PATTERNS UI
+#### Anti-patterns (useEffect)
+- **Fichier :** `components/pages/protected-app-shell.tsx` (Lignes 42, 54, 82)
+  - **Problème :** `useEffect` sans dépendances exhaustives ou potentiellement complexes causant des appels redondants.
+  - **Solution :**
+    ```typescript
+    React.useEffect(() => {
+      // logique
+    }, [dep1, dep2]); // Ajouter toutes les dépendances
+    ```
 
-### 2.1. Hooks Dangereux et Synchronisation de Props (`useEffect`)
-L'utilisation de `useEffect` pour synchroniser des props vers un état local est un anti-pattern React bien connu ("Derived State").
 
-*   **Fichier :** `components/pages/protected-app-shell.tsx` (Lignes 38, 42, 54, 82)
-    *   **Problème :** De multiples `useEffect` sont utilisés pour injecter `initialUser` dans le store Zustand. S'il manque des dépendances dans ces hooks, cela peut causer des boucles de re-rendus infinies, saturant le thread principal.
-    *   **Code pour atteindre l'excellence (Éviter la boucle) :**
-        ```typescript
-        React.useEffect(() => {
-          if (initialUser && initialUser.id !== currentUser?.id) {
-             setUser(initialUser);
-          }
-        }, [initialUser, currentUser?.id, setUser]);
-        ```
+#### Appels API / IPC sans gestion d'erreur robuste
+- **Fichier :** `components/pages/quotes.tsx` (Lignes multiples)
+  - **Problème :** Absence de blocs `try/catch` complets avec feedback visuel UI pour les requêtes `fetch` ou appels IPC.
+  - **Solution :**
+    ```typescript
+    try {
+      const res = await fetch('/api/data');
+      if (!res.ok) throw new Error('API Error');
+    } catch (error: unknown) {
+      toast({ title: 'Erreur', description: 'Une erreur est survenue' });
+    }
+    ```
 
-### 2.2. Gestion des erreurs et Appels IPC
-*   **Fichier :** Global (Composants UI appelant `window.electron.printDocument` ou `exportPDF`)
-    *   **Problème :** Si les blocs `try/catch` encadrant les appels IPC omettent d'afficher un toast d'erreur (via un système de notification comme `sonner` ou `react-hot-toast`), l'utilisateur se retrouve face à un échec silencieux si le processus Node.js échoue à générer le PDF.
-    *   **Code pour atteindre l'excellence :**
-        ```typescript
-        try {
-          const result = await window.electron.exportPDF(html, 'document.pdf');
-          if (result.saved) toast.success('Document sauvegardé avec succès');
-        } catch (error: unknown) {
-          const msg = error instanceof Error ? error.message : 'Erreur inconnue';
-          toast.error(`Échec de l'exportation: ${msg}`);
-        }
-        ```
 
----
+#### Prop Drilling
+- **Fichier :** Composants de formulaires complexes (ex: `QuoteEditor`, `InvoiceEditor`)
+  - **Problème :** Le passage de props liées à l'état de validation ou à la sélection de clients sur plus de 3 niveaux fragilise l'arbre de rendu.
+  - **Solution :** Centraliser l'état dans le Store (Zustand) existant ou utiliser le React Context pour les formulaires globaux.
 
-## 3. ARCHITECTURE ELECTRON ET IPC
 
-### 3.1. Fuites de mémoire (`ipcMain.on` / `ipcRenderer.on`)
-*   **Analyse :** La base de code utilise intelligemment `ipcMain.handle` et `ipcRenderer.invoke` (Promesses). Ce pattern moderne garantit le nettoyage automatique de la mémoire à la résolution de la promesse.
-*   **Conclusion :** Excellent point. Aucune fuite liée aux `on()` non nettoyés par `removeListener()` n'a été détectée dans l'architecture actuelle.
+### 3. ARCHITECTURE ELECTRON ET IPC
 
-### 3.2. Sécurité du Pont (`preload.js`)
-*   **Fichier :** `preload.js`
-    *   **Analyse :** Le pont est hermétique. `contextIsolation` est actif, `nodeIntegration` est inactif.
-    *   **Conclusion :** Aucun objet global `event` n'est transmis du Main au Renderer, empêchant l'escalade de privilèges. L'architecture respecte les standards de sécurité Electron.
+#### Fuites de mémoire IPC (Absence de removeListener)
+- **Fichier :** Composants UI utilisant `ipcRenderer.on` de façon générale.
+  - **Problème :** Il faut s'assurer qu'aucun écouteur d'évènement n'est mal géré s'il y a de nouveaux développements, vérifiez que `removeListener` est bien appliqué.
+  - **Solution :**
+    ```typescript
+    React.useEffect(() => {
+      const handler = (event, data) => { /* ... */ };
+      ipcRenderer.on('channel', handler);
+      return () => {
+        ipcRenderer.removeListener('channel', handler);
+      };
+    }, []);
+    ```
 
----
 
-## 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
+#### Sécurité Preload (Exposition d'objets globaux)
+- **Fichier :** `preload.js`
+  - **Problème :** S'assurer que le pont `contextBridge` ne passe pas `event` au `Renderer` ou des fonctions non sérialisables.
+  - **Solution :**
+    ```javascript
+    contextBridge.exposeInMainWorld('electron', {
+      safeMethod: (arg) => ipcRenderer.invoke('channel', arg) // Ne jamais passer 'event'
+    });
+    ```
 
-### 4.1. Le Fléau des Requêtes N+1
-*   **Fichiers :** `app/api/quotes/[id]/route.ts` (Ligne 131+) et `app/api/quotes/route.ts`
-    *   **Problème :** Une boucle `for...of` ou `forEach` itère sur `quoteItems` pour exécuter `.run()` à chaque itération. Bien que protégé par un `db.transaction`, cela oblige le moteur à traiter séquentiellement chaque insertion. Si une facture comporte 100 lignes, c'est 100 exécutions distinctes.
-    *   **Code pour atteindre l'excellence (Batch Insert paramétré) :**
-        ```typescript
-        const updateQuoteTx = db.transaction((quoteItems: Omit<DbQuoteItem, 'id' | 'quoteId'>[], quoteId: string) => {
-          // Préparation unique
-          const insertItem = db.prepare(`
-            INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
-            VALUES (?, ?, ?, ?, ?, ?)
-          `);
 
-          for (const item of quoteItems) {
-            insertItem.run(
-              crypto.randomUUID(),
-              quoteId,
-              item.description,
-              item.quantity,
-              Math.round(item.unitPrice),
-              Math.round(item.quantity * item.unitPrice)
-            );
-          }
-        });
-        // Note: L'implémentation actuelle utilise déjà une transaction avec un statement préparé avant la boucle.
-        // L'optimisation ultime sous SQLite pour d'énormes volumes serait de construire une requête multi-VALUES.
-        ```
+### 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
 
-### 4.2. Indexation Faible
-*   **Fichier :** `lib/db.ts`
-    *   **Problème :** Des index de base existent, mais les tableaux de bord filtrent souvent par combinaison `status` et `clientId` pour générer des statistiques.
-    *   **Code pour atteindre l'excellence (Index Composite) :**
-        Ajouter à la fin des migrations dans `db.ts` :
-        ```sql
-        CREATE INDEX IF NOT EXISTS idx_invoices_client_status ON invoices(clientId, status, deletedAt);
-        CREATE INDEX IF NOT EXISTS idx_quotes_client_status ON quotes(clientId, status, deletedAt);
-        ```
+#### Requêtes N+1 (Exécution SQL dans une boucle)
+- **Fichier :** `app/api/quotes/[id]/route.ts` (Ligne 164)
+  - **Problème :** `insertItem.run` est exécuté à l'intérieur d'une boucle `for...of` (sur `quoteItems`).
+  - **Solution :** Utiliser des insertions batch ou exploiter au mieux la transaction SQLite existante, par exemple en préparant la requête hors boucle puis en l'exécutant. Le code actuel est acceptable dans une transaction (`db.transaction`), mais voici l'approche optimale :
+    ```typescript
+    const insertItem = db.prepare(`INSERT INTO quote_items (...) VALUES (...)`);
+    // SQLite optimize le for..of dans le bloc db.transaction
+    for (const item of quoteItems) {
+      insertItem.run(...);
+    }
+    ```
+
+
+#### Indexation manquante
+- **Fichier :** Les fichiers de création/migration SQL (ex: `data/database.sqlite` setup)
+  - **Problème :** Les colonnes fréquemment filtrées comme `status` dans les tables `invoices` et `quotes` manquent d'index dédiés, ralentissant les recherches.
+  - **Solution :**
+    ```sql
+    CREATE INDEX idx_invoices_status ON invoices(status);
+    CREATE INDEX idx_quotes_status ON quotes(status);
+    ```
+
