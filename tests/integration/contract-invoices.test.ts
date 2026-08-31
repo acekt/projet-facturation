@@ -93,7 +93,7 @@ describe('Contrat Front-API — Module Factures (Invoices)', () => {
     const createPayload = {
       clientId,
       clientName: 'Client Contrat Test',
-      clientEmail: 'contrat@lfacturier.ga',
+      clientEmail: 'contrat@facturier.ga',
       date: '2026-07-07',
       discount: 5000,
       notes: 'Test de résilience et de contrat Front-API',

@@ -255,7 +255,7 @@ export default function SetupClient() {
                       type="email"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
-                      placeholder="admin@lfacturier.ga"
+                      placeholder="admin@facturier.ga"
                       className="pl-10 h-11 bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800 text-sm focus-visible:ring-blue-600 text-slate-900 dark:text-zinc-50"
                       required
                     />
@@ -427,7 +427,7 @@ export default function SetupClient() {
                         type="email"
                         value={companyEmail}
                         onChange={(e) => setCompanyEmail(e.target.value)}
-                        placeholder="contact@lfacturier.ga"
+                        placeholder="contact@facturier.ga"
                         className="pl-10 h-11 bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800 text-sm focus-visible:ring-blue-600 text-slate-900 dark:text-zinc-50"
                       />
                     </div>

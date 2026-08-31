@@ -14,7 +14,7 @@
    - La contrainte forte d'affichage monétaire FCFA en entiers (`Math.round`) est parfaitement orchestrée au travers de la fonction utilitaire `formatCurrency()`, qui maintient également le standard typographique via les regex d'espacements.
 4. **Authentification, Sessions & RBAC** :
    - L'architecture d'authentification basée sur des cookies signés `auth_session` avec HMAC-SHA256 offre un mécanisme JWT/Cookie robuste.
-   - Le salage centralisé `'lfacturier-gabon-2026'` est bien appliqué avec `bcrypt` / `crypto` sur les mots de passe.
+   - Le salage centralisé `'facturier-gabon-2026'` est bien appliqué avec `bcrypt` / `crypto` sur les mots de passe.
    - Les middlewares de vérification restreignent efficacement la surface d'attaque en redirigeant les utilisateurs non-identifiés.
 5. **Couverture E2E Opérationnelle (Playwright)** :
    - Les "User Journeys" complets (Devis -> Facture -> Encaissement partiel) ont été testés avec succès et valident : 1) La cohérence de la conversion, 2) Le comportement correct du "Reste à payer", 3) La génération du numéro de document. L'utilisation du `Database Seeding` au lieu de l'interface UI pour les setups a drastiquement réduit la "flakiness" des tests.
@@ -28,7 +28,7 @@
 2. **Failles de Traçabilité sur le Soft Delete** :
    - **Problème** : Bien que la règle "Modification ou suppression interdite" (via avoirs) soit dictée pour la compliance fiscale, certaines implémentations de "Soft Delete" dans `api/invoices/[id]/route.ts` se contentent de désactiver la facture au lieu d'en forcer l'annulation complète via une trace de Credit Note irréversible. L'audit_log n'intercepte pas toutes ces mutations à bas niveau.
 3. **Sécurité - Secrets en Dur** :
-   - **Problème** : Le salt d'authentification `lfacturier-gabon-2026` et la clé de signature HMAC pour la session (`SESSION_SECRET`) sont dispersés ou codés en dur dans certains utilitaires au lieu d'être strictement extraits et vérifiés depuis les variables d'environnement (`process.env.SESSION_SECRET`). Cela expose l'application en cas de reverse engineering de l'archive asar d'Electron.
+   - **Problème** : Le salt d'authentification `facturier-gabon-2026` et la clé de signature HMAC pour la session (`SESSION_SECRET`) sont dispersés ou codés en dur dans certains utilitaires au lieu d'être strictement extraits et vérifiés depuis les variables d'environnement (`process.env.SESSION_SECRET`). Cela expose l'application en cas de reverse engineering de l'archive asar d'Electron.
 4. **Calculs Fiscaux Côté Client (Risque de Falsification)** :
    - **Problème** : Les modules `invoice-editor` et `quote-editor` recalculent le total (Net HT + CSS + TPS + TVA) côté Frontend avant de l'envoyer à l'API.
    - **Impact** : L'API (`api/invoices/route.ts` et `api/quotes/route.ts`) fait souvent confiance au "Total" envoyé dans le payload JSON au lieu de le recalculer systématiquement côté serveur avant l'insertion en base de données.

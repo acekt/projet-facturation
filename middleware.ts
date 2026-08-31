@@ -17,7 +17,7 @@ function getSessionSecret(): string {
   // Fallback dev robuste pour permettre le démarrage local Electron / next dev sans crash 500/503
   // (sauf en mode test Vitest où l'on vérifie le comportement fail-fast 503)
   if (process.env.NODE_ENV === 'development' || (!process.env.NODE_ENV && process.env.VITEST !== 'true')) {
-    return 'lfacturier-gabon-2026-fallback-dev-secret-key-32chars!!'
+    return 'facturier-gabon-2026-fallback-dev-secret-key-32chars!!'
   }
   throw new Error(
     '[SECURITY] SESSION_SECRET environment variable is missing or too short (minimum 32 characters). ' +

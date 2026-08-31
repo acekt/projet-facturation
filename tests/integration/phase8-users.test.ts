@@ -17,11 +17,11 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
 
   beforeEach(() => {
     vi.clearAllMocks();
-    db.prepare(`DELETE FROM users WHERE id IN ('admin-self', 'target-u', 'u-edit', 'admin-1', 'admin-user', 'user-user') OR email LIKE '%@lfacturier.ga' OR username IN ('admin', 'user', 'operator')`).run();
+    db.prepare(`DELETE FROM users WHERE id IN ('admin-self', 'target-u', 'u-edit', 'admin-1', 'admin-user', 'user-user') OR email LIKE '%@facturier.ga' OR username IN ('admin', 'user', 'operator')`).run();
   });
 
   afterEach(() => {
-    db.prepare(`DELETE FROM users WHERE id IN ('admin-self', 'target-u', 'u-edit', 'admin-1', 'admin-user', 'user-user') OR email LIKE '%@lfacturier.ga' OR username IN ('admin', 'user', 'operator')`).run();
+    db.prepare(`DELETE FROM users WHERE id IN ('admin-self', 'target-u', 'u-edit', 'admin-1', 'admin-user', 'user-user') OR email LIKE '%@facturier.ga' OR username IN ('admin', 'user', 'operator')`).run();
     vi.restoreAllMocks();
   });
 
@@ -39,7 +39,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
 
       const payload = {
         name: 'Opérateur Comptable',
-        email: 'op@lfacturier.ga',
+        email: 'op@facturier.ga',
         username: 'op_comptable',
         role: ROLES.USER,
         password: 'SecretPassword123!',
@@ -75,7 +75,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
     it('devrait interdire à l’administrateur de supprimer son propre compte (400 Bad Request)', async () => {
       db.prepare(`
         INSERT INTO users (id, name, email, username, password, role, is_active, created_at)
-        VALUES ('admin-self', 'Super Admin', 'admin@lfacturier.ga', 'admin', '$2b$10$hash', 'admin', 1, datetime('now'))
+        VALUES ('admin-self', 'Super Admin', 'admin@facturier.ga', 'admin', '$2b$10$hash', 'admin', 1, datetime('now'))
       `).run();
 
       vi.mocked(getSession).mockResolvedValue({
@@ -101,7 +101,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
     it('devrait interdire à l’administrateur de rétrograder son propre rôle vers user (400 Bad Request)', async () => {
       db.prepare(`
         INSERT INTO users (id, name, email, username, password, role, is_active, created_at)
-        VALUES ('admin-self', 'Super Admin', 'admin@lfacturier.ga', 'admin', '$2b$10$hash', 'admin', 1, datetime('now'))
+        VALUES ('admin-self', 'Super Admin', 'admin@facturier.ga', 'admin', '$2b$10$hash', 'admin', 1, datetime('now'))
       `).run();
 
       vi.mocked(getSession).mockResolvedValue({
@@ -116,7 +116,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: 'Super Admin',
-          email: 'admin@lfacturier.ga',
+          email: 'admin@facturier.ga',
           role: ROLES.USER,
         }),
       });
@@ -187,7 +187,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
       const originalHash = '$2b$10$OriginalBcryptHashDoNotChange123456789';
       db.prepare(`
         INSERT INTO users (id, name, email, username, password, role, is_active, created_at)
-        VALUES ('u-edit', 'Alice', 'alice@lfacturier.ga', 'alice', ?, 'user', 1, datetime('now'))
+        VALUES ('u-edit', 'Alice', 'alice@facturier.ga', 'alice', ?, 'user', 1, datetime('now'))
       `).run(originalHash);
 
       vi.mocked(getSession).mockResolvedValue({
@@ -202,7 +202,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: 'Alice Updated',
-          email: 'alice@lfacturier.ga',
+          email: 'alice@facturier.ga',
           role: ROLES.USER,
           password: '', // Chaîne vide envoyée par le formulaire en cas de non-changement
         }),
@@ -223,7 +223,7 @@ describe('🚨 PHASE 8/10 : AUDIT TDD — UTILISATEURS & RÔLES (BCRYPT, ANTI-LO
       const user1 = {
         id: 'u-store-1',
         name: 'John Doe',
-        email: 'john@lfacturier.ga',
+        email: 'john@facturier.ga',
         username: 'johndoe',
         role: ROLES.USER,
         is_active: 1,
