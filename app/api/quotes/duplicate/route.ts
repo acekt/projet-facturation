@@ -82,8 +82,8 @@ export async function POST(request: Request) {
       db.prepare(`
         INSERT INTO quotes (
           id, number, clientId, clientName, clientEmail, date,
-          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, notes, status, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, notes, subject, validUntil, status, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         newId,
         number,
@@ -99,6 +99,8 @@ export async function POST(request: Request) {
         quote.cssAmount,
         quote.total,
         quote.notes,
+        quote.subject ?? null,
+        quote.validUntil ?? null,
         'EN_ATTENTE',
         session.userId
       );

@@ -13,6 +13,18 @@ interface DbPragmaColumn {
   name: string;
 }
 
+/** Formate un numéro de document avec ou sans code entreprise.
+ *  Avec code : FAC/GM/2026/00001
+ *  Sans code  : FAC/2026/00001
+ */
+function formatDocNumber(prefix: string, companyCode: string | null | undefined, year: number, seq: number): string {
+  const padded = String(seq).padStart(5, '0');
+  if (companyCode && companyCode.trim() !== '') {
+    return `${prefix}/${companyCode.trim().toUpperCase()}/${year}/${padded}`;
+  }
+  return `${prefix}/${year}/${padded}`;
+}
+
 export function getNextNumber(type: 'quote' | 'invoice' | 'credit_note') {
   const settings = db.prepare('SELECT companyCode FROM settings WHERE id = 1').get() as DbSettings | undefined;
   const now = new Date();
@@ -35,12 +47,13 @@ export function getNextNumber(type: 'quote' | 'invoice' | 'credit_note') {
       throw new Error('Company settings not found');
   }
 
-  const prefix = type === 'quote' ? 'DEV-' : (type === 'invoice' ? 'FAC-' : '');
+  const companyCode = settings.companyCode;
+  const prefix = type === 'quote' ? 'DEV' : (type === 'invoice' ? 'FAC' : 'AV');
 
   if (!sequence) {
       // Should not happen as sequences are initialized in db.ts, but for safety:
       db.prepare('INSERT INTO sequences (name, current_value, last_year) VALUES (?, 1, ?)').run(type, year);
-      return `${prefix}001/${settings.companyCode}/${year}`;
+      return formatDocNumber(prefix, companyCode, year, 1);
   }
 
   let nextValue = sequence.current_value + 1;
@@ -52,5 +65,5 @@ export function getNextNumber(type: 'quote' | 'invoice' | 'credit_note') {
       db.prepare('UPDATE sequences SET current_value = ? WHERE name = ?').run(nextValue, type);
   }
 
-  return `${prefix}${String(nextValue).padStart(3, '0')}/${settings.companyCode}/${year}`;
+  return formatDocNumber(prefix, companyCode, year, nextValue);
 }

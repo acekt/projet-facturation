@@ -41,7 +41,7 @@ setup('Purge DB, initialisation des données et génération des Storage States'
       clientName TEXT, clientEmail TEXT, date TEXT NOT NULL, subtotal REAL DEFAULT 0,
       discount REAL DEFAULT 0, taxBase REAL DEFAULT 0, tpsAmount REAL DEFAULT 0,
       tvaAmount REAL DEFAULT 0, cssAmount REAL DEFAULT 0, total REAL DEFAULT 0,
-      status TEXT DEFAULT 'EN_ATTENTE', notes TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      status TEXT DEFAULT 'EN_ATTENTE', notes TEXT, subject TEXT, validUntil TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       deletedAt DATETIME, created_by TEXT, FOREIGN KEY (clientId) REFERENCES clients(id)
     );
     CREATE TABLE IF NOT EXISTS quote_items (
@@ -54,7 +54,7 @@ setup('Purge DB, initialisation des données et génération des Storage States'
       clientName TEXT, clientEmail TEXT, date TEXT NOT NULL, subtotal REAL DEFAULT 0,
       discount REAL DEFAULT 0, taxBase REAL DEFAULT 0, tpsAmount REAL DEFAULT 0,
       tvaAmount REAL DEFAULT 0, cssAmount REAL DEFAULT 0, total REAL DEFAULT 0,
-      status TEXT DEFAULT 'pending', notes TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      status TEXT DEFAULT 'pending', notes TEXT, subject TEXT, createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       deletedAt DATETIME, created_by TEXT, FOREIGN KEY (clientId) REFERENCES clients(id),
       FOREIGN KEY (quoteId) REFERENCES quotes(id)
     );

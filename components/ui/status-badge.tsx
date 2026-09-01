@@ -1,4 +1,4 @@
-import { QUOTE_STATUS, INVOICE_STATUS } from '@/lib/constants';
+import { QUOTE_STATUS, INVOICE_STATUS } from "@/lib/constants";
 /**
  * StatusBadge — Dictionnaire centralisé de tous les statuts
  * ===========================================================
@@ -22,9 +22,9 @@ import { QUOTE_STATUS, INVOICE_STATUS } from '@/lib/constants';
  *   <StatusBadge variant="inactive" />
  */
 
-import * as React from "react"
-import { cn } from "@/lib/utils"
-import { formatCurrency } from "@/lib/utils"
+import * as React from "react";
+import { cn } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 
 // ── Dictionnaire de variantes ──────────────────────────────────────────────────
 const VARIANT_MAP = {
@@ -75,21 +75,21 @@ const VARIANT_MAP = {
     base: "bg-zinc-100 text-zinc-600 border-zinc-200",
     label: "",
   },
-} as const
+} as const;
 
-export type StatusBadgeVariant = keyof typeof VARIANT_MAP
+export type StatusBadgeVariant = keyof typeof VARIANT_MAP;
 
 interface StatusBadgeProps {
-  variant: StatusBadgeVariant
+  variant: StatusBadgeVariant;
   /** Montant total pour invoice-paid */
-  amount?: number
+  amount?: number;
   /** Montant payé pour invoice-partial */
-  paidAmount?: number
+  paidAmount?: number;
   /** Montant restant pour invoice-partial ou invoice-unpaid */
-  remainingAmount?: number
+  remainingAmount?: number;
   /** Étiquette personnalisée (ex : catégorie de service) */
-  label?: string
-  className?: string
+  label?: string;
+  className?: string;
 }
 
 export function StatusBadge({
@@ -100,17 +100,21 @@ export function StatusBadge({
   label,
   className,
 }: StatusBadgeProps) {
-  const config = VARIANT_MAP[variant]
+  const config = VARIANT_MAP[variant];
 
   // Construction du libellé selon le variant
-  let text: React.ReactNode = label ?? config.label
+  let text: React.ReactNode = label ?? config.label;
 
   if (variant === "invoice-paid" && amount !== undefined) {
-    text = `Soldé (${formatCurrency(amount)})`
-  } else if (variant === "invoice-partial" && paidAmount !== undefined && remainingAmount !== undefined) {
-    text = `Partiel — Payé: ${formatCurrency(paidAmount)} | Reste: ${formatCurrency(remainingAmount)}`
+    text = `Soldé (${formatCurrency(amount)})`;
+  } else if (
+    variant === "invoice-partial" &&
+    paidAmount !== undefined &&
+    remainingAmount !== undefined
+  ) {
+    text = `Partiel — Payé: ${formatCurrency(paidAmount)} | Reste: ${formatCurrency(remainingAmount)}`;
   } else if (variant === "invoice-unpaid" && remainingAmount !== undefined) {
-    text = `Non payé — Reste: ${formatCurrency(remainingAmount)}`
+    text = `Non payé — Reste: ${formatCurrency(remainingAmount)}`;
   }
 
   return (
@@ -119,40 +123,48 @@ export function StatusBadge({
         "inline-flex items-center justify-center rounded-md border px-2 py-0.5",
         "text-xs font-medium whitespace-nowrap shrink-0 transition-colors",
         config.base,
-        className
+        className,
       )}
     >
       {text}
     </span>
-  )
+  );
 }
 
 // ── Helper : convertit un statut Invoice en variante StatusBadge ───────────────
-type InvoiceStatus = typeof INVOICE_STATUS[keyof typeof INVOICE_STATUS]
+type InvoiceStatus = (typeof INVOICE_STATUS)[keyof typeof INVOICE_STATUS];
 interface InvoicePaymentInfo {
-  status: InvoiceStatus
-  paidAmount: number
-  remainingAmount: number
-  total: number
+  status: InvoiceStatus;
+  paidAmount: number;
+  remainingAmount: number;
+  total: number;
 }
 
-export function getInvoiceStatusVariant(info: InvoicePaymentInfo): StatusBadgeVariant {
-  const { paidAmount, total } = info
-  if (paidAmount >= total && total > 0) return "invoice-paid"
-  if (paidAmount > 0) return "invoice-partial"
-  return "invoice-unpaid"
+export function getInvoiceStatusVariant(
+  info: InvoicePaymentInfo,
+): StatusBadgeVariant {
+  const { paidAmount, total } = info;
+  if (paidAmount >= total && total > 0) return "invoice-paid";
+  if (paidAmount > 0) return "invoice-partial";
+  return "invoice-unpaid";
 }
 
 // ── Helper : convertit un statut Quote en variante StatusBadge ────────────────
-type QuoteStatus = typeof QUOTE_STATUS[keyof typeof QUOTE_STATUS]
+type QuoteStatus = (typeof QUOTE_STATUS)[keyof typeof QUOTE_STATUS];
 
 export function getQuoteStatusVariant(status: QuoteStatus): StatusBadgeVariant {
   switch (status) {
-    case QUOTE_STATUS.CONVERTI:  return "quote-converted"
-    case QUOTE_STATUS.ENVOYE:    return "quote-sent"
-    case QUOTE_STATUS.REFUSE:    return "quote-refused"
-    case QUOTE_STATUS.EXPIRE:    return "quote-expired"
+    case QUOTE_STATUS.CONVERTI:
+      return "quote-converted";
+    case QUOTE_STATUS.ENVOYE:
+      return "quote-sent";
+    case QUOTE_STATUS.REFUSE:
+      return "quote-refused";
+    case QUOTE_STATUS.EXPIRE:
+    case QUOTE_STATUS.EXPIRED:
+      return "quote-expired";
     case QUOTE_STATUS.EN_ATTENTE:
-    default:          return "quote-pending"
+    default:
+      return "quote-pending";
   }
 }

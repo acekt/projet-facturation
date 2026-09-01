@@ -29,6 +29,10 @@ export const QuoteService = {
     if (quote.status === QUOTE_STATUS.CONVERTI) {
       throw new QuoteServiceError('Quote already converted', 400);
     }
+    
+    if (quote.validUntil && new Date() > new Date(quote.validUntil)) {
+      throw new QuoteServiceError('Impossible de convertir : ce devis a expiré.', 400);
+    }
 
     const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(quoteId) as DbQuoteItem[];
 
@@ -45,8 +49,8 @@ export const QuoteService = {
       db.prepare(`
         INSERT INTO invoices (
           id, number, quoteId, clientId, clientName, clientEmail, date,
-          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes, subject, created_by
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
         invoiceId,
         number,
@@ -64,6 +68,7 @@ export const QuoteService = {
         Math.round(quote.total),
         INVOICE_STATUS.UNPAID,
         quote.notes,
+        quote.subject ?? null,
         userId
       );
 

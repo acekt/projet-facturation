@@ -226,7 +226,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
       </div>
 
       {/* Cartes KPI */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="bg-card border-border hover:border-indigo-500/30 transition-all group shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-1">
                 <CardDescription className="uppercase text-[10px] font-medium tracking-widest">Mes Devis Actifs</CardDescription>

@@ -80,6 +80,9 @@ export const invoiceSchema = z.object({
   notes: z.string()
     .max(5000, "Les notes ne peuvent pas dépasser 5000 caractères")
     .optional(),
+  subject: z.string()
+    .max(255, "L'objet ne peut pas dépasser 255 caractères")
+    .optional(),
   quoteId: z.string()
     .max(255)
     .optional(),
@@ -100,6 +103,10 @@ export const quoteSchema = z.object({
   notes: z.string()
     .max(5000, "Les notes ne peuvent pas dépasser 5000 caractères")
     .optional(),
+  subject: z.string()
+    .max(255, "L'objet ne peut pas dépasser 255 caractères")
+    .optional(),
+  validUntil: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide").optional(),
 });
 
 // ============================================================================
