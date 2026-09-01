@@ -25,7 +25,7 @@
     "pack": "electron-builder"
   },
   "build": {
-    "appId": "com.letoile.invoicing",
+    "appId": "com.facturier.invoicing",
     "productName": "Facturier",
     "copyright": "© 2026 Facturier — Tous droits réservés",
     "directories": {

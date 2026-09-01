@@ -34,7 +34,7 @@ describe('🚨 PHASE 9/10 : AUDIT TDD — PARAMÈTRES & JOURNAL D’AUDIT (APPEN
     db.prepare('DELETE FROM clients').run();
     db.prepare(`
       INSERT OR REPLACE INTO settings (id, companyName, legalForm, nif, rccm, address, email, phone, bankName, bankAgency, accountNumber, swiftCode, iban, tvaRate, tpsRate, cssRate, sessionTimeout, invoicePrefix, quotePrefix, companyCode)
-      VALUES (1, 'Lfacturier', 'SARL', 'NIF123', 'RCCM123', 'Libreville', 'contact@lfacturier.ga', '01020304', 'BGFI', 'AG1', 'ACC123', 'SWIFT1', 'IBAN1', 18, 9.5, 1, 3600, 'FAC', 'DEV', 'GAB')
+      VALUES (1, 'Facturier', 'SARL', 'NIF123', 'RCCM123', 'Libreville', 'contact@facturier.ga', '01020304', 'BGFI', 'AG1', 'ACC123', 'SWIFT1', 'IBAN1', 18, 9.5, 1, 3600, 'FAC', 'DEV', 'GAB')
     `).run();
   });
 
@@ -77,7 +77,7 @@ describe('🚨 PHASE 9/10 : AUDIT TDD — PARAMÈTRES & JOURNAL D’AUDIT (APPEN
     it('devrait insérer automatiquement une ligne détaillée dans audit_logs lors de la suppression administrative d’un client', async () => {
       db.prepare(`
         INSERT INTO clients (id, name, email, created_by)
-        VALUES ('client-trace-1', 'Client Audité', 'trace@lfacturier.ga', 'admin-trace')
+        VALUES ('client-trace-1', 'Client Audité', 'trace@facturier.ga', 'admin-trace')
       `).run();
 
       vi.mocked(getSession).mockResolvedValue({
@@ -178,12 +178,12 @@ describe('🚨 PHASE 9/10 : AUDIT TDD — PARAMÈTRES & JOURNAL D’AUDIT (APPEN
       });
 
       const fullSettings = {
-        companyName: 'Lfacturier Gabon SARL',
+        companyName: 'Facturier Gabon SARL',
         legalForm: 'SARL',
         nif: 'NIF-2026-9988',
         rccm: 'RCCM-GA-LBV-2026-B-001',
         address: 'Bld Triomphal, Libreville',
-        email: 'direction@lfacturier.ga',
+        email: 'direction@facturier.ga',
         phone: '+241 01 02 03 04',
         bankName: 'BGFI Bank Gabon',
         bankAgency: 'Agence Centre',
@@ -222,11 +222,11 @@ describe('🚨 PHASE 9/10 : AUDIT TDD — PARAMÈTRES & JOURNAL D’AUDIT (APPEN
       const store = useStore.getState();
 
       store.updateSettings({
-        companyName: 'Lfacturier Zustand',
+        companyName: 'Facturier Zustand',
         nif: 'ZUSTAND-NIF-01',
       });
 
-      expect(useStore.getState().settings.companyName).toBe('Lfacturier Zustand');
+      expect(useStore.getState().settings.companyName).toBe('Facturier Zustand');
       expect(useStore.getState().settings.nif).toBe('ZUSTAND-NIF-01');
     });
   });

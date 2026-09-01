@@ -94,7 +94,7 @@ describe('ğŸš¨ MISSION ARCHITECTURE : FLUX D\'INITIALISATION (FIRST-RUN SETUP) ğ
       // On insÃ¨re un utilisateur dans la base
       testDb.prepare(`
         INSERT INTO users (id, username, email, password, name, role, is_active)
-        VALUES ('existing-id', 'existing@lfacturier.ga', 'existing@lfacturier.ga', 'hashed', 'Existing User', 'admin', 1)
+        VALUES ('existing-id', 'existing@facturier.ga', 'existing@facturier.ga', 'hashed', 'Existing User', 'admin', 1)
       `).run();
 
       const setupPayload = {
@@ -152,7 +152,7 @@ describe('ğŸš¨ MISSION ARCHITECTURE : FLUX D\'INITIALISATION (FIRST-RUN SETUP) ğ
     it('SetupPage devrait rediriger vers /login si un compte existe (`userCount > 0`)', async () => {
       testDb.prepare(`
         INSERT INTO users (id, username, email, password, name, role, is_active)
-        VALUES ('admin-id', 'admin@lfacturier.ga', 'admin@lfacturier.ga', 'hashed', 'Admin', 'admin', 1)
+        VALUES ('admin-id', 'admin@facturier.ga', 'admin@facturier.ga', 'hashed', 'Admin', 'admin', 1)
       `).run();
 
       await SetupPage();
