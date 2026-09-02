@@ -283,6 +283,10 @@ export const useStore = create<AppState>()(
 
       setIsDataLoaded: (isDataLoaded) => set({ isDataLoaded }),
       setDashboardMetrics: (dashboardMetrics) => set({ dashboardMetrics }),
+      /**
+       * @function setUser
+       * @description Met à jour l'utilisateur connecté et ses permissions associées.
+       */
       setUser: (user) => {
         const permissions = user
           ? user.role === "admin"
@@ -459,7 +463,6 @@ export const useStore = create<AppState>()(
         user: state.user,
         permissions: state.permissions,
         isAuthenticated: state.isAuthenticated,
-        settings: state.settings,
         viewFormat: state.viewFormat,
       }),
     },

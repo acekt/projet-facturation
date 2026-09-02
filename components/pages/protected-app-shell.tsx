@@ -19,6 +19,7 @@ import { UsersPage } from "@/components/pages/users"
 import { UserEditor } from "@/components/pages/user-editor"
 import { useStore } from "@/lib/store"
 import { DataSync } from "@/components/data-sync"
+// No specific import needed if we use Partial<UserResponse> or any for now since initialUser is just a basic object from app/page.tsx
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -27,7 +28,7 @@ const pageVariants = {
 }
 
 interface ProtectedAppShellProps {
-  initialUser: any
+  initialUser: { id: string; name: string; role: "admin" | "user"; [key: string]: any }
 }
 
 export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
@@ -77,24 +78,13 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
 
   // Si l'utilisateur est connecté mais que les données SQLite sont en cours de chargement,
   // on monte l'ossature visuelle (Sidebar, TopBar) et on affiche le spinner uniquement au centre du contenu.
-  const [initTimeout, setInitTimeout] = React.useState(false);
-
-  React.useEffect(() => {
-    if (!isDataLoaded) {
-      const timer = setTimeout(() => setInitTimeout(true), 3000);
-      return () => clearTimeout(timer);
-    } else {
-      setInitTimeout(false);
-    }
-  }, [isDataLoaded]);
-
   if (!isDataLoaded) {
     return (
       <div className="h-screen bg-background overflow-hidden flex flex-col">
         <DataSync />
         <Sidebar
           currentPage={currentPage}
-          onPageChange={() => {}} // Désactivé pendant le chargement
+          onPageChange={() => {}}
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
         />
@@ -103,22 +93,21 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
           initial={false}
           animate={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
           transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-          className="h-screen pt-16 flex flex-col overflow-hidden"
+          className="h-screen pt-16 flex flex-col overflow-hidden relative"
         >
-          <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-background">
-            {initTimeout ? (
-              <>
-                <div className="w-8 h-8 border-4 border-destructive rounded-full" />
-                <p className="text-sm text-destructive font-medium">Délai d'attente dépassé pour l'initialisation.</p>
-                <button onClick={() => window.location.reload()} className="text-sm underline text-muted-foreground">Recharger</button>
-              </>
-            ) : (
-              <>
+          <AnimatePresence mode="wait">
+             <motion.div
+                key="loading"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 flex flex-col items-center justify-center bg-background z-50"
+              >
                 <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="text-sm text-muted-foreground font-medium">Initialisation des modules locaux...</p>
-              </>
-            )}
-          </div>
+                <p className="mt-4 text-sm text-muted-foreground font-medium">Initialisation des modules locaux...</p>
+              </motion.div>
+          </AnimatePresence>
         </motion.main>
       </div>
     )
