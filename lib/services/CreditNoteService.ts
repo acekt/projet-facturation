@@ -23,6 +23,11 @@ export const CreditNoteService = {
       throw new CreditNoteServiceError('Invoice not found', 404);
     }
 
+    // Check if the invoice is already cancelled
+    if (invoice.status === INVOICE_STATUS.CANCELLED) {
+      throw new CreditNoteServiceError('Cannot create a credit note for an already cancelled invoice', 400);
+    }
+
     const settings = db
       .prepare('SELECT companyCode, tvaRate, tpsRate, cssRate FROM settings WHERE id = 1')
       .get() as (DbSettings & { tvaRate: number; tpsRate?: number; cssRate: number }) | undefined;
