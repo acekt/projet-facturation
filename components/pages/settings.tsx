@@ -34,13 +34,13 @@ export function SettingsPage() {
   const [isDragging, setIsDragging] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  if (!isAdmin) {
-    return null
-  }
-
   React.useEffect(() => {
     setFormData(settings)
   }, [settings])
+
+  if (!isAdmin) {
+    return null
+  }
 
   const validateAndUpload = (file: File) => {
     if (file.size > 2 * 1024 * 1024) {
