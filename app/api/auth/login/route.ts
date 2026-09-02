@@ -5,6 +5,7 @@ import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { loginSchema } from '@/lib/validations';
 import type { LoginRequest, SessionResponse, ErrorResponse, DbUser, DbCount } from '@/lib/types/api';
+import { logAudit } from '@/lib/api/audit';
 
 /**
  * SECURITY: Both SESSION_SECRET and PASSWORD_SALT must be defined in environment variables.
@@ -84,6 +85,9 @@ export async function POST(request: Request) {
     `).get(cleanUsername, cleanUsername) as DbUser | undefined;
 
     if (!user) {
+      setTimeout(() => {
+        try { logAudit('LOGIN_FAILED', 'user', null, 'Tentative de connexion échouée avec: ' + cleanUsername, null); } catch (e) { console.error(e); }
+      }, 0);
       const errorResponse: ErrorResponse = {
         error: 'Identifiants invalides',
       };
@@ -107,6 +111,9 @@ export async function POST(request: Request) {
     }
 
     if (!isPasswordValid) {
+      setTimeout(() => {
+        try { logAudit('LOGIN_FAILED', 'user', user.id, 'Tentative de connexion échouée (mauvais mot de passe) pour: ' + cleanUsername, user.id, user.name); } catch (e) { console.error(e); }
+      }, 0);
       const errorResponse: ErrorResponse = {
         error: 'Identifiants invalides',
       };
@@ -152,6 +159,10 @@ export async function POST(request: Request) {
         phone: user.phone,
       },
     };
+
+    setTimeout(() => {
+      try { logAudit('LOGIN_SUCCESS', 'user', user.id, 'Connexion réussie', user.id, user.name); } catch (e) { console.error(e); }
+    }, 0);
 
     const response = NextResponse.json(sessionPayload);
     response.cookies.set('auth_session', signedSession, {
