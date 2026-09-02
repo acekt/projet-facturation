@@ -22,7 +22,7 @@ try {
   }
 
   db.exec(`
-    UPDATE settings SET companyCode = 'GM' WHERE id = 1;
+    UPDATE settings SET companyCode = 'GAB' WHERE id = 1;
     DELETE FROM payments;
     DELETE FROM invoice_items;
     DELETE FROM invoices;
@@ -46,7 +46,7 @@ const clients = [
 const services = [
   { id: "srv_1", name: "Consulting IT", description: "Audit et conseil en architecture systeme", category: "Prestation", unitPrice: 150000, created_by: "usr_1" },
   { id: "srv_2", name: "Maintenance Serveur", description: "Forfait mensuel de maintenance serveurs Linux", category: "Maintenance", unitPrice: 75000, created_by: "usr_1" },
-  { id: "srv_3", name: "Licence Logiciel", description: "Licence annuelle L'Etoile Pro", category: "Logiciel", unitPrice: 250000, created_by: "usr_1" },
+  { id: "srv_3", name: "Licence Logiciel", description: "Licence annuelle Facturier Pro", category: "Logiciel", unitPrice: 250000, created_by: "usr_1" },
   { id: "srv_4", name: "Developpement Sur Mesure", description: "Developpement d'un module specifique", category: "Developpement", unitPrice: 500000, created_by: "usr_1" }
 ];
 
@@ -57,12 +57,13 @@ const addDays = (days: number) => {
 };
 
 const today = addDays(0);
+const currentYear = new Date().getFullYear();
 
 const quotes = [
-  { id: "quo_1", number: "DEV/GM/2026/00001", clientId: "cli_1", clientName: "TechGabon Solutions", clientEmail: "contact@techgabon.com", date: today, subject: "Refonte de l'infrastructure reseau", status: "EN_ATTENTE", validUntil: addDays(15), subtotal: 300000, tvaAmount: 54000, cssAmount: 3000, total: 354000, created_by: "usr_1" },
-  { id: "quo_2", number: "DEV/GM/2026/00002", clientId: "cli_2", clientName: "Libreville Logistique", clientEmail: "info@l-logistique.ga", date: addDays(-10), subject: "Mise en place ERP", status: "EXPIRED", validUntil: addDays(-5), subtotal: 500000, tvaAmount: 90000, cssAmount: 5000, total: 590000, created_by: "usr_1" },
-  { id: "quo_3", number: "DEV/GM/2026/00003", clientId: "cli_3", clientName: "Moanda Mining Co.", clientEmail: "procurement@moandamining.com", date: addDays(-20), subject: "Audit de securite", status: "CONVERTI", validUntil: addDays(10), subtotal: 150000, tvaAmount: 27000, cssAmount: 1500, total: 177000, created_by: "usr_1" },
-  { id: "quo_4", number: "DEV/GM/2026/00004", clientId: "cli_1", clientName: "TechGabon Solutions", clientEmail: "contact@techgabon.com", date: addDays(-25), subject: "Licences logicielles 2026", status: "CONVERTI", validUntil: addDays(5), subtotal: 250000, tvaAmount: 45000, cssAmount: 2500, total: 297500, created_by: "usr_1" }
+  { id: "quo_1", number: `DEV/GAB/${currentYear}/00001`, clientId: "cli_1", clientName: "TechGabon Solutions", clientEmail: "contact@techgabon.com", date: today, subject: "Refonte de l'infrastructure reseau", status: "EN_ATTENTE", validUntil: addDays(15), subtotal: 300000, tvaAmount: 54000, cssAmount: 3000, total: 354000, created_by: "usr_1" },
+  { id: "quo_2", number: `DEV/GAB/${currentYear}/00002`, clientId: "cli_2", clientName: "Libreville Logistique", clientEmail: "info@l-logistique.ga", date: addDays(-10), subject: "Mise en place ERP", status: "EXPIRED", validUntil: addDays(-5), subtotal: 500000, tvaAmount: 90000, cssAmount: 5000, total: 590000, created_by: "usr_1" },
+  { id: "quo_3", number: `DEV/GAB/${currentYear}/00003`, clientId: "cli_3", clientName: "Moanda Mining Co.", clientEmail: "procurement@moandamining.com", date: addDays(-20), subject: "Audit de securite", status: "CONVERTI", validUntil: addDays(10), subtotal: 150000, tvaAmount: 27000, cssAmount: 1500, total: 177000, created_by: "usr_1" },
+  { id: "quo_4", number: `DEV/GAB/${currentYear}/00004`, clientId: "cli_1", clientName: "TechGabon Solutions", clientEmail: "contact@techgabon.com", date: addDays(-25), subject: "Licences logicielles 2026", status: "CONVERTI", validUntil: addDays(5), subtotal: 250000, tvaAmount: 45000, cssAmount: 2500, total: 297500, created_by: "usr_1" }
 ];
 
 const quote_items = [
@@ -73,11 +74,11 @@ const quote_items = [
 ];
 
 const invoices = [
-  { id: "inv_1", number: "FAC/GM/2026/00001", quoteId: "quo_3", clientId: "cli_3", clientName: "Moanda Mining Co.", clientEmail: "procurement@moandamining.com", date: addDays(-19), dueDate: addDays(11), subject: "Audit de securite", status: "PAID", subtotal: 150000, taxBase: 150000, tvaAmount: 27000, cssAmount: 1500, total: 177000, created_by: "usr_1" },
-  { id: "inv_2", number: "FAC/GM/2026/00002", quoteId: "quo_4", clientId: "cli_1", clientName: "TechGabon Solutions", clientEmail: "contact@techgabon.com", date: addDays(-24), dueDate: addDays(6), subject: "Licences logicielles 2026", status: "PAID", subtotal: 250000, taxBase: 250000, tvaAmount: 45000, cssAmount: 2500, total: 297500, created_by: "usr_1" },
-  { id: "inv_3", number: "FAC/GM/2026/00003", quoteId: null, clientId: "cli_2", clientName: "Libreville Logistique", clientEmail: "info@l-logistique.ga", date: addDays(-5), dueDate: addDays(25), subject: "Maintenance Serveur Q3", status: "UNPAID", subtotal: 75000, taxBase: 75000, tvaAmount: 13500, cssAmount: 750, total: 89250, created_by: "usr_1" },
-  { id: "inv_4", number: "FAC/GM/2026/00004", quoteId: null, clientId: "cli_1", clientName: "TechGabon Solutions", clientEmail: "contact@techgabon.com", date: addDays(-2), dueDate: addDays(28), subject: "Developpement interface API", status: "UNPAID", subtotal: 500000, taxBase: 500000, tvaAmount: 90000, cssAmount: 5000, total: 595000, created_by: "usr_1" },
-  { id: "inv_5", number: "FAC/GM/2026/00005", quoteId: null, clientId: "cli_3", clientName: "Moanda Mining Co.", clientEmail: "procurement@moandamining.com", date: addDays(-40), dueDate: addDays(-10), subject: "Renouvellement parc informatique", status: "UNPAID", subtotal: 1000000, taxBase: 1000000, tvaAmount: 180000, cssAmount: 10000, total: 1190000, created_by: "usr_1" }
+  { id: "inv_1", number: `FAC/GAB/${currentYear}/00001`, quoteId: "quo_3", clientId: "cli_3", clientName: "Moanda Mining Co.", clientEmail: "procurement@moandamining.com", date: addDays(-19), dueDate: addDays(11), subject: "Audit de securite", status: "PAID", subtotal: 150000, taxBase: 150000, tvaAmount: 27000, cssAmount: 1500, total: 177000, created_by: "usr_1" },
+  { id: "inv_2", number: `FAC/GAB/${currentYear}/00002`, quoteId: "quo_4", clientId: "cli_1", clientName: "TechGabon Solutions", clientEmail: "contact@techgabon.com", date: addDays(-24), dueDate: addDays(6), subject: "Licences logicielles 2026", status: "PAID", subtotal: 250000, taxBase: 250000, tvaAmount: 45000, cssAmount: 2500, total: 297500, created_by: "usr_1" },
+  { id: "inv_3", number: `FAC/GAB/${currentYear}/00003`, quoteId: null, clientId: "cli_2", clientName: "Libreville Logistique", clientEmail: "info@l-logistique.ga", date: addDays(-5), dueDate: addDays(25), subject: "Maintenance Serveur Q3", status: "UNPAID", subtotal: 75000, taxBase: 75000, tvaAmount: 13500, cssAmount: 750, total: 89250, created_by: "usr_1" },
+  { id: "inv_4", number: `FAC/GAB/${currentYear}/00004`, quoteId: null, clientId: "cli_1", clientName: "TechGabon Solutions", clientEmail: "contact@techgabon.com", date: addDays(-2), dueDate: addDays(28), subject: "Developpement interface API", status: "UNPAID", subtotal: 500000, taxBase: 500000, tvaAmount: 90000, cssAmount: 5000, total: 595000, created_by: "usr_1" },
+  { id: "inv_5", number: `FAC/GAB/${currentYear}/00005`, quoteId: null, clientId: "cli_3", clientName: "Moanda Mining Co.", clientEmail: "procurement@moandamining.com", date: addDays(-40), dueDate: addDays(-10), subject: "Renouvellement parc informatique", status: "UNPAID", subtotal: 1000000, taxBase: 1000000, tvaAmount: 180000, cssAmount: 10000, total: 1190000, created_by: "usr_1" }
 ];
 
 const invoice_items = [
