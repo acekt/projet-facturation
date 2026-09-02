@@ -13,6 +13,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
@@ -95,9 +96,14 @@ export function SettingsPage() {
         body: JSON.stringify(payload),
       })
 
-      if (!response.ok) throw new Error('Failed to update settings')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to update settings')
+      }
 
-      const updatedSettings = await fetch('/api/settings').then(res => res.json())
+      // Automatically use the response JSON, assuming PATCH returns the updated object.
+      // This enforces an atomic state update without requiring an extra GET /api/settings request
+      const updatedSettings = await response.json()
       setSettings(updatedSettings)
       toast.success("Paramètres enregistrés")
     } catch (error) {
@@ -109,6 +115,15 @@ export function SettingsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6 max-w-4xl">
+      {!isAdmin && (
+        <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Paramètres</h1>
@@ -299,6 +314,7 @@ export function SettingsPage() {
                     value={formData.tvaRate ?? 0}
                     onChange={(e) => setFormData({ ...formData, tvaRate: parseFloat(e.target.value) || 0 })}
                     className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
                   />
                   <p className="text-[10px] text-muted-foreground italic">Fixé à 18% (DGI)</p>
                 </div>
@@ -309,6 +325,7 @@ export function SettingsPage() {
                     value={formData.cssRate ?? 0}
                     onChange={(e) => setFormData({ ...formData, cssRate: parseFloat(e.target.value) || 0 })}
                     className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div className="space-y-2">
@@ -318,6 +335,7 @@ export function SettingsPage() {
                     value={formData.tpsRate ?? 0}
                     onChange={(e) => setFormData({ ...formData, tpsRate: parseFloat(e.target.value) || 0 })}
                     className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
                   />
                 </div>
                 <div className="space-y-2">
@@ -326,6 +344,7 @@ export function SettingsPage() {
                     value={formData.companyCode || ""}
                     onChange={(e) => setFormData({ ...formData, companyCode: e.target.value })}
                     className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
                   />
                 </div>
               </div>
@@ -341,6 +360,7 @@ export function SettingsPage() {
                   onChange={(e) => setFormData({ ...formData, mentionsLegales: e.target.value })}
                   placeholder="Ex: Conditions générales de vente..."
                   className="bg-secondary/50 border-border min-h-[120px]"
+                  disabled={!isAdmin}
                 />
               </div>
             </CardContent>
