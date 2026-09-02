@@ -69,6 +69,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
+  const [isSubmitting, startSubmitTransition] = React.useTransition()
   const [isStatusModalOpen, setIsStatusModalOpen] = React.useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false)
   const [isResetModalOpen, setIsResetModalOpen] = React.useState(false)
@@ -163,52 +164,57 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   }
 
   const handleAddUser = async () => {
-    try {
-        const res = await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...formData, username: formData.email })
-        })
-        const data = await res.json()
-        if (res.ok) {
-            toast.success("Utilisateur créé avec succès")
-            // Optimistic UI (Optionnel, on reload fetchUsers pour avoir la date exacte et l'ID)
-            // Post-mutation reload: create a fresh controller for this one-shot request
-            fetchUsers(new AbortController().signal)
-            setIsAddModalOpen(false)
-            setIsPasswordDisplayOpen(true)
-        } else {
-            toast.error(data.error || "Erreur lors de la création")
-        }
-    } catch (e) {
-        toast.error("Erreur réseau")
-    }
+    if (isSubmitting) return;
+    startSubmitTransition(async () => {
+      try {
+          const res = await fetch('/api/users', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ ...formData, username: formData.email })
+          })
+          const data = await res.json()
+          if (res.ok) {
+              toast.success("Utilisateur créé avec succès")
+              // Optimistic UI (Optionnel, on reload fetchUsers pour avoir la date exacte et l'ID)
+              // Post-mutation reload: create a fresh controller for this one-shot request
+              fetchUsers(new AbortController().signal)
+              setIsAddModalOpen(false)
+              setIsPasswordDisplayOpen(true)
+          } else {
+              toast.error(data.error || "Erreur lors de la création")
+          }
+      } catch (e) {
+          toast.error("Erreur réseau")
+      }
+    });
   }
 
   const handleUpdateUser = async () => {
-    if (!selectedUser) return;
-    try {
-        const res = await fetch(`/api/users/${selectedUser.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: formData.name,
-              email: formData.email || selectedUser.email,
-              role: formData.role,
-              is_active: checkIsActive(selectedUser)
-            })
-        })
-        if (res.ok) {
-            toast.success("Utilisateur mis à jour")
-            updateUser(selectedUser.id, { name: formData.name, email: formData.email || selectedUser.email, role: formData.role as 'admin' | 'user' })
-            setIsEditModalOpen(false)
-        } else {
-            const data = await res.json()
-            toast.error(data.error || "Erreur")
-        }
-    } catch (e) {
-        toast.error("Erreur réseau")
-    }
+    if (!selectedUser || isSubmitting) return;
+    startSubmitTransition(async () => {
+      try {
+          const res = await fetch(`/api/users/${selectedUser.id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                name: formData.name,
+                email: formData.email || selectedUser.email,
+                role: formData.role,
+                is_active: checkIsActive(selectedUser)
+              })
+          })
+          if (res.ok) {
+              toast.success("Utilisateur mis à jour")
+              updateUser(selectedUser.id, { name: formData.name, email: formData.email || selectedUser.email, role: formData.role as 'admin' | 'user' })
+              setIsEditModalOpen(false)
+          } else {
+              const data = await res.json()
+              toast.error(data.error || "Erreur")
+          }
+      } catch (e) {
+          toast.error("Erreur réseau")
+      }
+    });
   }
 
   const handleToggleStatus = async () => {
@@ -475,7 +481,9 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsAddModalOpen(false)}>Annuler</Button>
-            <Button onClick={handleAddUser} disabled={!formData.name || !formData.email}>Créer l'utilisateur</Button>
+            <Button onClick={handleAddUser} disabled={!formData.name || !formData.email || isSubmitting}>
+              {isSubmitting ? "Création..." : "Créer l'utilisateur"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -511,7 +519,9 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsEditModalOpen(false)}>Annuler</Button>
-            <Button onClick={handleUpdateUser}>Enregistrer les modifications</Button>
+            <Button onClick={handleUpdateUser} disabled={isSubmitting}>
+              {isSubmitting ? "Enregistrement..." : "Enregistrer les modifications"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

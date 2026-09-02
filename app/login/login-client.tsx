@@ -22,7 +22,8 @@ import {
   CheckCircle2, 
   Star,
   Users,
-  Sparkles
+  Sparkles,
+  Loader2
 } from "lucide-react"
 
 export default function LoginClient() {
@@ -212,10 +213,10 @@ export default function LoginClient() {
               {/* Bouton de Connexion */}
               <Button 
                 type="submit" 
-                className="w-full h-11 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-500 gap-2 shadow-lg shadow-blue-500/10 transition-all duration-200"
+                className="w-full h-11 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-500 gap-2 shadow-lg shadow-blue-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={loading}
               >
-                {loading ? "Vérification..." : "Se connecter"}
+                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Se connecter"}
                 {!loading && <ChevronRight className="w-4 h-4" />}
               </Button>
             </form>
