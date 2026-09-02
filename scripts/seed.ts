@@ -46,7 +46,7 @@ const clients = [
 const services = [
   { id: "srv_1", name: "Consulting IT", description: "Audit et conseil en architecture systeme", category: "Prestation", unitPrice: 150000, created_by: "usr_1" },
   { id: "srv_2", name: "Maintenance Serveur", description: "Forfait mensuel de maintenance serveurs Linux", category: "Maintenance", unitPrice: 75000, created_by: "usr_1" },
-  { id: "srv_3", name: "Licence Logiciel", description: "Licence annuelle L'Etoile Pro", category: "Logiciel", unitPrice: 250000, created_by: "usr_1" },
+  { id: "srv_3", name: "Licence Logiciel", description: "Licence annuelle Facturier Pro", category: "Logiciel", unitPrice: 250000, created_by: "usr_1" },
   { id: "srv_4", name: "Developpement Sur Mesure", description: "Developpement d'un module specifique", category: "Developpement", unitPrice: 500000, created_by: "usr_1" }
 ];
 
