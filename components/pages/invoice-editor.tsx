@@ -36,6 +36,7 @@ import {
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
+import { computeTotals } from "@/lib/api/invoice-logic";
 
 interface InvoiceEditorProps {
   onBack: () => void;
@@ -106,12 +107,15 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   React.useEffect(() => {
     if (isNew) {
       clearInvoiceDraft();
+      setLocalDraft(freshDraft);
     }
+
     return () => {
-      clearInvoiceDraft();
+      if (isNew) {
+        clearInvoiceDraft();
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isNew, clearInvoiceDraft, freshDraft]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");
@@ -231,13 +235,16 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     }
   };
 
-  const subtotal = Math.round(items.reduce((acc, item) => acc + item.total, 0));
+  const { subtotal, discount: computedDiscount, cssAmount, taxBase, tpsAmount, tvaAmount, total } = computeTotals(
+    items.map(item => ({ quantity: Number(item.quantity) || 0, unitPrice: Number(item.unitPrice) || 0 })),
+    discount,
+    {
+      tvaRate: settings.tvaRate ?? 0,
+      tpsRate: settings.tpsRate ?? 9.5,
+      cssRate: settings.cssRate ?? 0
+    }
+  );
   const netHT = Math.max(0, subtotal - Math.round(discount));
-  const cssAmount = Math.round(netHT * CSS_RATE);
-  const taxBase = netHT + cssAmount;
-  const tpsAmount = Math.round(taxBase * TPS_RATE);
-  const tvaAmount = Math.round(taxBase * TAX_RATE);
-  const total = netHT + cssAmount + tpsAmount + tvaAmount;
 
   const handleSave = (status: Invoice["status"]) => {
     if (!selectedClient) {
@@ -485,11 +492,11 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="grid grid-cols-12 gap-4 px-3 text-sm text-muted-foreground mb-2 hidden md:grid">
+                <div className="grid grid-cols-12 gap-2 md:gap-4 px-4 py-3 bg-secondary/20 rounded-t-lg text-sm font-semibold text-muted-foreground border-b border-border hidden md:grid">
                   <div className="col-span-6">Description</div>
                   <div className="col-span-2 text-right">Qté</div>
-                  <div className="col-span-2 text-right">Prix Unitaire</div>
-                  <div className="col-span-2 text-right">Total HT</div>
+                  <div className="col-span-2 text-right">Prix U. (XAF)</div>
+                  <div className="col-span-2 text-right pr-2">Total HT</div>
                 </div>
 
                 {items.map((item, index) => (
@@ -684,11 +691,15 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                 </Button>
                 <Button
                   onClick={() => handleSave("UNPAID")}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 transition-all"
                   disabled={isSubmitting}
                 >
-                  <Send className="w-4 h-4 mr-2" />
-                  Générer la Facture
+                  {isSubmitting ? (
+                    <Send className="w-4 h-4 mr-2 animate-pulse" />
+                  ) : (
+                    <Send className="w-4 h-4 mr-2" />
+                  )}
+                  {isSubmitting ? "Enregistrement..." : "Générer la Facture"}
                 </Button>
               </div>
             </CardContent>

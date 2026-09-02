@@ -149,3 +149,212 @@ Ce rapport détaille les anomalies trouvées dans le code, en se concentrant sur
     CREATE INDEX idx_quotes_status ON quotes(status);
     ```
 
+
+### 5. MODULE DEVIS & FACTURES (MOTEUR OPÉRATIONNEL)
+
+#### 5.1 Cycle de vie et "Ghost Data" (Editeurs)
+- **Fichiers :** `components/pages/quote-editor.tsx` et `components/pages/invoice-editor.tsx`
+  - **Problème :** Le nettoyage des brouillons (via `clearQuoteDraft()` et `clearInvoiceDraft()`) au démontage du composant est incomplet. Bien que le `useEffect` l'appelle lors du démontage, un re-montage immédiat (ou un nettoyage imparfait dans la logique métier) peut laisser survivre des "Ghost Data", causant l'apparition de données de session précédentes lors de la création d'un "Nouveau Devis" ou d'une "Nouvelle Facture".
+  - **Solution (Code de remédiation) :**
+    Garantir mathématiquement que tout "Nouveau Devis" ou "Nouvelle Facture" instancie une copie propre et écrase l'état précédent dès l'initialisation.
+
+    *Pour `quote-editor.tsx` :*
+    ```tsx
+    // Remplacer le useEffect existant (vers la ligne 100) par :
+    React.useEffect(() => {
+      // 1. Force clear on mount for NEW items explicitly
+      if (isNew) {
+        clearQuoteDraft();
+        setLocalDraft(freshDraft);
+      }
+
+      // 2. Clear on unmount strictly
+      return () => {
+        if (isNew) {
+          clearQuoteDraft();
+        }
+      };
+    }, [isNew, clearQuoteDraft, freshDraft]);
+    ```
+
+    *Pour `invoice-editor.tsx` :*
+    ```tsx
+    React.useEffect(() => {
+      if (isNew) {
+        clearInvoiceDraft();
+        setLocalDraft(freshDraft);
+      }
+
+      return () => {
+        if (isNew) {
+          clearInvoiceDraft();
+        }
+      };
+    }, [isNew, clearInvoiceDraft, freshDraft]);
+    ```
+
+#### 5.2 Moteur de calcul réactif (Sous-total, Taxes, Total)
+- **Fichiers :** `components/pages/quote-editor.tsx` et `components/pages/invoice-editor.tsx`
+  - **Problème :** La logique de calcul (Sous-total, Net HT, CSS, TVA, TPS, Total) est répétée dans les composants React, incluant le parsing et l'arrondi. De plus, la fonction `updateItem` effectue des calculs de lignes (quantité * prix unitaire) en dupliquant la logique du moteur. Le risque d'incohérence d'un FCFA (±1 XAF) due aux arrondis partiels est présent.
+  - **Solution (Code de remédiation) :**
+    Utiliser les fonctions utilitaires pures (comme `computeTotals` de `@/lib/api/invoice-logic.ts`) qui respectent la norme DGI de calcul des taxes.
+
+    *Pour la logique métier :*
+    Ajouter l'import au sommet des fichiers :
+    ```tsx
+    import { computeTotals } from "@/lib/api/invoice-logic";
+    ```
+
+    *Pour `updateItem` (Dans `quote-editor.tsx` et `invoice-editor.tsx`) :*
+    Remplacer la logique manuelle de calcul du total de ligne :
+    ```tsx
+    const updateItem = (itemId: string, field: keyof InvoiceItem, value: string | number) => {
+      setItems((prev) =>
+        prev.map((item) => {
+          if (item.id === itemId) {
+            const updated = { ...item, [field]: value };
+            if (field === "quantity" || field === "unitPrice") {
+              if (Number(updated.unitPrice) < 0) updated.unitPrice = 0;
+              // Arrondi strict sur chaque ligne individuelle
+              updated.total = Math.round((Number(updated.quantity) || 0) * (Number(updated.unitPrice) || 0));
+            }
+            if (field === "description" && typeof value === "string") {
+              const matchedService = services.find((s) => s.name.toLowerCase() === value.toLowerCase());
+              if (matchedService) {
+                updated.unitPrice = matchedService.unitPrice;
+                updated.total = Math.round((Number(updated.quantity) || 0) * updated.unitPrice);
+              }
+            }
+            return updated;
+          }
+          return item;
+        }),
+      );
+    };
+    ```
+
+    *Pour les variables agrégées (Sous-total, Taxes, Total) :*
+    Remplacer l'approche "inline" par l'appel formel :
+    ```tsx
+    // Remplacer :
+    // const subtotal = Math.round(items.reduce(...))
+    // const netHT = Math.max(0, subtotal - Math.round(discount));
+    // ...
+    // const total = netHT + cssAmount + tpsAmount + tvaAmount;
+
+    // Par :
+    const { subtotal, discount: computedDiscount, cssAmount, taxBase, tpsAmount, tvaAmount, total } = computeTotals(
+      items.map(item => ({ quantity: item.quantity, unitPrice: item.unitPrice })),
+      discount,
+      {
+        tvaRate: settings.tvaRate ?? 0,
+        tpsRate: settings.tpsRate ?? 9.5,
+        cssRate: settings.cssRate ?? 0
+      }
+    );
+    const netHT = Math.max(0, subtotal - Math.round(discount)); // HT après remise absolue
+    ```
+
+#### 5.3 Conversion Devis -> Facture (Transactionnalité et Données Orphelines)
+- **Fichier :** `lib/services/QuoteService.ts`
+  - **Problème :** Bien que la conversion s'exécute dans un bloc `db.transaction`, si un crash ou un redémarrage sauvage survient juste au niveau du backend Node (et non au niveau DB) ou si la validation de la logique métier lève une exception inattendue après une insertion sans rollback adéquat, des factures orphelines (sans items ou non reliées) pourraient apparaître. La boucle `for...of` effectuant des `insertItem.run` un par un peut aussi être un goulot d'étranglement ou générer des soucis d'atomicité dans certains cas extrêmes de SQLite synchrones sur des systèmes lents (Problème N+1).
+  - **Solution (Code de remédiation) :**
+    Utiliser un batch d'insertion ou sécuriser formellement la validation préalable, et garantir l'utilisation d'une transaction bloquante stricte (`IMMEDIATE` ou `EXCLUSIVE`) qui annule tout si une seule ligne échoue.
+
+    *Code de remédiation pour `convertToInvoice` :*
+    ```typescript
+    // Remplacer l'insertion boucle (vers la ligne 71) par une approche préparée :
+    const insertInvoice = db.prepare(`
+      INSERT INTO invoices (
+        id, number, quoteId, clientId, clientName, clientEmail, date,
+        subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes, subject, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertItem = db.prepare(`
+      INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const updateQuoteStatus = db.prepare(`UPDATE quotes SET status = ? WHERE id = ?`);
+
+    // Déclaration transactionnelle stricte pour éviter les orphelins :
+    const convert = db.transaction(() => {
+      const number = getNextNumber('invoice');
+
+      insertInvoice.run(
+        invoiceId, number, quoteId, quote.clientId, quote.clientName, quote.clientEmail,
+        new Date().toISOString().split('T')[0],
+        Math.round(quote.subtotal), Math.round(quote.discount), Math.round(quote.taxBase),
+        Math.round(quote.tvaAmount), Math.round(quote.tpsAmount || 0), Math.round(quote.cssAmount),
+        Math.round(quote.total), INVOICE_STATUS.UNPAID, quote.notes, quote.subject ?? null, userId
+      );
+
+      // Insertion sécurisée en transaction
+      for (const item of items) {
+        insertItem.run(
+          crypto.randomUUID(), invoiceId, item.description, item.quantity,
+          Math.round(item.unitPrice), Math.round(item.total)
+        );
+      }
+
+      // Mise à jour finale
+      updateQuoteStatus.run(QUOTE_STATUS.CONVERTI, quoteId);
+
+      return { invoiceId, invoiceNumber: number, quoteId };
+    });
+
+    // Exécuter
+    return convert();
+    ```
+
+#### 5.4 UI/UX Premium (Feedback & Alignements)
+- **Fichiers :** `components/pages/quote-editor.tsx` et `components/pages/invoice-editor.tsx`
+  - **Problème :** Les tableaux d'articles manquent d'alignement strict à droite pour les montants (les entêtes et les cellules ne sont pas toujours parfaitement alignés pour les montants monétaires). Le bouton de soumission ne verrouille pas visuellement l'UI de manière claire lors de l'enregistrement asynchrone (`isSubmitting` n'est pas appliqué sur certains éléments, ou le style reste actif). L'espacement peut être amélioré pour un style "B2B moderne".
+  - **Solution (Code de remédiation) :**
+    Appliquer des classes Tailwind spécifiques pour aligner les montants (`text-right`), espacer les éléments formellement et verrouiller les champs.
+
+    *Classes pour le Header du Tableau :*
+    ```tsx
+    // Remplacer :
+    <div className="grid grid-cols-12 gap-2 md:gap-4 px-3 pb-2 text-sm font-medium text-muted-foreground">
+      <div className="col-span-12 md:col-span-6">Description / Service</div>
+      <div className="col-span-2 text-right">Qté</div>
+      <div className="col-span-2 text-right">Prix Unitaire</div>
+      <div className="col-span-2 text-right">Total HT</div>
+    </div>
+
+    // Par un espacement aéré B2B :
+    <div className="grid grid-cols-12 gap-2 md:gap-4 px-4 py-3 bg-secondary/20 rounded-t-lg text-sm font-semibold text-muted-foreground border-b border-border">
+      <div className="col-span-12 md:col-span-6">Description / Service</div>
+      <div className="col-span-4 md:col-span-2 text-right">Qté</div>
+      <div className="col-span-4 md:col-span-2 text-right">Prix U. (XAF)</div>
+      <div className="col-span-3 md:col-span-2 text-right pr-2">Total HT</div>
+    </div>
+    ```
+
+    *Verrouillage pendant soumission (`isSubmitting`) :*
+    ```tsx
+    // Bouton Enregistrer :
+    <Button
+      onClick={() => handleSave("EN_ATTENTE")}
+      className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 transition-all"
+      disabled={isSubmitting || status === "CONVERTI"}
+    >
+      {isSubmitting ? (
+        <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
+      ) : (
+        <Save className="w-4 h-4 mr-2" />
+      )}
+      {status === "CONVERTI"
+        ? "Devis Converti (Lecture seule)"
+        : (isSubmitting ? "Enregistrement..." : "Enregistrer le Devis")}
+    </Button>
+
+    // Tous les inputs critiques doivent inclure :
+    disabled={isSubmitting || status === "CONVERTI"}
+    ```
+
+#### 5.5 Régressions des Tests et Schémas de Base de Données
+- **Problème :** En exécutant `npx vitest run`, les tests (`contract-invoices.test.ts`, `financial-flow.test.ts`, `quotes-rbac.test.ts`) échouent avec l'erreur `SqliteError: table invoices has no column named subject`. La base de données SQLite attend ou omet des colonnes comme `subject` qui sont manipulées dans le code applicatif (`InvoiceService.ts`, etc.).
+- **Solution :** Il faut s'assurer que la migration ou la création de table (ex. `reset-db.ts` ou la commande de bootstrap) inclut bien la colonne `subject` pour la table `invoices` (et optionnellement `quotes`).
