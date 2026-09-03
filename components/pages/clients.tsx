@@ -262,6 +262,7 @@ export function ClientsPage() {
                     placeholder="Ex: Societe Gabon Mining"
                     className="bg-secondary border-border text-foreground"
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -274,6 +275,7 @@ export function ClientsPage() {
                     placeholder="contact@entreprise.ga"
                     className="bg-secondary border-border text-foreground"
                     required
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -284,6 +286,7 @@ export function ClientsPage() {
                     onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
                     placeholder="+241 XX XX XX XX"
                     className="bg-secondary border-border text-foreground"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -294,6 +297,7 @@ export function ClientsPage() {
                     onChange={(e) => setNewClient({ ...newClient, address: e.target.value })}
                     placeholder="Libreville, Gabon"
                     className="bg-secondary border-border text-foreground"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <Button
@@ -327,6 +331,7 @@ export function ClientsPage() {
                       placeholder="Ex: Societe Gabon Mining"
                       className="bg-secondary border-border text-foreground"
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="space-y-2">
@@ -339,6 +344,7 @@ export function ClientsPage() {
                       placeholder="contact@entreprise.ga"
                       className="bg-secondary border-border text-foreground"
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="space-y-2">
@@ -349,6 +355,7 @@ export function ClientsPage() {
                       onChange={(e) => editingClient && setEditingClient({ ...editingClient, phone: e.target.value })}
                       placeholder="+241 XX XX XX XX"
                       className="bg-secondary border-border text-foreground"
+                      disabled={isSubmitting}
                     />
                   </div>
                   <div className="space-y-2">
@@ -359,6 +366,7 @@ export function ClientsPage() {
                       onChange={(e) => editingClient && setEditingClient({ ...editingClient, address: e.target.value })}
                       placeholder="Libreville, Gabon"
                       className="bg-secondary border-border text-foreground"
+                      disabled={isSubmitting}
                     />
                   </div>
                   <Button

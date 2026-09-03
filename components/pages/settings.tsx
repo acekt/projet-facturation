@@ -24,12 +24,6 @@ export function SettingsPage() {
   const user = useStore(state => state.user)
   const isAdmin = user?.role === 'admin'
 
-  React.useEffect(() => {
-    if (user && !isAdmin) {
-      window.location.href = '/'
-    }
-  }, [user, isAdmin])
-
   const [formData, setFormData] = React.useState(settings)
   const [isSaving, setIsSaving] = React.useState(false)
   const [isDragging, setIsDragging] = React.useState(false)
@@ -38,10 +32,6 @@ export function SettingsPage() {
   React.useEffect(() => {
     setFormData(settings)
   }, [settings])
-
-  if (!isAdmin) {
-    return null
-  }
 
   const validateAndUpload = (file: File) => {
     if (file.size > 2 * 1024 * 1024) {
