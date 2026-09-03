@@ -26,9 +26,12 @@ import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { cn } from "@/lib/utils"
+import { StatusBadge, getInvoiceStatusVariant } from "@/components/ui/status-badge"
 
 export function CreditNotesPage() {
   const creditNotes = useStore(state => state.creditNotes)
+  const invoices = useStore(state => state.invoices)
+  const payments = useStore(state => state.payments)
   const settings = useStore(state => state.settings)
   const viewFormat = useStore(state => state.viewFormat)
   const setViewFormat = useStore(state => state.setViewFormat)
@@ -78,6 +81,20 @@ export function CreditNotesPage() {
   }
 
   const format = viewFormat.creditNotes || 'horizontal'
+
+  // Helper pour StatusBadge de la facture liée
+  const getInvoiceStatusInfo = (invoiceId: string) => {
+    const invoice = invoices.find(i => i.id === invoiceId);
+    if (!invoice) return null;
+    const totalPaid = payments.filter(p => p.invoiceId === invoice.id).reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    const remaining = Number(invoice.total) - totalPaid;
+    return {
+      status: invoice.status,
+      paidAmount: totalPaid,
+      remainingAmount: remaining,
+      total: Number(invoice.total)
+    };
+  }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
@@ -133,36 +150,52 @@ export function CreditNotesPage() {
               <tr>
                 <th className="px-6 py-4 font-medium">Numéro</th>
                 <th className="px-6 py-4 font-medium">Client</th>
+                <th className="px-6 py-4 font-medium">Statut Facture Liée</th>
                 <th className="px-6 py-4 font-medium text-right">Montant</th>
                 <th className="px-6 py-4 font-medium">Date</th>
                 <th className="px-6 py-4 font-medium text-right">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {paginated.map((note) => (
-                <tr key={note.id} className="hover:bg-muted/50 transition-colors">
-                  <td className="px-6 py-4 font-medium whitespace-nowrap">{note.number}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">{note.clientName}</td>
-                  <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-primary">
-                    {formatCurrency(note.total)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
-                    {formatDate(note.date)}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="text-muted-foreground hover:text-foreground"
-                      onClick={() => handleDownloadPDF(note)}
-                      disabled={isDownloading === note.id}
-                    >
-                      <Download className="w-4 h-4 mr-2" />
-                      PDF
-                    </Button>
-                  </td>
-                </tr>
-              ))}
+              {paginated.map((note) => {
+                const invoiceInfo = getInvoiceStatusInfo(note.invoiceId);
+                return (
+                  <tr key={note.id} className="hover:bg-muted/50 transition-colors">
+                    <td className="px-6 py-4 font-medium whitespace-nowrap">{note.number}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">{note.clientName}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {invoiceInfo ? (
+                        <StatusBadge
+                          variant={getInvoiceStatusVariant(invoiceInfo)}
+                          amount={invoiceInfo.status === 'PAID' ? invoiceInfo.total : undefined}
+                          paidAmount={invoiceInfo.paidAmount}
+                          remainingAmount={invoiceInfo.remainingAmount}
+                        />
+                      ) : (
+                        <span className="text-muted-foreground text-xs">N/A</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-primary">
+                      {formatCurrency(note.total)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
+                      {formatDate(note.date)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-muted-foreground hover:text-foreground"
+                        onClick={() => handleDownloadPDF(note)}
+                        disabled={isDownloading === note.id}
+                      >
+                        <Download className="w-4 h-4 mr-2" />
+                        PDF
+                      </Button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
           </div>
@@ -176,7 +209,9 @@ export function CreditNotesPage() {
         <div className="flex-1 overflow-y-auto min-h-0 pr-1">
           <div className="grid grid-cols-1 gap-4">
           {paginated.length > 0 ? (
-            paginated.map((note, index) => (
+            paginated.map((note, index) => {
+              const invoiceInfo = getInvoiceStatusInfo(note.invoiceId);
+              return (
               <motion.div
                 key={note.id}
                 initial={{ opacity: 0, y: 20 }}
@@ -192,9 +227,19 @@ export function CreditNotesPage() {
                         </div>
                         <div>
                           <h3 className="font-bold text-foreground text-lg">{note.number}</h3>
-                          <p className="text-sm text-muted-foreground">
-                            Pour {note.clientName} • {formatDate(note.date)}
-                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <p className="text-sm text-muted-foreground">
+                              Pour {note.clientName} • {formatDate(note.date)}
+                            </p>
+                            {invoiceInfo && (
+                              <StatusBadge
+                                variant={getInvoiceStatusVariant(invoiceInfo)}
+                                amount={invoiceInfo.status === 'PAID' ? invoiceInfo.total : undefined}
+                                paidAmount={invoiceInfo.paidAmount}
+                                remainingAmount={invoiceInfo.remainingAmount}
+                              />
+                            )}
+                          </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-8">
@@ -217,7 +262,7 @@ export function CreditNotesPage() {
                   </CardContent>
                 </Card>
               </motion.div>
-            ))
+            )})
           ) : (
             <div className="text-center py-20 bg-card rounded-2xl border border-dashed border-border">
               <h3 className="text-lg font-semibold text-foreground tracking-tight uppercase">Aucun avoir émis</h3>
@@ -230,7 +275,9 @@ export function CreditNotesPage() {
         <div className="flex-1 overflow-y-auto min-h-0 pr-1">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {paginated.length > 0 ? (
-            paginated.map((note, index) => (
+            paginated.map((note, index) => {
+              const invoiceInfo = getInvoiceStatusInfo(note.invoiceId);
+              return (
               <motion.div
                 key={note.id}
                 initial={{ opacity: 0, scale: 0.95 }}
@@ -257,7 +304,17 @@ export function CreditNotesPage() {
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    <h3 className="font-bold text-sm mb-1">{note.number}</h3>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-bold text-sm">{note.number}</h3>
+                      {invoiceInfo && (
+                        <StatusBadge
+                          variant={getInvoiceStatusVariant(invoiceInfo)}
+                          amount={invoiceInfo.status === 'PAID' ? invoiceInfo.total : undefined}
+                          paidAmount={invoiceInfo.paidAmount}
+                          remainingAmount={invoiceInfo.remainingAmount}
+                        />
+                      )}
+                    </div>
                     <p className="text-xs text-muted-foreground mb-2">{note.clientName}</p>
                     <div className="space-y-1 mb-3">
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
@@ -272,7 +329,7 @@ export function CreditNotesPage() {
                   </CardContent>
                 </Card>
               </motion.div>
-            ))
+            )})
           ) : (
             <div className="col-span-full text-center py-20 bg-card rounded-2xl border border-dashed border-border">
               <h3 className="text-lg font-semibold text-foreground tracking-tight uppercase">Aucun avoir émis</h3>

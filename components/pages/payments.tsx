@@ -17,7 +17,6 @@ import {
   DownloadCloud,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
@@ -34,6 +33,7 @@ import { toast } from "sonner"
 import { useStore } from "@/lib/store"
 import { formatCurrency, formatShortCurrency, formatDate } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
+import { StatusBadge, getInvoiceStatusVariant } from "@/components/ui/status-badge"
 
 export function PaymentsPage() {
   const invoices = useStore((state) => state.invoices)
@@ -48,9 +48,6 @@ export function PaymentsPage() {
   const [isRefreshing, setIsRefreshing] = React.useState(false)
   const itemsPerPage = 10
 
-  // [P1-B] Re-fetch ciblé des données de paiements et factures.
-  // Remplace l'anti-pattern window.location.reload() qui détruisait l'état
-  // Zustand et provoquait un flash blanc dans la fenêtre Electron.
   const handleRefresh = React.useCallback(async () => {
     if (isRefreshing) return
     setIsRefreshing(true)
@@ -189,6 +186,18 @@ export function PaymentsPage() {
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
+  }
+
+  // ── Helper pour StatusBadge ───────────────────────────────────────────────
+  const getPaymentStatusInfo = (invoice: any) => {
+    const totalPaid = payments.filter(p => p.invoiceId === invoice.id).reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    const remaining = Number(invoice.total) - totalPaid;
+    return {
+      status: invoice.status,
+      paidAmount: totalPaid,
+      remainingAmount: remaining,
+      total: Number(invoice.total)
+    };
   }
 
   return (
@@ -357,7 +366,7 @@ export function PaymentsPage() {
 
       {/* Transactions */}
       <motion.div variants={itemVariants} className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <Card className="flex-1 flex flex-col min-h-0 overflow-hidden bg-card border-border">
+        <Card className="flex-1 flex flex-col min-h-0 overflow-hidden bg-card border-border shadow-sm">
           <CardHeader className="pb-4">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-center gap-3">
@@ -375,63 +384,82 @@ export function PaymentsPage() {
                   placeholder="Rechercher..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-secondary border-border text-foreground"
+                  className="pl-10 bg-secondary/50 border-border text-foreground"
                 />
               </div>
             </div>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col min-h-0 overflow-hidden">
-            <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-2">
-              {paginatedTransactions.length > 0 ? (
-              paginatedTransactions.map((p, index) => {
-                const invoice = invoices.find(i => i.id === p.invoiceId);
-                return (
-                  <motion.div
-                    key={p.id}
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="group flex items-center justify-between p-4 rounded-xl bg-muted/30 border border-transparent hover:border-border transition-all"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-600 border border-emerald-500/20">
-                        <CheckCircle className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-foreground font-medium">{invoice?.clientName || 'Client inconnu'}</p>
-                          <span className="text-muted-foreground text-[10px] font-mono uppercase bg-secondary px-1.5 py-0.5 rounded">
-                            {p.paymentMethod || 'Cash'}
-                          </span>
-                        </div>
-                        <p className="text-muted-foreground text-xs">Facture {invoice?.number || 'N/A'} • {formatDate(p.date)}</p>
-                      </div>
-                      </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="font-bold text-emerald-600 dark:text-emerald-400">+{formatCurrency(p.amount)}</p>
-                        <Badge variant="outline" className="text-[10px] uppercase font-bold text-emerald-600 border-emerald-600/20">Encaissé</Badge>
-                        </div>
-                      {user?.role === 'user' && p.created_by === user?.id && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          aria-label={`Supprimer le règlement de ${formatCurrency(p.amount)} du ${formatDate(p.date)}`}
-                          className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 text-muted-foreground hover:text-destructive transition-all"
-                          onClick={() => handleDeletePayment(p.id)}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
-                      </div>
-                  </motion.div>
-                );
-              })
-              ) : (
-                <div className="text-center py-12 text-muted-foreground border border-dashed rounded-xl">
-                  Aucun encaissement trouvé.
-                </div>
-              )}
+            <div className="flex-1 overflow-x-auto overflow-y-auto min-h-0 border border-border rounded-xl">
+              <table className="w-full text-sm text-left">
+                <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10">
+                  <tr>
+                    <th className="px-6 py-4 font-medium">Facture</th>
+                    <th className="px-6 py-4 font-medium">Client</th>
+                    <th className="px-6 py-4 font-medium">Statut de la Facture</th>
+                    <th className="px-6 py-4 font-medium">Date</th>
+                    <th className="px-6 py-4 font-medium">Mode de paiement</th>
+                    <th className="px-6 py-4 font-medium text-right">Montant</th>
+                    <th className="px-6 py-4 font-medium text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {paginatedTransactions.length > 0 ? (
+                    paginatedTransactions.map((p) => {
+                      const invoice = invoices.find(i => i.id === p.invoiceId);
+                      const paymentInfo = invoice ? getPaymentStatusInfo(invoice) : null;
+                      return (
+                        <tr key={p.id} className="hover:bg-muted/50 transition-colors">
+                          <td className="px-6 py-4 font-medium whitespace-nowrap">{invoice?.number || 'N/A'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">{invoice?.clientName || 'Client inconnu'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            {invoice && paymentInfo ? (
+                              <StatusBadge
+                                variant={getInvoiceStatusVariant(paymentInfo)}
+                                amount={paymentInfo.status === 'PAID' ? paymentInfo.total : undefined}
+                                paidAmount={paymentInfo.paidAmount}
+                                remainingAmount={paymentInfo.remainingAmount}
+                              />
+                            ) : (
+                              <span className="text-muted-foreground text-xs">N/A</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">
+                            {formatDate(p.date)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className="text-muted-foreground text-[10px] font-mono uppercase bg-secondary px-1.5 py-0.5 rounded border border-border">
+                              {p.paymentMethod || 'Cash'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-emerald-600 dark:text-emerald-400">
+                            +{formatCurrency(p.amount)}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-right">
+                            {user?.role === 'user' && p.created_by === user?.id && (
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                aria-label={`Supprimer le règlement de ${formatCurrency(p.amount)} du ${formatDate(p.date)}`}
+                                className="text-muted-foreground hover:text-destructive transition-all"
+                                onClick={() => handleDeletePayment(p.id)}
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </Button>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr>
+                      <td colSpan={7} className="px-6 py-8 text-center text-muted-foreground border-dashed">
+                        Aucun encaissement trouvé.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
             </div>
             <div className="pt-4">
               <Pagination

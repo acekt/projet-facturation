@@ -13,16 +13,11 @@ interface DbPragmaColumn {
   name: string;
 }
 
-/** Formate un numéro de document avec ou sans code entreprise.
- *  Avec code : FAC/GM/2026/00001
- *  Sans code  : FAC/2026/00001
- */
+/** Formate un numéro de document (Norme Gabonaise) : DEV-001/GAB/2026 */
 function formatDocNumber(prefix: string, companyCode: string | null | undefined, year: number, seq: number): string {
-  const padded = String(seq).padStart(5, '0');
-  if (companyCode && companyCode.trim() !== '') {
-    return `${prefix}/${companyCode.trim().toUpperCase()}/${year}/${padded}`;
-  }
-  return `${prefix}/${year}/${padded}`;
+  const padded = String(seq).padStart(3, '0');
+  const code = companyCode && companyCode.trim() !== '' ? companyCode.trim().toUpperCase() : 'GAB';
+  return `${prefix}-${padded}/${code}/${year}`;
 }
 
 export function getNextNumber(type: 'quote' | 'invoice' | 'credit_note') {

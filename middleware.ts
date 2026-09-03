@@ -172,29 +172,12 @@ export async function middleware(request: NextRequest) {
   if (isSessionValid && session) {
     const role = session.role
 
-    // Business routes
-    const isBusinessRoute = pathname.startsWith('/quotes') ||
-                            pathname.startsWith('/invoices') ||
-                            pathname.startsWith('/customers') ||
-                            pathname.startsWith('/services')
-
-    const isBusinessApi = pathname.startsWith('/api/quotes') ||
-                          pathname.startsWith('/api/invoices') ||
-                          pathname.startsWith('/api/customers') ||
-                          pathname.startsWith('/api/services')
-
-    // Admin Restrictions - Admins can access everything
-    if (role === 'admin') {
-      // Admins have full access, no restrictions
-    }
+    const ADMIN_ROUTES = ['/audit', '/users', '/clients', '/services', '/customers']
+    const ADMIN_APIS = ['/api/audit-logs', '/api/users', '/api/clients']
 
     // User/Operator Restrictions
-    const isAdminOnlyRoute = pathname.startsWith('/audit') ||
-                             pathname.startsWith('/users') ||
-                             pathname.startsWith('/clients') ||
-                             pathname.startsWith('/services') ||
-                             pathname.startsWith('/customers')
-    const isAdminOnlyApi = pathname.startsWith('/api/audit-logs') || pathname.startsWith('/api/users')
+    const isAdminOnlyRoute = ADMIN_ROUTES.some(route => pathname.startsWith(route))
+    const isAdminOnlyApi = ADMIN_APIS.some(api => pathname.startsWith(api))
 
     if (role === 'user' || role === 'operator') {
       if (isAdminOnlyRoute) {
