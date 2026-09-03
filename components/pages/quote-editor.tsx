@@ -45,6 +45,7 @@ import {
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
+import { computeTotals } from "@/lib/api/invoice-logic";
 
 interface QuoteEditorProps {
   onBack: () => void;
@@ -123,15 +124,19 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
   // Cleanup: purge global draft on unmount to prevent ghost data
   React.useEffect(() => {
-    // On mount in NEW mode: also clear the global store
+    // 1. Force clear on mount for NEW items explicitly
     if (isNew) {
       clearQuoteDraft();
+      setLocalDraft(freshDraft);
     }
+
+    // 2. Clear on unmount strictly
     return () => {
-      clearQuoteDraft();
+      if (isNew) {
+        clearQuoteDraft();
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isNew, clearQuoteDraft, freshDraft]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");
@@ -253,13 +258,16 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     }
   };
 
-  const subtotal = Math.round(items.reduce((acc, item) => acc + item.total, 0));
+  const { subtotal, discount: computedDiscount, cssAmount, taxBase, tpsAmount, tvaAmount, total } = computeTotals(
+    items.map(item => ({ quantity: Number(item.quantity) || 0, unitPrice: Number(item.unitPrice) || 0 })),
+    discount,
+    {
+      tvaRate: settings.tvaRate ?? 0,
+      tpsRate: settings.tpsRate ?? 9.5,
+      cssRate: settings.cssRate ?? 0
+    }
+  );
   const netHT = Math.max(0, subtotal - Math.round(discount));
-  const cssAmount = Math.round(netHT * CSS_RATE);
-  const taxBase = netHT + cssAmount;
-  const tpsAmount = Math.round(taxBase * TPS_RATE);
-  const tvaAmount = Math.round(taxBase * TAX_RATE);
-  const total = netHT + cssAmount + tpsAmount + tvaAmount;
 
   const handleSave = (status: Quote["status"]) => {
     if (!selectedClient) {
@@ -531,11 +539,11 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="grid grid-cols-12 gap-4 px-3 text-sm text-muted-foreground mb-2 hidden md:grid">
+                <div className="grid grid-cols-12 gap-2 md:gap-4 px-4 py-3 bg-secondary/20 rounded-t-lg text-sm font-semibold text-muted-foreground border-b border-border hidden md:grid">
                   <div className="col-span-6">Description</div>
                   <div className="col-span-2 text-right">Qté</div>
-                  <div className="col-span-2 text-right">Prix Unitaire</div>
-                  <div className="col-span-2 text-right">Total HT</div>
+                  <div className="col-span-2 text-right">Prix U. (XAF)</div>
+                  <div className="col-span-2 text-right pr-2">Total HT</div>
                 </div>
 
                 {items.map((item, index) => (
@@ -733,13 +741,13 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                 </Button>
                 <Button
                   onClick={() => handleSave("EN_ATTENTE")}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 transition-all"
                   disabled={isSubmitting || status === "CONVERTI"}
                 >
                   <Save className="w-4 h-4 mr-2" />
                   {status === "CONVERTI"
                     ? "Devis Converti (Lecture seule)"
-                    : "Enregistrer le Devis"}
+                    : (isSubmitting ? "Enregistrement..." : "Enregistrer le Devis")}
                 </Button>
               </div>
             </CardContent>
