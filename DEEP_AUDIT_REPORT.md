@@ -1,4 +1,4 @@
-# DEEP AUDIT REPORT - FACTURIER QA
+# DEEP_AUDIT_REPORT.md
 
 **MISSION**: Rapport de diagnostic impitoyable des anti-patterns, code smells, et incohérences logiques, analysant l'application sous 4 piliers principaux.
 
@@ -9,8 +9,36 @@
 ### Utilisation excessive du type `any`
 L'utilisation de `any` détruit les garanties de TypeScript et expose à des erreurs de runtime ("undefined is not a function").
 
-- **Fichier**: `app/api/settings/route.ts`, Lignes 102 & 119
-  - **Médiocrité**: `} catch (error: any) {` ou `} catch (dbError: any) {`. L'accès aux propriétés de l'erreur est non sécurisé.
+- **Fichier**: `components/pdf-document.tsx`, Ligne 310
+  - **Médiocrité**: `Objet: {('notes' in document ? (document as any).notes : null) || "Prestations de services"}`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer l'objet 'document' pour inclure 'notes' ou vérifier avec 'in' sur un type plus précis.
+
+- **Fichier**: `components/pdf-document.tsx`, Ligne 343
+  - **Médiocrité**: `<Text style={styles.totalVal}>{formatCurrencyPDF('discount' in document ? (document as any).discount : 0)}</Text>`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer l'objet 'document' pour inclure 'discount'.
+
+- **Fichier**: `components/pages/invoice-editor.tsx`, Ligne 723
+  - **Médiocrité**: `items: items as any,`. Accès ou typage faible via `any`.
+  - **Excellence**: Définir une interface correcte pour 'items' (e.g. `InvoiceItemData[]`).
+
+- **Fichier**: `components/pages/audit-logs.tsx`, Ligne 13
+  - **Médiocrité**: `const [logs, setLogs] = React.useState<any[]>([])`. Accès ou typage faible via `any`.
+  - **Excellence**: Utiliser un type spécifique tel que `AuditLog[]` pour l'état.
+
+- **Fichier**: `components/pages/payments.tsx`, Ligne 192
+  - **Médiocrité**: `const getPaymentStatusInfo = (invoice: any) => {`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer le paramètre 'invoice' avec une interface comme `Invoice`.
+
+- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 771
+  - **Médiocrité**: `items: items as any,`. Accès ou typage faible via `any`.
+  - **Excellence**: Définir une interface correcte pour 'items' (e.g. `QuoteItemData[]`).
+
+- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 782
+  - **Médiocrité**: `} as any`. Accès ou typage faible via `any`.
+  - **Excellence**: Assurer que l'objet respecte l'interface du Store et éviter `as any`.
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 208
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
   - **Excellence**:
     ```typescript
     } catch (error: unknown) {
@@ -18,17 +46,53 @@ L'utilisation de `any` détruit les garanties de TypeScript et expose à des err
       console.error(errorMessage);
     }
     ```
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 331
+  - **Médiocrité**: `variant={getQuoteStatusVariant(quote.status as any)}`. Accès ou typage faible via `any`.
+  - **Excellence**: Assurer que `quote.status` soit correctement typé avec l'enum/literal type attendu.
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 465
+  - **Médiocrité**: `quote.status as any,`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer l'objet de retour de la base de données avec le type statut correct.
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 613
+  - **Médiocrité**: `variant={getQuoteStatusVariant(quote.status as any)}`. Accès ou typage faible via `any`.
+  - **Excellence**: Utiliser un type de statut spécifique.
+
+- **Fichier**: `components/pages/credit-notes.tsx`, Ligne 111
+  - **Médiocrité**: `const rows = creditNotes.map(c => [c.number, c.clientName, c.total || (c as any).amount || 0, c.date, c.reason || '']);`. Accès ou typage faible via `any`.
+  - **Excellence**: Créer une interface `CreditNote` qui inclut 'amount' ou 'total' et l'utiliser dans la récupération.
+
+- **Fichier**: `components/fullscreen-document-viewer.tsx`, Ligne 142
+  - **Médiocrité**: `const docNumber = (docProps.data as any)?.number ?? 'document'`. Accès ou typage faible via `any`.
+  - **Excellence**: Utiliser des types union comme `Invoice | Quote | CreditNote`.
+
+- **Fichier**: `components/fullscreen-document-viewer.tsx`, Ligne 178
+  - **Médiocrité**: `?? `${docProps.type === 'facture' ? 'Facture' : docProps.type === 'devis' ? 'Devis' : 'Avoir'} — ${(docProps.data as any).number ?? ''}``. Accès ou typage faible via `any`.
+  - **Excellence**: Typer 'docProps.data' correctement en fonction de 'docProps.type'.
+
+- **Fichier**: `app/api/settings/route.ts`, Ligne 102
+  - **Médiocrité**: `} catch (dbError: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `app/api/settings/route.ts`, Ligne 119
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
 - **Fichier**: `app/api/setup/route.ts`, Ligne 99
-  - **Médiocrité**: `} catch (txError: any) {`
-  - **Excellence**:
-    ```typescript
-    } catch (txError: unknown) {
-      const errorMessage = txError instanceof Error ? txError.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
-    ```
-- **Fichier**: `app/api/users/route.ts`, Lignes 103 & 124
-  - **Médiocrité**: `} catch (error: any) {`
+  - **Médiocrité**: `} catch (txError: any) {`. Accès ou typage faible via `any`.
   - **Excellence**:
     ```typescript
     } catch (error: unknown) {
@@ -36,8 +100,39 @@ L'utilisation de `any` détruit les garanties de TypeScript et expose à des err
       console.error(errorMessage);
     }
     ```
+
+- **Fichier**: `app/api/credit-notes/route.ts`, Ligne 92
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `app/api/users/route.ts`, Ligne 103
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `app/api/users/route.ts`, Ligne 124
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
 - **Fichier**: `app/api/invoices/route.ts`, Ligne 74
-  - **Médiocrité**: `} catch (error: any) {`
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
   - **Excellence**:
     ```typescript
     } catch (error: unknown) {
@@ -45,138 +140,192 @@ L'utilisation de `any` détruit les garanties de TypeScript et expose à des err
       console.error(errorMessage);
     }
     ```
+
+- **Fichier**: `app/api/quotes/convert/route.ts`, Ligne 49
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `app/api/quotes/[id]/route.ts`, Ligne 131
+  - **Médiocrité**: `const updateQuoteTx = db.transaction((quoteItems: any[]) => {`. Accès ou typage faible via `any`.
+  - **Excellence**: Créer une interface `QuoteItem` et typer `quoteItems: QuoteItem[]`.
+
+- **Fichier**: `app/api/quotes/route.ts`, Ligne 115
+  - **Médiocrité**: `const insertQuote = db.transaction((quoteItems: any[]) => {`. Accès ou typage faible via `any`.
+  - **Excellence**: Créer une interface `QuoteItem` et typer `quoteItems: QuoteItem[]`.
+
+- **Fichier**: `app/page.tsx`, Ligne 25
+  - **Médiocrité**: `const user = db.prepare('SELECT * FROM users WHERE id = ?').get(session.userId) as any`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer le retour de la requête SQLite avec l'interface `User`.
+
+- **Fichier**: `hooks/use-quotes.ts`, Ligne 44
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `hooks/use-quotes.ts`, Ligne 81
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `lib/db.ts`, Ligne 105
+  - **Médiocrité**: `statementCache: Map<string, any>;`. Accès ou typage faible via `any`.
+  - **Excellence**: Utiliser `Map<string, Statement>` (import Statement from 'better-sqlite3').
+
+- **Fichier**: `lib/db.ts`, Ligne 125
+  - **Médiocrité**: `} catch (fatalErr: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `lib/db.ts`, Ligne 404
+  - **Médiocrité**: `} catch (schemaErr: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
 - **Fichier**: `lib/services/InvoiceService.ts`, Ligne 15
-  - **Médiocrité**: `createInvoice(data: any, userId: string, role: string) {`
-  - **Excellence**:
-    ```typescript
-    export interface InvoiceCreateData {
-      clientId: string;
-      quoteId?: string;
-      items: Array<{ description: string; quantity: number; unitPrice: number; total?: number }>;
-      discount?: number;
-      notes?: string;
-      subject?: string;
-    }
-    createInvoice(data: InvoiceCreateData, userId: string, role: string) {
-    ```
-- **Fichier**: `app/api/quotes/[id]/route.ts`, Ligne 131 et `app/api/quotes/route.ts`, Ligne 115
-  - **Médiocrité**: `const updateQuoteTx = db.transaction((quoteItems: any[]) => {`
-  - **Excellence**:
-    ```typescript
-    interface QuoteItemData {
-      description: string;
-      quantity: number;
-      unitPrice: number;
-    }
-    const updateQuoteTx = db.transaction((quoteItems: QuoteItemData[]) => {
-    ```
+  - **Médiocrité**: `createInvoice(data: any, userId: string, role: string) {`. Accès ou typage faible via `any`.
+  - **Excellence**: Créer une interface `InvoiceCreateData` (clientId, items, etc.).
+
+- **Fichier**: `lib/services/ExportService.ts`, Ligne 291
+  - **Médiocrité**: `(q as any).validUntil ? formatDate((q as any).validUntil) : "—",`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer le paramètre avec l'interface `Quote` qui inclut 'validUntil'.
+
+- **Fichier**: `lib/services/ExportService.ts`, Ligne 292
+  - **Médiocrité**: `(q as any).subject ?? "—",`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer le paramètre avec l'interface `Quote` qui inclut 'subject'.
+
+- **Fichier**: `lib/repositories/UserRepository.ts`, Ligne 38
+  - **Médiocrité**: `const values: any[] = [];`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer le tableau `values` avec `unknown[]` (SQLite accepte tout, mais any est trop large).
+
+### Code mort et Duplications
+
+- Aucune anomalie majeure de code mort identifiée dans les fichiers clés lors de cette analyse statique (les imports inutilisés sont gérés par le linter en amont).
 
 ---
 
 ## 2. LOGIQUE REACT ET ANTI-PATTERNS UI
 
 ### Dépendances de Hooks manquantes ou désactivées
-Omettre des dépendances dans `useEffect` provoque des bugs de "stale closures" ou des cycles infinis, surtout dans le cadre d'API fetch asynchrones.
 
-- **Fichier**: `components/pages/users.tsx`, Ligne 116-130
-  - **Médiocrité**:
-    ```tsx
-    React.useEffect(() => { /* ... */ fetchUsers(controller.signal) }, [currentUser?.id])
-    ```
-    Ici, `currentUser?.role` est vérifié mais non listé dans les dépendances.
-  - **Excellence**:
-    ```tsx
-    React.useEffect(() => {
-      if (currentUser?.role !== 'admin') {
-        setIsLoading(false);
-        return;
-      }
-      const controller = new AbortController();
-      fetchUsers(controller.signal);
-      return () => controller.abort();
-    }, [currentUser?.id, currentUser?.role, fetchUsers]);
-    ```
+Omettre des dépendances dans `useEffect` provoque des bugs de "stale closures" ou des cycles infinis.
 
-- **Fichier**: `components/pages/invoice-editor.tsx`, Lignes 106-114
-  - **Médiocrité**: ESLint désactivé intentionnellement (`// eslint-disable-next-line react-hooks/exhaustive-deps`) pour omettre les dépendances `isNew` et `clearInvoiceDraft`.
-  - **Excellence**:
-    ```tsx
-    React.useEffect(() => {
-      if (isNew) {
-        clearInvoiceDraft();
-      }
-      return () => {
-        clearInvoiceDraft();
-      };
-    }, [isNew, clearInvoiceDraft]);
-    ```
+- **Fichier**: `components/pages/invoice-editor.tsx`, Ligne 68
+  - **Médiocrité**: Désactivation de la règle `eslint-disable-next-line react-hooks/exhaustive-deps` pour omettre des dépendances (potentiel stale closure / re-render infini si mal géré).
+  - **Excellence**: Ajouter les dépendances `isNew` et `clearInvoiceDraft` dans le tableau `[isNew, clearInvoiceDraft]`. En cas de boucle, envelopper `clearInvoiceDraft` avec `useCallback`.
 
-- **Fichier**: `components/pages/quote-editor.tsx`, Lignes 125-134
-  - **Médiocrité**: `// eslint-disable-next-line react-hooks/exhaustive-deps` avec `isNew` et `clearQuoteDraft` manquants.
-  - **Excellence**:
-    ```tsx
-    React.useEffect(() => {
-      if (isNew) {
-        clearQuoteDraft();
-      }
-      return () => {
-        clearQuoteDraft();
-      };
-    }, [isNew, clearQuoteDraft]);
-    ```
+- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 80
+  - **Médiocrité**: Désactivation de la règle `eslint-disable-next-line react-hooks/exhaustive-deps` pour omettre des dépendances (potentiel stale closure / re-render infini si mal géré).
+  - **Excellence**: Ajouter les dépendances `isNew` et `clearQuoteDraft` dans le tableau `[isNew, clearQuoteDraft]`. En cas de boucle, envelopper `clearQuoteDraft` avec `useCallback`.
 
 ### Gestion des Erreurs et Appels API
-- **Fichier**: `components/pages/audit-logs.tsx`, Lignes 21-38
-  - **Médiocrité**: `fetch('/api/audit-logs')` utilisé sans bloc try/catch qui gère explicitement toutes les erreurs possibles du réseau.
-  - **Excellence**: Ajouter un try/catch pour le fetch asynchrone lui-même et s'assurer que l'utilisateur est informé en cas d'erreur inattendue.
+
+- **Fichier**: `components/pages/audit-logs.tsx`, Ligne 21
+  - **Médiocrité**: Appel `fetch('/api/audit-logs')` non sécurisé, manquant parfois un bloc `try/catch` robuste et un retour visuel en cas d'erreur de réseau (seulement `console.error`).
+  - **Excellence**: Afficher un toast/alert à l'utilisateur lorsqu'une erreur serveur survient.
 
 ### Prop Drilling
-- **Fichier**: `components/pages/users.tsx`, `components/pages/invoices.tsx`
-  - **Médiocrité**: Des propriétés de callback comme `onBack` et `editingId` passées de la page à l'éditeur.
-  - **Excellence**: Gérer la sélection du composant à l'écran via l'état dans le Store `zustand` plutôt que de passer ces arguments.
+
+- **Fichiers**: `components/pages/users.tsx` et autres vues principales.
+  - **Médiocrité**: Transfert de props complexes pour le routage de vues internes au lieu d'utiliser le store global Zustand ou React Context sur plus de 3 niveaux.
+  - **Excellence**: Déplacer les états d'édition et de navigation de vue (`isEditing`, `currentId`) au sein de l'état Zustand `store.ts`.
 
 ---
 
 ## 3. ARCHITECTURE ELECTRON ET IPC
 
-### Fuite de Mémoire (Event Listeners IPC)
-- **Fichier**: `main.js` (Lignes d'impression)
-  - **Médiocrité**: Pas d'utilisation explicite de `.removeAllListeners` sur les événements de fin de chargement du `webContents` dans tous les cas de figure si une destruction anticipée a lieu.
+### Fuites de Mémoire (Event Listeners IPC)
+
+- **Fichier**: `main.js`, Ligne 80 (approx)
+  - **Médiocrité**: Création de fenêtres enfants (ex: `printWin`) avec des événements de rendu ou WebContents (`did-finish-load`) sans `.removeAllListeners()` avant destruction.
   - **Excellence**:
     ```javascript
     printWin.webContents.removeAllListeners('did-finish-load');
-    printWin.webContents.removeAllListeners('did-fail-load');
     printWin.destroy();
     printWin = null;
     ```
 
 ### Sécurité du Preload
+
 - **Fichier**: `preload.js`
-  - **Validation**: contextIsolation est correctement utilisé et les méthodes sont sérialisables.
+  - **Analyse**: `contextIsolation` est `true` et l'interface via `contextBridge` est bien utilisée avec des fonctions encapsulées.
 
 ---
 
 ## 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
 
 ### Requêtes N+1 et Optimisation Transactionnelle
-- **Fichier**: `lib/services/InvoiceService.ts`, Lignes 87-96
-  - **Médiocrité**: Exécution de `insertItem.run()` dans une boucle sur `data.items`, hors du contexte de transaction de la création complète de la facture, ou exécutée indépendamment sans englober toute la création (transaction).
+
+- **Fichier**: `lib/services/InvoiceService.ts`, Ligne 87
+  - **Médiocrité**: Exécution de `.run()` (ex. insertions de items) de façon isolée ou potentiellement itérée lors des mutations de factures complexes au lieu d'une transaction globale.
   - **Excellence**:
     ```typescript
-    const createInvoiceTx = db.transaction((data, items, userId) => {
-      // Insertion entête facture
-      // ...
-      const insertItem = db.prepare(`INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total) VALUES (?, ?, ?, ?, ?, ?)`);
-      for (const item of items) {
-         insertItem.run(crypto.randomUUID(), data.id, item.description, item.quantity, Math.round(item.unitPrice), Math.round(item.quantity * item.unitPrice));
-      }
+    const createTx = db.transaction((data, items) => {
+       // insertion parente
+       const insertStmt = db.prepare('INSERT INTO child (parent_id, col) VALUES (?, ?)');
+       for(const item of items) {
+           insertStmt.run(data.id, item.col);
+       }
     });
+    createTx(data, items);
+    ```
+
+- **Fichier**: `app/api/quotes/[id]/route.ts`, Ligne 166
+  - **Médiocrité**: Appel potentiellement d'insertion `insertItem.run` dans une boucle for() avec risque de ne pas centraliser dans le bloc de la transaction si mal englobé.
+  - **Excellence**:
+    ```typescript
+    const createTx = db.transaction((data, items) => {
+       // insertion parente
+       const insertStmt = db.prepare('INSERT INTO child (parent_id, col) VALUES (?, ?)');
+       for(const item of items) {
+           insertStmt.run(data.id, item.col);
+       }
+    });
+    createTx(data, items);
     ```
 
 - **Fichier**: `app/api/invoices/[id]/route.ts`, Ligne 168
-  - **Médiocrité**: Pour la création des `credit_note_items`, boucle `for (const item of items)` avec un appel à `insertCNItem.run` répété dans la transaction. Le `db.prepare` est correctement en dehors, mais c'est un anti-pattern potentiel sans transaction.
-  - **Excellence**: (S'assurer que c'est englobé dans la fonction de transaction).
+  - **Médiocrité**: Création des `credit_note_items` dans une boucle `for (const item of items)`. Mettre `.prepare()` en dehors de la transaction et s'assurer que la boucle `.run()` s'exécute de façon atomique via un `.transaction()` qui englobe la totalité.
+  - **Excellence**:
+    ```typescript
+    const createTx = db.transaction((data, items) => {
+       // insertion parente
+       const insertStmt = db.prepare('INSERT INTO child (parent_id, col) VALUES (?, ?)');
+       for(const item of items) {
+           insertStmt.run(data.id, item.col);
+       }
+    });
+    createTx(data, items);
+    ```
 
-- **Fichier**: `app/api/quotes/[id]/route.ts`, Ligne 166
-  - **Médiocrité**: `insertItem.run` dans la boucle pour `for (const item of quoteItems)` pour les devis.
-  - **Excellence**: Inclure la préparation et la boucle à l'intérieur de la déclaration `db.transaction`.
+### Indexation
+
+- **Fichier**: `lib/db.ts` (Schéma init)
+  - **Médiocrité**: Manque potentiel d'index sur les colonnes fréquemment utilisées en clauses `WHERE` (`status`, `clientId`, `userId`) sur de grandes tables (`invoices`, `quotes`, `audit_logs`).
+  - **Excellence**: Ajouter des instructions `CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);` et similaires pour les colonnes de jointure et de recherche.
+
