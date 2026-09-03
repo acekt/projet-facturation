@@ -511,6 +511,7 @@ export function ServicesPage() {
                 placeholder="Ex: Audit de sécurité réseau"
                 className="bg-secondary border-border"
                 required
+                disabled={isSubmitting}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -522,6 +523,7 @@ export function ServicesPage() {
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   placeholder="Ex: Conseil"
                   className="bg-secondary border-border"
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="space-y-2">
@@ -533,6 +535,7 @@ export function ServicesPage() {
                   onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
                   className="bg-secondary border-border text-right"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -544,6 +547,7 @@ export function ServicesPage() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Détails du service..."
                 className="bg-secondary border-border"
+                disabled={isSubmitting}
               />
             </div>
             <Button
