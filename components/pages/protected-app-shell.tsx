@@ -19,7 +19,7 @@ import { UsersPage } from "@/components/pages/users"
 import { UserEditor } from "@/components/pages/user-editor"
 import { useStore } from "@/lib/store"
 import { DataSync } from "@/components/data-sync"
-// No specific import needed if we use Partial<UserResponse> or any for now since initialUser is just a basic object from app/page.tsx
+import type { UserResponse } from "@/lib/types/api"
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
@@ -28,7 +28,7 @@ const pageVariants = {
 }
 
 interface ProtectedAppShellProps {
-  initialUser: { id: string; name: string; role: "admin" | "user"; [key: string]: any }
+  initialUser: UserResponse
 }
 
 export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
@@ -65,61 +65,13 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
 
   const effectiveUser = initialUser || user
 
-  if (!effectiveUser) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 animate-pulse" />
-          <div className="w-24 h-2 bg-secondary rounded animate-pulse" />
-        </div>
-      </div>
-    )
-  }
-
-  // Si l'utilisateur est connecté mais que les données SQLite sont en cours de chargement,
-  // on monte l'ossature visuelle (Sidebar, TopBar) et on affiche le spinner uniquement au centre du contenu.
-  if (!isDataLoaded) {
-    return (
-      <div className="h-screen bg-background overflow-hidden flex flex-col">
-        <DataSync />
-        <Sidebar
-          currentPage={currentPage}
-          onPageChange={() => {}}
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
-        <TopBar collapsed={sidebarCollapsed} onCommandOpen={() => {}} />
-        <motion.main
-          initial={false}
-          animate={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
-          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-          className="h-screen pt-16 flex flex-col overflow-hidden relative"
-        >
-          <AnimatePresence mode="wait">
-             <motion.div
-                key="loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="absolute inset-0 flex flex-col items-center justify-center bg-background z-50"
-              >
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="mt-4 text-sm text-muted-foreground font-medium">Initialisation des modules locaux...</p>
-              </motion.div>
-          </AnimatePresence>
-        </motion.main>
-      </div>
-    )
-  }
-
-  const handlePageChange = (page: string) => {
+  const handlePageChange = React.useCallback((page: string) => {
     React.startTransition(() => {
       setCurrentPage(page)
     })
-  }
+  }, [])
 
-  const renderPage = () => {
+  const renderPage = React.useCallback(() => {
     switch (currentPage) {
       case "dashboard":
         return <Dashboard onNavigate={handlePageChange} />
@@ -205,6 +157,17 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
       default:
         return <Dashboard onNavigate={handlePageChange} />
     }
+  }, [currentPage, handlePageChange, editingId])
+
+  if (!effectiveUser) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 animate-pulse" />
+          <div className="w-24 h-2 bg-secondary rounded animate-pulse" />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -217,36 +180,47 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
       />
-
       {/* Top Bar */}
       <TopBar collapsed={sidebarCollapsed} onCommandOpen={() => setCommandOpen(true)} />
-
       {/* Command Menu */}
       <CommandMenu
         open={commandOpen}
         onOpenChange={setCommandOpen}
         onNavigate={handlePageChange}
       />
-
       {/* Main Content */}
       <motion.main
         initial={false}
         animate={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-        className="h-screen pt-16 flex flex-col overflow-hidden"
+        className="h-screen pt-16 flex flex-col overflow-hidden relative"
       >
         <AnimatePresence mode="wait">
-          <motion.div
-            key={currentPage}
-            variants={pageVariants}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-            className="flex-1 flex flex-col overflow-hidden px-8 py-6"
-          >
-            {renderPage()}
-          </motion.div>
+          {!isDataLoaded ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="absolute inset-0 flex flex-col items-center justify-center bg-background z-50"
+            >
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+              <p className="mt-4 text-sm text-muted-foreground font-medium">Initialisation des modules locaux...</p>
+            </motion.div>
+          ) : (
+            <motion.div
+              key={currentPage}
+              variants={pageVariants}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+              transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+              className="flex-1 flex flex-col overflow-hidden px-8 py-6 h-full"
+            >
+              {renderPage()}
+            </motion.div>
+          )}
         </AnimatePresence>
       </motion.main>
     </div>

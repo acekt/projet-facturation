@@ -459,6 +459,7 @@ export const useStore = create<AppState>()(
     {
       name: 'facturier-storage',
       storage: createJSONStorage(() => sessionStorage),
+      // OPTIMISATION : Ne pas persister `settings` pour forcer le chargement frais via SQLite (DataSync)
       partialize: (state) => ({
         user: state.user,
         permissions: state.permissions,

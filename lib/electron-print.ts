@@ -1,3 +1,5 @@
+import { toast } from 'sonner'
+
 /**
  * electron-print.ts — Utilitaire d'impression/export natif Electron
  * ==================================================================
@@ -175,5 +177,13 @@ export async function printElement(elementId: string): Promise<void> {
   const htmlDoc = buildPrintHtml(element.outerHTML, /* includePrintScript */ true)
 
   // ── Envoi au Main Process via IPC ─────────────────────────────────────────
-  await window.electron.printDocument(htmlDoc)
+  try {
+    await window.electron.printDocument(htmlDoc)
+  } catch (error) {
+    console.error('[printElement] Erreur IPC:', error)
+    toast.error("Erreur d'impression native", {
+      description: "Une erreur s'est produite lors de la communication avec le processus d'impression."
+    })
+    throw error
+  }
 }
