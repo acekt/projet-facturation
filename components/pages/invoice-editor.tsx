@@ -36,7 +36,7 @@ import {
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
-import { computeTotals } from "@/lib/api/invoice-logic";
+import { computeTotals } from "@/lib/math-logic";
 
 interface InvoiceEditorProps {
   onBack: () => void;

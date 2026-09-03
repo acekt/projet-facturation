@@ -4,7 +4,7 @@ import { getNextNumber } from '@/lib/api/numbering';
 import { DbInvoice, DbSettings, CreditNoteCreateRequest } from '@/lib/types/api';
 import { calculateFiscalCascade } from '@/lib/fiscal';
 import { INVOICE_STATUS } from '@/lib/constants';
-import { computeTotals } from '@/lib/api/invoice-logic';
+import { computeTotals } from '@/lib/math-logic';
 
 export class CreditNoteServiceError extends Error {
   constructor(public message: string, public status: number) {
