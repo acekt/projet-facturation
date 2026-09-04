@@ -297,16 +297,38 @@ export const useStore = create<AppState>()(
       },
       setClients: (clients) => set({ clients }),
       // Atomic client mutations: each reads fresh state via set(state => ...) — no stale closure.
+      /**
+       * @function addClient
+       * @description Adds a new client to the store immutably.
+       * @param {Client} client - The client object to add.
+       */
       addClient: (client) =>
         set((state) => ({ clients: [...state.clients, client] })),
+      /**
+       * @function removeClient
+       * @description Removes a client by ID.
+       * @param {string} id - The ID of the client to remove.
+       */
       removeClient: (id) =>
         set((state) => ({ clients: state.clients.filter((c) => c.id !== id) })),
+      /**
+       * @function updateClient
+       * @description Updates a client partially.
+       * @param {string} id - The ID of the client.
+       * @param {Partial<Client>} data - The data to update.
+       */
       updateClient: (id, data) =>
         set((state) => ({
           clients: state.clients.map((c) =>
             c.id === id ? { ...c, ...data } : c,
           ),
         })),
+      /**
+       * @function replaceClient
+       * @description Replaces a temporary client entry with a confirmed one from the server.
+       * @param {string} tempId - The temporary client ID.
+       * @param {Client} confirmed - The confirmed client object.
+       */
       replaceClient: (tempId, confirmed) =>
         set((state) => ({
           clients: state.clients.map((c) => (c.id === tempId ? confirmed : c)),

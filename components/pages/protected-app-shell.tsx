@@ -202,11 +202,16 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="absolute inset-0 flex flex-col items-center justify-center bg-background z-50"
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-[999]"
             >
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-              <p className="mt-4 text-sm text-muted-foreground font-medium">Initialisation des modules locaux...</p>
+              <div className="relative flex items-center justify-center">
+                <div className="w-16 h-16 border-4 border-primary/20 rounded-full"></div>
+                <div className="absolute w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+              </div>
+              <p className="mt-6 text-sm text-muted-foreground font-medium animate-pulse">
+                Initialisation de Facturier...
+              </p>
             </motion.div>
           ) : (
             <motion.div

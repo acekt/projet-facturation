@@ -45,7 +45,7 @@ import {
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
-import { computeTotals } from "@/lib/api/invoice-logic";
+import { computeTotals } from "@/lib/math-logic";
 
 interface QuoteEditorProps {
   onBack: () => void;
@@ -127,21 +127,27 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     // 1. Force clear on mount for NEW items explicitly
     if (isNew) {
       clearQuoteDraft();
-      setLocalDraft(freshDraft);
+      setLocalDraft({ ...freshDraft });
     }
 
     // 2. Clear on unmount strictly
     return () => {
       if (isNew) {
         clearQuoteDraft();
+        setLocalDraft({ ...freshDraft });
       }
     };
-  }, [isNew, clearQuoteDraft, freshDraft]);
+  }, [isNew, clearQuoteDraft]); // explicitly removed freshDraft from deps
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");
   const [previewOpen, setPreviewOpen] = React.useState(false);
-  const [isSubmitting, startSubmitTransition] = React.useTransition();
+
+  // Fix React Form Submission Anti-Pattern
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isPending, startTransition] = React.useTransition();
+  const isActionLocked = isSubmitting || isPending;
+
   const [isLoading, setIsLoading] = React.useState(!!editingId);
 
   React.useEffect(() => {
@@ -269,7 +275,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   );
   const netHT = Math.max(0, subtotal - Math.round(discount));
 
-  const handleSave = (status: Quote["status"]) => {
+  const handleSave = async (status: Quote["status"]) => {
     if (!selectedClient) {
       toast.error("Veuillez sélectionner un client");
       return;
@@ -587,7 +593,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                           )
                         }
                         className="text-right"
-                        disabled={status === "CONVERTI"}
+                        disabled={status === "CONVERTI" || isSubmitting}
                       />
                     </div>
                     <div className="col-span-4 md:col-span-2">
@@ -602,7 +608,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                           )
                         }
                         className="text-right"
-                        disabled={status === "CONVERTI"}
+                        disabled={status === "CONVERTI" || isSubmitting}
                       />
                     </div>
                     <div className="col-span-3 md:col-span-1 text-right pt-2 font-medium">
@@ -654,7 +660,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total HT Brut</span>
-                  <span className="text-foreground font-medium">
+                  <span className="text-foreground font-medium tabular-nums text-right">
                     {formatCurrency(subtotal)}
                   </span>
                 </div>
@@ -671,7 +677,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                       onChange={(e) =>
                         setDiscount(parseFloat(e.target.value) || 0)
                       }
-                      disabled={status === "CONVERTI"}
+                      disabled={status === "CONVERTI" || isSubmitting}
                     />
                   </div>
                 </div>
@@ -679,7 +685,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                 <div className="pt-2 border-t border-border/50">
                   <div className="flex justify-between text-sm font-semibold">
                     <span>Net HT</span>
-                    <span>{formatCurrency(netHT)}</span>
+                    <span className="tabular-nums text-right">{formatCurrency(netHT)}</span>
                   </div>
                 </div>
 
@@ -687,7 +693,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   <span className="text-muted-foreground">
                     CSS ({settings.cssRate}%)
                   </span>
-                  <span className="text-foreground">
+                  <span className="text-foreground tabular-nums text-right">
                     {formatCurrency(cssAmount)}
                   </span>
                 </div>
@@ -695,7 +701,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                 <div className="pt-1 border-t border-dashed border-border/30">
                   <div className="flex justify-between text-xs font-medium">
                     <span className="text-muted-foreground">Base TVA</span>
-                    <span>{formatCurrency(taxBase)}</span>
+                    <span className="tabular-nums text-right">{formatCurrency(taxBase)}</span>
                   </div>
                 </div>
 
@@ -703,7 +709,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   <span className="text-muted-foreground">
                     TPS ({settings.tpsRate || 9.5}%)
                   </span>
-                  <span className="text-foreground">
+                  <span className="text-foreground tabular-nums text-right">
                     {formatCurrency(tpsAmount)}
                   </span>
                 </div>
@@ -712,7 +718,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   <span className="text-muted-foreground">
                     TVA ({settings.tvaRate}%)
                   </span>
-                  <span className="text-foreground">
+                  <span className="text-foreground tabular-nums text-right">
                     {formatCurrency(tvaAmount)}
                   </span>
                 </div>
@@ -744,7 +750,11 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 transition-all"
                   disabled={isSubmitting || status === "CONVERTI"}
                 >
-                  <Save className="w-4 h-4 mr-2" />
+                  {isSubmitting ? (
+                    <Save className="w-4 h-4 mr-2 animate-pulse" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
                   {status === "CONVERTI"
                     ? "Devis Converti (Lecture seule)"
                     : (isSubmitting ? "Enregistrement..." : "Enregistrer le Devis")}

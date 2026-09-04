@@ -161,29 +161,48 @@ ${printScript}
  *
  * @param elementId - ID de l'élément <DocumentA4 /> caché à capturer
  */
+/**
+ * Capture le HTML d'un élément du DOM et l'envoie au Main Process via IPC
+ * pour impression via la boîte de dialogue d'impression native.
+ *
+ * @async
+ * @function printElement
+ * @param {string} elementId - ID de l'élément <DocumentA4 /> caché à capturer
+ * @throws Renvoie une erreur si l'élément n'est pas trouvé ou si IPC échoue.
+ */
 export async function printElement(elementId: string): Promise<void> {
-  const element = document.getElementById(elementId)
+  const element = document.getElementById(elementId);
 
   if (!element) {
-    throw new Error(`[print] Élément #${elementId} introuvable.`)
+    console.error(`[print] Élément #${elementId} introuvable dans le DOM.`);
+    toast.error("Erreur technique", { description: "Le document n'a pas pu être préparé pour l'impression." });
+    throw new Error(`[print] Élément #${elementId} introuvable.`);
   }
 
-  // ── Fallback navigateur (dev mode sans Electron) ──────────────────────────
+  // Fallback navigateur (dev mode sans Electron)
   if (!window.electron?.printDocument) {
-    window.print()
-    return
+    console.warn("[print] window.electron non détecté. Utilisation du fallback navigateur.");
+    window.print();
+    return;
   }
 
-  const htmlDoc = buildPrintHtml(element.outerHTML, /* includePrintScript */ true)
+  const htmlDoc = buildPrintHtml(element.outerHTML, /* includePrintScript */ true);
 
-  // ── Envoi au Main Process via IPC ─────────────────────────────────────────
+  // Envoi asynchrone au Main Process via IPC
   try {
-    await window.electron.printDocument(htmlDoc)
-  } catch (error) {
-    console.error('[printElement] Erreur IPC:', error)
-    toast.error("Erreur d'impression native", {
-      description: "Une erreur s'est produite lors de la communication avec le processus d'impression."
-    })
-    throw error
+    const result = await window.electron.printDocument(htmlDoc);
+    // Si la fonction retourne une promesse avec un statut
+    if (result && result.success === false) {
+      toast.warning("Impression annulée ou échouée.");
+    }
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : "Erreur inconnue";
+    // Ignorer les erreurs d'annulation de dialogue par l'utilisateur
+    if (!errorMsg.toLowerCase().includes('cancel') && !errorMsg.toLowerCase().includes('annul')) {
+      console.error('[printElement] Erreur critique IPC lors de l\'impression:', error);
+      toast.error("Échec de l'impression native", {
+        description: "Veuillez vérifier votre imprimante ou relancer l'application."
+      });
+    }
   }
 }
