@@ -6,12 +6,7 @@ import { ProtectedAppShell } from '@/components/pages/protected-app-shell'
 
 export const dynamic = 'force-dynamic';
 
-interface DbAuthUser {
-  id: string
-  name: string
-  role: 'admin' | 'user'
-  username: string
-}
+import type { UserResponse } from '@/lib/types/api'
 
 /**
  * Server Component Protecteur — Racine de l'application (/)
@@ -27,15 +22,19 @@ export default async function Page() {
     redirect('/login')
   }
 
-  const user = db.prepare('SELECT id, name, role, username FROM users WHERE id = ?').get(session.userId) as DbAuthUser | undefined
+  const user = db.prepare('SELECT * FROM users WHERE id = ?').get(session.userId) as any
   if (!user) {
     redirect('/login')
   }
 
-  const initialUser = {
+  const initialUser: UserResponse = {
     id: user.id,
     name: user.name,
-    role: user.role,
+    role: user.role as 'admin' | 'user',
+    email: user.email || '',
+    username: user.username,
+    is_active: user.is_active,
+    created_at: user.created_at
   }
 
   return <ProtectedAppShell initialUser={initialUser} />

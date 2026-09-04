@@ -28,6 +28,7 @@ import {
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { useStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
@@ -114,20 +115,18 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   }
 
   React.useEffect(() => {
+    const controller = new AbortController()
+
     if (currentUser?.role !== 'admin') {
       setIsLoading(false)
-      return
+    } else {
+      fetchUsers(controller.signal)
     }
-
-    // AbortController prevents setState calls on unmounted components
-    // and cancels in-flight requests when the user navigates away.
-    const controller = new AbortController()
-    fetchUsers(controller.signal)
 
     return () => {
       controller.abort()
     }
-  }, [currentUser?.id])
+  }, [currentUser?.id, currentUser?.role])
 
   const filteredUsers = React.useMemo(() => {
     return users.filter(u => {
@@ -288,6 +287,15 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
+      {currentUser?.role !== 'admin' && (
+        <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Gestion des utilisateurs</h1>
@@ -295,7 +303,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             {users.filter(u => checkIsActive(u)).length} actifs — {users.filter(u => !checkIsActive(u)).length} inactifs
           </p>
         </div>
-        <Button onClick={handleOpenAdd} className="gap-2 bg-primary shadow-lg shadow-primary/20">
+        <Button onClick={handleOpenAdd} disabled={currentUser?.role !== 'admin'} className="gap-2 bg-primary shadow-lg shadow-primary/20">
           <UserPlus className="w-4 h-4" />
           Ajouter un utilisateur
         </Button>
@@ -406,7 +414,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
                             <td className="px-6 py-4 text-right">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                        <Button disabled={currentUser?.role !== 'admin'} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                                             <MoreVertical className="w-4 h-4" />
                                         </Button>
                                     </DropdownMenuTrigger>
