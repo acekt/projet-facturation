@@ -153,6 +153,8 @@ export function ClientsPage() {
   }
 
   const handleDelete = async (id: string) => {
+    if (isSubmitting) return;
+
     // OPTIMISTIC UI — atomic removal; rollback re-inserts via addClient if needed.
     // We capture the full client object BEFORE removing it so we can restore it.
     const clientToRestore = clients.find(c => c.id === id)
@@ -161,20 +163,22 @@ export function ClientsPage() {
     toast.success("Client supprimé avec succès")
     setClientToDeleteId(null)
 
-    try {
-      const response = await fetch(`/api/clients/${id}`, {
-        method: 'DELETE',
-      })
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        throw new Error(errData.error || `HTTP ${response.status}`)
+    startSubmitTransition(async () => {
+      try {
+        const response = await fetch(`/api/clients/${id}`, {
+          method: 'DELETE',
+        })
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}))
+          throw new Error(errData.error || `HTTP ${response.status}`)
+        }
+      } catch (error) {
+        // ROLLBACK — re-insert the previously removed client
+        if (clientToRestore) addClient(clientToRestore)
+        const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+        toast.error(`Échec de la suppression : ${msg}. Restauration effectuée.`)
       }
-    } catch (error) {
-      // ROLLBACK — re-insert the previously removed client
-      if (clientToRestore) addClient(clientToRestore)
-      const msg = error instanceof Error ? error.message : 'Erreur inconnue'
-      toast.error(`Échec de la suppression : ${msg}. Restauration effectuée.`)
-    }
+    })
   }
 
   const handleEditClient = async (e: React.FormEvent) => {
@@ -641,12 +645,13 @@ export function ClientsPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => clientToDeleteId && handleDelete(clientToDeleteId)}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={isSubmitting}
             >
-              Supprimer
+              {isSubmitting ? "En cours..." : "Supprimer"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
