@@ -177,6 +177,8 @@ export function ServicesPage() {
   }
 
   const handleDelete = async (id: string) => {
+    if (isSubmitting) return;
+
     // Capture the service BEFORE removing it to enable precise rollback
     const serviceToRestore = services.find(s => s.id === id)
 
@@ -184,23 +186,25 @@ export function ServicesPage() {
     toast.success("Service supprimé")
     setServiceToDeleteId(null)
 
-    try {
-      const response = await fetch(`/api/services/${id}`, { method: 'DELETE' })
-      if (response.status === 403) {
+    startSubmitTransition(async () => {
+      try {
+        const response = await fetch(`/api/services/${id}`, { method: 'DELETE' })
+        if (response.status === 403) {
+          if (serviceToRestore) addService(serviceToRestore)
+          toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
+          return
+        }
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}))
+          throw new Error(errData.error || `HTTP ${response.status}`)
+        }
+      } catch (error) {
+        // ROLLBACK — re-insert the removed service
         if (serviceToRestore) addService(serviceToRestore)
-        toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
-        return
+        const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+        toast.error(`Échec de la suppression : ${msg}. Restauration effectuée.`)
       }
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        throw new Error(errData.error || `HTTP ${response.status}`)
-      }
-    } catch (error) {
-      // ROLLBACK — re-insert the removed service
-      if (serviceToRestore) addService(serviceToRestore)
-      const msg = error instanceof Error ? error.message : 'Erreur inconnue'
-      toast.error(`Échec de la suppression : ${msg}. Restauration effectuée.`)
-    }
+    })
   }
 
   return (
@@ -569,12 +573,13 @@ export function ServicesPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => serviceToDeleteId && handleDelete(serviceToDeleteId)}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={isSubmitting}
             >
-              Supprimer
+              {isSubmitting ? "En cours..." : "Supprimer"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
