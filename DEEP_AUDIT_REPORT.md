@@ -329,3 +329,167 @@ Omettre des dépendances dans `useEffect` provoque des bugs de "stale closures" 
   - **Médiocrité**: Manque potentiel d'index sur les colonnes fréquemment utilisées en clauses `WHERE` (`status`, `clientId`, `userId`) sur de grandes tables (`invoices`, `quotes`, `audit_logs`).
   - **Excellence**: Ajouter des instructions `CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);` et similaires pour les colonnes de jointure et de recherche.
 
+
+---
+
+## 5. ARCHITECTURE D'ÉTAT & INTÉGRATION ELECTRON (MODULE 5)
+
+### Hydratation du Store et Rendu de ProtectedAppShell
+
+**Analyse des Goulots d'Étranglement** :
+L'application utilise un modèle où `ProtectedAppShell` affiche un spinner de chargement (rendu via `AnimatePresence` de Framer Motion) basé sur le flag `isDataLoaded` de Zustand. Le composant `<DataSync />` exécute un `Promise.allSettled` pour récupérer simultanément les données lourdes (clients, factures, devis, etc.).
+Bien que le flux soit globalement correct, le rendu actuel de `ProtectedAppShell` peut manquer de l'élégance demandée et causer de légers clignotements si `isDataLoaded` n'est pas géré de manière suffisamment "pleine page" (full-screen overlay blocking). Le composant DataSync fait le job de manière asynchrone ce qui est une bonne pratique, mais l'UI de chargement dans le shell (actuellement rendue avec une petite icône "Initialisation des modules locaux..." dans l'espace principal au lieu d'un spinner total bloquant de manière élégante) pourrait être optimisée.
+
+**Remédiation Code (`components/pages/protected-app-shell.tsx`)** :
+Remplacer le bloc `!isDataLoaded` par un spinner plein écran véritablement premium et fluide qui prévient tout clignotement.
+
+```tsx
+// components/pages/protected-app-shell.tsx (Extrait de Remédiation)
+
+<AnimatePresence mode="wait">
+  {!isDataLoaded ? (
+    <motion.div
+      key="loading"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-[999]"
+    >
+      <div className="relative flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-primary/20 rounded-full"></div>
+        <div className="absolute w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+      <p className="mt-6 text-sm text-muted-foreground font-medium animate-pulse">
+        Initialisation de Facturier...
+      </p>
+    </motion.div>
+  ) : (
+    <motion.div
+      key={currentPage}
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+      className="flex-1 flex flex-col overflow-hidden px-8 py-6 h-full relative"
+    >
+      {renderPage()}
+    </motion.div>
+  )}
+</AnimatePresence>
+```
+
+### Optimisation Zustand (`lib/store.ts`)
+
+**Analyse** :
+- Le store utilise `persist` avec `sessionStorage` et `partialize`, ce qui est excellent pour éviter de saturer la mémoire (fuite de mémoire) avec des données complètes de l'API tout en gardant l'utilisateur connecté.
+- Les actions CRUD (comme `addClient`, `removeClient`) utilisent des mutations immuables (`set((state) => ({ clients: [...state.clients, client] }))`), mais il manque des commentaires JSDoc clairs pour faciliter la maintenance future, standardiser la nomenclature et s'assurer que toutes les actions suivent strictement ce paradigme immuable.
+
+**Remédiation Code (`lib/store.ts`)** :
+Ajout des JSDocs et standardisation.
+
+```typescript
+// lib/store.ts (Extrait de Remédiation - Actions standardisées)
+
+      /**
+       * @function addClient
+       * @description Ajoute un nouveau client de manière immuable au store.
+       * @param {Client} client - L'objet client à ajouter.
+       */
+      addClient: (client) =>
+        set((state) => ({ clients: [...state.clients, client] })),
+
+      /**
+       * @function removeClient
+       * @description Supprime un client existant en filtrant par ID.
+       * @param {string} id - L'identifiant unique du client.
+       */
+      removeClient: (id) =>
+        set((state) => ({ clients: state.clients.filter((c) => c.id !== id) })),
+
+      /**
+       * @function updateClient
+       * @description Met à jour partiellement les informations d'un client.
+       * @param {string} id - L'identifiant du client.
+       * @param {Partial<Client>} data - Les données à mettre à jour.
+       */
+      updateClient: (id, data) =>
+        set((state) => ({
+          clients: state.clients.map((c) =>
+            c.id === id ? { ...c, ...data } : c,
+          ),
+        })),
+
+      /**
+       * @function replaceClient
+       * @description Remplace une entrée client (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire du client.
+       * @param {Client} confirmed - L'objet client confirmé par le serveur.
+       */
+      replaceClient: (tempId, confirmed) =>
+        set((state) => ({
+          clients: state.clients.map((c) => (c.id === tempId ? confirmed : c)),
+        })),
+
+      // Appliquer cette même nomenclature JSDoc et logique immuable pour Invoice, Quote, Service, Payment.
+```
+
+### Synergie Electron (IPC)
+
+**Analyse** :
+Dans un environnement de bureau (Electron), la communication avec le processus principal (IPC) doit être strictement asynchrone et gérée avec des blocs try/catch exhaustifs pour ne pas crasher le processus de rendu en cas d'échec natif (ex: imprimante hors-ligne, annulation de la boîte de dialogue).
+Le composant `FullScreenDocumentViewer` fait appel à `window.electron.exportPDF` et `window.electron.printDocument`. Il utilise déjà async/await et try/catch. Toutefois, on peut s'assurer de capturer et traiter de manière "user-friendly" (via un `toast` Sonner) l'intégralité des retours.
+
+**Remédiation Code (`lib/electron-print.ts`)** :
+Sécurisation absolue de l'appel IPC dans l'utilitaire d'impression.
+
+```typescript
+// lib/electron-print.ts (Extrait de Remédiation)
+
+/**
+ * Capture le HTML d'un élément du DOM et l'envoie au Main Process via IPC
+ * pour impression via la boîte de dialogue d'impression native.
+ *
+ * @async
+ * @function printElement
+ * @param {string} elementId - ID de l'élément <DocumentA4 /> caché à capturer
+ * @throws Renvoie une erreur si l'élément n'est pas trouvé ou si IPC échoue.
+ */
+export async function printElement(elementId: string): Promise<void> {
+  const element = document.getElementById(elementId);
+
+  if (!element) {
+    console.error(`[print] Élément #${elementId} introuvable dans le DOM.`);
+    toast.error("Erreur technique", { description: "Le document n'a pas pu être préparé pour l'impression." });
+    throw new Error(`[print] Élément #${elementId} introuvable.`);
+  }
+
+  // Fallback navigateur (dev mode sans Electron)
+  if (!window.electron?.printDocument) {
+    console.warn("[print] window.electron non détecté. Utilisation du fallback navigateur.");
+    window.print();
+    return;
+  }
+
+  const htmlDoc = buildPrintHtml(element.outerHTML, /* includePrintScript */ true);
+
+  // Envoi asynchrone au Main Process via IPC
+  try {
+    const result = await window.electron.printDocument(htmlDoc);
+    // Si la fonction retourne une promesse avec un statut
+    if (result && result.success === false) {
+      toast.warning("Impression annulée ou échouée.");
+    }
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : "Erreur inconnue";
+    // Ignorer les erreurs d'annulation de dialogue par l'utilisateur
+    if (!errorMsg.toLowerCase().includes('cancel') && !errorMsg.toLowerCase().includes('annul')) {
+      console.error('[printElement] Erreur critique IPC lors de l\'impression:', error);
+      toast.error("Échec de l'impression native", {
+        description: "Veuillez vérifier votre imprimante ou relancer l'application."
+      });
+    }
+  }
+}
+```
