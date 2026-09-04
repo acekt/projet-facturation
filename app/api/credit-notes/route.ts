@@ -27,7 +27,7 @@ export async function GET() {
     }
 
     let query = `
-      SELECT cn.*,
+      SELECT cn.id, cn.number, cn.invoiceId, cn.clientId, cn.clientName, cn.date, cn.reason, cn.subtotal, cn.taxBase, cn.tvaAmount, cn.tpsAmount, cn.cssAmount, cn.total, cn.status, cn.createdAt, cn.deletedAt, cn.created_by,
              (SELECT json_group_array(json_object(
                'id', id,
                'description', description,
