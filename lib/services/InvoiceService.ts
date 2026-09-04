@@ -3,7 +3,8 @@ import crypto from 'crypto';
 import { getNextNumber } from '@/lib/api/numbering';
 import { DbClient } from '@/lib/types/api';
 import { ROLES, QUOTE_STATUS, INVOICE_STATUS } from '@/lib/constants';
-import { computeTotals, getTaxRates } from '@/lib/api/invoice-logic';
+import { getTaxRates } from '@/lib/api/invoice-logic';
+import { computeTotals } from '@/lib/math-logic';
 
 export class InvoiceServiceError extends Error {
   constructor(public message: string, public status: number) {

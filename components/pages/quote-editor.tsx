@@ -593,7 +593,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                           )
                         }
                         className="text-right"
-                        disabled={status === "CONVERTI"}
+                        disabled={status === "CONVERTI" || isSubmitting}
                       />
                     </div>
                     <div className="col-span-4 md:col-span-2">
@@ -608,7 +608,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                           )
                         }
                         className="text-right"
-                        disabled={status === "CONVERTI"}
+                        disabled={status === "CONVERTI" || isSubmitting}
                       />
                     </div>
                     <div className="col-span-3 md:col-span-1 text-right pt-2 font-medium">
@@ -677,7 +677,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                       onChange={(e) =>
                         setDiscount(parseFloat(e.target.value) || 0)
                       }
-                      disabled={status === "CONVERTI"}
+                      disabled={status === "CONVERTI" || isSubmitting}
                     />
                   </div>
                 </div>
@@ -750,7 +750,11 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 transition-all"
                   disabled={isSubmitting || status === "CONVERTI"}
                 >
-                  <Save className="w-4 h-4 mr-2" />
+                  {isSubmitting ? (
+                    <Save className="w-4 h-4 mr-2 animate-pulse" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
                   {status === "CONVERTI"
                     ? "Devis Converti (Lecture seule)"
                     : (isSubmitting ? "Enregistrement..." : "Enregistrer le Devis")}
