@@ -36,7 +36,7 @@ import {
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
-import { computeTotals } from "@/lib/api/invoice-logic";
+import { computeTotals } from "@/lib/math-logic";
 
 interface InvoiceEditorProps {
   onBack: () => void;
@@ -107,20 +107,26 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   React.useEffect(() => {
     if (isNew) {
       clearInvoiceDraft();
-      setLocalDraft(freshDraft);
+      setLocalDraft({ ...freshDraft });
     }
 
     return () => {
       if (isNew) {
         clearInvoiceDraft();
+        setLocalDraft({ ...freshDraft });
       }
     };
-  }, [isNew, clearInvoiceDraft, freshDraft]);
+  }, [isNew, clearInvoiceDraft]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");
   const [previewOpen, setPreviewOpen] = React.useState(false);
-  const [isSubmitting, startSubmitTransition] = React.useTransition();
+
+  // Fix React Form Submission Anti-Pattern
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isPending, startTransition] = React.useTransition();
+  const isActionLocked = isSubmitting || isPending;
+
   const [isLoading, setIsLoading] = React.useState(!!editingId);
 
   React.useEffect(() => {
@@ -246,7 +252,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   );
   const netHT = Math.max(0, subtotal - Math.round(discount));
 
-  const handleSave = (status: Invoice["status"]) => {
+  const handleSave = async (status: Invoice["status"]) => {
     if (!selectedClient) {
       toast.error("Veuillez sélectionner un client");
       return;
@@ -261,41 +267,44 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       return;
     }
 
-    startSubmitTransition(async () => {
-      try {
-        const url = editingId ? `/api/invoices/${editingId}` : "/api/invoices";
-        const method = editingId ? "PUT" : "POST";
-        const response = await fetch(url, {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clientId: selectedClient.id,
-            clientName: selectedClient.name,
-            clientEmail: selectedClient.email,
-            date: invoiceDate,
-            items,
-            notes,
-            subject: subject || undefined,
-            discount,
-            status,
-          }),
-        });
+    setIsSubmitting(true);
+    try {
+      const url = editingId ? `/api/invoices/${editingId}` : "/api/invoices";
+      const method = editingId ? "PUT" : "POST";
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: selectedClient.id,
+          clientName: selectedClient.name,
+          clientEmail: selectedClient.email,
+          date: invoiceDate,
+          items,
+          notes,
+          subject: subject || undefined,
+          discount,
+          status,
+        }),
+      });
 
-        if (!response.ok) throw new Error("Failed to save invoice");
+      if (!response.ok) throw new Error("Failed to save invoice");
 
-        const newInvoices = await fetch("/api/invoices").then((res) =>
-          res.json(),
-        );
+      const newInvoices = await fetch("/api/invoices").then((res) =>
+        res.json(),
+      );
+
+      startTransition(() => {
         setInvoices(newInvoices);
-
-        toast.success("Facture créée avec succès");
         clearInvoiceDraft();
+        toast.success("Facture créée avec succès");
         onBack();
-      } catch (error) {
-        console.error("[InvoiceEditor] handleSave error:", error);
-        toast.error("Erreur lors de l'enregistrement de la facture");
-      }
-    });
+      });
+    } catch (error) {
+      console.error("[InvoiceEditor] handleSave error:", error);
+      toast.error("Erreur lors de l'enregistrement de la facture");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
