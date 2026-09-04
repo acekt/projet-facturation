@@ -1,10 +1,9 @@
 import db from '@/lib/db';
 import type { DbInvoice, DbTotal } from '@/lib/types/api';
-import { TaxRates } from '@/lib/math-logic';
+import { TaxRates, InvoiceItemInput, ComputedTotals, computeTotals } from '@/lib/math-logic';
 
-// ============================================================================
-// HELPERS
-// ============================================================================
+export { computeTotals };
+export type { InvoiceItemInput, TaxRates, ComputedTotals };
 
 /**
  * Fetches tax rates from the settings table.

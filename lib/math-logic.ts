@@ -1,3 +1,5 @@
+// lib/math-logic.ts
+
 // ============================================================================
 // TAX RATE TYPES
 // ============================================================================
@@ -32,22 +34,12 @@ export interface ComputedTotals {
 }
 
 // ============================================================================
-// PURE CALCULATION FUNCTION
+// HELPERS
 // ============================================================================
 
 /**
- * Pure function for all financial calculations.
- * Computes all document totals from raw items and a discount ABSOLUTE AMOUNT in XAF.
- *
- * Formula (Gabon DGI fiscal rules 2026):
- *  lineTotal   = Math.round(qty × unitPrice)  [integer per line — XAF has no decimals]
- *  subtotal    = Σ(lineTotal)                 [exact sum of integer line totals]
- *  effectiveHT = max(0, subtotal − discount)  [HT après remise absolue en XAF]
- *  cssAmount   = effectiveHT × cssRate        [Contribution Sectorielle Spécifique]
- *  taxBase     = effectiveHT + cssAmount      [Base imposable TVA & TPS]
- *  tvaAmount   = taxBase × tvaRate            [TVA]
- *  tpsAmount   = taxBase × tpsRate            [Taxe sur les Produits et Services]
- *  total       = taxBase + tvaAmount + tpsAmount [TTC final]
+ * Pure mathematical calculation engine for invoice and quote totals.
+ * Safe to import in both Client and Server environments.
  */
 export function computeTotals(
   items: InvoiceItemInput[],
