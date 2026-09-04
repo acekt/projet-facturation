@@ -29,38 +29,45 @@ import {
 export default function LoginClient() {
   const [username, setUsername] = React.useState('')
   const [password, setPassword] = React.useState('')
-  const [loading, setLoading] = React.useState(false)
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [showPassword, setShowPassword] = React.useState(false)
   const [showDemoOptions, setShowDemoOptions] = React.useState(false)
   
   const router = useRouter()
   const setUser = useStore((state) => state.setUser)
+  const [isPending, startSubmitTransition] = React.useTransition()
 
   // Soumission du formulaire
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault()
-    setLoading(true)
-    try {
-      const res = await fetch('/api/auth/login', {
+    setIsSubmitting(true)
+
+    startSubmitTransition(() => {
+      fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       })
-      const data = await res.json()
-      if (res.ok) {
-        toast.success("Connexion réussie. Bienvenue dans Facturier !")
-        setUser(data.user)
-        await new Promise(resolve => setTimeout(resolve, 250))
-        router.push('/')
-        router.refresh()
-      } else {
-        toast.error(data.error || "Identifiants invalides")
-      }
-    } catch (err) {
-      toast.error("Impossible de joindre le serveur local")
-    } finally {
-      setLoading(false)
-    }
+      .then(res => res.json().then(data => ({ res, data })))
+      .then(({ res, data }) => {
+        if (res.ok) {
+          toast.success("Connexion réussie. Bienvenue dans Facturier !")
+          setUser(data.user)
+          setTimeout(() => {
+            router.push('/')
+            router.refresh()
+            setIsSubmitting(false)
+          }, 250)
+        } else {
+          toast.error(data.error || "Identifiants invalides")
+          setIsSubmitting(false)
+        }
+      })
+      .catch(err => {
+        toast.error("Impossible de joindre le serveur local")
+        setIsSubmitting(false)
+      })
+    })
   }
 
   // Raccourci pour remplir les comptes de démo
@@ -171,7 +178,7 @@ export default function LoginClient() {
                     placeholder="nom@facturier.ga"
                     className="pl-10 h-11 bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800 text-sm focus-visible:ring-primary focus-visible:ring-offset-0 text-slate-900 dark:text-zinc-50 placeholder:text-slate-400 dark:placeholder:text-zinc-500"
                     required
-                    disabled={loading}
+                    disabled={isPending || isSubmitting}
                   />
                 </div>
               </div>
@@ -198,7 +205,7 @@ export default function LoginClient() {
                     placeholder="••••••••"
                     className="pl-10 pr-10 h-11 bg-slate-50/50 dark:bg-zinc-900/50 border-slate-200 dark:border-zinc-800 text-sm focus-visible:ring-primary focus-visible:ring-offset-0 text-slate-900 dark:text-zinc-50 placeholder:text-slate-400 dark:placeholder:text-zinc-500"
                     required
-                    disabled={loading}
+                    disabled={isPending || isSubmitting}
                   />
                   <button
                     type="button"
@@ -214,10 +221,10 @@ export default function LoginClient() {
               <Button 
                 type="submit" 
                 className="w-full h-11 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-500 gap-2 shadow-lg shadow-blue-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={loading}
+                disabled={isPending || isSubmitting}
               >
-                {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Se connecter"}
-                {!loading && <ChevronRight className="w-4 h-4" />}
+                {(isPending || isSubmitting) ? <Loader2 className="w-4 h-4 animate-spin" /> : "Se connecter"}
+                {!(isPending || isSubmitting) && <ChevronRight className="w-4 h-4" />}
               </Button>
             </form>
 
