@@ -65,6 +65,7 @@ export async function POST(request: Request) {
       getRequiredEnv('PASSWORD_SALT', 16);
       getRequiredEnv('SESSION_SECRET', 32);
     } catch (configError) {
+      logAuditAsync('LOGIN_ERROR', 'system', null, 'Configuration serveur invalide (variables environnement manquantes)', null);
       return NextResponse.json({ error: "Configuration serveur invalide. Contactez l'administrateur." } as ErrorResponse, { status: 503 });
     }
 
@@ -105,6 +106,14 @@ export async function POST(request: Request) {
       isPasswordValid = user.password === legacyHash;
 
       // OPTIONAL: Update to bcrypt here seamlessly if successful
+      if (isPasswordValid) {
+        try {
+          const newBcryptHash = await bcrypt.hash(password, 10);
+          db.prepare('UPDATE users SET password = ? WHERE id = ?').run(newBcryptHash, user.id);
+        } catch (upgradeError) {
+          console.error('[Login] Failed to seamlessly upgrade password hash to bcrypt:', upgradeError);
+        }
+      }
     }
 
     if (!isPasswordValid) {
@@ -174,6 +183,7 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     console.error('[Login] Error:', error);
+    logAuditAsync('LOGIN_ERROR', 'system', null, 'Erreur serveur lors de la connexion', null);
     return NextResponse.json({ error: 'Erreur serveur' } as ErrorResponse, { status: 500 });
   }
 }

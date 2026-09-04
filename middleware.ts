@@ -103,6 +103,9 @@ export async function middleware(request: NextRequest) {
       response.cookies.delete('auth_session')
       return response
     }
+    if (isSessionValid) {
+      return NextResponse.redirect(new URL('/', request.url))
+    }
     return NextResponse.next()
   }
 
@@ -127,7 +130,7 @@ export async function middleware(request: NextRequest) {
     const isAdminOnlyRoute = ADMIN_FRONTEND_ROUTES.some(route => pathname === route || pathname.startsWith(route + '/'))
     const isAdminOnlyApi = ADMIN_API_ROUTES.some(api => pathname === api || pathname.startsWith(api + '/'))
 
-    if (role === 'user' || role === 'operator') {
+    if (role !== 'admin') {
       if (isAdminOnlyRoute) {
          return NextResponse.redirect(new URL('/?error=user_restricted', request.url))
       }
