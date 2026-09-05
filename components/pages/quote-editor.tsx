@@ -145,7 +145,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
   // Fix React Form Submission Anti-Pattern
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [isPending, startTransition] = React.useTransition();
+  const [isPending, startSubmitTransition] = React.useTransition();
   const isActionLocked = isSubmitting || isPending;
 
   const [isLoading, setIsLoading] = React.useState(!!editingId);
