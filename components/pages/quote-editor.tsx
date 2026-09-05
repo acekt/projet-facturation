@@ -297,40 +297,47 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
       return;
     }
 
-    startSubmitTransition(async () => {
-      try {
-        const url = editingId ? `/api/quotes/${editingId}` : "/api/quotes";
-        const method = editingId ? "PUT" : "POST";
-        const response = await fetch(url, {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clientId: selectedClient.id,
-            clientName: selectedClient.name,
-            clientEmail: selectedClient.email,
-            date: quoteDate,
-            items,
-            notes,
-            subject: subject || undefined,
-            validUntil: validUntil || undefined,
-            discount,
-            status,
-          }),
-        });
+    setIsSubmitting(true);
+    try {
+      const url = editingId ? `/api/quotes/${editingId}` : "/api/quotes";
+      const method = editingId ? "PUT" : "POST";
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: selectedClient.id,
+          clientName: selectedClient.name,
+          clientEmail: selectedClient.email,
+          date: quoteDate,
+          items,
+          notes,
+          subject: subject || undefined,
+          validUntil: validUntil || undefined,
+          discount,
+          status,
+        }),
+      });
 
-        if (!response.ok) throw new Error("Failed to save quote");
+      if (!response.ok) throw new Error("Failed to save quote");
 
-        const newQuotes = await fetch("/api/quotes").then((res) => res.json());
-        setQuotes(newQuotes);
+      const savedQuote = await response.json();
 
-        toast.success("Devis enregistré avec succès");
-        clearQuoteDraft();
-        onBack();
-      } catch (error) {
-        console.error("[QuoteEditor] handleSave error:", error);
-        toast.error("Erreur lors de l'enregistrement du devis");
+      // Atomic Zustand update using the JSON response payload
+      if (editingId) {
+          useStore.getState().updateQuote(editingId, savedQuote);
+      } else {
+          useStore.getState().addQuote(savedQuote);
       }
-    });
+
+      toast.success("Devis enregistré avec succès");
+      clearQuoteDraft();
+      onBack();
+    } catch (error) {
+      console.error("[QuoteEditor] handleSave error:", error);
+      toast.error("Erreur lors de l'enregistrement du devis");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
