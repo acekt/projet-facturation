@@ -190,7 +190,7 @@ export async function printElement(elementId: string): Promise<void> {
 
   // Envoi asynchrone au Main Process via IPC
   try {
-    const result = await window.electron.printDocument(htmlDoc);
+    const result = (await window.electron.printDocument(htmlDoc)) as { success: boolean } | undefined;
     // Si la fonction retourne une promesse avec un statut
     if (result && result.success === false) {
       toast.warning("Impression annulée ou échouée.");
