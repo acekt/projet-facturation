@@ -1,376 +1,495 @@
-# 🚨 DEEP_AUDIT_REPORT.md — MISSION DE TEST PROFOND ET CONTINU 🚨
+# DEEP_AUDIT_REPORT.md
 
-## RAPPORT DE DIAGNOSTIC IMPITOYABLE (LEAD QA ENGINEER)
-
-En tant qu'Architecte Logiciel et Lead QA, j'ai audité l'intégralité du code source (Frontend, Backend, IPC Electron, et SQLite). Ce rapport expose les médiocrités, les "code smells" et les failles potentielles de résilience. Conformément aux directives strictes, **aucun fichier source n'a été modifié**. Voici les remèdes exacts exigés pour l'excellence.
+**MISSION**: Rapport de diagnostic impitoyable des anti-patterns, code smells, et incohérences logiques, analysant l'application sous 4 piliers principaux.
 
 ---
 
-### 1. QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
+## 1. QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
 
-L'usage du type `any` est un anti-pattern majeur en TypeScript, annulant les garanties de sécurité du compilateur. Il expose l'application à des erreurs critiques lors du runtime.
+### Utilisation excessive du type `any`
+L'utilisation de `any` détruit les garanties de TypeScript et expose à des erreurs de runtime ("undefined is not a function").
 
-#### ❌ Anomalie : Typage explicite avec `any` (Prop Drilling & Composants)
-- **Fichier** : `components/pages/protected-app-shell.tsx` (Ligne 30)
-  - **Médiocrité** : `initialUser: any`. Les propriétés de l'utilisateur ne sont pas garanties.
-  - **Code d'Excellence** :
-    ```typescript
-    import type { User } from '@/lib/types/api';
-    interface ProtectedAppShellProps {
-      initialUser: User | null;
-    }
-    ```
+- **Fichier**: `components/pdf-document.tsx`, Ligne 310
+  - **Médiocrité**: `Objet: {('notes' in document ? (document as any).notes : null) || "Prestations de services"}`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer l'objet 'document' pour inclure 'notes' ou vérifier avec 'in' sur un type plus précis.
 
-- **Fichier** : `components/pdf-document.tsx` (Lignes 310, 343)
-  - **Médiocrité** : `(document as any).notes` et `(document as any).discount`. Forcer le type contourne la vérification des clés du document.
-  - **Code d'Excellence** :
-    ```typescript
-    // Utiliser un type d'union discriminant ou vérifier la présence de la propriété
-    <Text>Objet: {('notes' in document ? (document as Quote | Invoice).notes : null) || "Prestations de services"}</Text>
-    <Text style={styles.totalVal}>{formatCurrencyPDF('discount' in document ? (document as Quote | Invoice).discount : 0)}</Text>
-    ```
+- **Fichier**: `components/pdf-document.tsx`, Ligne 343
+  - **Médiocrité**: `<Text style={styles.totalVal}>{formatCurrencyPDF('discount' in document ? (document as any).discount : 0)}</Text>`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer l'objet 'document' pour inclure 'discount'.
 
-#### ❌ Anomalie : Typage des erreurs (Catch)
-- **Fichier** : `app/api/quotes/convert/route.ts` (Ligne 49) et `components/pages/quotes.tsx` (Ligne 208)
-  - **Médiocrité** : `} catch (error: any) {`. L'erreur interceptée n'est pas typée correctement, ce qui peut causer un crash lors de l'accès à `error.message`.
-  - **Code d'Excellence** :
+- **Fichier**: `components/pages/invoice-editor.tsx`, Ligne 723
+  - **Médiocrité**: `items: items as any,`. Accès ou typage faible via `any`.
+  - **Excellence**: Définir une interface correcte pour 'items' (e.g. `InvoiceItemData[]`).
+
+- **Fichier**: `components/pages/audit-logs.tsx`, Ligne 13
+  - **Médiocrité**: `const [logs, setLogs] = React.useState<any[]>([])`. Accès ou typage faible via `any`.
+  - **Excellence**: Utiliser un type spécifique tel que `AuditLog[]` pour l'état.
+
+- **Fichier**: `components/pages/payments.tsx`, Ligne 192
+  - **Médiocrité**: `const getPaymentStatusInfo = (invoice: any) => {`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer le paramètre 'invoice' avec une interface comme `Invoice`.
+
+- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 771
+  - **Médiocrité**: `items: items as any,`. Accès ou typage faible via `any`.
+  - **Excellence**: Définir une interface correcte pour 'items' (e.g. `QuoteItemData[]`).
+
+- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 782
+  - **Médiocrité**: `} as any`. Accès ou typage faible via `any`.
+  - **Excellence**: Assurer que l'objet respecte l'interface du Store et éviter `as any`.
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 208
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
     ```typescript
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
-      console.error('[Erreur]', errorMessage);
-      // Remonter errorMessage
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
     }
     ```
 
-#### ❌ Anomalie : Typage des transactions SQLite
-- **Fichier** : `app/api/quotes/[id]/route.ts` (Ligne 131)
-  - **Médiocrité** : `const updateQuoteTx = db.transaction((quoteItems: any[]) => {`
-  - **Code d'Excellence** :
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 331
+  - **Médiocrité**: `variant={getQuoteStatusVariant(quote.status as any)}`. Accès ou typage faible via `any`.
+  - **Excellence**: Assurer que `quote.status` soit correctement typé avec l'enum/literal type attendu.
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 465
+  - **Médiocrité**: `quote.status as any,`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer l'objet de retour de la base de données avec le type statut correct.
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 613
+  - **Médiocrité**: `variant={getQuoteStatusVariant(quote.status as any)}`. Accès ou typage faible via `any`.
+  - **Excellence**: Utiliser un type de statut spécifique.
+
+- **Fichier**: `components/pages/credit-notes.tsx`, Ligne 111
+  - **Médiocrité**: `const rows = creditNotes.map(c => [c.number, c.clientName, c.total || (c as any).amount || 0, c.date, c.reason || '']);`. Accès ou typage faible via `any`.
+  - **Excellence**: Créer une interface `CreditNote` qui inclut 'amount' ou 'total' et l'utiliser dans la récupération.
+
+- **Fichier**: `components/fullscreen-document-viewer.tsx`, Ligne 142
+  - **Médiocrité**: `const docNumber = (docProps.data as any)?.number ?? 'document'`. Accès ou typage faible via `any`.
+  - **Excellence**: Utiliser des types union comme `Invoice | Quote | CreditNote`.
+
+- **Fichier**: `components/fullscreen-document-viewer.tsx`, Ligne 178
+  - **Médiocrité**: `?? `${docProps.type === 'facture' ? 'Facture' : docProps.type === 'devis' ? 'Devis' : 'Avoir'} — ${(docProps.data as any).number ?? ''}``. Accès ou typage faible via `any`.
+  - **Excellence**: Typer 'docProps.data' correctement en fonction de 'docProps.type'.
+
+- **Fichier**: `app/api/settings/route.ts`, Ligne 102
+  - **Médiocrité**: `} catch (dbError: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
     ```typescript
-    import type { QuoteItem } from '@/lib/types/api';
-    const updateQuoteTx = db.transaction((quoteItems: QuoteItem[]) => {
-    ```
-
----
-
-### 2. LOGIQUE REACT ET ANTI-PATTERNS UI
-
-#### ❌ Anomalie : Effets de Bord potentiellement dangereux
-- **Fichier** : `components/pages/protected-app-shell.tsx` (Ligne 54)
-  - **Médiocrité** : Utilisation d'un `setTimeout` dans un `useEffect` sans dépendance complète ou isolation, qui force un re-render complet. Bien que ce composant ait ses dépendances correctes pour `initialUser` (ligne 42), le couplage Zustand/React manque parfois d'isolation.
-  - **Code d'Excellence** :
-    ```typescript
-    React.useEffect(() => {
-      if (!isDataLoaded) {
-        const timer = setTimeout(() => setInitTimeout(true), 3000);
-        return () => clearTimeout(timer); // Toujours clear le timer au démontage
-      } else {
-        setInitTimeout(false);
-      }
-    }, [isDataLoaded]);
-    ```
-
-#### ❌ Anomalie : Gestion des requêtes API sans filet (Fetch sans throw)
-- **Fichier** : `components/pages/quotes.tsx` (Lignes 144, 202-203)
-  - **Médiocrité** : `fetch("/api/quotes").then((res) => res.json())`. L'API `fetch` natif ne déclenche pas d'erreur (throw) sur un statut `4xx` ou `5xx`. Si l'API renvoie une erreur serveur (ex: 500 HTML), le `.json()` crashera de manière imprévisible avec `Unexpected token`.
-  - **Code d'Excellence** :
-    ```typescript
-    const res = await fetch("/api/quotes");
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({ error: 'Erreur réseau inattendue' }));
-      throw new Error(err.error || `Erreur HTTP: ${res.status}`);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
     }
-    const updatedQuotes = await res.json();
     ```
 
----
-
-### 3. ARCHITECTURE ELECTRON ET IPC
-
-#### ✅ / ❌ Diagnostic IPC et Fuites de Mémoire
-- **Analyse IPC** : Le projet a évité l'anti-pattern majeur des fuites `ipcRenderer.on` en utilisant exclusivement le pattern de communication `ipcMain.handle` / `ipcRenderer.invoke` (ex: `main.js` Ligne 659: `// IPC HANDLERS (Tous async via ipcMain.handle, jamais sendSync)`). C'est excellent, car l'usage de Promesses élimine la nécessité de faire un `.removeListener()`.
-- **Pont de sécurité (Preload)** : Le fichier `preload.js` utilise strictement `contextBridge.exposeInMainWorld` et n'expose jamais l'objet événement (`event`) global au contexte React.
-
-- **Recommandation d'Excellence** (Pour garantir que de futurs écouteurs ne fuient pas) :
-  Si l'application vient à implémenter des événements asynchrones poussés par le serveur (ex: synchronisation), il faudra ABSOLUMENT utiliser le modèle suivant :
-  ```typescript
-  React.useEffect(() => {
-    const handler = (_event: Electron.IpcRendererEvent, data: any) => { /* action */ };
-    window.electron.onUpdate(handler);
-    return () => {
-      window.electron.removeUpdateListener(handler); // Nettoyage strict
-    };
-  }, []);
-  ```
-
----
-
-### 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
-
-L'utilisation de SQLite synchrone avec un stockage local exige des stratégies agressives pour éviter le gel (freeze) de l'interface Electron.
-
-#### ❌ Anomalie : Exécution SQL (N+1) dans une boucle
-- **Fichier** : `app/api/quotes/[id]/route.ts` (Ligne 166)
-  - **Médiocrité** : L'exécution de requêtes préparées `insertItem.run(...)` dans une boucle `for...of`. Bien que ce soit exécuté à l'intérieur d'un bloc `db.transaction()`, l'appel répétitif au niveau applicatif reste moins optimal qu'un `batch` ou un statement multi-valeurs pour de gros volumes.
-  - **Code d'Excellence** (Approche la plus propre en SQLite JS) :
-    Il est impératif de conserver la déclaration du `.prepare()` à l'extérieur (ce qui est fait), mais pour être intouchable en termes de performance lors de grosses commandes (100+ articles) :
+- **Fichier**: `app/api/settings/route.ts`, Ligne 119
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
     ```typescript
-    const insertItem = db.prepare(`
-      INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    // La fonction de transaction est déjà présente, l'utilisation de .run en boucle
-    // est optimisée par better-sqlite3 dans une transaction, mais il faut typer
-    // rigoureusement quoteItems pour éviter des payloads massifs non prévus.
-    ```
-
-#### ❌ Anomalie : Indexation manquante (Ralentissement des jointures et filtres)
-- **Fichier** : (À créer/ajouter dans le gestionnaire de base de données `lib/db.ts`)
-  - **Médiocrité** : Les requêtes fréquentes utilisent souvent des clauses `WHERE status = ?` (ex: pour différencier les devis convertis des devis en attente) ou l'identifiant du client `clientId`. L'absence d'index sur ces colonnes provoque un `Full Table Scan`.
-  - **Code d'Excellence** :
-    Ajouter explicitement ces instructions DDL lors de l'initialisation de la base :
-    ```sql
-    -- Dans lib/db.ts lors de l'initialisation (migrations)
-    db.exec(`
-      CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
-      CREATE INDEX IF NOT EXISTS idx_quotes_clientId ON quotes(clientId);
-      CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
-      CREATE INDEX IF NOT EXISTS idx_invoices_clientId ON invoices(clientId);
-    `);
-    ```
-
-
-### 5. ARCHITECTURE D'ÉTAT & INTÉGRATION ELECTRON (MODULE 5/5)
-
-#### 5.1. Hydratation du Store & Squelette Applicatif (`ProtectedAppShell.tsx`)
-- **Problèmes de goulots d'étranglement et de clignotement :**
-  L'implémentation initiale de l'écran de chargement dans `ProtectedAppShell` utilise un `setTimeout` qui introduit une latence artificielle et risque de provoquer un "flicker" si `isDataLoaded` passe rapidement à `true`. De plus, le typage de `initialUser` est déclaré en tant que `any`, annulant le typage de sécurité.
-- **Code de remédiation complet pour `components/pages/protected-app-shell.tsx` :**
-  ```tsx
-  "use client"
-
-  import * as React from "react"
-  import { motion, AnimatePresence } from "framer-motion"
-  import { Sidebar, TopBar } from "@/components/layout/navigation"
-  import { CommandMenu } from "@/components/layout/command-menu"
-  import { Dashboard } from "@/components/pages/dashboard"
-  import { InvoicesPage } from "@/components/pages/invoices"
-  import { QuotesPage } from "@/components/pages/quotes"
-  import { QuoteEditor } from "@/components/pages/quote-editor"
-  import { InvoiceEditor } from "@/components/pages/invoice-editor"
-  import { ClientsPage } from "@/components/pages/clients"
-  import { ServicesPage } from "@/components/pages/services"
-  import { PaymentsPage } from "@/components/pages/payments"
-  import { SettingsPage } from "@/components/pages/settings"
-  import { CreditNotesPage } from "@/components/pages/credit-notes"
-  import { AuditLogsPage } from "@/components/pages/audit-logs"
-  import { UsersPage } from "@/components/pages/users"
-  import { UserEditor } from "@/components/pages/user-editor"
-  import { useStore } from "@/lib/store"
-  import { DataSync } from "@/components/data-sync"
-  import type { UserResponse } from "@/lib/api/types" // S'assurer de l'import correct du type
-
-  const pageVariants = {
-    initial: { opacity: 0, y: 10 },
-    animate: { opacity: 1, y: 0 },
-    exit: { opacity: 0, y: -10 },
-  }
-
-  interface ProtectedAppShellProps {
-    initialUser: UserResponse // Remplace 'any' par le bon type
-  }
-
-  export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
-    const user = useStore(state => state.user)
-    const setUser = useStore(state => state.setUser)
-    const isDataLoaded = useStore(state => state.isDataLoaded)
-
-    // Synchronisation prioritaire :
-    React.useEffect(() => {
-      if (initialUser && (!user || user.id !== initialUser.id || user.role !== initialUser.role)) {
-        setUser(initialUser)
-      }
-    }, [initialUser, user, setUser])
-
-    const [currentPage, setCurrentPage] = React.useState("dashboard")
-    const [editingId, setEditingId] = React.useState<string | null>(null)
-    const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
-    const [commandOpen, setCommandOpen] = React.useState(false)
-
-    // Raccourci clavier Cmd/Ctrl+K pour la palette de commandes
-    React.useEffect(() => {
-      const down = (e: KeyboardEvent) => {
-        if (e.key === "k" && (e.metaKey || e.ctrlKey)) {
-          e.preventDefault()
-          setCommandOpen((open) => !open)
-        }
-      }
-      document.addEventListener("keydown", down)
-      return () => document.removeEventListener("keydown", down)
-    }, [])
-
-    const effectiveUser = initialUser || user
-
-    const handlePageChange = React.useCallback((page: string) => {
-      React.startTransition(() => {
-        setCurrentPage(page)
-      })
-    }, [])
-
-    const renderPage = React.useCallback(() => {
-      switch (currentPage) {
-        case "dashboard": return <Dashboard onNavigate={handlePageChange} />
-        case "users": return <UsersPage onCreateUser={() => { setEditingId(null); setCurrentPage("new-user"); }} onEditUser={(id: string) => { setEditingId(id); setCurrentPage("edit-user"); }} />
-        case "new-user": return <UserEditor onBack={() => { setEditingId(null); setCurrentPage("users"); }} editingId={null} />
-        case "edit-user": return <UserEditor onBack={() => { setEditingId(null); setCurrentPage("users"); }} editingId={editingId} />
-        case "quotes": return <QuotesPage onCreateQuote={(id) => { setEditingId(id || null); setCurrentPage("new-quote"); }} />
-        case "new-quote": return <QuoteEditor onBack={() => { setEditingId(null); setCurrentPage("quotes"); }} editingId={editingId} />
-        case "invoices": return <InvoicesPage onCreateInvoice={() => { setEditingId(null); handlePageChange("new-invoice"); }} onEditInvoice={(id) => { setEditingId(id); handlePageChange("edit-invoice"); }} />
-        case "new-invoice": return <InvoiceEditor onBack={() => { setEditingId(null); handlePageChange("invoices"); }} editingId={null} />
-        case "edit-invoice": return <InvoiceEditor onBack={() => { setEditingId(null); handlePageChange("invoices"); }} editingId={editingId} />
-        case "clients": return <ClientsPage />
-        case "services": return <ServicesPage />
-        case "payments": return <PaymentsPage />
-        case "credit-notes": return <CreditNotesPage />
-        case "audit": return <AuditLogsPage />
-        case "settings": return <SettingsPage />
-        default: return <Dashboard onNavigate={handlePageChange} />
-      }
-    }, [currentPage, handlePageChange, editingId])
-
-    if (!effectiveUser) {
-      return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 animate-pulse" />
-            <div className="w-24 h-2 bg-secondary rounded animate-pulse" />
-          </div>
-        </div>
-      )
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
     }
+    ```
 
-    return (
-      <div className="h-screen bg-background overflow-hidden flex flex-col">
-        <DataSync />
-        {/* Sidebar */}
-        <Sidebar
-          currentPage={currentPage}
-          onPageChange={handlePageChange}
-          collapsed={sidebarCollapsed}
-          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        />
-        {/* Top Bar */}
-        <TopBar collapsed={sidebarCollapsed} onCommandOpen={() => setCommandOpen(true)} />
-        {/* Command Menu */}
-        <CommandMenu
-          open={commandOpen}
-          onOpenChange={setCommandOpen}
-          onNavigate={handlePageChange}
-        />
-        {/* Main Content */}
-        <motion.main
-          initial={false}
-          animate={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
-          transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
-          className="h-screen pt-16 flex flex-col overflow-hidden relative"
-        >
-          <AnimatePresence mode="wait">
-            {!isDataLoaded ? (
-              <motion.div
-                key="loading"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.2 }}
-                className="absolute inset-0 flex flex-col items-center justify-center bg-background z-50"
-              >
-                <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-                <p className="mt-4 text-sm text-muted-foreground font-medium">Initialisation des modules locaux...</p>
-              </motion.div>
-            ) : (
-              <motion.div
-                key={currentPage}
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-                className="flex-1 flex flex-col overflow-hidden px-8 py-6 h-full"
-              >
-                {renderPage()}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </motion.main>
+- **Fichier**: `app/api/setup/route.ts`, Ligne 99
+  - **Médiocrité**: `} catch (txError: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `app/api/credit-notes/route.ts`, Ligne 92
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `app/api/users/route.ts`, Ligne 103
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `app/api/users/route.ts`, Ligne 124
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `app/api/invoices/route.ts`, Ligne 74
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `app/api/quotes/convert/route.ts`, Ligne 49
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `app/api/quotes/[id]/route.ts`, Ligne 131
+  - **Médiocrité**: `const updateQuoteTx = db.transaction((quoteItems: any[]) => {`. Accès ou typage faible via `any`.
+  - **Excellence**: Créer une interface `QuoteItem` et typer `quoteItems: QuoteItem[]`.
+
+- **Fichier**: `app/api/quotes/route.ts`, Ligne 115
+  - **Médiocrité**: `const insertQuote = db.transaction((quoteItems: any[]) => {`. Accès ou typage faible via `any`.
+  - **Excellence**: Créer une interface `QuoteItem` et typer `quoteItems: QuoteItem[]`.
+
+- **Fichier**: `app/page.tsx`, Ligne 25
+  - **Médiocrité**: `const user = db.prepare('SELECT * FROM users WHERE id = ?').get(session.userId) as any`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer le retour de la requête SQLite avec l'interface `User`.
+
+- **Fichier**: `hooks/use-quotes.ts`, Ligne 44
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `hooks/use-quotes.ts`, Ligne 81
+  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `lib/db.ts`, Ligne 105
+  - **Médiocrité**: `statementCache: Map<string, any>;`. Accès ou typage faible via `any`.
+  - **Excellence**: Utiliser `Map<string, Statement>` (import Statement from 'better-sqlite3').
+
+- **Fichier**: `lib/db.ts`, Ligne 125
+  - **Médiocrité**: `} catch (fatalErr: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `lib/db.ts`, Ligne 404
+  - **Médiocrité**: `} catch (schemaErr: any) {`. Accès ou typage faible via `any`.
+  - **Excellence**:
+    ```typescript
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+      console.error(errorMessage);
+    }
+    ```
+
+- **Fichier**: `lib/services/InvoiceService.ts`, Ligne 15
+  - **Médiocrité**: `createInvoice(data: any, userId: string, role: string) {`. Accès ou typage faible via `any`.
+  - **Excellence**: Créer une interface `InvoiceCreateData` (clientId, items, etc.).
+
+- **Fichier**: `lib/services/ExportService.ts`, Ligne 291
+  - **Médiocrité**: `(q as any).validUntil ? formatDate((q as any).validUntil) : "—",`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer le paramètre avec l'interface `Quote` qui inclut 'validUntil'.
+
+- **Fichier**: `lib/services/ExportService.ts`, Ligne 292
+  - **Médiocrité**: `(q as any).subject ?? "—",`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer le paramètre avec l'interface `Quote` qui inclut 'subject'.
+
+- **Fichier**: `lib/repositories/UserRepository.ts`, Ligne 38
+  - **Médiocrité**: `const values: any[] = [];`. Accès ou typage faible via `any`.
+  - **Excellence**: Typer le tableau `values` avec `unknown[]` (SQLite accepte tout, mais any est trop large).
+
+### Code mort et Duplications
+
+- Aucune anomalie majeure de code mort identifiée dans les fichiers clés lors de cette analyse statique (les imports inutilisés sont gérés par le linter en amont).
+
+---
+
+## 2. LOGIQUE REACT ET ANTI-PATTERNS UI
+
+### Dépendances de Hooks manquantes ou désactivées
+
+Omettre des dépendances dans `useEffect` provoque des bugs de "stale closures" ou des cycles infinis.
+
+- **Fichier**: `components/pages/invoice-editor.tsx`, Ligne 68
+  - **Médiocrité**: Désactivation de la règle `eslint-disable-next-line react-hooks/exhaustive-deps` pour omettre des dépendances (potentiel stale closure / re-render infini si mal géré).
+  - **Excellence**: Ajouter les dépendances `isNew` et `clearInvoiceDraft` dans le tableau `[isNew, clearInvoiceDraft]`. En cas de boucle, envelopper `clearInvoiceDraft` avec `useCallback`.
+
+- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 80
+  - **Médiocrité**: Désactivation de la règle `eslint-disable-next-line react-hooks/exhaustive-deps` pour omettre des dépendances (potentiel stale closure / re-render infini si mal géré).
+  - **Excellence**: Ajouter les dépendances `isNew` et `clearQuoteDraft` dans le tableau `[isNew, clearQuoteDraft]`. En cas de boucle, envelopper `clearQuoteDraft` avec `useCallback`.
+
+### Gestion des Erreurs et Appels API
+
+- **Fichier**: `components/pages/audit-logs.tsx`, Ligne 21
+  - **Médiocrité**: Appel `fetch('/api/audit-logs')` non sécurisé, manquant parfois un bloc `try/catch` robuste et un retour visuel en cas d'erreur de réseau (seulement `console.error`).
+  - **Excellence**: Afficher un toast/alert à l'utilisateur lorsqu'une erreur serveur survient.
+
+### Prop Drilling
+
+- **Fichiers**: `components/pages/users.tsx` et autres vues principales.
+  - **Médiocrité**: Transfert de props complexes pour le routage de vues internes au lieu d'utiliser le store global Zustand ou React Context sur plus de 3 niveaux.
+  - **Excellence**: Déplacer les états d'édition et de navigation de vue (`isEditing`, `currentId`) au sein de l'état Zustand `store.ts`.
+
+---
+
+## 3. ARCHITECTURE ELECTRON ET IPC
+
+### Fuites de Mémoire (Event Listeners IPC)
+
+- **Fichier**: `main.js`, Ligne 80 (approx)
+  - **Médiocrité**: Création de fenêtres enfants (ex: `printWin`) avec des événements de rendu ou WebContents (`did-finish-load`) sans `.removeAllListeners()` avant destruction.
+  - **Excellence**:
+    ```javascript
+    printWin.webContents.removeAllListeners('did-finish-load');
+    printWin.destroy();
+    printWin = null;
+    ```
+
+### Sécurité du Preload
+
+- **Fichier**: `preload.js`
+  - **Analyse**: `contextIsolation` est `true` et l'interface via `contextBridge` est bien utilisée avec des fonctions encapsulées.
+
+---
+
+## 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
+
+### Requêtes N+1 et Optimisation Transactionnelle
+
+- **Fichier**: `lib/services/InvoiceService.ts`, Ligne 87
+  - **Médiocrité**: Exécution de `.run()` (ex. insertions de items) de façon isolée ou potentiellement itérée lors des mutations de factures complexes au lieu d'une transaction globale.
+  - **Excellence**:
+    ```typescript
+    const createTx = db.transaction((data, items) => {
+       // insertion parente
+       const insertStmt = db.prepare('INSERT INTO child (parent_id, col) VALUES (?, ?)');
+       for(const item of items) {
+           insertStmt.run(data.id, item.col);
+       }
+    });
+    createTx(data, items);
+    ```
+
+- **Fichier**: `app/api/quotes/[id]/route.ts`, Ligne 166
+  - **Médiocrité**: Appel potentiellement d'insertion `insertItem.run` dans une boucle for() avec risque de ne pas centraliser dans le bloc de la transaction si mal englobé.
+  - **Excellence**:
+    ```typescript
+    const createTx = db.transaction((data, items) => {
+       // insertion parente
+       const insertStmt = db.prepare('INSERT INTO child (parent_id, col) VALUES (?, ?)');
+       for(const item of items) {
+           insertStmt.run(data.id, item.col);
+       }
+    });
+    createTx(data, items);
+    ```
+
+- **Fichier**: `app/api/invoices/[id]/route.ts`, Ligne 168
+  - **Médiocrité**: Création des `credit_note_items` dans une boucle `for (const item of items)`. Mettre `.prepare()` en dehors de la transaction et s'assurer que la boucle `.run()` s'exécute de façon atomique via un `.transaction()` qui englobe la totalité.
+  - **Excellence**:
+    ```typescript
+    const createTx = db.transaction((data, items) => {
+       // insertion parente
+       const insertStmt = db.prepare('INSERT INTO child (parent_id, col) VALUES (?, ?)');
+       for(const item of items) {
+           insertStmt.run(data.id, item.col);
+       }
+    });
+    createTx(data, items);
+    ```
+
+### Indexation
+
+- **Fichier**: `lib/db.ts` (Schéma init)
+  - **Médiocrité**: Manque potentiel d'index sur les colonnes fréquemment utilisées en clauses `WHERE` (`status`, `clientId`, `userId`) sur de grandes tables (`invoices`, `quotes`, `audit_logs`).
+  - **Excellence**: Ajouter des instructions `CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);` et similaires pour les colonnes de jointure et de recherche.
+
+
+---
+
+## 5. ARCHITECTURE D'ÉTAT & INTÉGRATION ELECTRON (MODULE 5)
+
+### Hydratation du Store et Rendu de ProtectedAppShell
+
+**Analyse des Goulots d'Étranglement** :
+L'application utilise un modèle où `ProtectedAppShell` affiche un spinner de chargement (rendu via `AnimatePresence` de Framer Motion) basé sur le flag `isDataLoaded` de Zustand. Le composant `<DataSync />` exécute un `Promise.allSettled` pour récupérer simultanément les données lourdes (clients, factures, devis, etc.).
+Bien que le flux soit globalement correct, le rendu actuel de `ProtectedAppShell` peut manquer de l'élégance demandée et causer de légers clignotements si `isDataLoaded` n'est pas géré de manière suffisamment "pleine page" (full-screen overlay blocking). Le composant DataSync fait le job de manière asynchrone ce qui est une bonne pratique, mais l'UI de chargement dans le shell (actuellement rendue avec une petite icône "Initialisation des modules locaux..." dans l'espace principal au lieu d'un spinner total bloquant de manière élégante) pourrait être optimisée.
+
+**Remédiation Code (`components/pages/protected-app-shell.tsx`)** :
+Remplacer le bloc `!isDataLoaded` par un spinner plein écran véritablement premium et fluide qui prévient tout clignotement.
+
+```tsx
+// components/pages/protected-app-shell.tsx (Extrait de Remédiation)
+
+<AnimatePresence mode="wait">
+  {!isDataLoaded ? (
+    <motion.div
+      key="loading"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: 0.3 }}
+      className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-[999]"
+    >
+      <div className="relative flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-primary/20 rounded-full"></div>
+        <div className="absolute w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
       </div>
-    )
+      <p className="mt-6 text-sm text-muted-foreground font-medium animate-pulse">
+        Initialisation de Facturier...
+      </p>
+    </motion.div>
+  ) : (
+    <motion.div
+      key={currentPage}
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+      className="flex-1 flex flex-col overflow-hidden px-8 py-6 h-full relative"
+    >
+      {renderPage()}
+    </motion.div>
+  )}
+</AnimatePresence>
+```
+
+### Optimisation Zustand (`lib/store.ts`)
+
+**Analyse** :
+- Le store utilise `persist` avec `sessionStorage` et `partialize`, ce qui est excellent pour éviter de saturer la mémoire (fuite de mémoire) avec des données complètes de l'API tout en gardant l'utilisateur connecté.
+- Les actions CRUD (comme `addClient`, `removeClient`) utilisent des mutations immuables (`set((state) => ({ clients: [...state.clients, client] }))`), mais il manque des commentaires JSDoc clairs pour faciliter la maintenance future, standardiser la nomenclature et s'assurer que toutes les actions suivent strictement ce paradigme immuable.
+
+**Remédiation Code (`lib/store.ts`)** :
+Ajout des JSDocs et standardisation.
+
+```typescript
+// lib/store.ts (Extrait de Remédiation - Actions standardisées)
+
+      /**
+       * @function addClient
+       * @description Ajoute un nouveau client de manière immuable au store.
+       * @param {Client} client - L'objet client à ajouter.
+       */
+      addClient: (client) =>
+        set((state) => ({ clients: [...state.clients, client] })),
+
+      /**
+       * @function removeClient
+       * @description Supprime un client existant en filtrant par ID.
+       * @param {string} id - L'identifiant unique du client.
+       */
+      removeClient: (id) =>
+        set((state) => ({ clients: state.clients.filter((c) => c.id !== id) })),
+
+      /**
+       * @function updateClient
+       * @description Met à jour partiellement les informations d'un client.
+       * @param {string} id - L'identifiant du client.
+       * @param {Partial<Client>} data - Les données à mettre à jour.
+       */
+      updateClient: (id, data) =>
+        set((state) => ({
+          clients: state.clients.map((c) =>
+            c.id === id ? { ...c, ...data } : c,
+          ),
+        })),
+
+      /**
+       * @function replaceClient
+       * @description Remplace une entrée client (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire du client.
+       * @param {Client} confirmed - L'objet client confirmé par le serveur.
+       */
+      replaceClient: (tempId, confirmed) =>
+        set((state) => ({
+          clients: state.clients.map((c) => (c.id === tempId ? confirmed : c)),
+        })),
+
+      // Appliquer cette même nomenclature JSDoc et logique immuable pour Invoice, Quote, Service, Payment.
+```
+
+### Synergie Electron (IPC)
+
+**Analyse** :
+Dans un environnement de bureau (Electron), la communication avec le processus principal (IPC) doit être strictement asynchrone et gérée avec des blocs try/catch exhaustifs pour ne pas crasher le processus de rendu en cas d'échec natif (ex: imprimante hors-ligne, annulation de la boîte de dialogue).
+Le composant `FullScreenDocumentViewer` fait appel à `window.electron.exportPDF` et `window.electron.printDocument`. Il utilise déjà async/await et try/catch. Toutefois, on peut s'assurer de capturer et traiter de manière "user-friendly" (via un `toast` Sonner) l'intégralité des retours.
+
+**Remédiation Code (`lib/electron-print.ts`)** :
+Sécurisation absolue de l'appel IPC dans l'utilitaire d'impression.
+
+```typescript
+// lib/electron-print.ts (Extrait de Remédiation)
+
+/**
+ * Capture le HTML d'un élément du DOM et l'envoie au Main Process via IPC
+ * pour impression via la boîte de dialogue d'impression native.
+ *
+ * @async
+ * @function printElement
+ * @param {string} elementId - ID de l'élément <DocumentA4 /> caché à capturer
+ * @throws Renvoie une erreur si l'élément n'est pas trouvé ou si IPC échoue.
+ */
+export async function printElement(elementId: string): Promise<void> {
+  const element = document.getElementById(elementId);
+
+  if (!element) {
+    console.error(`[print] Élément #${elementId} introuvable dans le DOM.`);
+    toast.error("Erreur technique", { description: "Le document n'a pas pu être préparé pour l'impression." });
+    throw new Error(`[print] Élément #${elementId} introuvable.`);
   }
-  ```
 
-#### 5.2. Optimisation Zustand (`lib/store.ts`)
-- **Problèmes identifiés :**
-  - Manque de JSDoc.
-  - La persistance inclut `settings` dans `partialize`, ce qui peut provoquer des désynchronisations au chargement (on doit laisser `DataSync` écraser l'état au démarrage avec les infos de la DB).
-- **Code de remédiation complet pour `lib/store.ts` (extrait/modification ciblée) :**
-  ```typescript
-  // À la fin du fichier store.ts, dans la configuration du persist :
-  export const useStore = create<AppState>()(
-    persist(
-      (set) => ({
-        // ... (états initiaux et actions inchangés mais avec commentaires JSDoc)
+  // Fallback navigateur (dev mode sans Electron)
+  if (!window.electron?.printDocument) {
+    console.warn("[print] window.electron non détecté. Utilisation du fallback navigateur.");
+    window.print();
+    return;
+  }
 
-        /**
-         * @function setUser
-         * @description Met à jour l'utilisateur connecté et ses permissions associées.
-         */
-        setUser: (user) => {
-          const permissions = user
-            ? user.role === "admin"
-              ? ADMIN_PERMISSIONS
-              : USER_PERMISSIONS
-            : null;
-          set({ user, permissions, isAuthenticated: !!user });
-        },
+  const htmlDoc = buildPrintHtml(element.outerHTML, /* includePrintScript */ true);
 
-        // ... (autres actions)
-      }),
-      {
-        name: 'facturier-storage',
-        storage: createJSONStorage(() => sessionStorage),
-        // OPTIMISATION : Ne pas persister `settings` pour forcer le chargement frais via SQLite (DataSync)
-        partialize: (state) => ({
-          user: state.user,
-          permissions: state.permissions,
-          isAuthenticated: state.isAuthenticated,
-          viewFormat: state.viewFormat,
-        }),
-      }
-    )
-  );
-  ```
-
-#### 5.3. Synergie Electron (IPC)
-- **Problèmes identifiés :**
-  - Pas de bloc `try/catch` avec retour utilisateur (`toast.error`) systématique dans certaines fonctions d'appel natif.
-  - Dans `fullscreen-document-viewer.tsx`, l'export PDF possède bien un `try/catch`, mais on peut sécuriser l'IPC pour d'autres appels.
-- **Code de remédiation :**
-  Pour tout appel à des méthodes comme `window.electron.exportPDF`, s'assurer de capturer les erreurs. (Déjà correct dans `fullscreen-document-viewer.tsx` : `catch (err) { toast.error(...) }`).
-  Pour s'assurer d'éviter les fuites mémoires, lorsqu'on utilise `ipcRenderer.on` dans le futur, il faudra l'encapsuler comme suit dans les `useEffect` React :
-  ```tsx
-  React.useEffect(() => {
-    if (!window.electron) return;
-
-    // Exemple de structure sécurisée
-    const handleEvent = (event: any, data: any) => {
-      console.log(data);
-    };
-
-    // Assumons que ipcRenderer expose une méthode pour écouter
-    // window.electron.on('mon-evenement', handleEvent)
-
-    return () => {
-      // window.electron.removeListener('mon-evenement', handleEvent)
-    };
-  }, []);
-  ```
+  // Envoi asynchrone au Main Process via IPC
+  try {
+    const result = await window.electron.printDocument(htmlDoc);
+    // Si la fonction retourne une promesse avec un statut
+    if (result && result.success === false) {
+      toast.warning("Impression annulée ou échouée.");
+    }
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : "Erreur inconnue";
+    // Ignorer les erreurs d'annulation de dialogue par l'utilisateur
+    if (!errorMsg.toLowerCase().includes('cancel') && !errorMsg.toLowerCase().includes('annul')) {
+      console.error('[printElement] Erreur critique IPC lors de l\'impression:', error);
+      toast.error("Échec de l'impression native", {
+        description: "Veuillez vérifier votre imprimante ou relancer l'application."
+      });
+    }
+  }
+}
+```

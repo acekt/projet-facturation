@@ -17,7 +17,7 @@ export async function GET(_request: Request) {
       return NextResponse.json({ error: 'Unauthorized: Authentication required' } as ErrorResponse, { status: 401 });
     }
 
-    let query = 'SELECT * FROM payments WHERE deletedAt IS NULL';
+    let query = 'SELECT id, invoiceId, amount, paymentMethod, date, reference, createdAt, deletedAt, created_by FROM payments WHERE deletedAt IS NULL';
     const params: unknown[] = [];
     if (session.role !== 'admin') {
       query += ' AND created_by = ?';

@@ -45,6 +45,7 @@ import {
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
+import { computeTotals } from "@/lib/math-logic";
 
 interface QuoteEditorProps {
   onBack: () => void;
@@ -123,20 +124,30 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
   // Cleanup: purge global draft on unmount to prevent ghost data
   React.useEffect(() => {
-    // On mount in NEW mode: also clear the global store
+    // 1. Force clear on mount for NEW items explicitly
     if (isNew) {
       clearQuoteDraft();
+      setLocalDraft({ ...freshDraft });
     }
+
+    // 2. Clear on unmount strictly
     return () => {
-      clearQuoteDraft();
+      if (isNew) {
+        clearQuoteDraft();
+        setLocalDraft({ ...freshDraft });
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isNew, clearQuoteDraft]); // explicitly removed freshDraft from deps
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");
   const [previewOpen, setPreviewOpen] = React.useState(false);
-  const [isSubmitting, startSubmitTransition] = React.useTransition();
+
+  // Fix React Form Submission Anti-Pattern
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isPending, startSubmitTransition] = React.useTransition();
+  const isActionLocked = isSubmitting || isPending;
+
   const [isLoading, setIsLoading] = React.useState(!!editingId);
 
   React.useEffect(() => {
@@ -253,15 +264,18 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     }
   };
 
-  const subtotal = Math.round(items.reduce((acc, item) => acc + item.total, 0));
+  const { subtotal, discount: computedDiscount, cssAmount, taxBase, tpsAmount, tvaAmount, total } = computeTotals(
+    items.map(item => ({ quantity: Number(item.quantity) || 0, unitPrice: Number(item.unitPrice) || 0 })),
+    discount,
+    {
+      tvaRate: settings.tvaRate ?? 0,
+      tpsRate: settings.tpsRate ?? 9.5,
+      cssRate: settings.cssRate ?? 0
+    }
+  );
   const netHT = Math.max(0, subtotal - Math.round(discount));
-  const cssAmount = Math.round(netHT * CSS_RATE);
-  const taxBase = netHT + cssAmount;
-  const tpsAmount = Math.round(taxBase * TPS_RATE);
-  const tvaAmount = Math.round(taxBase * TAX_RATE);
-  const total = netHT + cssAmount + tpsAmount + tvaAmount;
 
-  const handleSave = (status: Quote["status"]) => {
+  const handleSave = async (status: Quote["status"]) => {
     if (!selectedClient) {
       toast.error("Veuillez sélectionner un client");
       return;
@@ -283,7 +297,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
       return;
     }
 
-    startSubmitTransition(async () => {
+    startTransition(async () => {
       try {
         const url = editingId ? `/api/quotes/${editingId}` : "/api/quotes";
         const method = editingId ? "PUT" : "POST";
@@ -316,7 +330,16 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         console.error("[QuoteEditor] handleSave error:", error);
         toast.error("Erreur lors de l'enregistrement du devis");
       }
-    });
+
+      toast.success("Devis enregistré avec succès");
+      clearQuoteDraft();
+      onBack();
+    } catch (error) {
+      console.error("[QuoteEditor] handleSave error:", error);
+      toast.error("Erreur lors de l'enregistrement du devis");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -531,11 +554,11 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                <div className="grid grid-cols-12 gap-4 px-3 text-sm text-muted-foreground mb-2 hidden md:grid">
+                <div className="grid grid-cols-12 gap-2 md:gap-4 px-4 py-3 bg-secondary/20 rounded-t-lg text-sm font-semibold text-muted-foreground border-b border-border hidden md:grid">
                   <div className="col-span-6">Description</div>
                   <div className="col-span-2 text-right">Qté</div>
-                  <div className="col-span-2 text-right">Prix Unitaire</div>
-                  <div className="col-span-2 text-right">Total HT</div>
+                  <div className="col-span-2 text-right">Prix U. (XAF)</div>
+                  <div className="col-span-2 text-right pr-2">Total HT</div>
                 </div>
 
                 {items.map((item, index) => (
@@ -579,7 +602,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                           )
                         }
                         className="text-right"
-                        disabled={status === "CONVERTI"}
+                        disabled={status === "CONVERTI" || isSubmitting}
                       />
                     </div>
                     <div className="col-span-4 md:col-span-2">
@@ -594,7 +617,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                           )
                         }
                         className="text-right"
-                        disabled={status === "CONVERTI"}
+                        disabled={status === "CONVERTI" || isSubmitting}
                       />
                     </div>
                     <div className="col-span-3 md:col-span-1 text-right pt-2 font-medium">
@@ -646,7 +669,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total HT Brut</span>
-                  <span className="text-foreground font-medium">
+                  <span className="text-foreground font-medium tabular-nums text-right">
                     {formatCurrency(subtotal)}
                   </span>
                 </div>
@@ -663,7 +686,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                       onChange={(e) =>
                         setDiscount(parseFloat(e.target.value) || 0)
                       }
-                      disabled={status === "CONVERTI"}
+                      disabled={status === "CONVERTI" || isSubmitting}
                     />
                   </div>
                 </div>
@@ -671,7 +694,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                 <div className="pt-2 border-t border-border/50">
                   <div className="flex justify-between text-sm font-semibold">
                     <span>Net HT</span>
-                    <span>{formatCurrency(netHT)}</span>
+                    <span className="tabular-nums text-right">{formatCurrency(netHT)}</span>
                   </div>
                 </div>
 
@@ -679,7 +702,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   <span className="text-muted-foreground">
                     CSS ({settings.cssRate}%)
                   </span>
-                  <span className="text-foreground">
+                  <span className="text-foreground tabular-nums text-right">
                     {formatCurrency(cssAmount)}
                   </span>
                 </div>
@@ -687,7 +710,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                 <div className="pt-1 border-t border-dashed border-border/30">
                   <div className="flex justify-between text-xs font-medium">
                     <span className="text-muted-foreground">Base TVA</span>
-                    <span>{formatCurrency(taxBase)}</span>
+                    <span className="tabular-nums text-right">{formatCurrency(taxBase)}</span>
                   </div>
                 </div>
 
@@ -695,7 +718,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   <span className="text-muted-foreground">
                     TPS ({settings.tpsRate || 9.5}%)
                   </span>
-                  <span className="text-foreground">
+                  <span className="text-foreground tabular-nums text-right">
                     {formatCurrency(tpsAmount)}
                   </span>
                 </div>
@@ -704,7 +727,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   <span className="text-muted-foreground">
                     TVA ({settings.tvaRate}%)
                   </span>
-                  <span className="text-foreground">
+                  <span className="text-foreground tabular-nums text-right">
                     {formatCurrency(tvaAmount)}
                   </span>
                 </div>
@@ -733,13 +756,17 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                 </Button>
                 <Button
                   onClick={() => handleSave("EN_ATTENTE")}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 transition-all"
                   disabled={isSubmitting || status === "CONVERTI"}
                 >
-                  <Save className="w-4 h-4 mr-2" />
+                  {isSubmitting ? (
+                    <Save className="w-4 h-4 mr-2 animate-pulse" />
+                  ) : (
+                    <Save className="w-4 h-4 mr-2" />
+                  )}
                   {status === "CONVERTI"
                     ? "Devis Converti (Lecture seule)"
-                    : "Enregistrer le Devis"}
+                    : (isSubmitting ? "Enregistrement..." : "Enregistrer le Devis")}
                 </Button>
               </div>
             </CardContent>

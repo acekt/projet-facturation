@@ -324,6 +324,8 @@ try {
     name TEXT PRIMARY KEY,
     current_value INTEGER DEFAULT 0,
     last_year INTEGER
+
+
   );
 
   INSERT OR IGNORE INTO sequences (name, current_value, last_year) VALUES ('quote', 0, strftime('%Y', 'now'));

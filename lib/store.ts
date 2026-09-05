@@ -297,49 +297,116 @@ export const useStore = create<AppState>()(
       },
       setClients: (clients) => set({ clients }),
       // Atomic client mutations: each reads fresh state via set(state => ...) — no stale closure.
+      /**
+       * @function addClient
+       * @description Adds a new client to the store immutably.
+       * @param {Client} client - The client object to add.
+       */
       addClient: (client) =>
         set((state) => ({ clients: [...state.clients, client] })),
+      /**
+       * @function removeClient
+       * @description Removes a client by ID.
+       * @param {string} id - The ID of the client to remove.
+       */
       removeClient: (id) =>
         set((state) => ({ clients: state.clients.filter((c) => c.id !== id) })),
+      /**
+       * @function updateClient
+       * @description Updates a client partially.
+       * @param {string} id - The ID of the client.
+       * @param {Partial<Client>} data - The data to update.
+       */
       updateClient: (id, data) =>
         set((state) => ({
           clients: state.clients.map((c) =>
             c.id === id ? { ...c, ...data } : c,
           ),
         })),
+      /**
+       * @function replaceClient
+       * @description Replaces a temporary client entry with a confirmed one from the server.
+       * @param {string} tempId - The temporary client ID.
+       * @param {Client} confirmed - The confirmed client object.
+       */
       replaceClient: (tempId, confirmed) =>
         set((state) => ({
           clients: state.clients.map((c) => (c.id === tempId ? confirmed : c)),
         })),
 
       setQuotes: (quotes) => set((state) => ({ ...state, quotes })),
+      /**
+       * @function addQuote
+       * @description Ajoute un nouveau devis de manière immuable au store.
+       * @param {Quote} quote - L'objet devis à ajouter.
+       */
       addQuote: (quote) =>
         set((state) => ({ quotes: [quote, ...state.quotes] })),
+      /**
+       * @function removeQuote
+       * @description Supprime un devis existant en filtrant par ID.
+       * @param {string} id - L'identifiant unique du devis.
+       */
       removeQuote: (id) =>
         set((state) => ({ quotes: state.quotes.filter((q) => q.id !== id) })),
+      /**
+       * @function updateQuote
+       * @description Met à jour partiellement les informations d'un devis.
+       * @param {string} id - L'identifiant du devis.
+       * @param {Partial<Quote>} data - Les données à mettre à jour.
+       */
       updateQuote: (id, data) =>
         set((state) => ({
           quotes: state.quotes.map((q) =>
             q.id === id ? { ...q, ...data } : q,
           ),
         })),
+      /**
+       * @function replaceQuote
+       * @description Remplace une entrée devis (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire du devis.
+       * @param {Quote} confirmed - L'objet devis confirmé par le serveur.
+       */
       replaceQuote: (tempId, confirmed) =>
         set((state) => ({
           quotes: state.quotes.map((q) => (q.id === tempId ? confirmed : q)),
         })),
+
       setInvoices: (invoices) => set((state) => ({ ...state, invoices })),
+      /**
+       * @function addInvoice
+       * @description Ajoute une nouvelle facture de manière immuable au store.
+       * @param {Invoice} invoice - L'objet facture à ajouter.
+       */
       addInvoice: (invoice) =>
         set((state) => ({ invoices: [invoice, ...state.invoices] })),
+      /**
+       * @function removeInvoice
+       * @description Supprime une facture existante en filtrant par ID.
+       * @param {string} id - L'identifiant unique de la facture.
+       */
       removeInvoice: (id) =>
         set((state) => ({
           invoices: state.invoices.filter((i) => i.id !== id),
         })),
+      /**
+       * @function updateInvoice
+       * @description Met à jour partiellement les informations d'une facture.
+       * @param {string} id - L'identifiant de la facture.
+       * @param {Partial<Invoice>} data - Les données à mettre à jour.
+       */
       updateInvoice: (id, data) =>
         set((state) => ({
           invoices: state.invoices.map((i) =>
             i.id === id ? { ...i, ...data } : i,
           ),
         })),
+      /**
+       * @function replaceInvoice
+       * @description Remplace une entrée facture (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire de la facture.
+       * @param {Invoice} confirmed - L'objet facture confirmé par le serveur.
+       */
       replaceInvoice: (tempId, confirmed) =>
         set((state) => ({
           invoices: state.invoices.map((i) =>
@@ -349,18 +416,40 @@ export const useStore = create<AppState>()(
 
       setServices: (services) => set({ services }),
       // Atomic service mutations: same pattern as clients.
+      /**
+       * @function addService
+       * @description Ajoute un nouveau service de manière immuable au store.
+       * @param {Service} service - L'objet service à ajouter.
+       */
       addService: (service) =>
         set((state) => ({ services: [...state.services, service] })),
+      /**
+       * @function removeService
+       * @description Supprime un service existant en filtrant par ID.
+       * @param {string} id - L'identifiant unique du service.
+       */
       removeService: (id) =>
         set((state) => ({
           services: state.services.filter((s) => s.id !== id),
         })),
+      /**
+       * @function updateService
+       * @description Met à jour partiellement les informations d'un service.
+       * @param {string} id - L'identifiant du service.
+       * @param {Partial<Service>} data - Les données à mettre à jour.
+       */
       updateService: (id, data) =>
         set((state) => ({
           services: state.services.map((s) =>
             s.id === id ? { ...s, ...data } : s,
           ),
         })),
+      /**
+       * @function replaceService
+       * @description Remplace une entrée service (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire du service.
+       * @param {Service} confirmed - L'objet service confirmé par le serveur.
+       */
       replaceService: (tempId, confirmed) =>
         set((state) => ({
           services: state.services.map((s) =>
@@ -369,18 +458,40 @@ export const useStore = create<AppState>()(
         })),
 
       setPayments: (payments) => set({ payments }),
+      /**
+       * @function addPayment
+       * @description Ajoute un nouveau paiement de manière immuable au store.
+       * @param {Payment} payment - L'objet paiement à ajouter.
+       */
       addPayment: (payment) =>
         set((state) => ({ payments: [payment, ...state.payments] })),
+      /**
+       * @function removePayment
+       * @description Supprime un paiement existant en filtrant par ID.
+       * @param {string} id - L'identifiant unique du paiement.
+       */
       removePayment: (id) =>
         set((state) => ({
           payments: state.payments.filter((p) => p.id !== id),
         })),
+      /**
+       * @function updatePayment
+       * @description Met à jour partiellement les informations d'un paiement.
+       * @param {string} id - L'identifiant du paiement.
+       * @param {Partial<Payment>} data - Les données à mettre à jour.
+       */
       updatePayment: (id, data) =>
         set((state) => ({
           payments: state.payments.map((p) =>
             p.id === id ? { ...p, ...data } : p,
           ),
         })),
+      /**
+       * @function replacePayment
+       * @description Remplace une entrée paiement (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire du paiement.
+       * @param {Payment} confirmed - L'objet paiement confirmé par le serveur.
+       */
       replacePayment: (tempId, confirmed) =>
         set((state) => ({
           payments: state.payments.map((p) =>
@@ -459,6 +570,7 @@ export const useStore = create<AppState>()(
     {
       name: 'facturier-storage',
       storage: createJSONStorage(() => sessionStorage),
+      // OPTIMISATION : Ne pas persister `settings` pour forcer le chargement frais via SQLite (DataSync)
       partialize: (state) => ({
         user: state.user,
         permissions: state.permissions,

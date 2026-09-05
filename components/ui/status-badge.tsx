@@ -30,11 +30,11 @@ import { formatCurrency } from "@/lib/utils";
 const VARIANT_MAP = {
   // Factures — statuts de paiement
   "invoice-paid": {
-    base: "bg-accent-light text-accent border-accent/20",
+    base: "bg-emerald-100 text-emerald-700 border-emerald-200",
     label: "Soldé",
   },
   "invoice-partial": {
-    base: "bg-amber-50 text-amber-700 border-amber-200",
+    base: "bg-orange-100 text-orange-700 border-orange-200",
     label: "Partiel",
   },
   "invoice-unpaid": {

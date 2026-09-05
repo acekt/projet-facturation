@@ -28,6 +28,7 @@ import {
 import { VisuallyHidden } from "@/components/ui/visually-hidden"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { toast } from "sonner"
 import { useStore } from "@/lib/store"
 import { cn } from "@/lib/utils"
@@ -69,7 +70,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
-  const [isSubmitting, startSubmitTransition] = React.useTransition()
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [isStatusModalOpen, setIsStatusModalOpen] = React.useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false)
   const [isResetModalOpen, setIsResetModalOpen] = React.useState(false)
@@ -114,20 +115,18 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   }
 
   React.useEffect(() => {
+    const controller = new AbortController()
+
     if (currentUser?.role !== 'admin') {
       setIsLoading(false)
-      return
+    } else {
+      fetchUsers(controller.signal)
     }
-
-    // AbortController prevents setState calls on unmounted components
-    // and cancels in-flight requests when the user navigates away.
-    const controller = new AbortController()
-    fetchUsers(controller.signal)
 
     return () => {
       controller.abort()
     }
-  }, [currentUser?.id])
+  }, [currentUser?.id, currentUser?.role])
 
   const filteredUsers = React.useMemo(() => {
     return users.filter(u => {
@@ -165,56 +164,58 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
 
   const handleAddUser = async () => {
     if (isSubmitting) return;
-    startSubmitTransition(async () => {
-      try {
-          const res = await fetch('/api/users', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...formData, username: formData.email })
-          })
-          const data = await res.json()
-          if (res.ok) {
-              toast.success("Utilisateur créé avec succès")
-              // Optimistic UI (Optionnel, on reload fetchUsers pour avoir la date exacte et l'ID)
-              // Post-mutation reload: create a fresh controller for this one-shot request
-              fetchUsers(new AbortController().signal)
-              setIsAddModalOpen(false)
-              setIsPasswordDisplayOpen(true)
-          } else {
-              toast.error(data.error || "Erreur lors de la création")
-          }
-      } catch (e) {
-          toast.error("Erreur réseau")
-      }
-    });
+    setIsSubmitting(true);
+    try {
+        const res = await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...formData, username: formData.email })
+        })
+        const data = await res.json()
+        if (res.ok) {
+            toast.success("Utilisateur créé avec succès")
+            // Use the JSON response to update UI instead of refetching
+            setUsers([...users, data.user || data])
+            setIsAddModalOpen(false)
+            setIsPasswordDisplayOpen(true)
+        } else {
+            toast.error(data.error || "Erreur lors de la création")
+        }
+    } catch (e) {
+        toast.error("Erreur réseau")
+    } finally {
+        setIsSubmitting(false)
+    }
   }
 
   const handleUpdateUser = async () => {
     if (!selectedUser || isSubmitting) return;
-    startSubmitTransition(async () => {
-      try {
-          const res = await fetch(`/api/users/${selectedUser.id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                name: formData.name,
-                email: formData.email || selectedUser.email,
-                role: formData.role,
-                is_active: checkIsActive(selectedUser)
-              })
-          })
-          if (res.ok) {
-              toast.success("Utilisateur mis à jour")
-              updateUser(selectedUser.id, { name: formData.name, email: formData.email || selectedUser.email, role: formData.role as 'admin' | 'user' })
-              setIsEditModalOpen(false)
-          } else {
-              const data = await res.json()
-              toast.error(data.error || "Erreur")
-          }
-      } catch (e) {
-          toast.error("Erreur réseau")
-      }
-    });
+    setIsSubmitting(true);
+    try {
+        const res = await fetch(`/api/users/${selectedUser.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: formData.name,
+              email: formData.email || selectedUser.email,
+              role: formData.role,
+              is_active: checkIsActive(selectedUser)
+            })
+        })
+        if (res.ok) {
+            const data = await res.json()
+            toast.success("Utilisateur mis à jour")
+            updateUser(selectedUser.id, data.user || data)
+            setIsEditModalOpen(false)
+        } else {
+            const errData = await res.json()
+            toast.error(errData.error || "Erreur")
+        }
+    } catch (e) {
+        toast.error("Erreur réseau")
+    } finally {
+        setIsSubmitting(false)
+    }
   }
 
   const handleToggleStatus = async () => {
@@ -233,8 +234,9 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             })
         })
         if (res.ok) {
+            const data = await res.json()
             toast.success(!newStatus ? "Compte désactivé" : "Compte réactivé")
-            updateUser(selectedUser.id, { is_active: newStatus ? 1 : 0, deletedAt: newStatus ? undefined : new Date().toISOString() })
+            updateUser(selectedUser.id, data.user || data)
             setIsStatusModalOpen(false)
         } else {
             const data = await res.json()
@@ -288,6 +290,15 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
+      {currentUser?.role !== 'admin' && (
+        <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
+          </AlertDescription>
+        </Alert>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Gestion des utilisateurs</h1>
@@ -295,7 +306,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             {users.filter(u => checkIsActive(u)).length} actifs — {users.filter(u => !checkIsActive(u)).length} inactifs
           </p>
         </div>
-        <Button onClick={handleOpenAdd} className="gap-2 bg-primary shadow-lg shadow-primary/20">
+        <Button onClick={handleOpenAdd} disabled={currentUser?.role !== 'admin'} className="gap-2 bg-primary shadow-lg shadow-primary/20">
           <UserPlus className="w-4 h-4" />
           Ajouter un utilisateur
         </Button>
@@ -406,7 +417,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
                             <td className="px-6 py-4 text-right">
                                 <DropdownMenu>
                                     <DropdownMenuTrigger asChild>
-                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                        <Button disabled={currentUser?.role !== 'admin'} variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
                                             <MoreVertical className="w-4 h-4" />
                                         </Button>
                                     </DropdownMenuTrigger>

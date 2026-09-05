@@ -30,6 +30,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 // ── Design System
 import { PageHeader } from "@/components/ui/page-header"
 import { SearchBar } from "@/components/ui/search-bar"
+import { ShieldAlert } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { StatusBadge } from "@/components/ui/status-badge"
 import {
   DataTable,
@@ -68,8 +70,7 @@ export function ServicesPage() {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
   const [editingService, setEditingService] = React.useState<Service | null>(null)
   const [serviceToDeleteId, setServiceToDeleteId] = React.useState<string | null>(null)
-  // FORM BLINDNESS FIX: disable button during in-flight request
-  const [isSubmitting, startSubmitTransition] = React.useTransition()
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [formData, setFormData] = React.useState({
     name: "",
     description: "",
@@ -99,44 +100,44 @@ export function ServicesPage() {
     e.preventDefault()
     if (isSubmitting) return
 
+    if (!formData.name) {
+      toast.error("Le nom du service est requis.")
+      return
+    }
+
     if (editingService) {
-      // MODIFICATION — SERVER-FIRST: only close modal after server confirms.
-      const updatedService: Service = {
-        ...editingService,
-        name: formData.name,
-        description: formData.description,
-        category: formData.category,
-        unitPrice: formData.unitPrice,
-      }
       const originalService = services.find(s => s.id === editingService.id)
 
-      startSubmitTransition(async () => {
-        try {
-          const response = await fetch(`/api/services/${editingService.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData),
-          })
-          if (response.status === 403) {
-            toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
-            return
-          }
-          if (!response.ok) {
-            const errData = await response.json().catch(() => ({}))
-            throw new Error(errData.error || `HTTP ${response.status}`)
-          }
-          // Apply update only after server confirms
-          updateService(editingService.id, updatedService)
-          setIsDialogOpen(false)
-          toast.success("Service mis à jour")
-        } catch (error) {
-          if (originalService) updateService(editingService.id, originalService)
-          const msg = error instanceof Error ? error.message : 'Erreur inconnue'
-          toast.error(`Échec de la modification : ${msg}`)
+      setIsSubmitting(true)
+      try {
+        const response = await fetch(`/api/services/${editingService.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        })
+        if (response.status === 403) {
+          toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
+          return
         }
-      })
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}))
+          throw new Error(errData.error || `HTTP ${response.status}`)
+        }
+
+        const updatedService = await response.json()
+
+        // Apply update only after server confirms
+        updateService(editingService.id, updatedService)
+        setIsDialogOpen(false)
+        toast.success("Service mis à jour")
+      } catch (error) {
+        if (originalService) updateService(editingService.id, originalService)
+        const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+        toast.error(`Échec de la modification : ${msg}`)
+      } finally {
+        setIsSubmitting(false)
+      }
     } else {
-      // AJOUT — SERVER-FIRST: only add to store and close modal after server confirms.
       const tempId = crypto.randomUUID()
       const serviceToCreate: Service = {
         id: tempId,
@@ -146,37 +147,40 @@ export function ServicesPage() {
         unitPrice: formData.unitPrice,
       }
 
-      startSubmitTransition(async () => {
-        try {
-          const response = await fetch('/api/services', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(serviceToCreate),
-          })
-          if (response.status === 403) {
-            toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
-            return
-          }
-          if (!response.ok) {
-            const errData = await response.json().catch(() => ({}))
-            throw new Error(errData.error || `HTTP ${response.status}`)
-          }
-          const created = await response.json()
-          // Use confirmed server record — form resets only on success
-          addService(created)
-          setIsDialogOpen(false)
-          setFormData({ name: "", description: "", category: "", unitPrice: 0 })
-          toast.success("Service ajouté au catalogue")
-        } catch (error) {
-          // Form stays open — user can correct and retry
-          const msg = error instanceof Error ? error.message : 'Erreur inconnue'
-          toast.error(`Échec de l'ajout : ${msg}`)
+      setIsSubmitting(true)
+      try {
+        const response = await fetch('/api/services', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(serviceToCreate),
+        })
+        if (response.status === 403) {
+          toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
+          return
         }
-      })
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}))
+          throw new Error(errData.error || `HTTP ${response.status}`)
+        }
+        const created = await response.json()
+        // Use confirmed server record — form resets only on success
+        addService(created)
+        setIsDialogOpen(false)
+        setFormData({ name: "", description: "", category: "", unitPrice: 0 })
+        toast.success("Service ajouté au catalogue")
+      } catch (error) {
+        // Form stays open — user can correct and retry
+        const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+        toast.error(`Échec de l'ajout : ${msg}`)
+      } finally {
+        setIsSubmitting(false)
+      }
     }
   }
 
   const handleDelete = async (id: string) => {
+    if (isSubmitting) return;
+
     // Capture the service BEFORE removing it to enable precise rollback
     const serviceToRestore = services.find(s => s.id === id)
 
@@ -184,6 +188,7 @@ export function ServicesPage() {
     toast.success("Service supprimé")
     setServiceToDeleteId(null)
 
+    setIsSubmitting(true)
     try {
       const response = await fetch(`/api/services/${id}`, { method: 'DELETE' })
       if (response.status === 403) {
@@ -200,11 +205,22 @@ export function ServicesPage() {
       if (serviceToRestore) addService(serviceToRestore)
       const msg = error instanceof Error ? error.message : 'Erreur inconnue'
       toast.error(`Échec de la suppression : ${msg}. Restauration effectuée.`)
+    } finally {
+      setIsSubmitting(false)
     }
   }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
+      {user?.role !== 'admin' && (
+        <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* ── En-tête de page (Design System) */}
       <PageHeader
         title="Catalogue de Services"
@@ -511,6 +527,7 @@ export function ServicesPage() {
                 placeholder="Ex: Audit de sécurité réseau"
                 className="bg-secondary border-border"
                 required
+                disabled={isSubmitting}
               />
             </div>
             <div className="grid grid-cols-2 gap-4">
@@ -522,6 +539,7 @@ export function ServicesPage() {
                   onChange={(e) => setFormData({ ...formData, category: e.target.value })}
                   placeholder="Ex: Conseil"
                   className="bg-secondary border-border"
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="space-y-2">
@@ -533,6 +551,7 @@ export function ServicesPage() {
                   onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
                   className="bg-secondary border-border text-right"
                   required
+                  disabled={isSubmitting}
                 />
               </div>
             </div>
@@ -544,6 +563,7 @@ export function ServicesPage() {
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 placeholder="Détails du service..."
                 className="bg-secondary border-border"
+                disabled={isSubmitting}
               />
             </div>
             <Button
@@ -565,12 +585,13 @@ export function ServicesPage() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogCancel disabled={isSubmitting}>Annuler</AlertDialogCancel>
             <AlertDialogAction
               onClick={() => serviceToDeleteId && handleDelete(serviceToDeleteId)}
               className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+              disabled={isSubmitting}
             >
-              Supprimer
+              {isSubmitting ? "En cours..." : "Supprimer"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

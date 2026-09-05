@@ -20,4 +20,6 @@ out/
 *.sqlite-journal
 *.log
 *.sqlite-shm
-*.sqlite-wal
+*.sqlite-waltest-results/
+tests/artifacts/
+playwright-report/

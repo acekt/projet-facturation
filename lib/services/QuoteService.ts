@@ -43,15 +43,24 @@ export const QuoteService = {
 
     const invoiceId = crypto.randomUUID();
 
+    const insertInvoice = db.prepare(`
+      INSERT INTO invoices (
+        id, number, quoteId, clientId, clientName, clientEmail, date,
+        subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes, subject, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertItem = db.prepare(`
+      INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const updateQuoteStatus = db.prepare(`UPDATE quotes SET status = ? WHERE id = ?`);
+
     const convert = db.transaction(() => {
       const number = getNextNumber('invoice');
 
-      db.prepare(`
-        INSERT INTO invoices (
-          id, number, quoteId, clientId, clientName, clientEmail, date,
-          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes, subject, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
+      insertInvoice.run(
         invoiceId,
         number,
         quoteId,
@@ -72,11 +81,6 @@ export const QuoteService = {
         userId
       );
 
-      const insertItem = db.prepare(`
-        INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-
       for (const item of items) {
         insertItem.run(
           crypto.randomUUID(),
@@ -88,7 +92,7 @@ export const QuoteService = {
         );
       }
 
-      db.prepare(`UPDATE quotes SET status = '${QUOTE_STATUS.CONVERTI}' WHERE id = ?`).run(quoteId);
+      updateQuoteStatus.run(QUOTE_STATUS.CONVERTI, quoteId);
 
       return {
         invoiceId,

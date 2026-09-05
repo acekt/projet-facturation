@@ -468,7 +468,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                         </DropdownMenuItem>
                       )}
-                      {user?.role === 'user' && invoice.created_by === user?.id && (
+                      {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== 'cancelled' && (
                         <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
                           setInvoiceToCancel(invoice)
                           setDeleteAssociatedQuote(false)
@@ -565,7 +565,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                               <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                             </DropdownMenuItem>
                           )}
-                          {user?.role === 'user' && invoice.created_by === user?.id && (
+                          {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== 'cancelled' && (
                              <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
                                setInvoiceToCancel(invoice)
                                setDeleteAssociatedQuote(false)
@@ -659,7 +659,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                             <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                           </DropdownMenuItem>
                         )}
-                        {user?.role === 'user' && invoice.created_by === user?.id && (
+                        {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== 'cancelled' && (
                           <DropdownMenuItem
                             className="gap-2 text-orange-600"
                             onClick={() => { setInvoiceToCancel(invoice); setDeleteAssociatedQuote(false) }}
