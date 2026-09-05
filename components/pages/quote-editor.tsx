@@ -145,7 +145,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
   // Fix React Form Submission Anti-Pattern
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [isPending, startTransition] = React.useTransition();
+  const [isPending, startSubmitTransition] = React.useTransition();
   const isActionLocked = isSubmitting || isPending;
 
   const [isLoading, setIsLoading] = React.useState(!!editingId);
@@ -330,7 +330,16 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         console.error("[QuoteEditor] handleSave error:", error);
         toast.error("Erreur lors de l'enregistrement du devis");
       }
-    });
+
+      toast.success("Devis enregistré avec succès");
+      clearQuoteDraft();
+      onBack();
+    } catch (error) {
+      console.error("[QuoteEditor] handleSave error:", error);
+      toast.error("Erreur lors de l'enregistrement du devis");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (

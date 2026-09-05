@@ -17,7 +17,7 @@ declare global {
       /**
        * Prints a specific HTML document using a hidden window.
        */
-      printDocument: (htmlContent: string) => Promise<void>;
+      printDocument: (htmlContent: string) => Promise<{ success: boolean }>;
 
       /**
        * Exports a specific HTML document as a PDF file using the native
