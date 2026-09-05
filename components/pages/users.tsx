@@ -70,7 +70,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   // Modal States
   const [isAddModalOpen, setIsAddModalOpen] = React.useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = React.useState(false)
-  const [isSubmitting, startSubmitTransition] = React.useTransition()
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [isStatusModalOpen, setIsStatusModalOpen] = React.useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false)
   const [isResetModalOpen, setIsResetModalOpen] = React.useState(false)
@@ -164,56 +164,58 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
 
   const handleAddUser = async () => {
     if (isSubmitting) return;
-    startSubmitTransition(async () => {
-      try {
-          const res = await fetch('/api/users', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ ...formData, username: formData.email })
-          })
-          const data = await res.json()
-          if (res.ok) {
-              toast.success("Utilisateur créé avec succès")
-              // Optimistic UI (Optionnel, on reload fetchUsers pour avoir la date exacte et l'ID)
-              // Post-mutation reload: create a fresh controller for this one-shot request
-              fetchUsers(new AbortController().signal)
-              setIsAddModalOpen(false)
-              setIsPasswordDisplayOpen(true)
-          } else {
-              toast.error(data.error || "Erreur lors de la création")
-          }
-      } catch (e) {
-          toast.error("Erreur réseau")
-      }
-    });
+    setIsSubmitting(true);
+    try {
+        const res = await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ...formData, username: formData.email })
+        })
+        const data = await res.json()
+        if (res.ok) {
+            toast.success("Utilisateur créé avec succès")
+            // Use the JSON response to update UI instead of refetching
+            setUsers([...users, data.user || data])
+            setIsAddModalOpen(false)
+            setIsPasswordDisplayOpen(true)
+        } else {
+            toast.error(data.error || "Erreur lors de la création")
+        }
+    } catch (e) {
+        toast.error("Erreur réseau")
+    } finally {
+        setIsSubmitting(false)
+    }
   }
 
   const handleUpdateUser = async () => {
     if (!selectedUser || isSubmitting) return;
-    startSubmitTransition(async () => {
-      try {
-          const res = await fetch(`/api/users/${selectedUser.id}`, {
-              method: 'PATCH',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                name: formData.name,
-                email: formData.email || selectedUser.email,
-                role: formData.role,
-                is_active: checkIsActive(selectedUser)
-              })
-          })
-          if (res.ok) {
-              toast.success("Utilisateur mis à jour")
-              updateUser(selectedUser.id, { name: formData.name, email: formData.email || selectedUser.email, role: formData.role as 'admin' | 'user' })
-              setIsEditModalOpen(false)
-          } else {
-              const data = await res.json()
-              toast.error(data.error || "Erreur")
-          }
-      } catch (e) {
-          toast.error("Erreur réseau")
-      }
-    });
+    setIsSubmitting(true);
+    try {
+        const res = await fetch(`/api/users/${selectedUser.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: formData.name,
+              email: formData.email || selectedUser.email,
+              role: formData.role,
+              is_active: checkIsActive(selectedUser)
+            })
+        })
+        if (res.ok) {
+            const data = await res.json()
+            toast.success("Utilisateur mis à jour")
+            updateUser(selectedUser.id, data.user || data)
+            setIsEditModalOpen(false)
+        } else {
+            const errData = await res.json()
+            toast.error(errData.error || "Erreur")
+        }
+    } catch (e) {
+        toast.error("Erreur réseau")
+    } finally {
+        setIsSubmitting(false)
+    }
   }
 
   const handleToggleStatus = async () => {
@@ -232,8 +234,9 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             })
         })
         if (res.ok) {
+            const data = await res.json()
             toast.success(!newStatus ? "Compte désactivé" : "Compte réactivé")
-            updateUser(selectedUser.id, { is_active: newStatus ? 1 : 0, deletedAt: newStatus ? undefined : new Date().toISOString() })
+            updateUser(selectedUser.id, data.user || data)
             setIsStatusModalOpen(false)
         } else {
             const data = await res.json()

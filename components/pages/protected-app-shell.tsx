@@ -221,7 +221,7 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
               animate="animate"
               exit="exit"
               transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
-              className="flex-1 flex flex-col overflow-hidden px-8 py-6 h-full"
+              className="flex-1 flex flex-col overflow-hidden px-8 py-6 h-full relative"
             >
               {renderPage()}
             </motion.div>

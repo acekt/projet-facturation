@@ -31,6 +31,8 @@ import { EmptyState } from "@/components/ui/empty-state"
 // ── Design System
 import { PageHeader } from "@/components/ui/page-header"
 import { SearchBar } from "@/components/ui/search-bar"
+import { ShieldAlert } from "lucide-react"
+import { Alert, AlertDescription } from "@/components/ui/alert"
 import { StatusBadge } from "@/components/ui/status-badge"
 import {
   DataTable,
@@ -71,9 +73,7 @@ export function ClientsPage() {
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [editingClient, setEditingClient] = React.useState<Client | null>(null)
   const [clientToDeleteId, setClientToDeleteId] = React.useState<string | null>(null)
-  // FORM BLINDNESS FIX: track in-flight submission to disable button and
-  // prevent double-submit or premature dialog closure.
-  const [isSubmitting, startSubmitTransition] = React.useTransition()
+  const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [newClient, setNewClient] = React.useState({
     name: "",
     email: "",
@@ -114,6 +114,11 @@ export function ClientsPage() {
     e.preventDefault()
     if (isSubmitting) return
 
+    if (!newClient.name || !newClient.email) {
+      toast.error("Le nom et l'email sont requis.")
+      return
+    }
+
     const tempId = crypto.randomUUID()
     const clientToCreate: Client = {
       id: tempId,
@@ -123,99 +128,118 @@ export function ClientsPage() {
       address: newClient.address,
     }
 
-    startSubmitTransition(async () => {
-      try {
-        const response = await fetch('/api/clients', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(clientToCreate),
-        })
+    setIsSubmitting(true)
+    try {
+      const response = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clientToCreate),
+      })
 
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}))
-          throw new Error(errData.error || `HTTP ${response.status}`)
-        }
-
-        const createdClient = await response.json()
-
-        // SERVER-FIRST: only close dialog and reset form AFTER server confirms success.
-        // This prevents Form Blindness (user thinks record was saved when network failed).
-        addClient(createdClient)         // use confirmed server record, not temp
-        setIsAddDialogOpen(false)
-        setNewClient({ name: "", email: "", phone: "", address: "" })
-        toast.success("Client ajouté avec succès")
-      } catch (error) {
-        // Form stays open — user can correct and retry
-        const msg = error instanceof Error ? error.message : 'Erreur inconnue'
-        toast.error(`Échec de l'ajout : ${msg}`)
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `HTTP ${response.status}`)
       }
-    })
+
+      const createdClient = await response.json()
+
+      // SERVER-FIRST: only close dialog and reset form AFTER server confirms success.
+      addClient(createdClient) // use confirmed server record, not temp
+      setIsAddDialogOpen(false)
+      setNewClient({ name: "", email: "", phone: "", address: "" })
+      toast.success("Client ajouté avec succès")
+    } catch (error) {
+      // Form stays open — user can correct and retry
+      const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+      toast.error(`Échec de l'ajout : ${msg}`)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleDelete = async (id: string) => {
     if (isSubmitting) return;
 
-    // OPTIMISTIC UI — atomic removal; rollback re-inserts via addClient if needed.
-    // We capture the full client object BEFORE removing it so we can restore it.
+    // Capture the full client object BEFORE removing it so we can restore it on failure
     const clientToRestore = clients.find(c => c.id === id)
 
+    // OPTIMISTIC UI — atomic removal; rollback re-inserts via addClient if needed.
     removeClient(id)
     toast.success("Client supprimé avec succès")
     setClientToDeleteId(null)
 
-    startSubmitTransition(async () => {
-      try {
-        const response = await fetch(`/api/clients/${id}`, {
-          method: 'DELETE',
-        })
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}))
-          throw new Error(errData.error || `HTTP ${response.status}`)
-        }
-      } catch (error) {
-        // ROLLBACK — re-insert the previously removed client
-        if (clientToRestore) addClient(clientToRestore)
-        const msg = error instanceof Error ? error.message : 'Erreur inconnue'
-        toast.error(`Échec de la suppression : ${msg}. Restauration effectuée.`)
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/clients/${id}`, {
+        method: 'DELETE',
+      })
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `HTTP ${response.status}`)
       }
-    })
+    } catch (error) {
+      // ROLLBACK — re-insert the previously removed client
+      if (clientToRestore) addClient(clientToRestore)
+      const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+      toast.error(`Échec de la suppression : ${msg}. Restauration effectuée.`)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const handleEditClient = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editingClient || isSubmitting) return
 
+    if (!editingClient.name || !editingClient.email) {
+        toast.error("Le nom et l'email sont requis.")
+        return
+    }
+
     const originalClient = clients.find(c => c.id === editingClient.id)
     const clientToSave = editingClient
 
-    startSubmitTransition(async () => {
-      try {
-        const response = await fetch(`/api/clients/${clientToSave.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(clientToSave),
-        })
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}))
-          throw new Error(errData.error || `HTTP ${response.status}`)
-        }
+    setIsSubmitting(true)
+    try {
+      const response = await fetch(`/api/clients/${clientToSave.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(clientToSave),
+      })
 
-        // SERVER-FIRST: apply optimistic update only after server confirms.
-        updateClient(clientToSave.id, clientToSave)
-        setIsEditDialogOpen(false)
-        setEditingClient(null)
-        toast.success("Client mis à jour avec succès")
-      } catch (error) {
-        // Form stays open with data intact — user can correct and retry
-        if (originalClient) updateClient(clientToSave.id, originalClient)
-        const msg = error instanceof Error ? error.message : 'Erreur inconnue'
-        toast.error(`Échec de la modification : ${msg}`)
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}))
+        throw new Error(errData.error || `HTTP ${response.status}`)
       }
-    })
+
+      const updatedClient = await response.json()
+
+      // SERVER-FIRST: apply optimistic update only after server confirms.
+      updateClient(clientToSave.id, updatedClient)
+      setIsEditDialogOpen(false)
+      setEditingClient(null)
+      toast.success("Client mis à jour avec succès")
+    } catch (error) {
+      // Form stays open with data intact — user can correct and retry
+      if (originalClient) updateClient(clientToSave.id, originalClient)
+      const msg = error instanceof Error ? error.message : 'Erreur inconnue'
+      toast.error(`Échec de la modification : ${msg}`)
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
+      {user?.role !== 'admin' && (
+        <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
+          <ShieldAlert className="h-4 w-4" />
+          <AlertDescription className="font-medium">
+            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* ── En-tête de page (Design System) ───────────────────────────── */}
       <PageHeader
         title="Clients"
