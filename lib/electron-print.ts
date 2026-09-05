@@ -190,11 +190,7 @@ export async function printElement(elementId: string): Promise<void> {
 
   // Envoi asynchrone au Main Process via IPC
   try {
-    const result = await window.electron.printDocument(htmlDoc);
-    // Si la fonction retourne une promesse avec un statut
-    if (result && result.success === false) {
-      toast.warning("Impression annulée ou échouée.");
-    }
+    await window.electron.printDocument(htmlDoc);
   } catch (error: unknown) {
     const errorMsg = error instanceof Error ? error.message : "Erreur inconnue";
     // Ignorer les erreurs d'annulation de dialogue par l'utilisateur

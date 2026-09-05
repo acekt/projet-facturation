@@ -297,7 +297,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
       return;
     }
 
-    startSubmitTransition(async () => {
+    startTransition(async () => {
       try {
         const url = editingId ? `/api/quotes/${editingId}` : "/api/quotes";
         const method = editingId ? "PUT" : "POST";
