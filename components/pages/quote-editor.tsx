@@ -145,7 +145,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
   // Fix React Form Submission Anti-Pattern
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [isPending, startTransition] = React.useTransition();
+  const [isPending, startSubmitTransition] = React.useTransition();
   const isActionLocked = isSubmitting || isPending;
 
   const [isLoading, setIsLoading] = React.useState(!!editingId);
@@ -297,40 +297,43 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
       return;
     }
 
-    startSubmitTransition(async () => {
-      try {
-        const url = editingId ? `/api/quotes/${editingId}` : "/api/quotes";
-        const method = editingId ? "PUT" : "POST";
-        const response = await fetch(url, {
-          method,
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            clientId: selectedClient.id,
-            clientName: selectedClient.name,
-            clientEmail: selectedClient.email,
-            date: quoteDate,
-            items,
-            notes,
-            subject: subject || undefined,
-            validUntil: validUntil || undefined,
-            discount,
-            status,
-          }),
-        });
+    setIsSubmitting(true);
+    try {
+      const url = editingId ? `/api/quotes/${editingId}` : "/api/quotes";
+      const method = editingId ? "PUT" : "POST";
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: selectedClient.id,
+          clientName: selectedClient.name,
+          clientEmail: selectedClient.email,
+          date: quoteDate,
+          items,
+          notes,
+          subject: subject || undefined,
+          validUntil: validUntil || undefined,
+          discount,
+          status,
+        }),
+      });
 
-        if (!response.ok) throw new Error("Failed to save quote");
+      if (!response.ok) throw new Error("Failed to save quote");
 
-        const newQuotes = await fetch("/api/quotes").then((res) => res.json());
+      const newQuotes = await fetch("/api/quotes").then((res) => res.json());
+
+      startSubmitTransition(() => {
         setQuotes(newQuotes);
-
-        toast.success("Devis enregistré avec succès");
         clearQuoteDraft();
+        toast.success("Devis enregistré avec succès");
         onBack();
-      } catch (error) {
-        console.error("[QuoteEditor] handleSave error:", error);
-        toast.error("Erreur lors de l'enregistrement du devis");
-      }
-    });
+      });
+    } catch (error) {
+      console.error("[QuoteEditor] handleSave error:", error);
+      toast.error("Erreur lors de l'enregistrement du devis");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
