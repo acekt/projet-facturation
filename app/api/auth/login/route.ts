@@ -123,64 +123,63 @@ export async function POST(request: Request) {
       )
       .get(cleanUsername, cleanUsername) as DbUser | undefined;
 
-    if (!user) {
-      logAuditAsync(
-        "LOGIN_FAILED",
-        "user",
-        null,
-        "Tentative de connexion échouée avec: " + cleanUsername,
-        null,
-      );
-      return NextResponse.json(
-        { error: "Identifiants invalides" } as ErrorResponse,
-        { status: 401 },
-      );
-    }
-
+    // Mitigation du Timing Attack
+    const dummyHash = "$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1KUOYTa"; // Hash bcrypt factice
     let isPasswordValid = false;
-    try {
-      isPasswordValid = await bcrypt.compare(password, user.password);
-    } catch (e) {
-      isPasswordValid = false;
-    }
 
-    // Fallback legacy SHA-256
-    if (!isPasswordValid && user.password) {
-      const legacyHash = hashPassword(password);
-      isPasswordValid = user.password === legacyHash;
-
-      // Seamlessly upgrade to bcrypt
-      if (isPasswordValid) {
+    if (user) {
         try {
-          const newBcryptHash = await bcrypt.hash(password, 10);
-          db.prepare("UPDATE users SET password = ? WHERE id = ?").run(
-            newBcryptHash,
-            user.id,
-          );
-        } catch (upgradeError) {
-          console.error(
-            "[Login] Failed to seamlessly upgrade password hash to bcrypt:",
-            upgradeError,
-          );
+            isPasswordValid = await bcrypt.compare(password, user.password);
+        } catch (e) {
+            isPasswordValid = false;
         }
-      }
+
+        // Fallback legacy SHA-256
+        if (!isPasswordValid && user.password) {
+          const legacyHash = hashPassword(password);
+          isPasswordValid = user.password === legacyHash;
+
+          // Seamlessly upgrade to bcrypt
+          if (isPasswordValid) {
+            try {
+              const newBcryptHash = await bcrypt.hash(password, 10);
+              db.prepare("UPDATE users SET password = ? WHERE id = ?").run(
+                newBcryptHash,
+                user.id,
+              );
+            } catch (upgradeError) {
+              console.error(
+                "[Login] Failed to seamlessly upgrade password hash to bcrypt:",
+                upgradeError,
+              );
+            }
+          }
+        }
+    } else {
+        // Exécuter bcrypt.compare sur le dummyHash pour égaliser le temps de réponse
+        try {
+            await bcrypt.compare(password, dummyHash);
+        } catch (e) {
+            // Ignorer
+        }
     }
 
-    if (!isPasswordValid) {
+    if (!user || !isPasswordValid) {
       logAuditAsync(
         "LOGIN_FAILED",
         "user",
-        user.id,
+        user?.id || null,
         "Tentative de connexion échouée (mauvais mot de passe) pour: " +
           cleanUsername,
-        user.id,
-        user.name,
+        user?.id || null,
+        user?.name || null
       );
       return NextResponse.json(
         { error: "Identifiants invalides" } as ErrorResponse,
         { status: 401 },
       );
     }
+
 
     if (user.is_active === 0) {
       return NextResponse.json(
