@@ -15,7 +15,7 @@ import './globals.css'
 
 export const metadata: Metadata = {
   title: "Facturier — Gestion & Facturation",
-  // Pas de description SEO inutile pour une app desktop offline
+  // Pas de description SEO pour cette app desktop offline
 }
 
 export default function RootLayout({
