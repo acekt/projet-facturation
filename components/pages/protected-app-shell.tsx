@@ -204,6 +204,8 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.3 }}
               className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-[999]"
+              role="status"
+              aria-live="polite"
             >
               <div className="relative flex items-center justify-center">
                 <div className="w-16 h-16 border-4 border-primary/20 rounded-full"></div>
