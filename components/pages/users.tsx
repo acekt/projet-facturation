@@ -219,7 +219,8 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   }
 
   const handleToggleStatus = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser || isSubmitting) return;
+    setIsSubmitting(true);
     try {
         const currentActive = checkIsActive(selectedUser);
         const newStatus = !currentActive; // Invert status as boolean
@@ -244,15 +245,18 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         }
     } catch (e) {
         toast.error("Erreur réseau")
+    } finally {
+        setIsSubmitting(false);
     }
   }
 
   const handleDeleteUser = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser || isSubmitting) return;
     if (deleteConfirmName !== selectedUser.name) {
         toast.error("Le nom saisi ne correspond pas")
         return
     }
+    setIsSubmitting(true);
     try {
         const res = await fetch(`/api/users/${selectedUser.id}`, { method: 'DELETE' })
         if (res.ok) {
@@ -266,12 +270,15 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         }
     } catch (e) {
         toast.error("Erreur réseau")
+    } finally {
+        setIsSubmitting(false);
     }
   }
 
   const handleResetPassword = async () => {
-    if (!selectedUser) return;
+    if (!selectedUser || isSubmitting) return;
     const pw = generatePassword()
+    setIsSubmitting(true);
     try {
         const res = await fetch(`/api/users/${selectedUser.id}`, {
             method: 'PATCH',
@@ -285,6 +292,8 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         }
     } catch (e) {
         toast.error("Erreur réseau")
+    } finally {
+        setIsSubmitting(false);
     }
   }
 
@@ -554,7 +563,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             <Button
                 variant={selectedUser && checkIsActive(selectedUser) ? "destructive" : "default"}
                 onClick={handleToggleStatus}
-                disabled={selectedUser?.id === currentUser?.id}
+                disabled={selectedUser?.id === currentUser?.id || isSubmitting}
             >
                 Confirmer
             </Button>
@@ -584,7 +593,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
           </div>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)}>Annuler</Button>
-            <Button variant="destructive" onClick={handleDeleteUser} disabled={deleteConfirmName !== selectedUser?.name}>
+            <Button variant="destructive" onClick={handleDeleteUser} disabled={deleteConfirmName !== selectedUser?.name || isSubmitting}>
                 Supprimer l'utilisateur
             </Button>
           </DialogFooter>
@@ -626,7 +635,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
           </DialogHeader>
           <DialogFooter>
             <Button variant="ghost" onClick={() => setIsResetModalOpen(false)}>Annuler</Button>
-            <Button onClick={handleResetPassword}>Générer le mot de passe</Button>
+            <Button onClick={handleResetPassword} disabled={isSubmitting}>Générer le mot de passe</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
