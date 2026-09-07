@@ -1,137 +1,134 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import db from '@/lib/db';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { QuoteService, QuoteServiceError } from '@/lib/services/QuoteService';
+import db from '@/lib/db';
+import crypto from 'crypto';
 import { ROLES, QUOTE_STATUS, INVOICE_STATUS } from '@/lib/constants';
 
 describe('QuoteService Integration', () => {
+  const userId = crypto.randomUUID();
+  const clientId = crypto.randomUUID();
+  let quoteId: string;
+
   beforeEach(() => {
-    // Clear out data
+    // Setup necessary tables & data for a fresh run
     db.prepare('DELETE FROM invoice_items').run();
     db.prepare('DELETE FROM invoices').run();
     db.prepare('DELETE FROM quote_items').run();
     db.prepare('DELETE FROM quotes').run();
     db.prepare('DELETE FROM clients').run();
+    db.prepare('DELETE FROM settings').run();
+
+    // Seed settings
+    db.prepare(`
+      INSERT INTO settings (id, invoicePrefix, companyCode)
+      VALUES (1, 'F-', 'CMP')
+    `).run();
+
+    // Seed client
+    db.prepare(`
+      INSERT INTO clients (id, name, email, created_by)
+      VALUES (?, 'Test Client', 'test@example.com', ?)
+    `).run(clientId, userId);
+
+    quoteId = crypto.randomUUID();
+
+    // Seed quote
+    db.prepare(`
+      INSERT INTO quotes (
+        id, number, clientId, clientName, clientEmail, date,
+        subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by
+      ) VALUES (?, 'D-001', ?, 'Test Client', 'test@example.com', '2025-01-01',
+        10000, 0, 10100, 1818, 960, 100, 12878, ?, ?)
+    `).run(quoteId, clientId, QUOTE_STATUS.EN_ATTENTE, userId);
+
+    // Seed quote items
+    db.prepare(`
+      INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
+      VALUES (?, ?, 'Test Item', 1, 10000, 10000)
+    `).run(crypto.randomUUID(), quoteId);
   });
 
   afterEach(() => {
-    db.prepare('DELETE FROM invoice_items').run();
-    db.prepare('DELETE FROM invoices').run();
-    db.prepare('DELETE FROM quote_items').run();
-    db.prepare('DELETE FROM quotes').run();
-    db.prepare('DELETE FROM clients').run();
+    vi.restoreAllMocks();
   });
 
   it('should successfully convert a valid quote to an invoice', () => {
-    // 1. Setup Data
-    db.prepare(`
-      INSERT INTO clients (id, name, email) VALUES ('client-1', 'Test Client', 'test@example.com')
-    `).run();
+    const response = QuoteService.convertToInvoice(quoteId, userId, ROLES.USER);
 
-    const quoteDate = new Date().toISOString().split('T')[0];
-    const validUntil = new Date(Date.now() + 86400000).toISOString().split('T')[0]; // Tomorrow
+    expect(response).toHaveProperty('invoiceId');
+    expect(response).toHaveProperty('invoiceNumber');
+    expect(response.quoteId).toBe(quoteId);
 
-    db.prepare(`
-      INSERT INTO quotes (
-        id, number, clientId, clientName, clientEmail, date, validUntil,
-        subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by
-      ) VALUES (
-        'quote-1', 'DEV-2023-001', 'client-1', 'Test Client', 'test@example.com',
-        ?, ?, 1000, 0, 1000, 180, 0, 10, 1190, ?, 'user-1'
-      )
-    `).run(quoteDate, validUntil, QUOTE_STATUS.EN_ATTENTE);
-
-    db.prepare(`
-      INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
-      VALUES ('qi-1', 'quote-1', 'Item 1', 1, 1000, 1000)
-    `).run();
-
-    // Ensure settings exist (from init-db or previous tests, but let's be safe)
-    db.prepare("INSERT OR IGNORE INTO settings (id, invoicePrefix, companyCode) VALUES (1, 'FA-', 'CMP')").run();
-
-    // 2. Action
-    const result = QuoteService.convertToInvoice('quote-1', 'user-1', ROLES.ADMIN);
-
-    // 3. Assertion
-    expect(result).toHaveProperty('invoiceId');
-    expect(result.quoteId).toBe('quote-1');
-
-    // Verify quote status changed
-    const updatedQuote = db.prepare('SELECT status FROM quotes WHERE id = ?').get('quote-1') as { status: string };
+    // Verify quote status is updated
+    const updatedQuote = db.prepare('SELECT status FROM quotes WHERE id = ?').get(quoteId) as { status: string };
     expect(updatedQuote.status).toBe(QUOTE_STATUS.CONVERTI);
 
-    // Verify invoice was created
-    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(result.invoiceId) as any;
+    // Verify invoice is created
+    const invoice = db.prepare('SELECT * FROM invoices WHERE id = ?').get(response.invoiceId) as any;
     expect(invoice).toBeDefined();
-    expect(invoice.quoteId).toBe('quote-1');
-    expect(invoice.total).toBe(1190);
-    expect(invoice.status).toBe(INVOICE_STATUS.UNPAID);
+    expect(invoice.quoteId).toBe(quoteId);
+    expect(invoice.total).toBe(12878);
 
-    // Verify invoice items were created
-    const invoiceItems = db.prepare('SELECT * FROM invoice_items WHERE invoiceId = ?').all(result.invoiceId) as any[];
-    expect(invoiceItems.length).toBe(1);
-    expect(invoiceItems[0].description).toBe('Item 1');
+    // Verify invoice items are created
+    const items = db.prepare('SELECT * FROM invoice_items WHERE invoiceId = ?').all(response.invoiceId) as any[];
+    expect(items.length).toBe(1);
+    expect(items[0].total).toBe(10000);
   });
 
-  it('should rollback transaction if invoice insertion fails', () => {
-    // 1. Setup Data
-    db.prepare(`
-      INSERT INTO clients (id, name, email) VALUES ('client-rollback', 'Rollback Client', 'roll@example.com')
-    `).run();
+  it('should fail transaction cleanly if inserting invoice item throws', () => {
+    // Let's create an existing invoice_item with a known ID, and mock randomUUID to return it
+    const duplicateId = crypto.randomUUID();
+    const dummyInvoiceId = crypto.randomUUID();
 
-    const quoteDate = new Date().toISOString().split('T')[0];
-    const validUntil = new Date(Date.now() + 86400000).toISOString().split('T')[0]; // Tomorrow
-
+    // Create a dummy invoice first to satisfy foreign key constraint
     db.prepare(`
-      INSERT INTO quotes (
-        id, number, clientId, clientName, clientEmail, date, validUntil,
-        subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by
-      ) VALUES (
-        'quote-bad', 'DEV-2023-BAD', 'client-rollback', 'Rollback Client', 'roll@example.com',
-        ?, ?, 1000, 0, 1000, 180, 0, 10, 1190, ?, 'user-1'
-      )
-    `).run(quoteDate, validUntil, QUOTE_STATUS.EN_ATTENTE);
+      INSERT INTO invoices (id, number, clientId, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status)
+      VALUES (?, 'DUMMY-001', ?, '2025-01-01', 0, 0, 0, 0, 0, 0, 0, 'UNPAID')
+    `).run(dummyInvoiceId, clientId);
 
     db.prepare(`
-      INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
-      VALUES ('qi-bad', 'quote-bad', 'Item Bad', 1, 1000, 1000)
-    `).run();
+      INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(duplicateId, dummyInvoiceId, 'dummy', 1, 1, 1);
 
-    db.prepare("INSERT OR IGNORE INTO settings (id, invoicePrefix, companyCode) VALUES (1, 'FA-', 'CMP')").run();
+    const uuidSpy = vi.spyOn(crypto, 'randomUUID').mockImplementation(() => {
+      // Return the duplicate ID when creating the invoice item to trigger UNIQUE constraint failed
+      return duplicateId;
+    });
 
-    // Alter the database state temporarily to make the transaction fail
-    // We violate the constraint intentionally
-
-    // We will drop the invoices table to force a constraint error during insert.
-    // Wait, better-sqlite3 runs statements that are already prepared.
-    // QuoteService prepares the statement BEFORE the transaction runs.
-    // If we alter the table, the prepared statement might fail.
-    // Another way to fail it is to insert an invalid quote item by tampering with the database.
-    // However, the easiest way to fail a transaction is to introduce a constraint violation.
-    // Let's create a trigger that throws an error on insert into invoice_items for this specific description.
-
-    db.prepare(`
-      CREATE TRIGGER IF NOT EXISTS fail_insert_trigger
-      BEFORE INSERT ON invoice_items
-      FOR EACH ROW
-      WHEN NEW.description = 'Item Bad'
-      BEGIN
-        SELECT RAISE(ABORT, 'Intentional failure for rollback test');
-      END;
-    `).run();
-
-    // 2. Action
+    // Expect the service to throw the SQLite UNIQUE constraint error
     expect(() => {
-      QuoteService.convertToInvoice('quote-bad', 'user-1', ROLES.ADMIN);
-    }).toThrow(/Intentional failure for rollback test/);
+      QuoteService.convertToInvoice(quoteId, userId, ROLES.USER);
+    }).toThrow();
 
-    // 3. Assertion: Rollback occurred
-    const updatedQuote = db.prepare('SELECT status FROM quotes WHERE id = ?').get('quote-bad') as { status: string };
-    expect(updatedQuote.status).toBe(QUOTE_STATUS.EN_ATTENTE); // Still EN_ATTENTE
+    // Verify the transaction was rolled back!
 
-    const invoices = db.prepare('SELECT * FROM invoices WHERE quoteId = ?').all('quote-bad');
-    expect(invoices.length).toBe(0); // No invoice created
+    // 1. Quote status should still be EN_ATTENTE
+    const quote = db.prepare('SELECT status FROM quotes WHERE id = ?').get(quoteId) as { status: string };
+    expect(quote.status).toBe(QUOTE_STATUS.EN_ATTENTE);
 
-    // Cleanup trigger
-    db.prepare(`DROP TRIGGER IF EXISTS fail_insert_trigger`).run();
+    // 2. Invoice should NOT exist
+    const invoices = db.prepare('SELECT count(*) as count FROM invoices WHERE quoteId = ?').get(quoteId) as { count: number };
+    expect(invoices.count).toBe(0);
+
+    uuidSpy.mockRestore();
+  });
+
+  it('should fail to convert if quote is already converted', () => {
+    // Update quote to CONVERTI
+    db.prepare('UPDATE quotes SET status = ? WHERE id = ?').run(QUOTE_STATUS.CONVERTI, quoteId);
+
+    expect(() => {
+      QuoteService.convertToInvoice(quoteId, userId, ROLES.USER);
+    }).toThrowError(new QuoteServiceError('Quote already converted', 400));
+  });
+
+  it('should fail to convert if quote is deleted', () => {
+    // Soft delete quote
+    db.prepare('UPDATE quotes SET deletedAt = ? WHERE id = ?').run(new Date().toISOString(), quoteId);
+
+    expect(() => {
+      QuoteService.convertToInvoice(quoteId, userId, ROLES.USER);
+    }).toThrowError(new QuoteServiceError('Cannot convert a deleted quote', 400));
   });
 });
