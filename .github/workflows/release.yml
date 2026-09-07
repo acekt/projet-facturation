@@ -1,4 +1,4 @@
-﻿name: Build and Release Facturier
+name: Build and Release Facturier
 
 on:
   push:
@@ -27,9 +27,12 @@ jobs:
         run: npm ci
 
       - name: Build Next.js App
+        env:
+          NEXT_TELEMETRY_DISABLED: '1'
+          NEXT_BUILD: '1'
         run: npm run build:electron
 
       - name: Build and Publish Electron App
         env:
-          GH_TOKEN: $\{{ secrets.GITHUB_TOKEN }}
-        run: npm run pack -- --publish always
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --win --publish always
