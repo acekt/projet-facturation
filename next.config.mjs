@@ -21,12 +21,16 @@
  * @type {import('next').NextConfig}
  */
 const nextConfig = {
+
+  // Autoriser Electron à se connecter au serveur Next en mode dev
+  allowedDevOrigins: ['127.0.0.1', 'localhost'],
+
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
+  /*eslint: {
     ignoreDuringBuilds: true,
-  },
+  },*/
   images: {
     // Pas de CDN d'images — app desktop offline
     unoptimized: true,

@@ -401,8 +401,12 @@ try {
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP
   );
 `);
+  globalForDb.db.pragma('journal_mode = WAL');
+
+if (!process.env.NEXT_BUILD) {
   globalForDb.db_ready = true;
   process.stdout.write(`[db] Schéma initialisé avec succès : ${dbPath}\n`);
+}
 } catch (schemaErr: any) {
   process.stderr.write(`[db] FATAL: Échec de l'initialisation du schéma sur : ${dbPath}\n`);
   process.stderr.write(`[db] FATAL: ${schemaErr?.message || schemaErr}\n`);
