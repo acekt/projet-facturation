@@ -22,6 +22,7 @@
 'use strict';
 
 const { app, BrowserWindow, ipcMain, shell, Menu, dialog } = require('electron');
+const { autoUpdater } = require('electron-updater');
 Menu.setApplicationMenu(null);
 const { spawn, execSync }                     = require('child_process');
 const path                                    = require('path');
@@ -618,6 +619,47 @@ app.whenReady().then(async () => {
   }
 
   createWindow(port);
+
+  // Initialisation de l'auto-updater (en production seulement)
+  if (!isDev) {
+    autoUpdater.logger = {
+      info: (msg) => logToFile('INFO', `[Updater] ${msg}`),
+      warn: (msg) => logToFile('WARN', `[Updater] ${msg}`),
+      error: (msg) => logToFile('ERROR', `[Updater] ${msg}`),
+      debug: (msg) => logToFile('INFO', `[Updater] ${msg}`),
+    };
+    
+    autoUpdater.on('update-available', (info) => {
+      logToFile('INFO', `Mise à jour disponible: ${info.version}`);
+      dialog.showMessageBox({
+        type: 'info',
+        title: 'Mise à jour disponible',
+        message: `La version ${info.version} de Facturier est disponible. Le téléchargement va commencer en arrière-plan.`,
+      });
+    });
+
+    autoUpdater.on('update-downloaded', (info) => {
+      logToFile('INFO', `Mise à jour téléchargée: ${info.version}`);
+      dialog.showMessageBox({
+        type: 'question',
+        buttons: ['Installer et Redémarrer', 'Plus tard'],
+        defaultId: 0,
+        title: 'Mise à jour prête',
+        message: 'La nouvelle version a été téléchargée. Voulez-vous l\'installer maintenant ?',
+      }).then((result) => {
+        if (result.response === 0) {
+          autoUpdater.quitAndInstall();
+        }
+      });
+    });
+
+    autoUpdater.on('error', (err) => {
+      logToFile('ERROR', `Erreur auto-updater: ${err.message}`);
+    });
+
+    // Déclencher la vérification
+    autoUpdater.checkForUpdatesAndNotify();
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {

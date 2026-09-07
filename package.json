@@ -32,6 +32,13 @@
       "buildResources": "build",
       "output": "dist"
     },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "acekt",
+        "repo": "projet-facturation"
+      }
+    ],
     "asar": false,
     "npmRebuild": true,
     "files": [
@@ -139,6 +146,7 @@
     "clsx": "^2.1.1",
     "cmdk": "1.1.1",
     "date-fns": "^4.4.0",
+    "electron-updater": "^6.8.9",
     "exceljs": "^4.4.0",
     "framer-motion": "^12.38.0",
     "lucide-react": "^0.564.0",
