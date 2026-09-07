@@ -201,9 +201,10 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
               key="loading"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.3 }}
-              className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-[999]"
+              exit={{ opacity: 0, transition: { duration: 0.4 } }}
+              className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md z-[100]"
+              role="status"
+              aria-live="polite"
             >
               <div className="relative flex items-center justify-center">
                 <div className="w-16 h-16 border-4 border-primary/20 rounded-full"></div>
@@ -220,7 +221,7 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
               initial="initial"
               animate="animate"
               exit="exit"
-              transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+              transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
               className="flex-1 flex flex-col overflow-hidden px-8 py-6 h-full relative"
             >
               {renderPage()}

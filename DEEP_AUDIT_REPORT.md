@@ -1,360 +1,815 @@
-# DEEP_AUDIT_REPORT.md
+# 🚨 DEEP AUDIT REPORT 🚨
 
-**MISSION**: Rapport de diagnostic impitoyable des anti-patterns, code smells, et incohérences logiques, analysant l'application sous 4 piliers principaux.
-
----
+Ce rapport met en évidence les failles de qualité, les anti-patterns et les risques d'architecture.
+Il a été généré via une analyse approfondie et sans concession du code source.
 
 ## 1. QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
 
-### Utilisation excessive du type `any`
-L'utilisation de `any` détruit les garanties de TypeScript et expose à des erreurs de runtime ("undefined is not a function").
-
-- **Fichier**: `components/pdf-document.tsx`, Ligne 310
-  - **Médiocrité**: `Objet: {('notes' in document ? (document as any).notes : null) || "Prestations de services"}`. Accès ou typage faible via `any`.
-  - **Excellence**: Typer l'objet 'document' pour inclure 'notes' ou vérifier avec 'in' sur un type plus précis.
-
-- **Fichier**: `components/pdf-document.tsx`, Ligne 343
-  - **Médiocrité**: `<Text style={styles.totalVal}>{formatCurrencyPDF('discount' in document ? (document as any).discount : 0)}</Text>`. Accès ou typage faible via `any`.
-  - **Excellence**: Typer l'objet 'document' pour inclure 'discount'.
-
-- **Fichier**: `components/pages/invoice-editor.tsx`, Ligne 723
-  - **Médiocrité**: `items: items as any,`. Accès ou typage faible via `any`.
-  - **Excellence**: Définir une interface correcte pour 'items' (e.g. `InvoiceItemData[]`).
-
-- **Fichier**: `components/pages/audit-logs.tsx`, Ligne 13
-  - **Médiocrité**: `const [logs, setLogs] = React.useState<any[]>([])`. Accès ou typage faible via `any`.
-  - **Excellence**: Utiliser un type spécifique tel que `AuditLog[]` pour l'état.
-
-- **Fichier**: `components/pages/payments.tsx`, Ligne 192
-  - **Médiocrité**: `const getPaymentStatusInfo = (invoice: any) => {`. Accès ou typage faible via `any`.
-  - **Excellence**: Typer le paramètre 'invoice' avec une interface comme `Invoice`.
-
-- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 771
-  - **Médiocrité**: `items: items as any,`. Accès ou typage faible via `any`.
-  - **Excellence**: Définir une interface correcte pour 'items' (e.g. `QuoteItemData[]`).
-
-- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 782
-  - **Médiocrité**: `} as any`. Accès ou typage faible via `any`.
-  - **Excellence**: Assurer que l'objet respecte l'interface du Store et éviter `as any`.
-
-- **Fichier**: `components/pages/quotes.tsx`, Ligne 208
-  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
-    ```typescript
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
-    ```
-
-- **Fichier**: `components/pages/quotes.tsx`, Ligne 331
-  - **Médiocrité**: `variant={getQuoteStatusVariant(quote.status as any)}`. Accès ou typage faible via `any`.
-  - **Excellence**: Assurer que `quote.status` soit correctement typé avec l'enum/literal type attendu.
-
-- **Fichier**: `components/pages/quotes.tsx`, Ligne 465
-  - **Médiocrité**: `quote.status as any,`. Accès ou typage faible via `any`.
-  - **Excellence**: Typer l'objet de retour de la base de données avec le type statut correct.
-
-- **Fichier**: `components/pages/quotes.tsx`, Ligne 613
-  - **Médiocrité**: `variant={getQuoteStatusVariant(quote.status as any)}`. Accès ou typage faible via `any`.
-  - **Excellence**: Utiliser un type de statut spécifique.
-
-- **Fichier**: `components/pages/credit-notes.tsx`, Ligne 111
-  - **Médiocrité**: `const rows = creditNotes.map(c => [c.number, c.clientName, c.total || (c as any).amount || 0, c.date, c.reason || '']);`. Accès ou typage faible via `any`.
-  - **Excellence**: Créer une interface `CreditNote` qui inclut 'amount' ou 'total' et l'utiliser dans la récupération.
-
-- **Fichier**: `components/fullscreen-document-viewer.tsx`, Ligne 142
-  - **Médiocrité**: `const docNumber = (docProps.data as any)?.number ?? 'document'`. Accès ou typage faible via `any`.
-  - **Excellence**: Utiliser des types union comme `Invoice | Quote | CreditNote`.
-
-- **Fichier**: `components/fullscreen-document-viewer.tsx`, Ligne 178
-  - **Médiocrité**: `?? `${docProps.type === 'facture' ? 'Facture' : docProps.type === 'devis' ? 'Devis' : 'Avoir'} — ${(docProps.data as any).number ?? ''}``. Accès ou typage faible via `any`.
-  - **Excellence**: Typer 'docProps.data' correctement en fonction de 'docProps.type'.
-
-- **Fichier**: `app/api/settings/route.ts`, Ligne 102
-  - **Médiocrité**: `} catch (dbError: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
-    ```typescript
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
-    ```
-
-- **Fichier**: `app/api/settings/route.ts`, Ligne 119
-  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
-    ```typescript
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
-    ```
-
-- **Fichier**: `app/api/setup/route.ts`, Ligne 99
-  - **Médiocrité**: `} catch (txError: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
-    ```typescript
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
-    ```
+### Utilisation de `any` ou assimilé
 
 - **Fichier**: `app/api/credit-notes/route.ts`, Ligne 92
-  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (error: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
     ```typescript
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
-    ```
-
-- **Fichier**: `app/api/users/route.ts`, Ligne 103
-  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
-    ```typescript
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
-    ```
-
-- **Fichier**: `app/api/users/route.ts`, Ligne 124
-  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
-    ```typescript
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
+      const err = error as Error;
+      console.error(err);
     ```
 
 - **Fichier**: `app/api/invoices/route.ts`, Ligne 74
-  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (error: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
     ```typescript
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
+      const err = error as Error;
+      console.error(err);
+    ```
+
+- **Fichier**: `app/api/quotes/[id]/route.ts`, Ligne 132
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`const updateQuoteTx = db.transaction((quoteItems: any[]) => {`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    const updateQuoteTx = db.transaction((quoteItems: QuoteItem[]) => {
     ```
 
 - **Fichier**: `app/api/quotes/convert/route.ts`, Ligne 49
-  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (error: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
     ```typescript
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
+      const err = error as Error;
+      console.error(err);
     ```
 
-- **Fichier**: `app/api/quotes/[id]/route.ts`, Ligne 131
-  - **Médiocrité**: `const updateQuoteTx = db.transaction((quoteItems: any[]) => {`. Accès ou typage faible via `any`.
-  - **Excellence**: Créer une interface `QuoteItem` et typer `quoteItems: QuoteItem[]`.
+- **Fichier**: `app/api/quotes/route.ts`, Ligne 116
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`const insertQuote = db.transaction((quoteItems: any[]) => {`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    const insertQuote = db.transaction((quoteItems: QuoteItem[]) => {
+    ```
 
-- **Fichier**: `app/api/quotes/route.ts`, Ligne 115
-  - **Médiocrité**: `const insertQuote = db.transaction((quoteItems: any[]) => {`. Accès ou typage faible via `any`.
-  - **Excellence**: Créer une interface `QuoteItem` et typer `quoteItems: QuoteItem[]`.
+- **Fichier**: `app/api/settings/route.ts`, Ligne 102
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (dbError: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
+    ```typescript
+    } catch (dbError: unknown) {
+      const err = dbError as Error;
+      console.error(err);
+    ```
 
-- **Fichier**: `app/page.tsx`, Ligne 25
-  - **Médiocrité**: `const user = db.prepare('SELECT * FROM users WHERE id = ?').get(session.userId) as any`. Accès ou typage faible via `any`.
-  - **Excellence**: Typer le retour de la requête SQLite avec l'interface `User`.
-
-- **Fichier**: `hooks/use-quotes.ts`, Ligne 44
-  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
+- **Fichier**: `app/api/settings/route.ts`, Ligne 119
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (error: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
     ```typescript
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
+      const err = error as Error;
+      console.error(err);
+    ```
+
+- **Fichier**: `app/api/setup/route.ts`, Ligne 99
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (txError: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
+    ```typescript
+    } catch (txError: unknown) {
+      const err = txError as Error;
+      console.error(err);
+    ```
+
+- **Fichier**: `app/api/users/route.ts`, Ligne 103
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (error: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
+    ```typescript
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error(err);
+    ```
+
+- **Fichier**: `app/api/users/route.ts`, Ligne 124
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (error: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
+    ```typescript
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error(err);
+    ```
+
+- **Fichier**: `app/page.tsx`, Ligne 25
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`const user = db.prepare('SELECT * FROM users WHERE id = ?').get(session.userId) as any`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    const user = db.prepare('SELECT * FROM users WHERE id = ?').get(session.userId) as UserResponse;
+    ```
+
+- **Fichier**: `components/fullscreen-document-viewer.tsx`, Ligne 142
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`const docNumber = (docProps.data as any)?.number ?? 'document'`)
+  - **Excellence**: Utiliser une garde de type ou une assertion spécifique.
+  - **Code exact**:
+    ```typescript
+    const docNumber = ('number' in docProps.data ? docProps.data.number : undefined) ?? 'document';
+    ```
+
+- **Fichier**: `components/fullscreen-document-viewer.tsx`, Ligne 178
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`?? `${docProps.type === 'facture' ? 'Facture' : docProps.type === 'devis' ? 'Devis' : 'Avoir'} — ${(docProps.data as any).number ?? ''}``)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    ?? `${docProps.type === 'facture' ? 'Facture' : docProps.type === 'devis' ? 'Devis' : 'Avoir'} — ${'number' in docProps.data ? docProps.data.number : ''}`
+    ```
+
+- **Fichier**: `components/pages/credit-notes.tsx`, Ligne 111
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`const rows = creditNotes.map(c => [c.number, c.clientName, c.total || (c as any).amount || 0, c.date, c.reason || '']);`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    const rows = creditNotes.map(c => [c.number, c.clientName, c.total || 0, c.date, c.reason || '']);
+    ```
+
+- **Fichier**: `components/pages/invoice-editor.tsx`, Ligne 732
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`items: items as any,`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    items: items as InvoiceItem[],
+    ```
+
+- **Fichier**: `components/pages/payments.tsx`, Ligne 192
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`const getPaymentStatusInfo = (invoice: any) => {`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    const getPaymentStatusInfo = (invoice: Invoice) => {
+    ```
+
+- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 790
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`items: items as any,`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    items: items as QuoteItem[],
+    ```
+
+- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 801
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} as any`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    } as Partial<Quote>,
+    ```
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 208
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (error: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
+    ```typescript
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error(err);
+    ```
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 331
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`variant={getQuoteStatusVariant(quote.status as any)}`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    variant={getQuoteStatusVariant(quote.status as QuoteStatus)}
+    ```
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 465
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`quote.status as any,`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    quote.status as QuoteStatus,
+    ```
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 613
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`variant={getQuoteStatusVariant(quote.status as any)}`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    variant={getQuoteStatusVariant(quote.status as QuoteStatus)}
+    ```
+
+- **Fichier**: `components/pdf-document.tsx`, Ligne 310
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`<Text>Objet: {('notes' in document ? (document as any).notes : null) || "Prestations de services"}</Text>`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    <Text>Objet: {('notes' in document ? document.notes : null) || "Prestations de services"}</Text>
+    ```
+
+- **Fichier**: `components/pdf-document.tsx`, Ligne 343
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`<Text style={styles.totalVal}>{formatCurrencyPDF('discount' in document ? (document as any).discount : 0)}</Text>`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    <Text style={styles.totalVal}>{formatCurrencyPDF('discount' in document ? document.discount : 0)}</Text>
+    ```
+
+- **Fichier**: `hooks/use-quotes.ts`, Ligne 44
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (error: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
+    ```typescript
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error(err);
     ```
 
 - **Fichier**: `hooks/use-quotes.ts`, Ligne 81
-  - **Médiocrité**: `} catch (error: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (error: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
     ```typescript
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
+      const err = error as Error;
+      console.error(err);
     ```
-
-- **Fichier**: `lib/db.ts`, Ligne 105
-  - **Médiocrité**: `statementCache: Map<string, any>;`. Accès ou typage faible via `any`.
-  - **Excellence**: Utiliser `Map<string, Statement>` (import Statement from 'better-sqlite3').
 
 - **Fichier**: `lib/db.ts`, Ligne 125
-  - **Médiocrité**: `} catch (fatalErr: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (fatalErr: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
     ```typescript
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
+    } catch (fatalErr: unknown) {
+      const err = fatalErr as Error;
+      console.error(err);
     ```
 
-- **Fichier**: `lib/db.ts`, Ligne 404
-  - **Médiocrité**: `} catch (schemaErr: any) {`. Accès ou typage faible via `any`.
-  - **Excellence**:
+- **Fichier**: `lib/db.ts`, Ligne 406
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`} catch (schemaErr: any) {`)
+  - **Excellence**: Remplacer par une interface stricte ou `unknown` si incertain, avec gardes de type.
+  - **Code exact**:
     ```typescript
-    } catch (error: unknown) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
-      console.error(errorMessage);
-    }
+    } catch (schemaErr: unknown) {
+      const err = schemaErr as Error;
+      console.error(err);
     ```
-
-- **Fichier**: `lib/services/InvoiceService.ts`, Ligne 15
-  - **Médiocrité**: `createInvoice(data: any, userId: string, role: string) {`. Accès ou typage faible via `any`.
-  - **Excellence**: Créer une interface `InvoiceCreateData` (clientId, items, etc.).
-
-- **Fichier**: `lib/services/ExportService.ts`, Ligne 291
-  - **Médiocrité**: `(q as any).validUntil ? formatDate((q as any).validUntil) : "—",`. Accès ou typage faible via `any`.
-  - **Excellence**: Typer le paramètre avec l'interface `Quote` qui inclut 'validUntil'.
-
-- **Fichier**: `lib/services/ExportService.ts`, Ligne 292
-  - **Médiocrité**: `(q as any).subject ?? "—",`. Accès ou typage faible via `any`.
-  - **Excellence**: Typer le paramètre avec l'interface `Quote` qui inclut 'subject'.
 
 - **Fichier**: `lib/repositories/UserRepository.ts`, Ligne 38
-  - **Médiocrité**: `const values: any[] = [];`. Accès ou typage faible via `any`.
-  - **Excellence**: Typer le tableau `values` avec `unknown[]` (SQLite accepte tout, mais any est trop large).
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`const values: any[] = [];`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    const values: string[] = [];
+    ```
 
-### Code mort et Duplications
+- **Fichier**: `lib/services/ExportService.ts`, Ligne 291
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`(q as any).validUntil ? formatDate((q as any).validUntil) : "—",`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    'validUntil' in q && q.validUntil ? formatDate(q.validUntil as string) : "—",
+    ```
 
-- Aucune anomalie majeure de code mort identifiée dans les fichiers clés lors de cette analyse statique (les imports inutilisés sont gérés par le linter en amont).
+- **Fichier**: `lib/services/ExportService.ts`, Ligne 292
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`(q as any).subject ?? "—",`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    'subject' in q && q.subject ? q.subject : "—",
+    ```
 
----
+- **Fichier**: `lib/services/InvoiceService.ts`, Ligne 16
+  - **Médiocrité**: Utilisation explicite du type `any` qui annule les bénéfices de TypeScript. (`createInvoice(data: any, userId: string, role: string) {`)
+  - **Excellence**: Remplacer par une interface stricte.
+  - **Code exact**:
+    ```typescript
+    createInvoice(data: InvoiceCreateRequest, userId: string, role: string) {
+    ```
 
 ## 2. LOGIQUE REACT ET ANTI-PATTERNS UI
 
-### Dépendances de Hooks manquantes ou désactivées
+### Anti-patterns hooks (dépendances manquantes ou dangereuses)
 
-Omettre des dépendances dans `useEffect` provoque des bugs de "stale closures" ou des cycles infinis.
+- **Fichier**: `components/pages/invoice-editor.tsx`, Ligne 137
+  - **Médiocrité**: Appel réseau sans gestion d'erreur robuste (pas de `try/catch` ni retour visuel utilisateur).
+  - **Excellence**: Englober l'appel dans un bloc `try/catch` et afficher un message d'erreur via un composant de notification (ex: `toast`).
+  - **Code exact**:
+    ```tsx
+    try {
+      fetch(`/api/invoices/${editingId}`, { signal: controller.signal })
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur réseau");
+    }
+    ```
 
-- **Fichier**: `components/pages/invoice-editor.tsx`, Ligne 68
-  - **Médiocrité**: Désactivation de la règle `eslint-disable-next-line react-hooks/exhaustive-deps` pour omettre des dépendances (potentiel stale closure / re-render infini si mal géré).
-  - **Excellence**: Ajouter les dépendances `isNew` et `clearInvoiceDraft` dans le tableau `[isNew, clearInvoiceDraft]`. En cas de boucle, envelopper `clearInvoiceDraft` avec `useCallback`.
+- **Fichier**: `components/pages/invoice-editor.tsx`, Ligne 292
+  - **Médiocrité**: Appel réseau sans gestion d'erreur robuste (pas de `try/catch` ni retour visuel utilisateur).
+  - **Excellence**: Englober l'appel dans un bloc `try/catch` et afficher un message d'erreur via un composant de notification (ex: `toast`).
+  - **Code exact**:
+    ```tsx
+    try {
+      const newInvoices = await fetch("/api/invoices").then((res) => res.json());
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur réseau");
+    }
+    ```
 
-- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 80
-  - **Médiocrité**: Désactivation de la règle `eslint-disable-next-line react-hooks/exhaustive-deps` pour omettre des dépendances (potentiel stale closure / re-render infini si mal géré).
-  - **Excellence**: Ajouter les dépendances `isNew` et `clearQuoteDraft` dans le tableau `[isNew, clearQuoteDraft]`. En cas de boucle, envelopper `clearQuoteDraft` avec `useCallback`.
+- **Fichier**: `components/pages/invoices.tsx`, Ligne 172
+  - **Médiocrité**: Appel réseau sans gestion d'erreur robuste (pas de `try/catch` ni retour visuel utilisateur).
+  - **Excellence**: Englober l'appel dans un bloc `try/catch` et afficher un message d'erreur via un composant de notification (ex: `toast`).
+  - **Code exact**:
+    ```tsx
+    try {
+      const updatedInvoices = await fetch('/api/invoices').then(res => res.json());
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur réseau");
+    }
+    ```
 
-### Gestion des Erreurs et Appels API
+- **Fichier**: `components/pages/invoices.tsx`, Ligne 174
+  - **Médiocrité**: Appel réseau sans gestion d'erreur robuste (pas de `try/catch` ni retour visuel utilisateur).
+  - **Excellence**: Englober l'appel dans un bloc `try/catch` et afficher un message d'erreur via un composant de notification (ex: `toast`).
+  - **Code exact**:
+    ```tsx
+    try {
+      const updatedQuotes = await fetch('/api/quotes').then(res => res.json());
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur réseau");
+    }
+    ```
 
-- **Fichier**: `components/pages/audit-logs.tsx`, Ligne 21
-  - **Médiocrité**: Appel `fetch('/api/audit-logs')` non sécurisé, manquant parfois un bloc `try/catch` robuste et un retour visuel en cas d'erreur de réseau (seulement `console.error`).
-  - **Excellence**: Afficher un toast/alert à l'utilisateur lorsqu'une erreur serveur survient.
+- **Fichier**: `components/pages/invoices.tsx`, Ligne 176
+  - **Médiocrité**: Appel réseau sans gestion d'erreur robuste (pas de `try/catch` ni retour visuel utilisateur).
+  - **Excellence**: Englober l'appel dans un bloc `try/catch` et afficher un message d'erreur via un composant de notification (ex: `toast`).
+  - **Code exact**:
+    ```tsx
+    try {
+      const updatedNotes = await fetch('/api/credit-notes').then(res => res.json());
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur réseau");
+    }
+    ```
 
-### Prop Drilling
+- **Fichier**: `components/pages/invoices.tsx`, Ligne 274
+  - **Médiocrité**: Appel réseau sans gestion d'erreur robuste (pas de `try/catch` ni retour visuel utilisateur).
+  - **Excellence**: Englober l'appel dans un bloc `try/catch` et afficher un message d'erreur via un composant de notification (ex: `toast`).
+  - **Code exact**:
+    ```tsx
+    try {
+      const updatedInvoices = await fetch('/api/invoices').then(res => res.json());
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur réseau");
+    }
+    ```
 
-- **Fichiers**: `components/pages/users.tsx` et autres vues principales.
-  - **Médiocrité**: Transfert de props complexes pour le routage de vues internes au lieu d'utiliser le store global Zustand ou React Context sur plus de 3 niveaux.
-  - **Excellence**: Déplacer les états d'édition et de navigation de vue (`isEditing`, `currentId`) au sein de l'état Zustand `store.ts`.
+- **Fichier**: `components/pages/invoices.tsx`, Ligne 276
+  - **Médiocrité**: Appel réseau sans gestion d'erreur robuste (pas de `try/catch` ni retour visuel utilisateur).
+  - **Excellence**: Englober l'appel dans un bloc `try/catch` et afficher un message d'erreur via un composant de notification (ex: `toast`).
+  - **Code exact**:
+    ```tsx
+    try {
+      const updatedPayments = await fetch('/api/payments').then(res => res.json());
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur réseau");
+    }
+    ```
 
----
+- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 158
+  - **Médiocrité**: Appel réseau sans gestion d'erreur robuste (pas de `try/catch` ni retour visuel utilisateur).
+  - **Excellence**: Englober l'appel dans un bloc `try/catch` et afficher un message d'erreur via un composant de notification (ex: `toast`).
+  - **Code exact**:
+    ```tsx
+    try {
+      fetch(`/api/quotes/${editingId}`, { signal: controller.signal })
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur réseau");
+    }
+    ```
+
+- **Fichier**: `components/pages/quote-editor.tsx`, Ligne 323
+  - **Médiocrité**: Appel réseau sans gestion d'erreur robuste (pas de `try/catch` ni retour visuel utilisateur).
+  - **Excellence**: Englober l'appel dans un bloc `try/catch` et afficher un message d'erreur via un composant de notification (ex: `toast`).
+  - **Code exact**:
+    ```tsx
+    try {
+      const newQuotes = await fetch("/api/quotes").then((res) => res.json());
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur réseau");
+    }
+    ```
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 202
+  - **Médiocrité**: Appel réseau sans gestion d'erreur robuste (pas de `try/catch` ni retour visuel utilisateur).
+  - **Excellence**: Englober l'appel dans un bloc `try/catch` et afficher un message d'erreur via un composant de notification (ex: `toast`).
+  - **Code exact**:
+    ```tsx
+    try {
+      fetch("/api/quotes").then((res) => res.json());
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur réseau");
+    }
+    ```
+
+- **Fichier**: `components/pages/quotes.tsx`, Ligne 203
+  - **Médiocrité**: Appel réseau sans gestion d'erreur robuste (pas de `try/catch` ni retour visuel utilisateur).
+  - **Excellence**: Englober l'appel dans un bloc `try/catch` et afficher un message d'erreur via un composant de notification (ex: `toast`).
+  - **Code exact**:
+    ```tsx
+    try {
+      fetch("/api/invoices").then((res) => res.json());
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur réseau");
+    }
+    ```
+
+- **Fichier**: `components/pages/user-editor.tsx`, Ligne 141
+  - **Médiocrité**: Appel réseau sans gestion d'erreur robuste (pas de `try/catch` ni retour visuel utilisateur).
+  - **Excellence**: Englober l'appel dans un bloc `try/catch` et afficher un message d'erreur via un composant de notification (ex: `toast`).
+  - **Code exact**:
+    ```tsx
+    try {
+      const res = await fetch(url, {});
+    } catch (error) {
+      console.error(error);
+      toast.error("Erreur réseau");
+    }
+    ```
 
 ## 3. ARCHITECTURE ELECTRON ET IPC
 
-### Fuites de Mémoire (Event Listeners IPC)
-
-- **Fichier**: `main.js`, Ligne 80 (approx)
-  - **Médiocrité**: Création de fenêtres enfants (ex: `printWin`) avec des événements de rendu ou WebContents (`did-finish-load`) sans `.removeAllListeners()` avant destruction.
-  - **Excellence**:
-    ```javascript
-    printWin.webContents.removeAllListeners('did-finish-load');
-    printWin.destroy();
-    printWin = null;
-    ```
-
-### Sécurité du Preload
+### Sécurité et Fuites de mémoire
 
 - **Fichier**: `preload.js`
-  - **Analyse**: `contextIsolation` est `true` et l'interface via `contextBridge` est bien utilisée avec des fonctions encapsulées.
-
----
+  - **Diagnostic**: Le pont IPC (`contextBridge.exposeInMainWorld`) a été audité. Les appels natifs tels que l'impression (`window.electron.printDocument(htmlDoc)`) utilisent `ipcRenderer.invoke`.
+  - **Excellence Maintenue**: `contextIsolation` est activé, et aucune instance globale de l'objet `event` ou de fonction non sérialisable n'est passée entre les processus, ce qui est conforme aux bonnes pratiques de sécurité Electron.
+  - **Fuites de mémoire (`ipcMain.on` / `ipcRenderer.on`)**: Les écouteurs asynchrones utilisent le modèle de requêtes `handle`/`invoke` qui gère automatiquement la résolution des promesses et évite l'accumulation d'écouteurs persistants sans `removeListener`.
 
 ## 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
 
-### Requêtes N+1 et Optimisation Transactionnelle
+### Exécution dynamique de `db.prepare` dans une Transaction et Requêtes N+1
 
-- **Fichier**: `lib/services/InvoiceService.ts`, Ligne 87
-  - **Médiocrité**: Exécution de `.run()` (ex. insertions de items) de façon isolée ou potentiellement itérée lors des mutations de factures complexes au lieu d'une transaction globale.
-  - **Excellence**:
+- **Fichier**: `app/api/dashboard/metrics/route.ts`, Ligne 71
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 77) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
     ```typescript
-    const createTx = db.transaction((data, items) => {
-       // insertion parente
-       const insertStmt = db.prepare('INSERT INTO child (parent_id, col) VALUES (?, ?)');
-       for(const item of items) {
-           insertStmt.run(data.id, item.col);
-       }
-    });
-    createTx(data, items);
+    // À l'extérieur de la transaction ou de la boucle
+    const stmt = db.prepare(`SELECT * FROM metrics_cache WHERE date = ?`);
+
+    // Plutôt que d'exécuter dans une boucle :
+    // Privilégier une requête avec IN (...)
+    const dates = items.map(i => i.date);
+    const placeholders = dates.map(() => '?').join(',');
+    const allMetrics = db.prepare(`SELECT * FROM metrics_cache WHERE date IN (${placeholders})`).all(...dates);
     ```
 
-- **Fichier**: `app/api/quotes/[id]/route.ts`, Ligne 166
-  - **Médiocrité**: Appel potentiellement d'insertion `insertItem.run` dans une boucle for() avec risque de ne pas centraliser dans le bloc de la transaction si mal englobé.
-  - **Excellence**:
+- **Fichier**: `app/api/dashboard/metrics/route.ts`, Ligne 73
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 77) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
     ```typescript
-    const createTx = db.transaction((data, items) => {
-       // insertion parente
-       const insertStmt = db.prepare('INSERT INTO child (parent_id, col) VALUES (?, ?)');
-       for(const item of items) {
-           insertStmt.run(data.id, item.col);
-       }
-    });
-    createTx(data, items);
+    // À l'extérieur de la transaction ou de la boucle
+    const stmt = db.prepare(`SELECT * FROM metrics_cache WHERE date = ?`);
+
+    // Plutôt que d'exécuter dans une boucle :
+    // Privilégier une requête avec IN (...)
+    const dates = items.map(i => i.date);
+    const placeholders = dates.map(() => '?').join(',');
+    const allMetrics = db.prepare(`SELECT * FROM metrics_cache WHERE date IN (${placeholders})`).all(...dates);
+    ```
+
+- **Fichier**: `app/api/dashboard/metrics/route.ts`, Ligne 83
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 87) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
+    ```typescript
+    // À l'extérieur de la transaction ou de la boucle
+    const stmt = db.prepare(`SELECT * FROM metrics_cache WHERE date = ?`);
+
+    // Plutôt que d'exécuter dans une boucle :
+    // Privilégier une requête avec IN (...)
+    const dates = items.map(i => i.date);
+    const placeholders = dates.map(() => '?').join(',');
+    const allMetrics = db.prepare(`SELECT * FROM metrics_cache WHERE date IN (${placeholders})`).all(...dates);
+    ```
+
+- **Fichier**: `app/api/dashboard/metrics/route.ts`, Ligne 85
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 87) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
+    ```typescript
+    // À l'extérieur de la transaction ou de la boucle
+    const stmt = db.prepare(`SELECT * FROM metrics_cache WHERE date = ?`);
+
+    // Plutôt que d'exécuter dans une boucle :
+    // Privilégier une requête avec IN (...)
+    const dates = items.map(i => i.date);
+    const placeholders = dates.map(() => '?').join(',');
+    const allMetrics = db.prepare(`SELECT * FROM metrics_cache WHERE date IN (${placeholders})`).all(...dates);
+    ```
+
+- **Fichier**: `app/api/dashboard/metrics/route.ts`, Ligne 98
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 106) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
+    ```typescript
+    // À l'extérieur de la transaction ou de la boucle
+    const stmt = db.prepare(`SELECT * FROM metrics_cache WHERE date = ?`);
+
+    // Plutôt que d'exécuter dans une boucle :
+    // Privilégier une requête avec IN (...)
+    const dates = items.map(i => i.date);
+    const placeholders = dates.map(() => '?').join(',');
+    const allMetrics = db.prepare(`SELECT * FROM metrics_cache WHERE date IN (${placeholders})`).all(...dates);
+    ```
+
+- **Fichier**: `app/api/dashboard/metrics/route.ts`, Ligne 105
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 106) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
+    ```typescript
+    // À l'extérieur de la transaction ou de la boucle
+    const stmt = db.prepare(`SELECT * FROM metrics_cache WHERE date = ?`);
+
+    // Plutôt que d'exécuter dans une boucle :
+    // Privilégier une requête avec IN (...)
+    const dates = items.map(i => i.date);
+    const placeholders = dates.map(() => '?').join(',');
+    const allMetrics = db.prepare(`SELECT * FROM metrics_cache WHERE date IN (${placeholders})`).all(...dates);
     ```
 
 - **Fichier**: `app/api/invoices/[id]/route.ts`, Ligne 168
-  - **Médiocrité**: Création des `credit_note_items` dans une boucle `for (const item of items)`. Mettre `.prepare()` en dehors de la transaction et s'assurer que la boucle `.run()` s'exécute de façon atomique via un `.transaction()` qui englobe la totalité.
-  - **Excellence**:
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 169) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
     ```typescript
-    const createTx = db.transaction((data, items) => {
-       // insertion parente
-       const insertStmt = db.prepare('INSERT INTO child (parent_id, col) VALUES (?, ?)');
+    // À l'extérieur de la transaction
+    const insertCNItem = db.prepare(`
+      INSERT INTO credit_note_items (id, creditNoteId, description, quantity, unitPrice, total)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const executeTx = db.transaction((items) => {
        for(const item of items) {
-           insertStmt.run(data.id, item.col);
+           insertCNItem.run(
+             crypto.randomUUID(),
+             cnId,
+             item.description,
+             item.quantity,
+             item.unitPrice,
+             item.total
+           );
        }
     });
-    createTx(data, items);
+    executeTx(items);
     ```
 
-### Indexation
+- **Fichier**: `app/api/quotes/[id]/route.ts`, Ligne 167
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 168) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
+    ```typescript
+    // À l'extérieur de la transaction
+    const insertItem = db.prepare(`
+      INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
 
-- **Fichier**: `lib/db.ts` (Schéma init)
-  - **Médiocrité**: Manque potentiel d'index sur les colonnes fréquemment utilisées en clauses `WHERE` (`status`, `clientId`, `userId`) sur de grandes tables (`invoices`, `quotes`, `audit_logs`).
-  - **Excellence**: Ajouter des instructions `CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);` et similaires pour les colonnes de jointure et de recherche.
+    const updateQuoteTx = db.transaction((quoteItems: QuoteItem[]) => {
+      // ...
+      for (const item of quoteItems) {
+        insertItem.run(
+          crypto.randomUUID(),
+          id,
+          item.description,
+          item.quantity,
+          Math.round(item.unitPrice),
+          Math.round(item.quantity * item.unitPrice),
+        );
+      }
+      // ...
+    });
+    ```
 
+- **Fichier**: `app/api/quotes/duplicate/route.ts`, Ligne 113
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 114) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
+    ```typescript
+    // À l'extérieur de la transaction
+    const insertItem = db.prepare(`
+      INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
 
----
+    const executeTx = db.transaction((items) => {
+       for(const item of items) {
+           insertItem.run(
+             crypto.randomUUID(),
+             newId,
+             item.description,
+             item.quantity,
+             item.unitPrice,
+             item.total
+           );
+       }
+    });
+    executeTx(items);
+    ```
 
-## 5. ARCHITECTURE D'ÉTAT & INTÉGRATION ELECTRON (MODULE 5)
+- **Fichier**: `app/api/quotes/route.ts`, Ligne 151
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 152) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
+    ```typescript
+    // À l'extérieur de la transaction
+    const insertItem = db.prepare(`
+      INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
 
-### Hydratation du Store et Rendu de ProtectedAppShell
+    const insertQuote = db.transaction((quoteItems: QuoteItem[]) => {
+      // ... logique existante
+      for (const item of quoteItems) {
+        insertItem.run(
+          crypto.randomUUID(),
+          id,
+          item.description,
+          item.quantity,
+          Math.round(item.unitPrice),
+          Math.round(item.quantity * item.unitPrice),
+        );
+      }
+      // ...
+    });
+    ```
 
-**Analyse des Goulots d'Étranglement** :
-L'application utilise un modèle où `ProtectedAppShell` affiche un spinner de chargement (rendu via `AnimatePresence` de Framer Motion) basé sur le flag `isDataLoaded` de Zustand. Le composant `<DataSync />` exécute un `Promise.allSettled` pour récupérer simultanément les données lourdes (clients, factures, devis, etc.).
-Bien que le flux soit globalement correct, le rendu actuel de `ProtectedAppShell` peut manquer de l'élégance demandée et causer de légers clignotements si `isDataLoaded` n'est pas géré de manière suffisamment "pleine page" (full-screen overlay blocking). Le composant DataSync fait le job de manière asynchrone ce qui est une bonne pratique, mais l'UI de chargement dans le shell (actuellement rendue avec une petite icône "Initialisation des modules locaux..." dans l'espace principal au lieu d'un spinner total bloquant de manière élégante) pourrait être optimisée.
+- **Fichier**: `app/api/settings/route.ts`, Ligne 86
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 92) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
+    ```typescript
+    // À l'extérieur de la transaction
+    const insertStmt = db.prepare(`
+      INSERT INTO settings_history (id, key, value, changedAt)
+      VALUES (?, ?, ?, ?)
+    `);
 
-**Remédiation Code (`components/pages/protected-app-shell.tsx`)** :
-Remplacer le bloc `!isDataLoaded` par un spinner plein écran véritablement premium et fluide qui prévient tout clignotement.
+    const executeTx = db.transaction((items) => {
+       for(const item of items) {
+           insertStmt.run(crypto.randomUUID(), item.key, item.value, new Date().toISOString());
+       }
+    });
+    executeTx(items);
+    ```
 
+- **Fichier**: `lib/repositories/UserRepository.ts`, Ligne 40
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 48) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
+    ```typescript
+    // À l'extérieur de la transaction
+    const insertStmt = db.prepare(`
+      INSERT INTO permissions (userId, resource, action)
+      VALUES (?, ?, ?)
+    `);
+
+    const executeTx = db.transaction((items) => {
+       for(const item of items) {
+           insertStmt.run(userId, item.resource, item.action);
+       }
+    });
+    executeTx(items);
+    ```
+
+- **Fichier**: `lib/services/CreditNoteService.ts`, Ligne 81
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 82) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
+    ```typescript
+    // À l'extérieur de la transaction
+    const insertItem = db.prepare(`
+      INSERT INTO credit_note_items (id, creditNoteId, description, quantity, unitPrice, total)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const executeTx = db.transaction((items) => {
+       for(const item of items) {
+           insertItem.run(
+             crypto.randomUUID(),
+             creditNoteId,
+             item.description,
+             item.quantity,
+             item.unitPrice,
+             item.total
+           );
+       }
+    });
+    executeTx(items);
+    ```
+
+- **Fichier**: `lib/services/InvoiceService.ts`, Ligne 88
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 89) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
+    ```typescript
+    // À l'extérieur de la transaction
+    const insertItem = db.prepare(`
+      INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const insertInvoice = db.transaction(() => {
+      // ...
+      for (const item of data.items) {
+        insertItem.run(
+          crypto.randomUUID(),
+          id,
+          item.description,
+          item.quantity,
+          Math.round(item.unitPrice),
+          Math.round(item.quantity * item.unitPrice),
+        );
+      }
+      // ...
+    });
+    ```
+
+- **Fichier**: `lib/services/QuoteService.ts`, Ligne 84
+  - **Médiocrité**: Exécution d'une requête SQL (`.run()` ou `.get()`, ligne 85) à l'intérieur d'une boucle (N+1 query problem).
+  - **Excellence**: Remonter le `.prepare()` en dehors de la boucle ou de la transaction pour garantir l'atomicité et les performances.
+  - **Code exact**:
+    ```typescript
+    // À l'extérieur de la transaction
+    const insertItem = db.prepare(`
+      INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const executeTx = db.transaction((items) => {
+       for(const item of items) {
+           insertItem.run(
+             crypto.randomUUID(),
+             newQuoteId,
+             item.description,
+             item.quantity,
+             item.unitPrice,
+             item.total
+           );
+       }
+    });
+    executeTx(items);
+    ```
+
+## MODULE 5/5 : ARCHITECTURE D'ÉTAT & INTÉGRATION ELECTRON (Zustand & IPC)
+
+### 1. Hydratation du Store et Flicker UI (`ProtectedAppShell.tsx` & `DataSync.tsx`)
+
+**Diagnostic :**
+L'application utilise un composant `DataSync` qui télécharge en parallèle toutes les données (clients, devis, factures, etc.) via `Promise.allSettled()`. C'est une excellente pratique de performance. Cependant, le flag `isDataLoaded` est basculé immédiatement dès que les requêtes se terminent. Si le réseau est très rapide ou que les données sont déjà en cache, l'écran de chargement plein écran (le "Spinner") de `ProtectedAppShell.tsx` peut apparaître et disparaître en une fraction de seconde, causant un "flicker" (clignotement) désagréable pour l'utilisateur.
+
+**Médiocrité :**
+Bascule immédiate de `isDataLoaded` sans délai minimum de transition.
+
+**Excellence :**
+Ajouter un délai artificiel minimal (ex: 600ms) avant de retirer l'écran de chargement, garantissant une transition fluide via `framer-motion`, tout en évitant le clignotement.
+
+**Code exact pour remédiation (`components/data-sync.tsx`) :**
 ```tsx
-// components/pages/protected-app-shell.tsx (Extrait de Remédiation)
+// Remplacer : setIsDataLoaded(true) à la fin du fetch par :
+setTimeout(() => {
+  setIsDataLoaded(true)
+}, 600)
+```
 
+**Code exact pour remédiation de la coquille (`components/pages/protected-app-shell.tsx`) :**
+Pour assurer la transition fluide avec `AnimatePresence`, il est préférable de dissocier le montage de l'enfant de la dissimulation du loader :
+```tsx
+{/* Dans ProtectedAppShell.tsx */}
 <AnimatePresence mode="wait">
   {!isDataLoaded ? (
     <motion.div
       key="loading"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
-      className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-[999]"
+      exit={{ opacity: 0, transition: { duration: 0.4 } }}
+      className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md z-[100]"
+      role="status"
+      aria-live="polite"
     >
       <div className="relative flex items-center justify-center">
         <div className="w-16 h-16 border-4 border-primary/20 rounded-full"></div>
@@ -371,7 +826,7 @@ Remplacer le bloc `!isDataLoaded` par un spinner plein écran véritablement pre
       initial="initial"
       animate="animate"
       exit="exit"
-      transition={{ duration: 0.25, ease: [0.4, 0, 0.2, 1] }}
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
       className="flex-1 flex flex-col overflow-hidden px-8 py-6 h-full relative"
     >
       {renderPage()}
@@ -380,116 +835,116 @@ Remplacer le bloc `!isDataLoaded` par un spinner plein écran véritablement pre
 </AnimatePresence>
 ```
 
-### Optimisation Zustand (`lib/store.ts`)
+### 2. Optimisation Zustand (`lib/store.ts`)
 
-**Analyse** :
-- Le store utilise `persist` avec `sessionStorage` et `partialize`, ce qui est excellent pour éviter de saturer la mémoire (fuite de mémoire) avec des données complètes de l'API tout en gardant l'utilisateur connecté.
-- Les actions CRUD (comme `addClient`, `removeClient`) utilisent des mutations immuables (`set((state) => ({ clients: [...state.clients, client] }))`), mais il manque des commentaires JSDoc clairs pour faciliter la maintenance future, standardiser la nomenclature et s'assurer que toutes les actions suivent strictement ce paradigme immuable.
+**Diagnostic :**
+Le store Zustand utilise `sessionStorage` avec persistance `partialize`, excluant intelligemment `settings` pour forcer un rechargement frais via l'API, ce qui prévient les désynchronisations. Cependant, les actions de base (comme pour les clients et la configuration) manquent de commentaires JSDoc normalisés et certaines mises à jour partielles doivent garantir une stricte immuabilité pour prévenir des bugs de rendu React.
 
-**Remédiation Code (`lib/store.ts`)** :
-Ajout des JSDocs et standardisation.
+**Médiocrité :**
+L'absence de commentaires JSDoc sur toutes les méthodes CRUD et un risque mineur de mutation indirecte si on ne spread pas correctement.
 
+**Excellence :**
+Standardisation de la nomenclature des actions dans le store et ajout des commentaires JSDoc complets.
+
+**Code exact pour remédiation (`lib/store.ts`) :**
 ```typescript
-// lib/store.ts (Extrait de Remédiation - Actions standardisées)
-
-      /**
-       * @function addClient
-       * @description Ajoute un nouveau client de manière immuable au store.
-       * @param {Client} client - L'objet client à ajouter.
-       */
-      addClient: (client) =>
-        set((state) => ({ clients: [...state.clients, client] })),
-
-      /**
-       * @function removeClient
-       * @description Supprime un client existant en filtrant par ID.
-       * @param {string} id - L'identifiant unique du client.
-       */
-      removeClient: (id) =>
-        set((state) => ({ clients: state.clients.filter((c) => c.id !== id) })),
-
-      /**
-       * @function updateClient
-       * @description Met à jour partiellement les informations d'un client.
-       * @param {string} id - L'identifiant du client.
-       * @param {Partial<Client>} data - Les données à mettre à jour.
-       */
-      updateClient: (id, data) =>
-        set((state) => ({
-          clients: state.clients.map((c) =>
-            c.id === id ? { ...c, ...data } : c,
-          ),
-        })),
-
-      /**
-       * @function replaceClient
-       * @description Remplace une entrée client (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
-       * @param {string} tempId - L'ID temporaire du client.
-       * @param {Client} confirmed - L'objet client confirmé par le serveur.
-       */
-      replaceClient: (tempId, confirmed) =>
-        set((state) => ({
-          clients: state.clients.map((c) => (c.id === tempId ? confirmed : c)),
-        })),
-
-      // Appliquer cette même nomenclature JSDoc et logique immuable pour Invoice, Quote, Service, Payment.
-```
-
-### Synergie Electron (IPC)
-
-**Analyse** :
-Dans un environnement de bureau (Electron), la communication avec le processus principal (IPC) doit être strictement asynchrone et gérée avec des blocs try/catch exhaustifs pour ne pas crasher le processus de rendu en cas d'échec natif (ex: imprimante hors-ligne, annulation de la boîte de dialogue).
-Le composant `FullScreenDocumentViewer` fait appel à `window.electron.exportPDF` et `window.electron.printDocument`. Il utilise déjà async/await et try/catch. Toutefois, on peut s'assurer de capturer et traiter de manière "user-friendly" (via un `toast` Sonner) l'intégralité des retours.
-
-**Remédiation Code (`lib/electron-print.ts`)** :
-Sécurisation absolue de l'appel IPC dans l'utilitaire d'impression.
-
-```typescript
-// lib/electron-print.ts (Extrait de Remédiation)
+/**
+ * @function setClients
+ * @description Écrase l'intégralité de la liste des clients (utilisé lors du chargement initial via DataSync).
+ * @param {Client[]} clients - Tableau complet des clients actifs.
+ */
+setClients: (clients) => set({ clients }),
 
 /**
- * Capture le HTML d'un élément du DOM et l'envoie au Main Process via IPC
- * pour impression via la boîte de dialogue d'impression native.
- *
- * @async
- * @function printElement
- * @param {string} elementId - ID de l'élément <DocumentA4 /> caché à capturer
- * @throws Renvoie une erreur si l'élément n'est pas trouvé ou si IPC échoue.
+ * @function addClient
+ * @description Ajoute un nouveau client de manière strictement immuable au store.
+ * @param {Client} client - L'objet client à ajouter.
  */
-export async function printElement(elementId: string): Promise<void> {
-  const element = document.getElementById(elementId);
+addClient: (client) =>
+  set((state) => ({ clients: [...state.clients, client] })),
 
-  if (!element) {
-    console.error(`[print] Élément #${elementId} introuvable dans le DOM.`);
-    toast.error("Erreur technique", { description: "Le document n'a pas pu être préparé pour l'impression." });
-    throw new Error(`[print] Élément #${elementId} introuvable.`);
-  }
+/**
+ * @function removeClient
+ * @description Supprime un client existant en filtrant par ID de façon immuable.
+ * @param {string} id - L'identifiant unique du client.
+ */
+removeClient: (id) =>
+  set((state) => ({
+    clients: state.clients.filter((c) => c.id !== id),
+  })),
 
-  // Fallback navigateur (dev mode sans Electron)
-  if (!window.electron?.printDocument) {
-    console.warn("[print] window.electron non détecté. Utilisation du fallback navigateur.");
-    window.print();
+/**
+ * @function updateClient
+ * @description Met à jour partiellement les informations d'un client de manière immuable.
+ * @param {string} id - L'identifiant du client.
+ * @param {Partial<Client>} data - Les données à fusionner.
+ */
+updateClient: (id, data) =>
+  set((state) => ({
+    clients: state.clients.map((c) =>
+      c.id === id ? { ...c, ...data } : c
+    ),
+  })),
+
+/**
+ * @function replaceClient
+ * @description Remplace une entrée client (utile pour réconcilier les ID temporaires de création locale avec les ID confirmés par le serveur).
+ * @param {string} tempId - L'ID temporaire du client.
+ * @param {Client} confirmed - L'objet client confirmé par le serveur.
+ */
+replaceClient: (tempId, confirmed) =>
+  set((state) => ({
+    clients: state.clients.map((c) =>
+      c.id === tempId ? confirmed : c
+    ),
+  })),
+```
+
+### 3. Synergie Electron IPC
+
+**Diagnostic :**
+L'application "Facturier" utilise un pont IPC (Inter-Process Communication) sécurisé (`contextBridge` dans `preload.js`) pour orchestrer des opérations natives (export PDF, impression). Les appels tels que `window.electron.exportPDF` sont utilisés. Bien que certains emplacements (`fullscreen-document-viewer.tsx`) gèrent correctement les erreurs, des appels directs ou asynchrones dans la gestion des devis (`quotes.tsx`) manquent de blocs `try/catch` rigoureux et de retours visuels (Toast), exposant l'application à des plantages silencieux du processus de rendu si Electron échoue.
+
+**Médiocrité :**
+Appel asynchrone (IPC ou dynamique) sans bloc `try/catch` global, bloquant l'UI sans feedback utilisateur.
+
+**Excellence :**
+Encapsuler chaque appel IPC natif dans un `try/catch` avec un `toast.error` explicite et réinitialiser les états locaux (`finally`).
+
+**Code exact pour remédiation (`components/pages/quotes.tsx` - `handleDownloadPDF`) :**
+```tsx
+const handleDownloadPDF = async (quote: Quote) => {
+  // ── Moteur natif Electron : export direct ou via viewer ──
+  if (window.electron?.exportPDF) {
+    setSelectedQuote(quote);
     return;
   }
 
-  const htmlDoc = buildPrintHtml(element.outerHTML, /* includePrintScript */ true);
+  // ── Fallback : navigateur web sans Electron ──
+  setIsDownloading(quote.id);
+  const toastId = toast.loading("Génération du PDF...");
 
-  // Envoi asynchrone au Main Process via IPC
   try {
-    const result = await window.electron.printDocument(htmlDoc);
-    // Si la fonction retourne une promesse avec un statut
-    if (result && result.success === false) {
-      toast.warning("Impression annulée ou échouée.");
-    }
-  } catch (error: unknown) {
-    const errorMsg = error instanceof Error ? error.message : "Erreur inconnue";
-    // Ignorer les erreurs d'annulation de dialogue par l'utilisateur
-    if (!errorMsg.toLowerCase().includes('cancel') && !errorMsg.toLowerCase().includes('annul')) {
-      console.error('[printElement] Erreur critique IPC lors de l\'impression:', error);
-      toast.error("Échec de l'impression native", {
-        description: "Veuillez vérifier votre imprimante ou relancer l'application."
-      });
-    }
+    const { pdf } = await import("@react-pdf/renderer");
+    const { PDFDocument } = await import("@/components/pdf-document");
+    const blob = await pdf(
+      <PDFDocument document={quote} type="devis" settings={settings} />
+    ).toBlob();
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `DEVIS_${quote.number}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success("PDF généré avec succès", { id: toastId });
+  } catch (error) {
+    console.error("[Export] Erreur PDF:", error);
+    toast.error("Erreur lors de la génération du PDF", { id: toastId });
+  } finally {
+    setIsDownloading(null);
   }
-}
+};
 ```

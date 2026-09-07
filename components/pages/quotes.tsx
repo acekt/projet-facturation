@@ -158,6 +158,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
     }
 
     // ── Fallback : navigateur web sans Electron ──────────────────────────
+    const toastId = toast.loading("Génération du PDF...");
     try {
       setIsDownloading(quote.id);
       const { pdf } = await import("@react-pdf/renderer");
@@ -173,10 +174,10 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast.success("Téléchargement démarré");
+      toast.success("Téléchargement démarré", { id: toastId });
     } catch (error) {
       console.error("PDF Error:", error);
-      toast.error("Erreur lors de la génération du PDF");
+      toast.error("Erreur lors de la génération du PDF", { id: toastId });
     } finally {
       setIsDownloading(null);
     }

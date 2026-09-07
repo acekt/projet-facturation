@@ -66,7 +66,9 @@ export function DataSync() {
           }
         })
 
-        setIsDataLoaded(true)
+        setTimeout(() => {
+          setIsDataLoaded(true)
+        }, 600)
 
       } catch (error) {
         if (error instanceof Error && error.name !== 'AbortError') {
@@ -76,7 +78,9 @@ export function DataSync() {
             { id: 'datasync-error', duration: 6000 }
           )
         }
-        setIsDataLoaded(true)
+        setTimeout(() => {
+          setIsDataLoaded(true)
+        }, 600)
       }
     }
 

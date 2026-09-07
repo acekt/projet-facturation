@@ -281,11 +281,24 @@ export const useStore = create<AppState>()(
         status: "EN_ATTENTE",
       },
 
+      /**
+       * @function setIsDataLoaded
+       * @description Flag controlling the visibility of the loading spinner during DataSync hydration.
+       * @param {boolean} isDataLoaded - True when background API calls are fully complete.
+       */
       setIsDataLoaded: (isDataLoaded) => set({ isDataLoaded }),
+
+      /**
+       * @function setDashboardMetrics
+       * @description Updates global dashboard analytical metrics.
+       * @param {DashboardMetricsResponse | null} dashboardMetrics - The analytics dataset.
+       */
       setDashboardMetrics: (dashboardMetrics) => set({ dashboardMetrics }),
+
       /**
        * @function setUser
-       * @description Met à jour l'utilisateur connecté et ses permissions associées.
+       * @description Updates the connected user and maps their RBAC permissions.
+       * @param {User | null} user - The authenticated user or null on logout.
        */
       setUser: (user) => {
         const permissions = user
@@ -295,27 +308,33 @@ export const useStore = create<AppState>()(
           : null;
         set({ user, permissions, isAuthenticated: !!user });
       },
+
+      /**
+       * @function setClients
+       * @description Écrase l'intégralité de la liste des clients (utilisé lors du chargement initial via DataSync).
+       * @param {Client[]} clients - Tableau complet des clients actifs.
+       */
       setClients: (clients) => set({ clients }),
       // Atomic client mutations: each reads fresh state via set(state => ...) — no stale closure.
       /**
        * @function addClient
-       * @description Adds a new client to the store immutably.
-       * @param {Client} client - The client object to add.
+       * @description Ajoute un nouveau client de manière strictement immuable au store.
+       * @param {Client} client - L'objet client à ajouter.
        */
       addClient: (client) =>
         set((state) => ({ clients: [...state.clients, client] })),
       /**
        * @function removeClient
-       * @description Removes a client by ID.
-       * @param {string} id - The ID of the client to remove.
+       * @description Supprime un client existant en filtrant par ID de façon immuable.
+       * @param {string} id - L'identifiant unique du client.
        */
       removeClient: (id) =>
         set((state) => ({ clients: state.clients.filter((c) => c.id !== id) })),
       /**
        * @function updateClient
-       * @description Updates a client partially.
-       * @param {string} id - The ID of the client.
-       * @param {Partial<Client>} data - The data to update.
+       * @description Met à jour partiellement les informations d'un client de manière immuable.
+       * @param {string} id - L'identifiant du client.
+       * @param {Partial<Client>} data - Les données à fusionner.
        */
       updateClient: (id, data) =>
         set((state) => ({
@@ -325,15 +344,20 @@ export const useStore = create<AppState>()(
         })),
       /**
        * @function replaceClient
-       * @description Replaces a temporary client entry with a confirmed one from the server.
-       * @param {string} tempId - The temporary client ID.
-       * @param {Client} confirmed - The confirmed client object.
+       * @description Remplace une entrée client (utile pour réconcilier les ID temporaires de création locale avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire du client.
+       * @param {Client} confirmed - L'objet client confirmé par le serveur.
        */
       replaceClient: (tempId, confirmed) =>
         set((state) => ({
           clients: state.clients.map((c) => (c.id === tempId ? confirmed : c)),
         })),
 
+      /**
+       * @function setQuotes
+       * @description Overwrites the entire quotes list (used initially by DataSync).
+       * @param {Quote[]} quotes - Full array of quotes.
+       */
       setQuotes: (quotes) => set((state) => ({ ...state, quotes })),
       /**
        * @function addQuote
@@ -372,6 +396,11 @@ export const useStore = create<AppState>()(
           quotes: state.quotes.map((q) => (q.id === tempId ? confirmed : q)),
         })),
 
+      /**
+       * @function setInvoices
+       * @description Overwrites the entire invoices list (used initially by DataSync).
+       * @param {Invoice[]} invoices - Full array of invoices.
+       */
       setInvoices: (invoices) => set((state) => ({ ...state, invoices })),
       /**
        * @function addInvoice
@@ -414,6 +443,11 @@ export const useStore = create<AppState>()(
           ),
         })),
 
+      /**
+       * @function setServices
+       * @description Overwrites the entire services list (used initially by DataSync).
+       * @param {Service[]} services - Full array of active services.
+       */
       setServices: (services) => set({ services }),
       // Atomic service mutations: same pattern as clients.
       /**
@@ -457,6 +491,11 @@ export const useStore = create<AppState>()(
           ),
         })),
 
+      /**
+       * @function setPayments
+       * @description Overwrites the entire payments list (used initially by DataSync).
+       * @param {Payment[]} payments - Full array of payments.
+       */
       setPayments: (payments) => set({ payments }),
       /**
        * @function addPayment
@@ -498,25 +537,73 @@ export const useStore = create<AppState>()(
             p.id === tempId ? confirmed : p,
           ),
         })),
+      /**
+       * @function setCreditNotes
+       * @description Overwrites the entire credit notes list (used initially by DataSync).
+       * @param {CreditNote[]} creditNotes - Full array of credit notes.
+       */
       setCreditNotes: (creditNotes) =>
         set((state) => ({ ...state, creditNotes })),
+
+      /**
+       * @function setSettings
+       * @description Replaces all global settings with fresh API data.
+       * @param {Settings} settings - The complete settings object.
+       */
       setSettings: (settings) => set({ settings }),
+
+      /**
+       * @function updateSettings
+       * @description Partially updates global configuration settings immutably.
+       * @param {Partial<Settings>} updates - Changed setting key-value pairs.
+       */
       updateSettings: (updates) =>
         set((state) => ({
           settings: { ...state.settings, ...updates },
         })),
+
+      /**
+       * @function setViewFormat
+       * @description Toggles display layout preference (table/block/etc.) for a specific view.
+       * @param {keyof ViewFormat} page - The view to format (e.g. 'quotes', 'invoices').
+       * @param {ViewFormat[keyof ViewFormat]} format - The layout type.
+       */
       setViewFormat: (page, format) =>
         set((state) => ({
           viewFormat: { ...state.viewFormat, [page]: format },
         })),
+
+      /**
+       * @function setUsers
+       * @description Overwrites the user registry (admin only).
+       * @param {UserResponse[]} users - The full list of system users.
+       */
       setUsers: (users) => set({ users }),
+      /**
+       * @function addUser
+       * @description Adds a new user account immutably to the store.
+       * @param {UserResponse} user - The new user object.
+       */
       addUser: (user) => set((state) => ({ users: [...state.users, user] })),
+
+      /**
+       * @function updateUser
+       * @description Modifies specific user properties immutably.
+       * @param {string} id - Target user ID.
+       * @param {Partial<UserResponse>} updates - The data to merge.
+       */
       updateUser: (id, updates) =>
         set((state) => ({
           users: state.users.map((u) =>
             u.id === id ? { ...u, ...updates } : u,
           ),
         })),
+
+      /**
+       * @function removeUser
+       * @description Performs a soft delete by setting is_active to 0 immutably.
+       * @param {string} id - The user ID to deactivate.
+       */
       removeUser: (id) =>
         set((state) => ({
           users: state.users.map((u) =>
@@ -526,10 +613,20 @@ export const useStore = create<AppState>()(
           ),
         })),
 
+      /**
+       * @function setInvoiceDraft
+       * @description Updates in-progress unsaved invoice modifications.
+       * @param {Partial<InvoiceDraft>} draft - Partial draft state to merge.
+       */
       setInvoiceDraft: (draft) =>
         set((state) => ({
           invoiceDraft: { ...state.invoiceDraft, ...draft },
         })),
+
+      /**
+       * @function clearInvoiceDraft
+       * @description Resets the invoice editor to a blank baseline applying legal mentions.
+       */
       clearInvoiceDraft: () =>
         set((state) => ({
           invoiceDraft: {
@@ -543,10 +640,21 @@ export const useStore = create<AppState>()(
             subject: "",
           },
         })),
+
+      /**
+       * @function setQuoteDraft
+       * @description Updates in-progress unsaved quote modifications.
+       * @param {Partial<QuoteDraft>} draft - Partial draft state to merge.
+       */
       setQuoteDraft: (draft) =>
         set((state) => ({
           quoteDraft: { ...state.quoteDraft, ...draft },
         })),
+
+      /**
+       * @function clearQuoteDraft
+       * @description Resets the quote editor with standard defaults (30 days validity).
+       */
       clearQuoteDraft: () => {
         const today = new Date();
         const next30Days = new Date(today);
