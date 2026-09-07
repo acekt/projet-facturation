@@ -311,30 +311,30 @@ export const useStore = create<AppState>()(
 
       /**
        * @function setClients
-       * @description Overwrites the entire clients list (used initially by DataSync).
-       * @param {Client[]} clients - Full array of active clients.
+       * @description Écrase l'intégralité de la liste des clients (utilisé lors du chargement initial via DataSync).
+       * @param {Client[]} clients - Tableau complet des clients actifs.
        */
       setClients: (clients) => set({ clients }),
       // Atomic client mutations: each reads fresh state via set(state => ...) — no stale closure.
       /**
        * @function addClient
-       * @description Adds a new client to the store immutably.
-       * @param {Client} client - The client object to add.
+       * @description Ajoute un nouveau client de manière strictement immuable au store.
+       * @param {Client} client - L'objet client à ajouter.
        */
       addClient: (client) =>
         set((state) => ({ clients: [...state.clients, client] })),
       /**
        * @function removeClient
-       * @description Removes a client by ID.
-       * @param {string} id - The ID of the client to remove.
+       * @description Supprime un client existant en filtrant par ID de façon immuable.
+       * @param {string} id - L'identifiant unique du client.
        */
       removeClient: (id) =>
         set((state) => ({ clients: state.clients.filter((c) => c.id !== id) })),
       /**
        * @function updateClient
-       * @description Updates a client partially.
-       * @param {string} id - The ID of the client.
-       * @param {Partial<Client>} data - The data to update.
+       * @description Met à jour partiellement les informations d'un client de manière immuable.
+       * @param {string} id - L'identifiant du client.
+       * @param {Partial<Client>} data - Les données à fusionner.
        */
       updateClient: (id, data) =>
         set((state) => ({
@@ -344,9 +344,9 @@ export const useStore = create<AppState>()(
         })),
       /**
        * @function replaceClient
-       * @description Replaces a temporary client entry with a confirmed one from the server.
-       * @param {string} tempId - The temporary client ID.
-       * @param {Client} confirmed - The confirmed client object.
+       * @description Remplace une entrée client (utile pour réconcilier les ID temporaires de création locale avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire du client.
+       * @param {Client} confirmed - L'objet client confirmé par le serveur.
        */
       replaceClient: (tempId, confirmed) =>
         set((state) => ({
