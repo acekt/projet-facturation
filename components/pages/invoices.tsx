@@ -193,29 +193,12 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   const handleDownloadPDF = async (invoice: Invoice) => {
     // ── Moteur natif Electron : printToPDF via fenêtre cachée ───────────────
     if (window.electron?.exportPDF) {
-      try {
-        setIsDownloading(invoice.id)
-        // Rendu temporaire du DocumentA4 dans un div hors-écran
-        const tempDiv = document.createElement('div')
-        tempDiv.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:794px;min-height:1123px;visibility:hidden;'
-        document.body.appendChild(tempDiv)
-
-        // On attend le prochain tick pour que React puisse rendre
-        // Note : on passe par le FullScreenDocumentViewer qui gère ça nativement.
-        // Pour les boutons de liste, la solution la plus fiable est d'ouvrir
-        // directement le viewer (le PDF button y est intégré).
-        document.body.removeChild(tempDiv)
-
-        // → Ouvre le viewer plein écran : l'utilisateur clique "Télécharger PDF"
-        //   depuis la topbar qui utilise le moteur natif.
-        setSelectedInvoice(invoice)
-      } finally {
-        setIsDownloading(null)
-      }
+      setSelectedInvoice(invoice)
       return
     }
 
     // ── Fallback : navigateur web sans Electron (ancienne méthode) ────────
+    const toastId = toast.loading("Génération du PDF...")
     try {
       setIsDownloading(invoice.id)
       const { pdf } = await import('@react-pdf/renderer')
@@ -229,10 +212,10 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       link.click()
       document.body.removeChild(link)
       URL.revokeObjectURL(url)
-      toast.success("Téléchargement démarré")
+      toast.success("Téléchargement démarré", { id: toastId })
     } catch (error) {
       console.error("PDF Error:", error)
-      toast.error("Erreur lors de la génération du PDF")
+      toast.error("Erreur lors de la génération du PDF", { id: toastId })
     } finally {
       setIsDownloading(null)
     }

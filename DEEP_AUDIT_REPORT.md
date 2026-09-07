@@ -774,3 +774,177 @@ Il a été généré via une analyse approfondie et sans concession du code sour
     });
     executeTx(items);
     ```
+
+## MODULE 5/5 : ARCHITECTURE D'ÉTAT & INTÉGRATION ELECTRON (Zustand & IPC)
+
+### 1. Hydratation du Store et Flicker UI (`ProtectedAppShell.tsx` & `DataSync.tsx`)
+
+**Diagnostic :**
+L'application utilise un composant `DataSync` qui télécharge en parallèle toutes les données (clients, devis, factures, etc.) via `Promise.allSettled()`. C'est une excellente pratique de performance. Cependant, le flag `isDataLoaded` est basculé immédiatement dès que les requêtes se terminent. Si le réseau est très rapide ou que les données sont déjà en cache, l'écran de chargement plein écran (le "Spinner") de `ProtectedAppShell.tsx` peut apparaître et disparaître en une fraction de seconde, causant un "flicker" (clignotement) désagréable pour l'utilisateur.
+
+**Médiocrité :**
+Bascule immédiate de `isDataLoaded` sans délai minimum de transition.
+
+**Excellence :**
+Ajouter un délai artificiel minimal (ex: 600ms) avant de retirer l'écran de chargement, garantissant une transition fluide via `framer-motion`, tout en évitant le clignotement.
+
+**Code exact pour remédiation (`components/data-sync.tsx`) :**
+```tsx
+// Remplacer : setIsDataLoaded(true) à la fin du fetch par :
+setTimeout(() => {
+  setIsDataLoaded(true)
+}, 600)
+```
+
+**Code exact pour remédiation de la coquille (`components/pages/protected-app-shell.tsx`) :**
+Pour assurer la transition fluide avec `AnimatePresence`, il est préférable de dissocier le montage de l'enfant de la dissimulation du loader :
+```tsx
+{/* Dans ProtectedAppShell.tsx */}
+<AnimatePresence mode="wait">
+  {!isDataLoaded ? (
+    <motion.div
+      key="loading"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0, transition: { duration: 0.4 } }}
+      className="absolute inset-0 flex flex-col items-center justify-center bg-background/95 backdrop-blur-md z-[100]"
+      role="status"
+      aria-live="polite"
+    >
+      <div className="relative flex items-center justify-center">
+        <div className="w-16 h-16 border-4 border-primary/20 rounded-full"></div>
+        <div className="absolute w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+      <p className="mt-6 text-sm text-muted-foreground font-medium animate-pulse">
+        Initialisation de Facturier...
+      </p>
+    </motion.div>
+  ) : (
+    <motion.div
+      key={currentPage}
+      variants={pageVariants}
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
+      className="flex-1 flex flex-col overflow-hidden px-8 py-6 h-full relative"
+    >
+      {renderPage()}
+    </motion.div>
+  )}
+</AnimatePresence>
+```
+
+### 2. Optimisation Zustand (`lib/store.ts`)
+
+**Diagnostic :**
+Le store Zustand utilise `sessionStorage` avec persistance `partialize`, excluant intelligemment `settings` pour forcer un rechargement frais via l'API, ce qui prévient les désynchronisations. Cependant, les actions de base (comme pour les clients et la configuration) manquent de commentaires JSDoc normalisés et certaines mises à jour partielles doivent garantir une stricte immuabilité pour prévenir des bugs de rendu React.
+
+**Médiocrité :**
+L'absence de commentaires JSDoc sur toutes les méthodes CRUD et un risque mineur de mutation indirecte si on ne spread pas correctement.
+
+**Excellence :**
+Standardisation de la nomenclature des actions dans le store et ajout des commentaires JSDoc complets.
+
+**Code exact pour remédiation (`lib/store.ts`) :**
+```typescript
+/**
+ * @function setClients
+ * @description Écrase l'intégralité de la liste des clients (utilisé lors du chargement initial via DataSync).
+ * @param {Client[]} clients - Tableau complet des clients actifs.
+ */
+setClients: (clients) => set({ clients }),
+
+/**
+ * @function addClient
+ * @description Ajoute un nouveau client de manière strictement immuable au store.
+ * @param {Client} client - L'objet client à ajouter.
+ */
+addClient: (client) =>
+  set((state) => ({ clients: [...state.clients, client] })),
+
+/**
+ * @function removeClient
+ * @description Supprime un client existant en filtrant par ID de façon immuable.
+ * @param {string} id - L'identifiant unique du client.
+ */
+removeClient: (id) =>
+  set((state) => ({
+    clients: state.clients.filter((c) => c.id !== id),
+  })),
+
+/**
+ * @function updateClient
+ * @description Met à jour partiellement les informations d'un client de manière immuable.
+ * @param {string} id - L'identifiant du client.
+ * @param {Partial<Client>} data - Les données à fusionner.
+ */
+updateClient: (id, data) =>
+  set((state) => ({
+    clients: state.clients.map((c) =>
+      c.id === id ? { ...c, ...data } : c
+    ),
+  })),
+
+/**
+ * @function replaceClient
+ * @description Remplace une entrée client (utile pour réconcilier les ID temporaires de création locale avec les ID confirmés par le serveur).
+ * @param {string} tempId - L'ID temporaire du client.
+ * @param {Client} confirmed - L'objet client confirmé par le serveur.
+ */
+replaceClient: (tempId, confirmed) =>
+  set((state) => ({
+    clients: state.clients.map((c) =>
+      c.id === tempId ? confirmed : c
+    ),
+  })),
+```
+
+### 3. Synergie Electron IPC
+
+**Diagnostic :**
+L'application "Facturier" utilise un pont IPC (Inter-Process Communication) sécurisé (`contextBridge` dans `preload.js`) pour orchestrer des opérations natives (export PDF, impression). Les appels tels que `window.electron.exportPDF` sont utilisés. Bien que certains emplacements (`fullscreen-document-viewer.tsx`) gèrent correctement les erreurs, des appels directs ou asynchrones dans la gestion des devis (`quotes.tsx`) manquent de blocs `try/catch` rigoureux et de retours visuels (Toast), exposant l'application à des plantages silencieux du processus de rendu si Electron échoue.
+
+**Médiocrité :**
+Appel asynchrone (IPC ou dynamique) sans bloc `try/catch` global, bloquant l'UI sans feedback utilisateur.
+
+**Excellence :**
+Encapsuler chaque appel IPC natif dans un `try/catch` avec un `toast.error` explicite et réinitialiser les états locaux (`finally`).
+
+**Code exact pour remédiation (`components/pages/quotes.tsx` - `handleDownloadPDF`) :**
+```tsx
+const handleDownloadPDF = async (quote: Quote) => {
+  // ── Moteur natif Electron : export direct ou via viewer ──
+  if (window.electron?.exportPDF) {
+    setSelectedQuote(quote);
+    return;
+  }
+
+  // ── Fallback : navigateur web sans Electron ──
+  setIsDownloading(quote.id);
+  const toastId = toast.loading("Génération du PDF...");
+
+  try {
+    const { pdf } = await import("@react-pdf/renderer");
+    const { PDFDocument } = await import("@/components/pdf-document");
+    const blob = await pdf(
+      <PDFDocument document={quote} type="devis" settings={settings} />
+    ).toBlob();
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `DEVIS_${quote.number}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast.success("PDF généré avec succès", { id: toastId });
+  } catch (error) {
+    console.error("[Export] Erreur PDF:", error);
+    toast.error("Erreur lors de la génération du PDF", { id: toastId });
+  } finally {
+    setIsDownloading(null);
+  }
+};
+```
