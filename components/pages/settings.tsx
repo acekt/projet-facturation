@@ -141,6 +141,7 @@ export function SettingsPage() {
           <TabsTrigger value="company" className="rounded-lg px-6">Entreprise</TabsTrigger>
           <TabsTrigger value="billing" className="rounded-lg px-6">Facturation</TabsTrigger>
           <TabsTrigger value="bank" className="rounded-lg px-6">Banque</TabsTrigger>
+          <TabsTrigger value="security" className="rounded-lg px-6">Sécurité</TabsTrigger>
         </TabsList>
 
         <TabsContent value="company" className="mt-0">
@@ -340,6 +341,24 @@ export function SettingsPage() {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Préfixe des Devis (Ex: DEV)</Label>
+                  <Input
+                    value={formData.quotePrefix || ""}
+                    onChange={(e) => setFormData({ ...formData, quotePrefix: e.target.value })}
+                    className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Préfixe des Factures (Ex: FAC)</Label>
+                  <Input
+                    value={formData.invoicePrefix || ""}
+                    onChange={(e) => setFormData({ ...formData, invoicePrefix: e.target.value })}
+                    className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
+                  />
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -413,6 +432,34 @@ export function SettingsPage() {
                     className="bg-secondary/50 border-border font-mono"
                     disabled={!isAdmin}
                   />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="security" className="mt-0">
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <div className="flex items-center gap-2">
+                <ShieldAlert className="w-5 h-5 text-primary" />
+                <CardTitle className="text-lg">Sécurité et Accès</CardTitle>
+              </div>
+              <CardDescription>Paramètres de session et de sécurité globale</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Expiration de la session (en minutes)</Label>
+                  <Input
+                    type="number"
+                    value={formData.sessionTimeout ?? 60}
+                    onChange={(e) => setFormData({ ...formData, sessionTimeout: parseInt(e.target.value) || 60 })}
+                    className="bg-secondary/50 border-border"
+                    disabled={!isAdmin}
+                    min={1}
+                  />
+                  <p className="text-[10px] text-muted-foreground italic">Déconnexion automatique après inactivité</p>
                 </div>
               </div>
             </CardContent>
