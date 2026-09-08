@@ -1,28 +1,34 @@
-# 🚨 DEEP AUDIT REPORT - MODULE 1 : SÉCURITÉ & AUTHENTIFICATION 🚨
+# DEEP AUDIT REPORT
+**Module 5/5: Architecture d'État & Intégration Electron**
 
-## 1. Diagnostic des Failles et Anti-Patterns
+## 1. Hydratation du Store & Goulot d'étranglement UI (`ProtectedAppShell`)
+**Problème identifié (Flicker UI)** :
+Le composant `ProtectedAppShell` utilisait deux mécanismes de chargement distincts et désynchronisés :
+- Un *early return* (affichage d'un loader basique avec `animate-pulse`) conditionné par `!effectiveUser`.
+- Une gestion asynchrone des données métier via `isDataLoaded` (provenant de `DataSync`) rendu au sein d'une balise `AnimatePresence`.
+Cela entraînait un "clignotement" (flicker) de l'interface car l'utilisateur voyait d'abord l'écran de l'early return, suivi d'un rendu partiel de la coquille (sidebar) qui déclenchait à son tour le loader complet (`!isDataLoaded`).
 
-### 1.1. Middleware (`middleware.ts`)
-- **Duplication de logique cryptographique** : Les fonctions de vérification HMAC et de récupération du secret étaient dupliquées entre `middleware.ts`, `lib/api/auth.ts` et `app/api/auth/login/route.ts`. J'ai centralisé ces utilitaires de sécurité dans `lib/api/auth.ts`.
-- **Lisibilité du routage** : La logique de vérification des routes (`pathname === r || pathname.startsWith(r + "/")`) était répétée plusieurs fois, alourdissant le code. Un helper `matchRoute` a été implémenté.
-- **Pattern Visual RBAC** : Le middleware gère bien la non-redirection des routes frontend (conformément à la règle de laisser le frontend désactiver les éléments) mais l'implémentation API (retour 403) pour `/api/users`, `/api/clients`, et `/api/audit-logs` est correcte et robuste. J'ai ajouté une gestion de l'absence du secret qui renvoie proprement 503 sans crasher l'app sur les API.
+**Solution implémentée** :
+L'early return a été supprimé. La condition de chargement principal dans `AnimatePresence` a été mise à jour à `(!effectiveUser || !isDataLoaded)`. L'application affiche désormais un spinner complet et élégant unique, garantissant une transition fluide uniquement lorsque l'utilisateur et ses données métier sont tous deux prêts.
+Le chargement des données lourdes (via `Promise.allSettled` dans `components/data-sync.tsx`) reste parallèle et performant.
 
-### 1.2. Logique de Session & `/api/auth/me`
-- **Faille de Révocation (`is_active` bypass)** : Le token de session stocke l'état du rôle au moment de la connexion. Si un administrateur désactive un utilisateur, la session restait valide 24h. La route `/api/auth/me` re-valide désormais le flag `is_active` en base de données et renvoie 403 s'il est inactif.
-- **Erreur de typage TypeScript** : La route `/api/auth/me` omettait les champs requis (`is_active`, `created_at`, `email`, `last_login_at`, `phone`). Cela a été corrigé pour renvoyer le plein type `DbUser`.
+## 2. Optimisation Zustand (`lib/store.ts`)
+**Analyse de la persistance** :
+L'implémentation du `store.ts` via le middleware `persist` est solide :
+- La persistance est configurée sur `sessionStorage`.
+- Le flag `partialize` exclut explicitement l'objet `settings` de la persistance (`partialize: (state) => ({ user, permissions, isAuthenticated, viewFormat })`), forçant ainsi le rafraîchissement des données lourdes et de la configuration côté SQLite au montage, ce qui élimine les désynchronisations d'état.
+- Toutes les mutations CRUD (comme `addUser`, `removeUser`, `updateInvoice`, etc.) appliquent correctement l'immutabilité en retournant un nouvel état via le spread operator `...state` et la méthode `.map()`/`.filter()` (aucune utilisation de `.push()`). Les fuites de mémoire sont évitées en ne stockant pas de références mutables non sérialisables.
 
-### 1.3. Traces d'Audit
-- **Gestion des logs non bloquants** : Le `setTimeout(..., 0)` est bien utilisé dans `login/route.ts` et `logout/route.ts` pour ne pas bloquer le thread principal, respectant l'instruction de performance sur Node.js/Electron. Je l'ai conservé.
+**Nomenclature & JSDoc** :
+Les actions du store (ex: `setClients`, `updateInvoice`, `clearInvoiceDraft`) incluent des descriptions JSDoc claires, standardisées, facilitant la maintenance et renforçant la fiabilité des actions métier.
 
-### 1.4. UI/UX (`app/login/login-client.tsx` & `app/layout.tsx`)
-- **Prévention des doubles soumissions** : Le flag `isSubmitting` est bien utilisé pour bloquer le bouton. L'implémentation est correcte.
-- **Sécurité Temporelle** : L'utilisation de `bcrypt` avec un `dummyHash` dans `login/route.ts` protège bien contre les attaques temporelles d'énumération de comptes. Le code a été nettoyé tout en gardant cette protection.
-- **Design premium et layout racine** : Le layout et le client de connexion (Tailwind) intègrent déjà de bons spinners, des toasts, et respectent les conditions de l'application hors-ligne sans dépendances externes comme Google Fonts ou Vercel Analytics.
+## 3. Synergie Electron (IPC)
+**Validation des processus asynchrones** :
+L'application s'appuie sur le pont de `preload.js` (exposant `window.electron`).
+- L'exportation PDF natif (`exportPDF` dans `components/fullscreen-document-viewer.tsx`) et l'impression native (`printDocument` dans `lib/electron-print.ts`) gèrent convenablement les communications Inter-Process (IPC).
+- Ces méthodes sont enveloppées par des `try/catch` rigoureux sur le thread principal (React).
+- Elles gèrent les retours erreurs silencieux (comme l'annulation de la boîte de dialogue système) sans faire crasher l'UI et renvoient des notifications de succès ou d'erreur élégantes avec `toast` (Sonner).
+- Les appels côté Electron (`ipcMain.handle` dans `main.js`) protègent la mémoire via des temporisations asynchrones (ex: destruction du Chromium offscreen en cas de timeout de 15s).
 
-## 2. Refactoring Appliqué
-
-Les fichiers suivants ont été directement modifiés pour corriger toutes ces anomalies :
-- `lib/api/auth.ts` : Centralisation cryptographie HMAC.
-- `middleware.ts` : Route matching clean et gestion d'erreur 503 propre.
-- `app/api/auth/me/route.ts` : Fix des champs manquants et révocation sur `is_active = 0`.
-- `app/api/auth/login/route.ts` : Réduction de la duplication via import de `signSession`.
+---
+*Audit généré de manière automatique suite au diagnostic d'architecture.*
