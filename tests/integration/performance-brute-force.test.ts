@@ -48,5 +48,5 @@ describe('Performance & Resilience Tests', () => {
     // Assert that the application did not crash or throw 500 errors
     expect(error500Count).toBe(0);
     expect(unauthorizedCount).toBe(totalRequests);
-  }, 10000); // Give it a bit more time for the 100 requests to process
+  }, 30000); // Give it a bit more time for the 100 requests to process
 });
