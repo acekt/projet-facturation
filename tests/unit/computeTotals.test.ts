@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeTotals } from '@/lib/api/invoice-logic';
+import { computeTotals } from '@/lib/math-logic';
 
 describe('computeTotals', () => {
   const rates = { tvaRate: 18, tpsRate: 9.5, cssRate: 1 };
@@ -62,6 +62,7 @@ describe('computeTotals', () => {
     expect(result.tvaAmount).toBe(1818);
     expect(result.total).toBe(11918); // taxBase (10100) + tpsAmount (0) + tvaAmount (1818) = 11918
   });
+
   it('should strictly apply Math.round on floating point amounts and complex rates', () => {
     const items = [
       { quantity: 1.33, unitPrice: 777.77 }, // 1034.4341 -> 1034
