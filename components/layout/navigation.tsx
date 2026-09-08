@@ -264,6 +264,9 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
         >
           {collapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
         </button>
+        <div className="absolute bottom-1 left-0 w-full text-center pointer-events-none">
+          <span className="text-[9px] font-mono text-muted-foreground/30">v1.0.1</span>
+        </div>
       </motion.aside>
     </TooltipProvider>
   )
