@@ -13,6 +13,10 @@ jobs:
     permissions:
       contents: write
 
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_BUILD: '1'
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -26,13 +30,22 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
-      - name: Build Next.js App
-        env:
-          NEXT_TELEMETRY_DISABLED: '1'
-          NEXT_BUILD: '1'
-        run: npm run build:electron
+      - name: Rebuild better-sqlite3 for Node
+        run: npm rebuild better-sqlite3
 
-      - name: Build and Publish Electron App
+      - name: Build Next.js
+        run: npx next build --webpack
+
+      - name: Rebuild better-sqlite3 for Electron
+        shell: cmd
+        run: |
+          node -e "const fs=require('fs'),p=require('path'),d=p.resolve('node_modules/better-sqlite3/build');if(fs.existsSync(d)){fs.rmSync(d,{recursive:true,force:true});console.log('[purge] done');}else{console.log('[purge] nothing');}"
+          npx electron-builder install-app-deps
+
+      - name: Sync SQLite binary
+        run: node -e "const fs=require('fs'),p=require('path'),s=p.resolve('node_modules/better-sqlite3/build/Release/better_sqlite3.node'),d=p.resolve('.next/standalone/node_modules/better-sqlite3/build/Release/better_sqlite3.node');fs.mkdirSync(p.dirname(d),{recursive:true});fs.copyFileSync(s,d);console.log('[sync] OK');"
+
+      - name: Package and Publish Electron App
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx electron-builder --win --publish always
