@@ -1,6 +1,6 @@
 {
   "name": "facturier",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "description": "Facturier — Logiciel de Gestion et Facturation Desktop",
   "private": true,
   "main": "main.js",
