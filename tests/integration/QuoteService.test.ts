@@ -103,13 +103,18 @@ describe('QuoteService Integration', () => {
 
     // Verify the transaction was rolled back!
 
-    // 1. Quote status should still be EN_ATTENTE
+    // 1. Quote status should still be EN_ATTENTE (not converted)
     const quote = db.prepare('SELECT status FROM quotes WHERE id = ?').get(quoteId) as { status: string };
     expect(quote.status).toBe(QUOTE_STATUS.EN_ATTENTE);
 
-    // 2. Invoice should NOT exist
+    // 2. Invoice should NOT exist for this quote
     const invoices = db.prepare('SELECT count(*) as count FROM invoices WHERE quoteId = ?').get(quoteId) as { count: number };
     expect(invoices.count).toBe(0);
+
+    // 3. No items should be tied to any imaginary invoice
+    // we mocked randomUUID so the generated invoice ID would be `duplicateId` as well
+    const invoiceItemsCount = db.prepare('SELECT count(*) as count FROM invoice_items WHERE invoiceId = ?').get(duplicateId) as { count: number };
+    expect(invoiceItemsCount.count).toBe(0);
 
     uuidSpy.mockRestore();
   });
