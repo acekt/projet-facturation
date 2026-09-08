@@ -159,17 +159,6 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
     }
   }, [currentPage, handlePageChange, editingId])
 
-  if (!effectiveUser) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 animate-pulse" />
-          <div className="w-24 h-2 bg-secondary rounded animate-pulse" />
-        </div>
-      </div>
-    )
-  }
-
   return (
     <div className="h-screen bg-background overflow-hidden flex flex-col">
       <DataSync />
@@ -196,7 +185,7 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
         className="h-screen pt-16 flex flex-col overflow-hidden relative"
       >
         <AnimatePresence mode="wait">
-          {!isDataLoaded ? (
+          {!effectiveUser || !isDataLoaded ? (
             <motion.div
               key="loading"
               initial={{ opacity: 0 }}

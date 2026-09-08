@@ -158,6 +158,11 @@ interface AppState {
   setIsDataLoaded: (loaded: boolean) => void;
   setDashboardMetrics: (metrics: DashboardMetricsResponse | null) => void;
   setUser: (user: User | null) => void;
+  /**
+   * @function setClients
+   * @description Overwrites the entire clients list (used initially by DataSync).
+   * @param {Client[]} clients - Full array of active clients.
+   */
   setClients: (clients: Client[]) => void;
   // Atomic client mutations — use these instead of setClients for optimistic UI
   // to avoid stale closure overwrites during concurrent mutations.
@@ -166,17 +171,32 @@ interface AppState {
   updateClient: (id: string, data: Partial<Client>) => void;
   replaceClient: (tempId: string, confirmed: Client) => void;
 
+  /**
+   * @function setQuotes
+   * @description Overwrites the entire quotes list (used initially by DataSync).
+   * @param {Quote[]} quotes - Full array of active quotes.
+   */
   setQuotes: (quotes: Quote[]) => void;
   addQuote: (quote: Quote) => void;
   removeQuote: (id: string) => void;
   updateQuote: (id: string, data: Partial<Quote>) => void;
   replaceQuote: (tempId: string, confirmed: Quote) => void;
+  /**
+   * @function setInvoices
+   * @description Overwrites the entire invoices list (used initially by DataSync).
+   * @param {Invoice[]} invoices - Full array of active invoices.
+   */
   setInvoices: (invoices: Invoice[]) => void;
   addInvoice: (invoice: Invoice) => void;
   removeInvoice: (id: string) => void;
   updateInvoice: (id: string, data: Partial<Invoice>) => void;
   replaceInvoice: (tempId: string, confirmed: Invoice) => void;
 
+  /**
+   * @function setServices
+   * @description Overwrites the entire services list (used initially by DataSync).
+   * @param {Service[]} services - Full array of active services.
+   */
   setServices: (services: Service[]) => void;
   // Atomic service mutations — same rationale as clients.
   addService: (service: Service) => void;
@@ -184,26 +204,80 @@ interface AppState {
   updateService: (id: string, data: Partial<Service>) => void;
   replaceService: (tempId: string, confirmed: Service) => void;
 
+  /**
+   * @function setPayments
+   * @description Overwrites the entire payments list (used initially by DataSync).
+   * @param {Payment[]} payments - Full array of payments.
+   */
   setPayments: (payments: Payment[]) => void;
   addPayment: (payment: Payment) => void;
   removePayment: (id: string) => void;
   updatePayment: (id: string, data: Partial<Payment>) => void;
   replacePayment: (tempId: string, confirmed: Payment) => void;
+  /**
+   * @function setCreditNotes
+   * @description Overwrites the entire credit notes list (used initially by DataSync).
+   * @param {CreditNote[]} creditNotes - Full array of credit notes.
+   */
   setCreditNotes: (creditNotes: CreditNote[]) => void;
+  /**
+   * @function setSettings
+   * @description Replaces all global settings with fresh API data.
+   * @param {Settings} settings - The complete settings object.
+   */
   setSettings: (settings: Settings) => void;
   updateSettings: (updates: Partial<Settings>) => void;
   setViewFormat: (
     page: keyof ViewFormat,
     format: ViewFormat[keyof ViewFormat],
   ) => void;
+  /**
+   * @function setUsers
+   * @description Overwrites the user registry (admin only).
+   * @param {UserResponse[]} users - The full list of system users.
+   */
   setUsers: (users: UserResponse[]) => void;
+  /**
+   * @function addUser
+   * @description Adds a new user account immutably to the store.
+   * @param {UserResponse} user - The new user object.
+   */
   addUser: (user: UserResponse) => void;
+  /**
+   * @function updateUser
+   * @description Modifies specific user properties immutably.
+   * @param {string} id - Target user ID.
+   * @param {Partial<UserResponse>} updates - The data to merge.
+   */
   updateUser: (id: string, updates: Partial<UserResponse>) => void;
+  /**
+   * @function removeUser
+   * @description Performs a soft delete by setting is_active to 0 immutably.
+   * @param {string} id - The user ID to deactivate.
+   */
   removeUser: (id: string) => void;
 
+  /**
+   * @function setInvoiceDraft
+   * @description Updates in-progress unsaved invoice modifications.
+   * @param {Partial<InvoiceDraft>} draft - Partial draft state to merge.
+   */
   setInvoiceDraft: (draft: Partial<InvoiceDraft>) => void;
+  /**
+   * @function clearInvoiceDraft
+   * @description Resets the invoice editor to a blank baseline applying legal mentions.
+   */
   clearInvoiceDraft: () => void;
+  /**
+   * @function setQuoteDraft
+   * @description Updates in-progress unsaved quote modifications.
+   * @param {Partial<QuoteDraft>} draft - Partial draft state to merge.
+   */
   setQuoteDraft: (draft: Partial<QuoteDraft>) => void;
+  /**
+   * @function clearQuoteDraft
+   * @description Resets the quote editor with standard defaults (30 days validity).
+   */
   clearQuoteDraft: () => void;
 }
 
