@@ -15,6 +15,11 @@ describe('computeTotals Performance Benchmark', () => {
     const discount = 500;
     const rates = { tvaRate: 18, tpsRate: 1, cssRate: 1 };
 
+    // Explicitly call garbage collection if available before test for accurate measurement
+    if (global.gc) {
+      global.gc();
+    }
+
     // Record starting memory and time
     const startMemory = process.memoryUsage().heapUsed;
     const startTime = performance.now();

@@ -18,6 +18,8 @@ describe('Ghost Data Lifecycle - Quote Draft', () => {
     expect(currentDraft.subject).toBe('Ghost Subject');
     expect(currentDraft.discount).toBe(500);
     expect(currentDraft.items.length).toBe(1);
+    expect(currentDraft.items[0].id).toBe('ghost-1');
+    expect(currentDraft.items[0].description).toBe('Ghost Item');
 
     // 2. Action - Call clearQuoteDraft (which quote-editor.tsx calls on mount/unmount when isNew)
     useStore.getState().clearQuoteDraft();
@@ -30,9 +32,11 @@ describe('Ghost Data Lifecycle - Quote Draft', () => {
 
     // Items should be reset to one empty item
     expect(currentDraft.items.length).toBe(1);
+    expect(currentDraft.items[0].id).not.toBe('ghost-1');
     expect(currentDraft.items[0].description).toBe('');
     expect(currentDraft.items[0].quantity).toBe(1);
     expect(currentDraft.items[0].unitPrice).toBe(0);
+    expect(currentDraft.items[0].total).toBe(0);
 
     // The status should be reset to EN_ATTENTE
     expect(currentDraft.status).toBe('EN_ATTENTE');
