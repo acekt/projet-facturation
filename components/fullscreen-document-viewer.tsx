@@ -147,23 +147,28 @@ export function FullScreenDocumentViewer({
         ?? `${typePrefix}_${docNumber.replace(/\//g, '-').replace(/\s+/g, '_')}.pdf`
 
       // ── 5. Appel IPC → main.js → BrowserWindow cachée → printToPDF ──────
-      const result = await window.electron.exportPDF(htmlDoc, filename)
+      try {
+        const result = await window.electron.exportPDF(htmlDoc, filename)
 
-      if (result.saved) {
-        toast.success('PDF enregistré avec succès !', {
-          id: toastId,
-          description: result.filePath
-            ? `Fichier : ${result.filePath.split(/[\\/]/).pop()}`
-            : undefined,
-          duration: 4000,
-        })
-      } else {
-        // L'utilisateur a annulé la boîte de dialogue → pas d'erreur
-        toast.dismiss(toastId)
+        if (result.saved) {
+          toast.success('PDF enregistré avec succès !', {
+            id: toastId,
+            description: result.filePath
+              ? `Fichier : ${result.filePath.split(/[\\/]/).pop()}`
+              : undefined,
+            duration: 4000,
+          })
+        } else {
+          // L'utilisateur a annulé la boîte de dialogue → pas d'erreur
+          toast.dismiss(toastId)
+        }
+      } catch (err: any) {
+        console.error('[FullScreenViewer] IPC exportPDF error:', err);
+        toast.error(`Échec critique de l'export: ${err.message || 'Erreur inconnue'}`, { id: toastId });
       }
 
     } catch (err) {
-      console.error('[FullScreenViewer] Export PDF error:', err)
+      console.error('[FullScreenViewer] General Export PDF error:', err)
       toast.error("Erreur lors de la génération du PDF", {
         id: toastId,
         description: err instanceof Error ? err.message : 'Erreur inconnue',

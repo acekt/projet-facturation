@@ -24,11 +24,12 @@ describe('QuoteEditor Integration - Ghost Data Purge', () => {
     // Populate the store with ghost data
     useStore.setState({
       quoteDraft: {
-        id: 'ghost-draft-id',
         quoteDate: '2023-01-01',
         validUntil: '2023-01-31',
         subject: 'Ghost Subject Data',
         status: 'EN_ATTENTE',
+        discount: 0,
+        notes: '',
         selectedClient: null,
         items: [
           {
@@ -39,14 +40,6 @@ describe('QuoteEditor Integration - Ghost Data Purge', () => {
             total: 5000,
           },
         ],
-        subtotal: 5000,
-        discount: 100,
-        taxBase: 4900,
-        tvaAmount: 0,
-        tpsAmount: 0,
-        cssAmount: 0,
-        total: 4900,
-        notes: 'Ghost Notes',
       },
     });
   });
