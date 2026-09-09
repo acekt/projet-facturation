@@ -144,7 +144,7 @@ describe('UsersPage Component', () => {
     const input = screen.getByTestId('delete-input')
     await user.type(input, 'User 1')
 
-    const confirmButtons = screen.getAllByTestId('button')
+    const confirmButtons = screen.getAllByTestId('button') as HTMLButtonElement[];
     // Find the one that's not 'Annuler' and not disabled
     const confirmButton = confirmButtons.find(b => !b.textContent?.includes('Annuler') && !b.disabled && b.textContent?.includes('Supprimer'))
 

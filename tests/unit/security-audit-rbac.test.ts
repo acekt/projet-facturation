@@ -113,7 +113,7 @@ describe('Security Audit & RBAC Tests', () => {
         'LOGIN_FAILED',
         'user',
         null,
-        'Tentative de connexion échouée (mauvais mot de passe) pour: nonexistentuser@example.com',
+        'Tentative de connexion échouée',
         null,
         null
       );

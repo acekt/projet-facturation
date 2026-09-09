@@ -166,9 +166,31 @@ interface AppState {
   setClients: (clients: Client[]) => void;
   // Atomic client mutations — use these instead of setClients for optimistic UI
   // to avoid stale closure overwrites during concurrent mutations.
+  /**
+   * @function addClient
+   * @description Ajoute un client de manière immuable au store.
+   * @param {Client} client - L'objet client à ajouter.
+   */
   addClient: (client: Client) => void;
+  /**
+   * @function removeClient
+   * @description Supprime un client du store de manière immuable.
+   * @param {string} id - L'ID du client à supprimer.
+   */
   removeClient: (id: string) => void;
+  /**
+   * @function updateClient
+   * @description Met à jour partiellement un client existant.
+   * @param {string} id - L'ID du client.
+   * @param {Partial<Client>} data - Les données à mettre à jour.
+   */
   updateClient: (id: string, data: Partial<Client>) => void;
+  /**
+   * @function replaceClient
+   * @description Remplace un client (ex: ID temporaire remplacé par ID serveur).
+   * @param {string} tempId - L'ID temporaire à remplacer.
+   * @param {Client} confirmed - Le client confirmé.
+   */
   replaceClient: (tempId: string, confirmed: Client) => void;
 
   /**
@@ -177,9 +199,31 @@ interface AppState {
    * @param {Quote[]} quotes - Full array of active quotes.
    */
   setQuotes: (quotes: Quote[]) => void;
+  /**
+   * @function addQuote
+   * @description Ajoute un devis de manière immuable au store.
+   * @param {Quote} quote - L'objet devis à ajouter.
+   */
   addQuote: (quote: Quote) => void;
+  /**
+   * @function removeQuote
+   * @description Supprime un devis du store de manière immuable.
+   * @param {string} id - L'ID du devis à supprimer.
+   */
   removeQuote: (id: string) => void;
+  /**
+   * @function updateQuote
+   * @description Met à jour partiellement un devis existant.
+   * @param {string} id - L'ID du devis.
+   * @param {Partial<Quote>} data - Les données à mettre à jour.
+   */
   updateQuote: (id: string, data: Partial<Quote>) => void;
+  /**
+   * @function replaceQuote
+   * @description Remplace un devis (ex: ID temporaire remplacé par ID serveur).
+   * @param {string} tempId - L'ID temporaire à remplacer.
+   * @param {Quote} confirmed - Le devis confirmé.
+   */
   replaceQuote: (tempId: string, confirmed: Quote) => void;
   /**
    * @function setInvoices
@@ -187,9 +231,31 @@ interface AppState {
    * @param {Invoice[]} invoices - Full array of active invoices.
    */
   setInvoices: (invoices: Invoice[]) => void;
+  /**
+   * @function addInvoice
+   * @description Ajoute une facture de manière immuable au store.
+   * @param {Invoice} invoice - L'objet facture à ajouter.
+   */
   addInvoice: (invoice: Invoice) => void;
+  /**
+   * @function removeInvoice
+   * @description Supprime une facture du store de manière immuable.
+   * @param {string} id - L'ID de la facture à supprimer.
+   */
   removeInvoice: (id: string) => void;
+  /**
+   * @function updateInvoice
+   * @description Met à jour partiellement une facture existante.
+   * @param {string} id - L'ID de la facture.
+   * @param {Partial<Invoice>} data - Les données à mettre à jour.
+   */
   updateInvoice: (id: string, data: Partial<Invoice>) => void;
+  /**
+   * @function replaceInvoice
+   * @description Remplace une facture (ex: ID temporaire remplacé par ID serveur).
+   * @param {string} tempId - L'ID temporaire à remplacer.
+   * @param {Invoice} confirmed - La facture confirmée.
+   */
   replaceInvoice: (tempId: string, confirmed: Invoice) => void;
 
   /**
