@@ -118,6 +118,7 @@ describe('ClientsPage Component', () => {
     fireEvent.click(confirmButton)
     fireEvent.click(confirmButton)
 
+    // Check that function is called exactly once after multiple clicks
     await waitFor(() => {
       expect(global.fetch).toHaveBeenCalledTimes(1)
       expect(removeClientMock).toHaveBeenCalledTimes(1)
@@ -151,6 +152,7 @@ describe('ClientsPage Component', () => {
 
     expect(screen.queryByTestId('dropdown-item-delete')).not.toBeInTheDocument()
     expect(screen.queryByText('Modifier')).not.toBeInTheDocument()
+    expect(screen.queryByText('Supprimer')).not.toBeInTheDocument()
   })
 
   it('renders 2000 clients efficiently (Performance)', async () => {
@@ -177,14 +179,25 @@ describe('ClientsPage Component', () => {
       setViewFormat: vi.fn(),
     })
 
+    const onRender = vi.fn()
     const start = performance.now()
-    render(<ClientsPage />)
+    render(
+      <React.Profiler id="ClientsPage" onRender={onRender}>
+        <ClientsPage />
+      </React.Profiler>
+    )
     const end = performance.now()
 
     // The pagination should kick in and only render the first page
     // So the render time should be fast even with 2000 items in store
     expect(end - start).toBeLessThan(300) // Render should take less than 300ms
     expect(screen.getByText('Client 0')).toBeInTheDocument()
+
+    // Check render profiling: should render initially without excessive re-renders
+    expect(onRender).toHaveBeenCalled()
+    // Depending on specific React 18 behavior and internal state hooks,
+    // we want to ensure we don't have an explosion of renders for 2000 items
+    expect(onRender.mock.calls.length).toBeLessThan(5)
 
     // Verify it only renders a page size of items (assuming page size is e.g., 20 or similar, not 2000)
     // The items shown will be limited by pagination
