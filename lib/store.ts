@@ -264,10 +264,31 @@ interface AppState {
    * @param {Service[]} services - Full array of active services.
    */
   setServices: (services: Service[]) => void;
-  // Atomic service mutations — same rationale as clients.
+  /**
+   * @function addService
+   * @description Adds a new service immutably to the store.
+   * @param {Service} service - The service object to add.
+   */
   addService: (service: Service) => void;
+  /**
+   * @function removeService
+   * @description Removes a service from the store immutably.
+   * @param {string} id - The ID of the service to remove.
+   */
   removeService: (id: string) => void;
+  /**
+   * @function updateService
+   * @description Partially updates an existing service.
+   * @param {string} id - The ID of the service.
+   * @param {Partial<Service>} data - The data to update.
+   */
   updateService: (id: string, data: Partial<Service>) => void;
+  /**
+   * @function replaceService
+   * @description Replaces a service (e.g., replacing a temporary ID with a server ID).
+   * @param {string} tempId - The temporary ID to replace.
+   * @param {Service} confirmed - The confirmed service.
+   */
   replaceService: (tempId: string, confirmed: Service) => void;
 
   /**
@@ -276,9 +297,31 @@ interface AppState {
    * @param {Payment[]} payments - Full array of payments.
    */
   setPayments: (payments: Payment[]) => void;
+  /**
+   * @function addPayment
+   * @description Adds a new payment immutably to the store.
+   * @param {Payment} payment - The payment object to add.
+   */
   addPayment: (payment: Payment) => void;
+  /**
+   * @function removePayment
+   * @description Removes a payment from the store immutably.
+   * @param {string} id - The ID of the payment to remove.
+   */
   removePayment: (id: string) => void;
+  /**
+   * @function updatePayment
+   * @description Partially updates an existing payment.
+   * @param {string} id - The ID of the payment.
+   * @param {Partial<Payment>} data - The data to update.
+   */
   updatePayment: (id: string, data: Partial<Payment>) => void;
+  /**
+   * @function replacePayment
+   * @description Replaces a payment (e.g., replacing a temporary ID with a server ID).
+   * @param {string} tempId - The temporary ID to replace.
+   * @param {Payment} confirmed - The confirmed payment.
+   */
   replacePayment: (tempId: string, confirmed: Payment) => void;
   /**
    * @function setCreditNotes
@@ -498,7 +541,7 @@ export const useStore = create<AppState>()(
        * @description Overwrites the entire quotes list (used initially by DataSync).
        * @param {Quote[]} quotes - Full array of quotes.
        */
-      setQuotes: (quotes) => set((state) => ({ ...state, quotes })),
+      setQuotes: (quotes) => set({ quotes }),
       /**
        * @function addQuote
        * @description Ajoute un nouveau devis de manière immuable au store.
@@ -541,7 +584,7 @@ export const useStore = create<AppState>()(
        * @description Overwrites the entire invoices list (used initially by DataSync).
        * @param {Invoice[]} invoices - Full array of invoices.
        */
-      setInvoices: (invoices) => set((state) => ({ ...state, invoices })),
+      setInvoices: (invoices) => set({ invoices }),
       /**
        * @function addInvoice
        * @description Ajoute une nouvelle facture de manière immuable au store.
@@ -682,8 +725,7 @@ export const useStore = create<AppState>()(
        * @description Overwrites the entire credit notes list (used initially by DataSync).
        * @param {CreditNote[]} creditNotes - Full array of credit notes.
        */
-      setCreditNotes: (creditNotes) =>
-        set((state) => ({ ...state, creditNotes })),
+      setCreditNotes: (creditNotes) => set({ creditNotes }),
 
       /**
        * @function setSettings
