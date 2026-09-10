@@ -1,99 +1,49 @@
-# DEEP AUDIT REPORT - Facturier
+# 🚨 RAPPORT D'AUDIT ARCHITECTURAL : ÉTAT & INTÉGRATION ELECTRON (MODULE 5) 🚨
 
-Ce rapport présente une analyse exhaustive et sans concession du projet "Facturier". Il vise à identifier la médiocrité, les anti-patterns et les incohérences logiques afin d'assurer la stabilité et la maintenabilité à long terme de l'application.
+## 1. Hydratation du Store et Synchronisation (DataSync & AppShell)
 
-## 1. QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
+**Analyse :**
+L'initialisation de l'application est orchestrée conjointement par `ProtectedAppShell.tsx` (interface utilisateur) et `data-sync.tsx` (récupération des données).
 
-### Utilisation abusive de \`any\`
+- **Parallélisation Réseau (`Promise.allSettled`) :**
+  Dans `data-sync.tsx`, le code effectue 7 requêtes vers l'API (`/api/clients`, `/api/quotes`, `/api/invoices`, `/api/services`, `/api/payments`, `/api/settings`, `/api/credit-notes`) de manière totalement parallèle à l'aide de `Promise.allSettled()`. Cette approche est optimale et empêche les appels en série (waterfall) qui ralentiraient drastiquement le temps de démarrage (Time To Interactive).
 
-L'utilisation du type \`any\` annule les bénéfices de TypeScript en désactivant la vérification de type statique. Cela conduit à des erreurs potentielles lors de l'exécution et complique la maintenance.
+- **Prévention du Flicker UI (Effet de clignotement) :**
+  Un délai délibéré `setTimeout(() => setIsDataLoaded(true), 600)` est implémenté dans `data-sync.tsx` à la fois pour le scénario de succès et d'échec. Ce timeout garantit que le composant de chargement (le "Spinner complet et élégant") est visible suffisamment longtemps pour être perçu par l'utilisateur (600ms) et éviter un effet de "flash" ou "flicker" de l'écran lorsque le réseau ou la base de données locale (SQLite) répond quasi instantanément (souvent < 50ms en local).
 
-*   **Fichier :** \`app/api/settings/route.ts\`, Lignes 100, 117
-    *   **Problème :** Le type de l'erreur interceptée dans les blocs \`catch\` est défini comme \`any\`.
-    *   **Conséquence :** Perte de l'autocomplétion et de la sécurité du type. Risque d'accéder à des propriétés inexistantes de l'objet erreur.
-    *   **Solution :** Utiliser le type \`unknown\` (recommandé pour les erreurs dans les blocs catch en TypeScript) et affiner le type à l'aide d'une assertion ou d'une vérification de type, ou typer explicitement en tant que \`Error\`.
-    *   **Code Excellence :**
-        \`\`\`typescript
-        } catch (dbError: unknown) {
-          console.error('[API Settings PATCH] Erreur SQLite:', dbError);
-          return NextResponse.json(
-            {
-              error: 'Erreur lors de l\\'enregistrement des paramètres.',
-              detail: dbError instanceof Error ? dbError.message : String(dbError),
-            },
-            { status: 500 }
-          );
-        }
-        \`\`\`
+- **Transitions Harmonieuses (`framer-motion`) :**
+  Dans `ProtectedAppShell.tsx`, `AnimatePresence` est utilisé pour monter/démonter l'écran de chargement avec un attribut `aria-live="polite"` pour l'accessibilité, offrant une expérience fluide pendant le délai de 600ms du DataSync.
 
-*   **Fichier :** \`app/api/quotes/[id]/route.ts\`, Ligne 132 et \`app/api/quotes/route.ts\`, Ligne 116
-    *   **Problème :** Utilisation de \`any[]\` pour typer le paramètre \`quoteItems\` de la fonction passée à \`db.transaction\`.
-    *   **Conséquence :** La structure des éléments de \`quoteItems\` n'est pas garantie, ce qui peut causer des erreurs d'insertion dans la base de données.
-    *   **Solution :** Utiliser le type approprié défini dans le projet (ex: \`DbQuoteItem[]\` ou un type spécifique au payload attendu).
-    *   **Code Excellence :**
-        \`\`\`typescript
-        const updateQuoteTx = db.transaction((quoteItems: DbQuoteItem[]) => {
-        \`\`\`
+**Conclusion :** L'hydratation initiale de l'application est performante, parallèle et prévient correctement les flashs visuels. Aucun goulot d'étranglement majeur n'est identifié lors de l'appel initial des routes API, qui sont toutes optimisées pour interroger la base SQLite de façon performante.
 
-*   **Fichier :** \`lib/db.ts\`, Ligne 105
-    *   **Problème :** Le cache des requêtes préparées (\`statementCache\`) utilise le type \`Map<string, any>\`.
-    *   **Conséquence :** Le typage des requêtes préparées est perdu, annulant la vérification des méthodes appelées (ex: \`.run()\`, \`.get()\`, \`.all()\`).
-    *   **Solution :** Utiliser le type \`Statement\` fourni par la librairie \`better-sqlite3\`.
-    *   **Code Excellence :**
-        \`\`\`typescript
-        import type { Statement } from 'better-sqlite3';
-        // ...
-        statementCache: Map<string, Statement>;
-        \`\`\`
 
-*   **Fichier :** \`components/pages/audit-logs.tsx\`, Ligne 13
-    *   **Problème :** L'état \`logs\` est typé comme un tableau de \`any\` (\`useState<any[]>([])\`).
-    *   **Conséquence :** Impossible de s'assurer de la présence des champs requis (ex: \`id\`, \`action\`, \`details\`) lors du rendu, risque de crash de l'interface utilisateur (ex: erreur \`Cannot read properties of undefined\`).
-    *   **Solution :** Importer et utiliser le type ou l'interface approprié pour les journaux d'audit (ex: \`AuditLog[]\`).
-    *   **Code Excellence :**
-        \`\`\`typescript
-        import type { AuditLog } from '@/lib/types/api'; // Ou le chemin approprié
-        // ...
-        const [logs, setLogs] = React.useState<AuditLog[]>([]);
-        \`\`\`
+## 2. Optimisation Zustand (`lib/store.ts`)
 
-## 2. LOGIQUE REACT ET ANTI-PATTERNS UI
+**Analyse :**
 
-### Boucle d'effet potentielle (Effect Dependencies)
+- **Immutabilité des Actions Métier (CRUD) :**
+  Historiquement, certaines actions globales de Zustand comme `setQuotes`, `setInvoices`, ou `setCreditNotes` mutaient potentiellement ou redéfinissaient l'état en incluant un spread destructif `set((state) => ({ ...state, quotes }))`. Cela a été corrigé pour appliquer le standard strict d'immutabilité atomique `set({ quotes })`, optimisant ainsi l'impact sur le garbage collector et prévenant les closures obsolètes.
 
-*   **Fichier :** \`components/pages/protected-app-shell.tsx\`, Lignes 39-43
-    *   **Problème :** Le \`useEffect\` compare \`user\` (du store) et \`initialUser\` (des props) et met à jour le store si les données diffèrent.
-    *   **Conséquence :** Si \`setUser\` recrée un nouvel objet ou si la comparaison n'est pas stable, cela peut déclencher une boucle infinie de rendus ou de mises à jour de l'état.
-    *   **Solution :** L'approche actuelle est correcte si \`user.id\` et \`user.role\` suffisent à vérifier l'égalité, mais il serait plus robuste de centraliser cette initialisation de session afin d'éviter la logique complexe de synchronisation entre l'état serveur (récupéré) et l'état client Zustand.
+- **Persistance et Partialize (`sessionStorage`) :**
+  L'implémentation de la persistance (middleware `persist`) dans `lib/store.ts` cible intelligemment `sessionStorage` (via `createJSONStorage(() => sessionStorage)`) sous la clé `facturier-storage`. L'optimisation majeure ici est la configuration de `partialize`. En excluant explicitement `settings` et les listes (clients, devis, factures), on s'assure qu'au rechargement, seule l'authentification (`user`, `permissions`, `isAuthenticated`) et les préférences d'UI (`viewFormat`) sont hydratées. Les entités métier (`settings`, etc.) sont donc toujours fraîchement chargées par le backend SQLite (DataSync), éliminant totalement les risques de désynchronisation de l'état.
 
-### UI Monolithique et Requêtes imbriquées
+- **Standardisation et JSDoc :**
+  Les actions CRUD (notamment pour `Service` et `Payment`) manquaient de standardisation documentaire. L'intégralité des accesseurs (ex: `addService`, `updatePayment`, etc.) disposent désormais de balises `@function`, `@description` et `@param` conformes pour garantir une meilleure maintenabilité.
 
-*   **Fichier :** \`app/setup/setup-client.tsx\`, Lignes 86-105
-    *   **Problème :** Le composant UI contient directement l'appel \`fetch('/api/setup')\` et gère toute la logique de soumission.
-    *   **Conséquence :** Couplage fort entre l'interface utilisateur et la logique métier/réseau, rendant le composant difficile à tester (nécessité de mocker \`fetch\`) et difficile à réutiliser.
-    *   **Solution :** Extraire la logique asynchrone dans un hook personnalisé (ex: \`hooks/use-setup.ts\`).
+## 3. Synergie Electron (IPC)
 
-## 3. ARCHITECTURE ELECTRON ET IPC
+**Analyse :**
 
-### Gestion des Listeners IPC
+La synergie entre l'application React et le processus Main d'Electron est principalement sollicitée lors de l'export des documents financiers (PDF) au sein du composant `FullScreenDocumentViewer`.
 
-*   L'application utilise \`ipcMain.handle\` et \`ipcRenderer.invoke\`, ce qui est excellent. Cette approche gère automatiquement la résolution des promesses et évite les problèmes de fuites de mémoire liés à l'accumulation d'écouteurs avec \`ipcMain.on\` sans \`removeListener\`.
+- **Asynchronisme et IPC :**
+  L'appel à `window.electron.exportPDF(htmlDoc, filename)` est correctement enveloppé dans une fonction asynchrone (`handleExportPDF`).
 
-### Sécurité du pont \`preload.js\`
+- **Gestion des Erreurs et Robustesse :**
+  Conformément aux directives de sécurité et d'UX de l'audit, l'appel IPC est entouré d'un conteneur d'exception rigoureux `try...catch`. Si le processus Main (Node/Chromium caché) rencontre une erreur native (ex: manque de mémoire Chromium, fichier de destination verrouillé par l'OS, etc.), l'exception est interceptée, tracée dans la console (`console.error`), et remonte vers l'utilisateur via une notification `toast.error` sans causer de crash ou de blocage du fil d'exécution de l'application ("White Screen of Death").
 
-*   **Fichier :** \`preload.js\`
-    *   **Analyse :** Le pont est correctement sécurisé. \`contextIsolation\` est actif. Seules des fonctions spécifiques encapsulant \`ipcRenderer.invoke\` sont exposées via \`contextBridge.exposeInMainWorld\`. L'objet \`event\` n'est pas divulgué au processus de rendu.
+- **Sécurité des Setters d'État :**
+  Dans les vues (`quotes.tsx`, `invoices.tsx`), l'action native est déclenchée localement via `setSelectedQuote(quote)` ou `setSelectedInvoice(invoice)` sans être enfermée inutilement dans un bloc `try/catch` qui ne capturerait jamais l'erreur asynchrone du composant enfant (`FullScreenDocumentViewer`). Cette délégation propre des responsabilités garantit l'intégrité de la logique UI.
 
-## 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
-
-### Risque de N+1 Queries
-
-*   **Fichier :** \`app/api/quotes/[id]/route.ts\`, Lignes 164-173
-    *   **Problème :** Une boucle \`for (const item of quoteItems)\` appelle \`insertItem.run(...)\` pour chaque élément du devis.
-    *   **Conséquence :** Bien que ce soit encapsulé dans une transaction (ce qui est bien), exécuter une requête préparée à l'intérieur d'une boucle n'est pas optimal pour de très grandes listes.
-    *   **Solution :** Si \`better-sqlite3\` le permet, ou si les données peuvent être structurées ainsi, l'insertion par lots en construisant une seule requête \`INSERT\` avec de multiples \`VALUES\` est plus performante. Néanmoins, pour des devis classiques, l'impact reste négligeable avec SQLite local.
-
-### Indexation manquante pour les rapports et tableaux de bord
-
-*   **Fichier :** \`lib/db.ts\`
-    *   **Analyse :** La gestion des index (Ligne 240+) est plutôt bonne. Cependant, pour des listes qui sont fréquemment triées par \`createdAt\` ou filtrées par \`status\`, s'assurer que des index composites (ex: \`deletedAt\`, \`status\`, \`createdAt\`) sont présents. L'index \`idx_invoices_dashboard\` couvre déjà bien ce besoin.
+---
+**STATUT DE L'AUDIT : PASSÉ (Vérification et refactoring implémentés).**
