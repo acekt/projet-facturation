@@ -107,16 +107,16 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   React.useEffect(() => {
     if (isNew) {
       clearInvoiceDraft();
-      setLocalDraft({ ...freshDraft });
+      setLocalDraft(structuredClone(freshDraft));
     }
 
     return () => {
       if (isNew) {
         clearInvoiceDraft();
-        setLocalDraft({ ...freshDraft });
+        setLocalDraft(structuredClone(freshDraft));
       }
     };
-  }, [isNew, clearInvoiceDraft]);
+  }, [isNew, clearInvoiceDraft, freshDraft]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");
@@ -241,7 +241,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     }
   };
 
-  const { subtotal, discount: computedDiscount, cssAmount, taxBase, tpsAmount, tvaAmount, total } = computeTotals(
+  const { subtotal, discount: computedDiscount, netHT, cssAmount, taxBase, tpsAmount, tvaAmount, total } = computeTotals(
     items.map(item => ({ quantity: Number(item.quantity) || 0, unitPrice: Number(item.unitPrice) || 0 })),
     discount,
     {
@@ -250,9 +250,10 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       cssRate: settings.cssRate ?? 0
     }
   );
-  const netHT = Math.max(0, subtotal - Math.round(discount));
 
   const handleSave = async (status: Invoice["status"]) => {
+    if (isSubmitting) return;
+
     if (!selectedClient) {
       toast.error("Veuillez sélectionner un client");
       return;

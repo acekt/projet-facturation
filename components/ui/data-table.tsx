@@ -125,7 +125,7 @@ export function AmountCell({
   return (
     <td
       className={cn(
-        "px-4 py-3 text-sm font-mono font-medium text-foreground align-middle text-right",
+        "px-4 py-3 text-sm font-mono font-medium text-foreground align-middle text-right tabular-nums",
         className
       )}
       {...props}

@@ -520,7 +520,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                     <div className="flex items-center gap-4">
                       <div className="text-right hidden sm:block">
                         <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Total</p>
-                        <p className="text-sm font-semibold tracking-tight text-foreground">{formatCurrency(invoice.total)}</p>
+                        <p className="text-sm font-semibold tracking-tight text-foreground tabular-nums">{formatCurrency(invoice.total)}</p>
                       </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
@@ -615,7 +615,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                    <p className="text-sm font-semibold tracking-tight text-foreground">{formatCurrency(invoice.total)}</p>
+                    <p className="text-sm font-semibold tracking-tight text-foreground tabular-nums">{formatCurrency(invoice.total)}</p>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">

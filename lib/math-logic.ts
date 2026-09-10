@@ -26,6 +26,7 @@ export interface InvoiceItemInput {
 export interface ComputedTotals {
   readonly subtotal: number;
   readonly discount: number;
+  readonly netHT: number;
   readonly cssAmount: number;
   readonly taxBase: number;
   readonly tpsAmount: number;
@@ -59,5 +60,5 @@ export function computeTotals(
   const tvaAmount = Math.round(taxBase * (rates.tvaRate / 100));
   const total = taxBase + tpsAmount + tvaAmount;
 
-  return { subtotal, discount, cssAmount, taxBase, tpsAmount, tvaAmount, total };
+  return { subtotal, discount, netHT: effectiveHT, cssAmount, taxBase, tpsAmount, tvaAmount, total };
 }

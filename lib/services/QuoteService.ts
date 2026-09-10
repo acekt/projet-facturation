@@ -57,7 +57,12 @@ export const QuoteService = {
 
     const updateQuoteStatus = db.prepare(`UPDATE quotes SET status = ? WHERE id = ?`);
 
-    const convert = db.transaction(() => {
+    const insertAuditLog = db.prepare(`
+      INSERT INTO audit_logs (id, userId, userName, action, entityType, entityId, details)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    const convert = db.transaction((userName: string | null) => {
       const number = getNextNumber('invoice');
 
       insertInvoice.run(
@@ -94,6 +99,9 @@ export const QuoteService = {
 
       updateQuoteStatus.run(QUOTE_STATUS.CONVERTI, quoteId);
 
+      const logDetails = `Devis converti en facture: ${number}`;
+      insertAuditLog.run(crypto.randomUUID(), userId, userName, 'CREATE', 'invoice', invoiceId, logDetails);
+
       return {
         invoiceId,
         invoiceNumber: number,
@@ -101,6 +109,16 @@ export const QuoteService = {
       };
     });
 
-    return convert();
+    // We can't query users table easily inside the transaction if we just want the username,
+    // so let's get it outside or pass it. We'll query it here to pass to transaction.
+    let userName = null;
+    try {
+        const u = db.prepare('SELECT name, username FROM users WHERE id = ?').get(userId) as { name?: string; username?: string } | undefined;
+        if (u) {
+            userName = u.name || u.username || null;
+        }
+    } catch (e) {}
+
+    return convert(userName || userId);
   }
 };
