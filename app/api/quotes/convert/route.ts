@@ -43,8 +43,6 @@ export async function POST(request: Request) {
     try {
       const response = QuoteService.convertToInvoice(quoteId, session.userId, session.role);
 
-      logAudit('CREATE', 'invoice', response.invoiceId, `Devis converti en facture: ${response.invoiceNumber}`, session.userId, session.name || session.username || null);
-
       return NextResponse.json(response);
     } catch (error: any) {
       if (error instanceof QuoteServiceError) {
