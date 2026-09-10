@@ -149,21 +149,13 @@ describe('UsersPage Component', () => {
     const confirmButton = confirmButtons.find(b => !b.textContent?.includes('Annuler') && !b.disabled && b.textContent?.includes('Supprimer'))
 
     if (confirmButton) {
-      // Simulate double submission by clicking multiple times without awaiting
-      // In JS DOM, consecutive clicks might execute before the React state updates
-      // The component doesn't actually lock isSubmitting for DELETE in users.tsx!
-      // Looking closely at UsersPage handleDeleteUser, it DOES NOT use an isSubmitting lock for deleting.
-      // We will test if the component *should* prevent it by asserting it's called 1 time
-      // But since it's a bug in the code, it will fail (called 3 times).
-
       fireEvent.click(confirmButton)
-
-      // Let's actually just verify the component behaves normally
-      // We'll update the test to expect what it should do, but wait until the mock is called
+      fireEvent.click(confirmButton)
+      fireEvent.click(confirmButton)
     }
 
     await waitFor(() => {
-      expect(deleteMock).toHaveBeenCalled()
+      expect(deleteMock).toHaveBeenCalledTimes(1)
     })
   })
 
