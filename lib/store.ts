@@ -335,7 +335,18 @@ interface AppState {
    * @param {Settings} settings - The complete settings object.
    */
   setSettings: (settings: Settings) => void;
+  /**
+   * @function updateSettings
+   * @description Partially updates global configuration settings immutably.
+   * @param {Partial<Settings>} updates - Changed setting key-value pairs.
+   */
   updateSettings: (updates: Partial<Settings>) => void;
+  /**
+   * @function setViewFormat
+   * @description Toggles display layout preference (table/block/etc.) for a specific view.
+   * @param {keyof ViewFormat} page - The view to format (e.g. 'quotes', 'invoices').
+   * @param {ViewFormat[keyof ViewFormat]} format - The layout type.
+   */
   setViewFormat: (
     page: keyof ViewFormat,
     format: ViewFormat[keyof ViewFormat],

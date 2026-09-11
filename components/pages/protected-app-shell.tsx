@@ -2,6 +2,7 @@
 
 import * as React from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import { FileText } from "lucide-react"
 import { Sidebar, TopBar } from "@/components/layout/navigation"
 import { CommandMenu } from "@/components/layout/command-menu"
 import { Dashboard } from "@/components/pages/dashboard"
@@ -198,9 +199,10 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
               <div className="relative flex items-center justify-center">
                 <div className="w-16 h-16 border-4 border-primary/20 rounded-full"></div>
                 <div className="absolute w-16 h-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+                <FileText className="absolute w-6 h-6 text-primary animate-pulse" />
               </div>
               <p className="mt-6 text-sm text-muted-foreground font-medium animate-pulse">
-                Initialisation de Facturier...
+                Initialisation de Facturier... Veuillez patienter
               </p>
             </motion.div>
           ) : (
