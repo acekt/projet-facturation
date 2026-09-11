@@ -17,6 +17,7 @@ describe('QuoteService Integration', () => {
     db.prepare('DELETE FROM quotes').run();
     db.prepare('DELETE FROM clients').run();
     db.prepare('DELETE FROM settings').run();
+    db.prepare('DELETE FROM audit_logs').run();
 
     // Seed settings
     db.prepare(`
@@ -75,8 +76,10 @@ describe('QuoteService Integration', () => {
     expect(items[0].total).toBe(10000);
   });
 
-  it('should fail transaction cleanly if inserting invoice item throws', () => {
-    // Let's create an existing invoice_item with a known ID, and mock randomUUID to return it
+  it('should fail transaction cleanly if inserting invoice item throws (Constraint violation)', () => {
+    // We intentionally mock randomUUID to return a DUPLICATE ID when inserting the invoice_item.
+    // This will violate the PRIMARY KEY / UNIQUE constraint of SQLite,
+    // ensuring the `db.transaction()` rolls back completely.
     const duplicateId = crypto.randomUUID();
     const dummyInvoiceId = crypto.randomUUID();
 
@@ -86,35 +89,39 @@ describe('QuoteService Integration', () => {
       VALUES (?, 'DUMMY-001', ?, '2025-01-01', 0, 0, 0, 0, 0, 0, 0, 'UNPAID')
     `).run(dummyInvoiceId, clientId);
 
+    // Insert an item with duplicateId
     db.prepare(`
       INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total)
       VALUES (?, ?, ?, ?, ?, ?)
     `).run(duplicateId, dummyInvoiceId, 'dummy', 1, 1, 1);
 
     const uuidSpy = vi.spyOn(crypto, 'randomUUID').mockImplementation(() => {
-      // Return the duplicate ID when creating the invoice item to trigger UNIQUE constraint failed
+      // Force the insertItem to fail because of UNIQUE constraint
       return duplicateId;
     });
 
-    // Expect the service to throw the SQLite UNIQUE constraint error
+    // Act & Assert
     expect(() => {
       QuoteService.convertToInvoice(quoteId, userId, ROLES.USER);
     }).toThrow();
 
-    // Verify the transaction was rolled back!
+    // Verify the transaction was rolled back cleanly!
 
     // 1. Quote status should still be EN_ATTENTE (not converted)
     const quote = db.prepare('SELECT status FROM quotes WHERE id = ?').get(quoteId) as { status: string };
     expect(quote.status).toBe(QUOTE_STATUS.EN_ATTENTE);
 
-    // 2. Invoice should NOT exist for this quote
+    // 2. Invoice should NOT exist for this quote (insertion rolled back)
     const invoices = db.prepare('SELECT count(*) as count FROM invoices WHERE quoteId = ?').get(quoteId) as { count: number };
     expect(invoices.count).toBe(0);
 
-    // 3. No items should be tied to any imaginary invoice
-    // we mocked randomUUID so the generated invoice ID would be `duplicateId` as well
+    // 3. No items should be tied to any imaginary invoice (rolled back)
     const invoiceItemsCount = db.prepare('SELECT count(*) as count FROM invoice_items WHERE invoiceId = ?').get(duplicateId) as { count: number };
     expect(invoiceItemsCount.count).toBe(0);
+
+    // 4. No audit log should have been created (rolled back)
+    const logs = db.prepare('SELECT count(*) as count FROM audit_logs WHERE entityType = ?').get('invoice') as { count: number };
+    expect(logs.count).toBe(0);
 
     uuidSpy.mockRestore();
   });

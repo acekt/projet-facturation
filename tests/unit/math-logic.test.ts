@@ -178,4 +178,48 @@ describe('computeTotals', () => {
     expect(result.tvaAmount).toBe(0);
     expect(result.total).toBe(0);
   });
+  it('should correctly handle when discount exactly equals the subtotal', () => {
+    const items = [
+      { quantity: 1, unitPrice: 1500 }
+    ];
+    const rates = { tvaRate: 18, tpsRate: 1, cssRate: 1 };
+
+    const result = computeTotals(items, 1500, rates);
+
+    expect(result.subtotal).toBe(1500);
+    expect(result.discount).toBe(1500);
+    expect(result.netHT).toBe(0);
+    expect(result.taxBase).toBe(0);
+    expect(result.cssAmount).toBe(0);
+    expect(result.tpsAmount).toBe(0);
+    expect(result.tvaAmount).toBe(0);
+    expect(result.total).toBe(0);
+  });
+
+  it('should correctly handle extremely complex precision edge cases with multiple fractional items', () => {
+    const items = [
+      { quantity: 0.333333, unitPrice: 999.9999 }, // 333.332966 -> 333
+      { quantity: 1.005, unitPrice: 100.05 }       // 100.55025 -> 101
+    ];
+    // Subtotal: 333 + 101 = 434
+    // Discount: 50.555 -> 51
+    // NetHT = 434 - 51 = 383
+    // cssAmount = 383 * 1.5% = 5.745 -> 6
+    // taxBase = 383 + 6 = 389
+    // tpsRate = 0.5% -> 389 * 0.5% = 1.945 -> 2
+    // tvaRate = 18.25% -> 389 * 18.25% = 70.9925 -> 71
+    // Total = 389 + 2 + 71 = 462
+
+    const rates = { tvaRate: 18.25, tpsRate: 0.5, cssRate: 1.5 };
+    const result = computeTotals(items, 50.555, rates);
+
+    expect(result.subtotal).toBe(434);
+    expect(result.discount).toBe(51);
+    expect(result.netHT).toBe(383);
+    expect(result.cssAmount).toBe(6);
+    expect(result.taxBase).toBe(389);
+    expect(result.tpsAmount).toBe(2);
+    expect(result.tvaAmount).toBe(71);
+    expect(result.total).toBe(462);
+  });
 });

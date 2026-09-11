@@ -41,6 +41,9 @@ describe('Ghost Data Lifecycle - Quote Draft', () => {
     // The status should be reset to EN_ATTENTE
     expect(currentDraft.status).toBe('EN_ATTENTE');
 
+    // Notes should be reset to empty string
+    expect(currentDraft.notes).toBe('');
+
     // Dates should be set
     expect(currentDraft.quoteDate).toBeDefined();
     expect(currentDraft.validUntil).toBeDefined();
