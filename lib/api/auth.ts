@@ -30,6 +30,12 @@ function base64ToUint8Array(base64: string) {
   return bytes;
 }
 
+/**
+ * Signs stringified session data using HMAC-SHA256 and appends the signature.
+ *
+ * @param data - The base64-encoded JSON session string to sign.
+ * @returns A promise that resolves to a string in the format "data.signature".
+ */
 export async function signSession(data: string): Promise<string> {
   const secret = getSessionSecret();
   const key = await crypto.subtle.importKey(
@@ -45,7 +51,15 @@ export async function signSession(data: string): Promise<string> {
   return `${data}.${base64Signature}`;
 }
 
-export async function verifySignature(data: string, signature: string, secret?: string) {
+/**
+ * Verifies an HMAC-SHA256 signature against the provided data payload.
+ *
+ * @param data - The original base64-encoded data string.
+ * @param signature - The base64-encoded signature to verify.
+ * @param secret - (Optional) Override the default session secret.
+ * @returns A promise that resolves to true if the signature is valid, false otherwise.
+ */
+export async function verifySignature(data: string, signature: string, secret?: string): Promise<boolean> {
   try {
     const activeSecret = secret || getSessionSecret();
     const key = await crypto.subtle.importKey(
@@ -61,7 +75,15 @@ export async function verifySignature(data: string, signature: string, secret?: 
   }
 }
 
-export async function getSession(cookieValue?: string, secret?: string) {
+/**
+ * Retrieves and validates the current session from the auth_session cookie.
+ * It will parse the HMAC components, verify the signature, and check expiration.
+ *
+ * @param cookieValue - (Optional) Explicit cookie string, overrides Next.js headers lookup.
+ * @param secret - (Optional) Override the default session secret.
+ * @returns A promise resolving to the parsed session object, or null if invalid/expired.
+ */
+export async function getSession(cookieValue?: string, secret?: string): Promise<any | null> {
   try {
     let finalCookieValue = cookieValue;
     if (!finalCookieValue) {

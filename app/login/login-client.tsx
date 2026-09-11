@@ -39,6 +39,7 @@ export default function LoginClient() {
   // Soumission du formulaire
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmitting) return;
     setIsSubmitting(true);
 
     try {
@@ -58,8 +59,12 @@ export default function LoginClient() {
       } else {
         toast.error(data.error || "Identifiants invalides");
       }
-    } catch (err) {
-      toast.error("Impossible de joindre le serveur local");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        toast.error(`Erreur serveur: ${err.message}`);
+      } else {
+        toast.error("Impossible de joindre le serveur local");
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -255,15 +260,20 @@ export default function LoginClient() {
               {/* Bouton de Connexion */}
               <Button
                 type="submit"
-                className="w-full h-11 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-500 gap-2 shadow-lg shadow-blue-500/10 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                className={`w-full h-11 text-sm font-bold bg-blue-600 hover:bg-blue-700 text-white dark:bg-blue-600 dark:hover:bg-blue-500 gap-2 shadow-lg shadow-blue-500/10 transition-all duration-200 ${isSubmitting ? "opacity-75 cursor-not-allowed pointer-events-none" : ""}`}
                 disabled={isSubmitting}
               >
                 {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Connexion en cours...
+                  </>
                 ) : (
-                  "Se connecter"
+                  <>
+                    Se connecter
+                    <ChevronRight className="w-4 h-4" />
+                  </>
                 )}
-                {!isSubmitting && <ChevronRight className="w-4 h-4" />}
               </Button>
             </form>
 
@@ -294,7 +304,8 @@ export default function LoginClient() {
                     type="button"
                     variant="secondary"
                     onClick={() => fillDemoCredentials("admin")}
-                    className="h-10 text-xs font-bold gap-1.5"
+                    className="h-10 text-xs font-bold gap-1.5 disabled:opacity-50"
+                    disabled={isSubmitting}
                   >
                     <Star className="w-3.5 h-3.5 text-amber-600 dark:text-amber-500 shrink-0" />
                     Admin
@@ -303,7 +314,8 @@ export default function LoginClient() {
                     type="button"
                     variant="secondary"
                     onClick={() => fillDemoCredentials("operator")}
-                    className="h-10 text-xs font-bold gap-1.5"
+                    className="h-10 text-xs font-bold gap-1.5 disabled:opacity-50"
+                    disabled={isSubmitting}
                   >
                     <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
                     Opérateur

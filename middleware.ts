@@ -2,10 +2,16 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getSessionSecret, getSession } from "@/lib/api/auth";
 
-const PUBLIC_ROUTES = ["/login", "/setup"];
-const PUBLIC_API_ROUTES = ["/api/auth", "/api/setup", "/api/health"];
-const ADMIN_API_ROUTES = ["/api/audit-logs", "/api/users", "/api/clients"];
-const STATIC_ASSET_REGEX = /\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff|woff2|ttf|otf|map)$/i;
+// Publicly accessible application routes (no authentication required)
+const PUBLIC_ROUTES: string[] = ["/login", "/setup"];
+
+// Publicly accessible API routes (no authentication required)
+const PUBLIC_API_ROUTES: string[] = ["/api/auth", "/api/setup", "/api/health"];
+
+// Admin-only API routes (Operator role will be rejected with 403 Forbidden)
+const ADMIN_API_ROUTES: string[] = ["/api/audit-logs", "/api/users", "/api/clients"];
+
+const STATIC_ASSET_REGEX: RegExp = /\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff|woff2|ttf|otf|map)$/i;
 
 const matchRoute = (pathname: string, routes: string[]) => {
   return routes.some(r => pathname === r || pathname.startsWith(r + "/"));

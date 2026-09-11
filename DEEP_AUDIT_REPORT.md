@@ -162,33 +162,28 @@ const insertQuote = db.transaction((quoteItems: QuoteItem[], data: QuoteCreateRe
 ```
 
 ---
-
-## 5. Hydratation du Store et `ProtectedAppShell.tsx`
-**Analyse des Goulots d'Étranglement :**
-- L'hydratation initiale des données métier repose sur `components/data-sync.tsx` qui effectue des requêtes fetch parallèles via `Promise.allSettled`. C'est une architecture performante qui évite le blocage (waterfall).
-- Le flag `isDataLoaded` est intelligemment géré. Une attente explicite de 600ms (`setTimeout`) est incluse dans `DataSync` avant de passer `isDataLoaded` à `true`. Cela empêche le scintillement (flicker) de l'UI si les requêtes locales vers SQLite sont extrêmement rapides.
-- Dans `ProtectedAppShell.tsx`, `AnimatePresence` attend que `effectiveUser` et `isDataLoaded` soient résolus avant de monter les pages avec des transitions douces.
-
-**Optimisations Apportées :**
-- L'écran de chargement (Spinner) dans `ProtectedAppShell.tsx` manquait de raffinement. Nous avons ajouté l'icône `FileText` au centre de l'anneau tournant pour rappeler la vocation de l'application (Facturier) et avons précisé le message avec "Initialisation de Facturier... Veuillez patienter", tout en gardant l'attribut ARIA `role="status"` et `aria-live="polite"` pour l'accessibilité.
-
-## 6. Optimisation Zustand (`lib/store.ts`)
-**Analyse :**
-- Le middleware `persist` est configuré pour utiliser `sessionStorage`. C'est approprié pour des données de session qui ne doivent pas persister entre des redémarrages complets (sécurité).
-- Un point clé de performance et de résilience est la configuration de `partialize`. Le store Zustand de Facturier exclut spécifiquement `settings` et de grandes listes (comme `clients`, `invoices`) de la persistance. Cela force l'application à recharger ces données de la source de vérité SQLite au démarrage via `DataSync`, ce qui empêche une désynchronisation fatale ou des "stale states".
-- Les actions métiers (CRUD) telles que `addClient`, `updateInvoice`, ou `removeService` utilisent le `state` précédent de manière fonctionnelle (ex: `set((state) => ({ clients: [...state.clients, client] }))`) et maintiennent une pure immuabilité sans risquer d'effets de bord par closure obsolète.
-
-**Optimisations Apportées :**
-- De nombreux commentaires JSDoc étaient présents, mais l'interface `AppState` manquait de standardisation pour certaines actions (`updateSettings`, `setViewFormat`). Nous avons ajouté ces commentaires JSDoc pour garantir la lisibilité et faciliter la maintenance future, conformément à la nomenclature du projet.
-
-## 7. Synergie Electron et IPC (`FullScreenDocumentViewer.tsx`, `invoices.tsx`, `quotes.tsx`)
-**Analyse :**
-- **Séparation des Préoccupations (PDF Architecture) :** L'export PDF ne s'effectue pas en enveloppant les appels d'état `setSelectedInvoice` dans un `try/catch` pour l'IPC, ce qui violerait le cycle de vie React. L'état déclenche l'ouverture de `FullScreenDocumentViewer`, et c'est ce composant qui orchestre la communication avec le thread principal d'Electron via `window.electron.exportPDF`.
-- **Encapsulation et Gestion d'Erreurs :** Dans `FullScreenDocumentViewer.tsx`, les appels IPC (`printElement` et `exportPDF`) sont rigoureusement encapsulés dans des blocs `try/catch`.
-- **UX et Asynchronie (Toasts) :** Lors de l'export PDF asynchrone, un `toast.loading()` capture un ID (`const toastId = toast.loading(...)`). Ce toast ID est explicitement transmis aux appels subséquents `toast.success` et `toast.error` ou `toast.dismiss` (en cas d'annulation utilisateur native). Ceci évite le bug récurrent où l'indicateur de chargement reste figé à l'écran en cas de retour silencieux de l'API native.
-
-## Conclusion
-L'architecture d'état et son hydratation sont saines. Les directives de refactoring ciblées sur l'App Shell et le Store Zustand ont été appliquées pour améliorer l'expérience utilisateur initiale (Spinner UI) et la maintenabilité du code (JSDoc). La synergie avec Electron respecte scrupuleusement les contraintes de robustesse IPC et de gestion UI asynchrone du projet Facturier.
+**Rapport généré par le Lead QA Engineer de la tâche de fond.**
 
 ---
-**Rapport généré par le Lead QA Engineer de la tâche de fond.**
+
+## 5. SÉCURITÉ ET AUTHENTIFICATION (MODULE 1)
+
+### Vérification de `middleware.ts`, Logique de Session, et `login-client.tsx`
+
+**Problème :**
+L'application présentait quelques défauts de conformité au niveau des pratiques d'authentification et de la prévention des soumissions multiples.
+
+**Localisation :**
+- `middleware.ts`
+- `lib/api/auth.ts`
+- `app/api/auth/login/route.ts`
+- `app/login/login-client.tsx`
+
+**Diagnostic & Actions prises :**
+1. **Middleware (`middleware.ts`)** : Le middleware a été inspecté et utilise déjà une stratégie de filtrage robuste. Si la clé `SESSION_SECRET` est absente de la configuration, une réponse d'erreur formatée JSON (503 Service Unavailable) est bien renvoyée (sans faire crasher Next.js).
+2. **Session (`lib/api/auth.ts`)** : La vérification de la signature HMAC-SHA256 pour les cookies de session utilise correctement les variables d'environnement et intègre les bonnes clés (ex: le sel fallbacks de test/dev).
+3. **Traces d'Audit (`app/api/auth/login/route.ts`)** : La logique des traces (`logAuditAsync`) était déjà présente de manière asynchrone pour éviter de bloquer le fil d'exécution.
+4. **UI/UX Prévention du double clic (`app/login/login-client.tsx`)** : Un appel prématuré du formulaire était possible lors de soumissions multiples par l'utilisateur. Le code a été corrigé en intégrant l'anti-pattern standard `if (isSubmitting) return;` en tout début de handler de soumission.
+
+**Excellence obtenue :**
+Une expérience utilisateur et une robustesse au niveau de l'authentification solidifiées.
