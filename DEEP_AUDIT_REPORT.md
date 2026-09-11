@@ -163,3 +163,27 @@ const insertQuote = db.transaction((quoteItems: QuoteItem[], data: QuoteCreateRe
 
 ---
 **Rapport généré par le Lead QA Engineer de la tâche de fond.**
+
+---
+
+## 5. SÉCURITÉ ET AUTHENTIFICATION (MODULE 1)
+
+### Vérification de `middleware.ts`, Logique de Session, et `login-client.tsx`
+
+**Problème :**
+L'application présentait quelques défauts de conformité au niveau des pratiques d'authentification et de la prévention des soumissions multiples.
+
+**Localisation :**
+- `middleware.ts`
+- `lib/api/auth.ts`
+- `app/api/auth/login/route.ts`
+- `app/login/login-client.tsx`
+
+**Diagnostic & Actions prises :**
+1. **Middleware (`middleware.ts`)** : Le middleware a été inspecté et utilise déjà une stratégie de filtrage robuste. Si la clé `SESSION_SECRET` est absente de la configuration, une réponse d'erreur formatée JSON (503 Service Unavailable) est bien renvoyée (sans faire crasher Next.js).
+2. **Session (`lib/api/auth.ts`)** : La vérification de la signature HMAC-SHA256 pour les cookies de session utilise correctement les variables d'environnement et intègre les bonnes clés (ex: le sel fallbacks de test/dev).
+3. **Traces d'Audit (`app/api/auth/login/route.ts`)** : La logique des traces (`logAuditAsync`) était déjà présente de manière asynchrone pour éviter de bloquer le fil d'exécution.
+4. **UI/UX Prévention du double clic (`app/login/login-client.tsx`)** : Un appel prématuré du formulaire était possible lors de soumissions multiples par l'utilisateur. Le code a été corrigé en intégrant l'anti-pattern standard `if (isSubmitting) return;` en tout début de handler de soumission.
+
+**Excellence obtenue :**
+Une expérience utilisateur et une robustesse au niveau de l'authentification solidifiées.

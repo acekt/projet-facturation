@@ -38,6 +38,77 @@ const logAuditAsync = (action: string, entityType: string, entityId: string | nu
   }, 0);
 };
 
+/**
+ * Helper to securely verify the provided password against the database record.
+ * Handles the upgrade path from legacy SHA-256 hashes to bcrypt seamlessly.
+ */
+async function verifyUserPassword(user: DbUser | undefined, passwordAttempt: string): Promise<boolean> {
+  const dummyHash = "$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1KUOYTa";
+
+  if (!user) {
+      // Prevents timing attacks by comparing against a dummy hash if the user doesn't exist
+      try { await bcrypt.compare(passwordAttempt, dummyHash); } catch (e) {}
+      return false;
+  }
+
+  let isValid = false;
+  try {
+      isValid = await bcrypt.compare(passwordAttempt, user.password);
+  } catch (e) {
+      isValid = false;
+  }
+
+  if (!isValid && user.password) {
+      // Legacy SHA-256 Check & Upgrade
+      const legacyHash = hashPassword(passwordAttempt);
+      isValid = (user.password === legacyHash);
+
+      if (isValid) {
+          try {
+              const newBcryptHash = await bcrypt.hash(passwordAttempt, 10);
+              db.prepare("UPDATE users SET password = ? WHERE id = ?").run(newBcryptHash, user.id);
+          } catch (upgradeError) {}
+      }
+  }
+  return isValid;
+}
+
+/**
+ * Creates and signs the session, configures cookies, and returns the Next.js response.
+ */
+async function createAuthSession(user: DbUser): Promise<NextResponse> {
+    const sessionData = JSON.stringify({
+      userId: user.id,
+      name: user.name,
+      role: user.role,
+      exp: Date.now() + 24 * 60 * 60 * 1000
+    });
+    const base64Data = Buffer.from(sessionData).toString("base64");
+    const signedSession = await signSession(base64Data);
+
+    const sessionPayload: SessionResponse = {
+      success: true,
+      user: {
+        id: user.id, name: user.name, email: user.email, username: user.username,
+        role: user.role, is_active: user.is_active, created_at: user.created_at,
+        last_login_at: user.last_login_at, phone: user.phone
+      },
+    };
+
+    const response = NextResponse.json(sessionPayload);
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production" && process.env.VITEST !== "true",
+      maxAge: 60 * 60 * 24,
+      path: "/"
+    };
+
+    response.cookies.set("auth_session", signedSession, cookieOptions);
+    try { (await cookies()).set("auth_session", signedSession, cookieOptions); } catch (e) {}
+
+    return response;
+}
+
 export async function POST(request: Request) {
   try {
     try {
@@ -74,30 +145,7 @@ export async function POST(request: Request) {
       FROM users WHERE (LOWER(username) = ? OR LOWER(email) = ?) AND deletedAt IS NULL
     `).get(cleanUsername, cleanUsername) as DbUser | undefined;
 
-    const dummyHash = "$2a$10$vI8aWBnW3fID.ZQ4/zo1G.q1lRps.9cGLcZEiGDMVr5yUP1KUOYTa";
-    let isPasswordValid = false;
-
-    if (user) {
-        try {
-            isPasswordValid = await bcrypt.compare(password, user.password);
-        } catch (e) {
-            isPasswordValid = false;
-        }
-
-        if (!isPasswordValid && user.password) {
-          const legacyHash = hashPassword(password);
-          isPasswordValid = user.password === legacyHash;
-
-          if (isPasswordValid) {
-            try {
-              const newBcryptHash = await bcrypt.hash(password, 10);
-              db.prepare("UPDATE users SET password = ? WHERE id = ?").run(newBcryptHash, user.id);
-            } catch (upgradeError) {}
-          }
-        }
-    } else {
-        try { await bcrypt.compare(password, dummyHash); } catch (e) {}
-    }
+    const isPasswordValid = await verifyUserPassword(user, password);
 
     if (!user || !isPasswordValid) {
       logAuditAsync("LOGIN_FAILED", "user", user?.id || null, "Tentative de connexion échouée", user?.id || null, user?.name || null);
@@ -110,24 +158,9 @@ export async function POST(request: Request) {
 
     try { UserRepository.updateLastLogin(user.id); } catch (e) {}
 
-    const sessionData = JSON.stringify({ userId: user.id, name: user.name, role: user.role, exp: Date.now() + 24 * 60 * 60 * 1000 });
-    const base64Data = Buffer.from(sessionData).toString("base64");
-    const signedSession = await signSession(base64Data);
-
-    const sessionPayload: SessionResponse = {
-      success: true,
-      user: { id: user.id, name: user.name, email: user.email, username: user.username, role: user.role, is_active: user.is_active, created_at: user.created_at, last_login_at: user.last_login_at, phone: user.phone },
-    };
-
     logAuditAsync("LOGIN_SUCCESS", "user", user.id, "Connexion réussie", user.id, user.name);
 
-    const response = NextResponse.json(sessionPayload);
-    const cookieOptions = { httpOnly: true, secure: process.env.NODE_ENV === "production" && process.env.VITEST !== "true", maxAge: 60 * 60 * 24, path: "/" };
-
-    response.cookies.set("auth_session", signedSession, cookieOptions);
-    try { (await cookies()).set("auth_session", signedSession, cookieOptions); } catch (e) {}
-
-    return response;
+    return await createAuthSession(user);
   } catch (error) {
     logAuditAsync("LOGIN_ERROR", "system", null, "Erreur serveur lors de la connexion", null);
     return NextResponse.json({ error: "Erreur serveur" } as ErrorResponse, { status: 500 });
