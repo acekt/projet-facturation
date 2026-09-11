@@ -64,6 +64,7 @@ export function ServicesPage() {
   const user = useStore((state) => state.user)
   const viewFormat = useStore((state) => state.viewFormat)
   const setViewFormat = useStore((state) => state.setViewFormat)
+  const isDataLoaded = useStore((state) => state.isDataLoaded)
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 9 // Grid 3x3
@@ -96,12 +97,28 @@ export function ServicesPage() {
     setCurrentPage(1)
   }, [searchQuery])
 
+  if (!isDataLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Chargement des services...</p>
+        </div>
+      </div>
+    )
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (isSubmitting) return
 
     if (!formData.name) {
       toast.error("Le nom du service est requis.")
+      return
+    }
+
+    if (formData.unitPrice < 0) {
+      toast.error("Le prix unitaire ne peut pas être négatif.")
       return
     }
 

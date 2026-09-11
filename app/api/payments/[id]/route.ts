@@ -5,6 +5,8 @@ import db from '@/lib/db';
 import { updateInvoiceStatus } from '@/lib/api/invoice-logic';
 import type { ErrorResponse, DbPayment } from '@/lib/types/api';
 
+const softDeletePaymentStmt = db.prepare("UPDATE payments SET deletedAt = datetime('now') WHERE id = ?");
+
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -38,7 +40,7 @@ export async function DELETE(
 
     const deleteResult = db.transaction(() => {
       // Soft delete the payment (set deletedAt instead of hard DELETE)
-      db.prepare("UPDATE payments SET deletedAt = datetime('now') WHERE id = ?").run(id);
+      softDeletePaymentStmt.run(id);
       logAudit('DELETE', 'payment', id, `Paiement supprimé pour facture ${payment.invoiceId}`, session.userId, session.name || session.username || null);
 
       // Recalculate invoice status after soft delete

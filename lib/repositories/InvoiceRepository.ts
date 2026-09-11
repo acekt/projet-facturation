@@ -5,7 +5,7 @@ import { ROLES, INVOICE_STATUS } from '@/lib/constants';
 export const InvoiceRepository = {
   findAll(userId: string, role: string): (DbInvoice & { items: string; payments: string })[] {
     let query = `
-      SELECT i.*,
+      SELECT i.id, i.number, i.quoteId, i.clientId, i.clientName, i.clientEmail, i.date, i.dueDate, i.subtotal, i.discount, i.taxBase, i.tvaAmount, i.tpsAmount, i.cssAmount, i.total, i.notes, i.subject, i.status, i.deletedAt, i.createdAt, i.created_by,
              (SELECT json_group_array(json_object(
                'id', id,
                'description', description,

@@ -119,6 +119,12 @@ export function ClientsPage() {
       return
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(newClient.email)) {
+      toast.error("L'adresse email est invalide.")
+      return
+    }
+
     const tempId = crypto.randomUUID()
     const clientToCreate: Client = {
       id: tempId,
@@ -193,6 +199,12 @@ export function ClientsPage() {
 
     if (!editingClient.name || !editingClient.email) {
         toast.error("Le nom et l'email sont requis.")
+        return
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(editingClient.email)) {
+        toast.error("L'adresse email est invalide.")
         return
     }
 

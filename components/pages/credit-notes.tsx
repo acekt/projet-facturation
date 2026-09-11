@@ -175,7 +175,7 @@ export function CreditNotesPage() {
                         <span className="text-muted-foreground text-xs">N/A</span>
                       )}
                     </td>
-                    <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-primary">
+                    <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-primary tabular-nums">
                       {formatCurrency(note.total)}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-muted-foreground">

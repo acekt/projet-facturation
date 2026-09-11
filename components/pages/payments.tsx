@@ -432,7 +432,7 @@ export function PaymentsPage() {
                               {p.paymentMethod || 'Cash'}
                             </span>
                           </td>
-                          <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-emerald-600 dark:text-emerald-400">
+                          <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-emerald-600 dark:text-emerald-400 tabular-nums">
                             +{formatCurrency(p.amount)}
                           </td>
                           <td className="px-6 py-4 whitespace-nowrap text-right">
