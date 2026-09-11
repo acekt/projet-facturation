@@ -52,6 +52,11 @@ export async function GET(_request: Request) {
   }
 }
 
+const insertPaymentStmt = db.prepare(`
+  INSERT INTO payments (id, invoiceId, amount, paymentMethod, date, reference, created_by)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+
 export async function POST(request: Request) {
   try {
     const session = await getSession();
@@ -123,10 +128,7 @@ export async function POST(request: Request) {
     const id = crypto.randomUUID();
 
     const insertPayment = db.transaction(() => {
-      db.prepare(`
-        INSERT INTO payments (id, invoiceId, amount, paymentMethod, date, reference, created_by)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-      `).run(id, invoiceId, Math.round(amount), paymentMethod, date, reference || null, session.userId);
+      insertPaymentStmt.run(id, invoiceId, Math.round(amount), paymentMethod, date, reference || null, session.userId);
 
       const newStatus = updateInvoiceStatus(invoiceId);
       logAudit('CREATE', 'payment', id, `Paiement enregistré: ${amount} XAF sur facture ${invoiceId}`, session.userId, session.name || session.username || null);

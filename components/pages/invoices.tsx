@@ -33,6 +33,7 @@ import {
 import { useStore, type Invoice, type Payment } from "@/lib/store"
 import { formatCurrency, formatDate } from "@/lib/utils"
 import { toast } from "sonner"
+import { INVOICE_STATUS } from "@/lib/constants"
 import { DocumentA4 } from "@/components/document-a4"
 import { printElement, buildPrintHtml } from "@/lib/electron-print"
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer"
@@ -451,7 +452,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                         </DropdownMenuItem>
                       )}
-                      {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== 'cancelled' && (
+                      {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== INVOICE_STATUS.CANCELLED && (
                         <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
                           setInvoiceToCancel(invoice)
                           setDeleteAssociatedQuote(false)
@@ -548,7 +549,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                               <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                             </DropdownMenuItem>
                           )}
-                          {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== 'cancelled' && (
+                          {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== INVOICE_STATUS.CANCELLED && (
                              <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
                                setInvoiceToCancel(invoice)
                                setDeleteAssociatedQuote(false)
@@ -642,7 +643,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                             <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                           </DropdownMenuItem>
                         )}
-                        {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== 'cancelled' && (
+                        {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== INVOICE_STATUS.CANCELLED && (
                           <DropdownMenuItem
                             className="gap-2 text-orange-600"
                             onClick={() => { setInvoiceToCancel(invoice); setDeleteAssociatedQuote(false) }}

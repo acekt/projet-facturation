@@ -21,6 +21,10 @@ export function getTaxRates(): TaxRates {
   return rates;
 }
 
+const getInvoiceTotalStmt = db.prepare('SELECT total FROM invoices WHERE id = ? AND deletedAt IS NULL');
+const getPaymentsTotalStmt = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoiceId = ? AND deletedAt IS NULL');
+const updateInvoiceStatusStmt = db.prepare('UPDATE invoices SET status = ? WHERE id = ?');
+
 /**
  * Recalculates and updates invoice status based on the actual sum of payments.
  * This is the canonical function for all invoice status transitions.
@@ -36,19 +40,13 @@ export function getTaxRates(): TaxRates {
 export function updateInvoiceStatus(
   invoiceId: string
 ): 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' {
-  const invoice = db
-    .prepare('SELECT total FROM invoices WHERE id = ? AND deletedAt IS NULL')
-    .get(invoiceId) as DbInvoice | undefined;
+  const invoice = getInvoiceTotalStmt.get(invoiceId) as DbInvoice | undefined;
 
   if (!invoice) {
     throw new Error(`Facture introuvable ou supprimée : ${invoiceId}`);
   }
 
-  const paymentsResult = db
-    .prepare(
-      'SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoiceId = ? AND deletedAt IS NULL'
-    )
-    .get(invoiceId) as DbTotal;
+  const paymentsResult = getPaymentsTotalStmt.get(invoiceId) as DbTotal;
 
   const totalTTC = Math.round(invoice.total);
   const totalPaid = Math.round(paymentsResult.total ?? 0);
@@ -62,6 +60,6 @@ export function updateInvoiceStatus(
     newStatus = 'PAID';
   }
 
-  db.prepare('UPDATE invoices SET status = ? WHERE id = ?').run(newStatus, invoiceId);
+  updateInvoiceStatusStmt.run(newStatus, invoiceId);
   return newStatus;
 }
