@@ -164,6 +164,15 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
 
   const handleAddUser = async () => {
     if (isSubmitting) return;
+    if (!formData.name || !formData.email) {
+        toast.error("Le nom et l'email sont requis.");
+        return;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    if (!emailRegex.test(formData.email)) {
+        toast.error("L'adresse email est invalide.");
+        return;
+    }
     setIsSubmitting(true);
     try {
         const res = await fetch('/api/users', {
@@ -190,6 +199,17 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
 
   const handleUpdateUser = async () => {
     if (!selectedUser || isSubmitting) return;
+    if (!formData.name) {
+        toast.error("Le nom est requis.");
+        return;
+    }
+    if (formData.email) {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.email)) {
+            toast.error("L'adresse email est invalide.");
+            return;
+        }
+    }
     setIsSubmitting(true);
     try {
         const res = await fetch(`/api/users/${selectedUser.id}`, {

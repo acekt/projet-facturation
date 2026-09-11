@@ -22,6 +22,7 @@ export function SettingsPage() {
   const settings = useStore(state => state.settings)
   const setSettings = useStore(state => state.setSettings)
   const user = useStore(state => state.user)
+  const isDataLoaded = useStore(state => state.isDataLoaded)
   const isAdmin = user?.role === 'admin'
 
   const [formData, setFormData] = React.useState(settings)
@@ -32,6 +33,17 @@ export function SettingsPage() {
   React.useEffect(() => {
     setFormData(settings)
   }, [settings])
+
+  if (!isDataLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Chargement des paramètres...</p>
+        </div>
+      </div>
+    )
+  }
 
   const validateAndUpload = (file: File) => {
     if (file.size > 2 * 1024 * 1024) {
@@ -75,6 +87,7 @@ export function SettingsPage() {
 
   const handleSave = async () => {
     if (!isAdmin) return;
+    if (isSaving) return;
     setIsSaving(true)
     try {
       // On exclut les champs non reconnus par le schéma Zod côté serveur (ex: 'id')
