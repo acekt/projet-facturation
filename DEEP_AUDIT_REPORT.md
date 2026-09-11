@@ -187,3 +187,84 @@ L'application présentait quelques défauts de conformité au niveau des pratiqu
 
 **Excellence obtenue :**
 Une expérience utilisateur et une robustesse au niveau de l'authentification solidifiées.
+
+## 6. AUDIT CONTINU - NOUVELLES DÉCOUVERTES (MODULE QA BACKGROUND)
+
+### 6.1 QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT) : Contournement du Typage Strict
+
+**Problème :** Utilisation forcée du type `any` via l'opérateur de cast `as any` sur des structures de données complexes, annulant la sécurité du typage statique lors des soumissions de formulaires critiques.
+**Localisation :**
+- `components/pages/invoice-editor.tsx` (ligne 733)
+- `components/pages/quote-editor.tsx` (lignes 785 et 796)
+
+**Pourquoi c'est médiocre :** L'utilisation de `items: items as any` empêche le compilateur TypeScript de valider que les éléments de facture ou de devis envoyés correspondent au contrat attendu par l'API. Si le schéma de l'API change, le composant frontend ne remontera aucune erreur à la compilation, provoquant des bugs silencieux ou des erreurs HTTP 400 ou 500 en production.
+
+**Solution d'excellence :**
+Assurer que la variable locale `items` respecte strictement l'interface attendue (`InvoiceItem[]` ou `QuoteItem[]`) et retirer l'opérateur de cast.
+
+```tsx
+// Importer le type strict
+import type { QuoteItem } from '@/lib/types/api';
+
+// Lors de la déclaration de l'état
+const [items, setItems] = React.useState<QuoteItem[]>([]);
+
+// Lors de l'envoi de la payload (sans 'as any')
+const payload: QuoteCreateRequest = {
+  // ...
+  items: items,
+};
+```
+
+### 6.2 LOGIQUE REACT ET ANTI-PATTERNS UI : Gestion des Erreurs Muette (Swallowed Exceptions)
+
+**Problème :** Les blocs `catch` côté client capturent les exceptions (`e`) mais ne testent pas le type de l'erreur (`instanceof Error`), renvoyant un message Toast générique et statique à l'utilisateur tout en perdant le contexte réel de l'échec.
+**Localisation :**
+- `components/pages/users.tsx` (lignes 193, 234, 266, 291, 313)
+
+**Pourquoi c'est dangereux :** En masquant le message d'erreur réel derrière un message codé en dur comme `"Erreur réseau"`, on empêche l'utilisateur et le support technique de comprendre la source du problème (ex: erreur de validation locale, blocage CORS, timeout réseau, etc.). C'est un anti-pattern UX et de diagnostic majeur.
+
+**Solution d'excellence :**
+Vérifier systématiquement `if (err instanceof Error)` pour extraire et afficher le message spécifique fourni par l'exception.
+
+```tsx
+} catch (err: unknown) {
+  if (err instanceof Error && err.name === 'AbortError') return;
+  const errorMessage = err instanceof Error ? err.message : 'Erreur inconnue de connexion réseau';
+  console.error('[Action] Échec:', err);
+  toast.error(`Erreur réseau : ${errorMessage}`);
+} finally {
+  setIsSubmitting(false);
+}
+```
+
+### 6.3 BASE DE DONNÉES ET PERFORMANCES (SQLITE) : Transactions Anti-Pattern et Index Manquants
+
+**Problème 1 : `db.prepare()` dynamique à l'intérieur d'un bloc `db.transaction()`**
+**Localisation :**
+- `app/api/quotes/route.ts` (ligne 119)
+
+**Pourquoi c'est médiocre :** Invoquer `db.prepare()` dynamiquement au cœur d'une transaction SQLite contraint la base de données à allouer des ressources de compilation tout en maintenant un verrou exclusif sur la base. Cela dégrade les performances lors d'insertions massives et augmente le risque d'exceptions `SQLITE_BUSY`.
+
+**Solution d'excellence :** (Comme mentionné dans la section 4, *hoister* la préparation du statement en dehors de la route handler ou au minimum en dehors du callback de transaction).
+
+```typescript
+const insertQuoteStmt = db.prepare(`INSERT INTO quotes ...`);
+const insertQuoteTx = db.transaction((payload) => {
+  insertQuoteStmt.run(...payload);
+});
+```
+
+**Problème 2 : Manque d'index sur la colonne `date`**
+**Localisation :**
+- Schéma de base de données (`lib/db.ts`) - Tables `invoices` et `quotes`.
+
+**Pourquoi c'est dangereux :** Les tableaux de bord et les exports financiers filtrent massivement les factures et les devis par date (trimestres, mois, exercices fiscaux). L'absence d'index sur la colonne `date` oblige SQLite à effectuer des *Full Table Scans* systématiques sur la table entière lors du chargement des statistiques. À mesure que les années passent, la performance du Dashboard s'effondrera.
+
+**Solution d'excellence :**
+Ajouter des index sur la colonne `date` dans les fichiers de migration / initialisation.
+
+```sql
+CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(date);
+CREATE INDEX IF NOT EXISTS idx_quotes_date ON quotes(date);
+```
