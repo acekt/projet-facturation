@@ -268,3 +268,30 @@ Ajouter des index sur la colonne `date` dans les fichiers de migration / initial
 CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(date);
 CREATE INDEX IF NOT EXISTS idx_quotes_date ON quotes(date);
 ```
+
+## Audit Report: Sécurité & Authentification (Module 1/5)
+**Path:** `middleware.ts`
+**Issue:** Missing explicit frontend boundaries for `Opérateur` role. While API routes were strictly protected (`ADMIN_API_ROUTES`), UI elements and specific frontend pages (e.g. `/users`, `/settings`) lacked a strict path interception for operators attempting to bypass via client-side routing.
+**Remediation:**
+Add a corresponding explicit list of routes for frontend `ADMIN_ROUTES` alongside `ADMIN_API_ROUTES` and block with a HTTP 403 `NextResponse` inside `middleware.ts`.
+
+```typescript
+const ADMIN_ROUTES: string[] = ["/users", "/settings", "/audit-logs", "/clients"];
+
+// inside middleware.ts
+if (isSessionValid && session && !isApiRequest && !isPublicAsset) {
+  const isAdminOnlyRoute = matchRoute(pathname, ADMIN_ROUTES);
+  if (session.role !== "admin" && isAdminOnlyRoute) {
+    return new NextResponse("Accès refusé. Réservé aux administrateurs.", {
+      status: 403,
+      headers: { "content-type": "text/html" }
+    });
+  }
+}
+```
+
+**Path:** `app/login/login-client.tsx`
+**Notes:** Double-submission prevention, proper async API consumption, and error/toast management were verified and found to already meet standards via `isSubmitting` bounds.
+
+**Path:** `app/api/auth/login/route.ts` & `lib/api/auth.ts`
+**Notes:** HMAC-SHA256 session signatures, and timeout-wrapped audit logging hooks met performance requirements preventing main thread blocks during DB bursts.

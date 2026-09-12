@@ -162,6 +162,7 @@ export async function POST(request: Request) {
 
     return await createAuthSession(user);
   } catch (error) {
+    console.error("[Login Error]", error);
     logAuditAsync("LOGIN_ERROR", "system", null, "Erreur serveur lors de la connexion", null);
     return NextResponse.json({ error: "Erreur serveur" } as ErrorResponse, { status: 500 });
   }

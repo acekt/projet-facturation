@@ -11,6 +11,9 @@ const PUBLIC_API_ROUTES: string[] = ["/api/auth", "/api/setup", "/api/health"];
 // Admin-only API routes (Operator role will be rejected with 403 Forbidden)
 const ADMIN_API_ROUTES: string[] = ["/api/audit-logs", "/api/users", "/api/clients"];
 
+// Admin-only Frontend routes (Operator role will be rejected with 403 Forbidden)
+const ADMIN_ROUTES: string[] = ["/audit-logs", "/users", "/clients", "/settings"];
+
 const STATIC_ASSET_REGEX: RegExp = /\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|woff|woff2|ttf|otf|map)$/i;
 
 const matchRoute = (pathname: string, routes: string[]) => {
@@ -62,6 +65,13 @@ export async function middleware(request: NextRequest) {
     const isAdminOnlyApi = matchRoute(pathname, ADMIN_API_ROUTES);
     if (session.role !== "admin" && isAdminOnlyApi) {
       return new NextResponse(JSON.stringify({ error: "Accès réservé aux administrateurs" }), { status: 403, headers: { "content-type": "application/json" } });
+    }
+  }
+
+  if (isSessionValid && session && !isApiRequest && !isPublicAsset) {
+    const isAdminOnlyRoute = matchRoute(pathname, ADMIN_ROUTES);
+    if (session.role !== "admin" && isAdminOnlyRoute) {
+      return NextResponse.redirect(new URL("/?error=forbidden", request.url));
     }
   }
 
