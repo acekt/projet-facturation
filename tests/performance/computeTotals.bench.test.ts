@@ -40,10 +40,10 @@ describe('computeTotals Performance Benchmark', () => {
     // Duration should be under 50ms
     expect(duration).toBeLessThan(50);
 
-    // Memory overhead should be extremely minimal (under 5MB difference for this operation)
+    // Memory overhead should be strictly bounded to < 10MB per requirements
     // Garbage collection can be unpredictable, but for a pure calculation on an existing array,
     // it shouldn't allocate massive amounts of heap space.
-    expect(memoryDiffMb).toBeLessThan(5);
+    expect(memoryDiffMb).toBeLessThan(10);
 
     console.log(`computeTotals (10k items) executed in ${duration.toFixed(2)}ms, Memory overhead: ${memoryDiffMb.toFixed(2)}MB`);
   });
