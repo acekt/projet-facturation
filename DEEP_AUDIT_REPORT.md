@@ -295,3 +295,97 @@ if (isSessionValid && session && !isApiRequest && !isPublicAsset) {
 
 **Path:** `app/api/auth/login/route.ts` & `lib/api/auth.ts`
 **Notes:** HMAC-SHA256 session signatures, and timeout-wrapped audit logging hooks met performance requirements preventing main thread blocks during DB bursts.
+
+
+## 7. AUDIT PROFOND (MODULE QA BACKGROUND) - NOUVELLES DÉCOUVERTES
+
+### 7.1 QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT) : Contournement du Typage Strict
+
+**Problème :** Utilisation forcée du type `any` via l'opérateur de cast `as any` ou `(document as any)` sur des structures de données complexes.
+**Localisation :**
+- `components/pdf-document.tsx` (Lignes 310, 343)
+- `app/api/settings/route.ts` (Lignes 102, 119)
+- `components/pages/invoice-editor.tsx` (Ligne 733)
+- `components/pages/quote-editor.tsx` (Lignes 785, 796)
+- `components/fullscreen-document-viewer.tsx` (Ligne 165)
+
+**Pourquoi c'est médiocre :**
+Dans `pdf-document.tsx`, l'utilisation de `(document as any)` pour accéder dynamiquement à des propriétés (comme `notes` ou `discount`) indique un type union mal discriminé en amont. En forçant via `any`, on désactive la vérification TypeScript.
+Dans les fichiers de formulaires (`invoice-editor.tsx`, `quote-editor.tsx`), l'utilisation de `items: items as any` empêche le compilateur TypeScript de valider que les éléments envoyés correspondent au contrat attendu par l'API.
+Dans les blocs catch, forcer `any` (`catch (error: any)`) masque l'obligation de vérifier la structure de l'erreur avant de lire ses propriétés (`error.message`).
+
+**Solution d'excellence :**
+Pour les objets incertains, utiliser des Type Guards (Prédicats de type) ou définir un type union discriminé explicite, puis manipuler l'objet de façon typée sans `any`. Pour les formulaires, utiliser strictement l'interface attendue (`InvoiceItem[]` ou `QuoteItem[]`). Pour les erreurs, utiliser `unknown`.
+
+```tsx
+// Exemple pour pdf-document.tsx
+function hasNotes(doc: unknown): doc is { notes: string | null } {
+  return typeof doc === 'object' && doc !== null && 'notes' in doc;
+}
+<Text>Objet: {(hasNotes(document) ? document.notes : null) || "Prestations de services"}</Text>
+
+// Exemple pour les blocs Catch (app/api/settings/route.ts)
+} catch (error: unknown) {
+  let errorMessage = "Erreur inconnue";
+  if (error instanceof Error) {
+    errorMessage = error.message;
+  }
+  console.error('Erreur:', errorMessage);
+}
+```
+
+### 7.2 LOGIQUE REACT ET ANTI-PATTERNS UI : Boucles useEffect et Dépendances Manquantes
+
+**Problème :** Risque de dépendances manquantes ou de boucles dans les hooks `useEffect`.
+**Localisation :**
+- `components/pages/invoice-editor.tsx` (Multiples lignes, ex: 107, 132)
+
+**Pourquoi c'est médiocre :** Les composants complexes ayant de multiples `useEffect` (parfois imbriqués ou synchronisant plusieurs états dérivés) sont propices aux bugs de synchronisation, aux "stale closures" (fermetures périmées) et aux re-rendus excessifs ("render cascades"). Ce motif est symptomatique d'une architecture React où les états dérivés ne sont pas calculés à la volée pendant le rendu.
+
+**Solution d'excellence :**
+Calculer les états dérivés directement pendant le rendu de la fonction composant plutôt que de synchroniser un état avec `useEffect`. Utiliser `useMemo` pour les calculs coûteux et s'assurer systématiquement via le linter que le tableau de dépendances `[]` est exhaustif.
+
+### 7.3 ARCHITECTURE ELECTRON ET IPC : Nettoyage Manquant des Écouteurs
+
+**Problème :** Risques de fuites de mémoire liées à l'absence de nettoyage des écouteurs IPC dans l'environnement Electron.
+**Localisation :**
+- `preload.js`
+- `main.js` (Lignes 50-65 pour les événements natifs `app.on` / `process.on`)
+
+**Pourquoi c'est médiocre :** Si des écouteurs `ipcRenderer.on` ou `window.electron.on` sont souscrits dans des composants React (qui se montent et démontent fréquemment) sans être explicitement désenregistrés via `removeListener` dans la fonction de nettoyage du `useEffect`, cela entraîne des fuites de mémoire. Chaque nouveau montage ajoute un écouteur dupliqué. Le code existant privilégie `ipcMain.handle` (Promesses unilatérales), ce qui est bien, mais toute méthode `.on()` asynchrone continue doit être isolée.
+
+**Solution d'excellence :**
+Toujours retourner une fonction de désinscription dans les hooks d'abonnement.
+```javascript
+useEffect(() => {
+  const unlisten = window.electron.on('update-status', (status) => setStatus(status));
+  // Le retour nettoie l'écouteur au démontage
+  return () => unlisten();
+}, []);
+```
+
+### 7.4 BASE DE DONNÉES ET PERFORMANCES (SQLITE) : Requêtes N+1 et Appels db.prepare() Dynamiques
+
+**Problème 1 :** L'approche N+1 dans l'itération des listes (potentiel structurel).
+**Localisation :**
+- Les routes d'API qui itèrent sur des listes (ex: `app/api/services/route.ts`, `app/api/payments/route.ts`).
+
+**Pourquoi c'est médiocre :** Bien que l'application gère cela plutôt correctement via `json_group_array` actuellement, la création de boucles `map` côté serveur contenant une requête SQL (par exemple pour aller chercher les items d'une facture un à un) est l'anti-pattern absolu en termes de performance I/O.
+
+**Solution d'excellence :** Toujours privilégier les clauses JOIN ou l'agrégation SQL (JSON) pour résoudre les relations N+1 en une seule passe côté base de données, comme c'est le cas dans la route `credit-notes`.
+
+**Problème 2 :** Utilisation de `db.prepare()` à l'intérieur d'un bloc `db.transaction()`.
+**Localisation :**
+- `lib/services/InvoiceService.ts` (Ligne 57)
+- `lib/services/QuoteService.ts` (Ligne 45)
+
+**Pourquoi c'est médiocre :** Tel que défini dans les principes du projet (Pillar 4), évaluer dynamiquement `db.prepare()` à l'intérieur du bloc de transaction retarde la complétion de la transaction et augmente la probabilité de lock "DB BUSY".
+
+**Solution d'excellence :**
+Hoister la préparation du statement en dehors de la méthode ou du bloc de transaction.
+```typescript
+const insertInvoiceStmt = db.prepare('INSERT INTO invoices ...');
+const convert = db.transaction((...) => {
+    insertInvoiceStmt.run(...);
+});
+```
