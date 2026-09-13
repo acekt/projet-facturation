@@ -330,6 +330,33 @@ interface AppState {
    */
   setCreditNotes: (creditNotes: CreditNote[]) => void;
   /**
+   * @function addCreditNote
+   * @description Adds a new credit note immutably to the store.
+   * @param {CreditNote} creditNote - The credit note object to add.
+   */
+  addCreditNote: (creditNote: CreditNote) => void;
+  /**
+   * @function removeCreditNote
+   * @description Removes a credit note from the store immutably.
+   * @param {string} id - The ID of the credit note to remove.
+   */
+  removeCreditNote: (id: string) => void;
+  /**
+   * @function updateCreditNote
+   * @description Partially updates an existing credit note.
+   * @param {string} id - The ID of the credit note.
+   * @param {Partial<CreditNote>} data - The data to update.
+   */
+  updateCreditNote: (id: string, data: Partial<CreditNote>) => void;
+  /**
+   * @function replaceCreditNote
+   * @description Replaces a credit note (e.g., replacing a temporary ID with a server ID).
+   * @param {string} tempId - The temporary ID to replace.
+   * @param {CreditNote} confirmed - The confirmed credit note.
+   */
+  replaceCreditNote: (tempId: string, confirmed: CreditNote) => void;
+
+  /**
    * @function setSettings
    * @description Replaces all global settings with fresh API data.
    * @param {Settings} settings - The complete settings object.
@@ -737,6 +764,47 @@ export const useStore = create<AppState>()(
        * @param {CreditNote[]} creditNotes - Full array of credit notes.
        */
       setCreditNotes: (creditNotes) => set({ creditNotes }),
+      /**
+       * @function addCreditNote
+       * @description Ajoute un nouvel avoir de manière immuable au store.
+       * @param {CreditNote} creditNote - L'objet avoir à ajouter.
+       */
+      addCreditNote: (creditNote) =>
+        set((state) => ({ creditNotes: [creditNote, ...state.creditNotes] })),
+      /**
+       * @function removeCreditNote
+       * @description Supprime un avoir existant en filtrant par ID.
+       * @param {string} id - L'identifiant unique de l'avoir.
+       */
+      removeCreditNote: (id) =>
+        set((state) => ({
+          creditNotes: state.creditNotes.filter((c) => c.id !== id),
+        })),
+      /**
+       * @function updateCreditNote
+       * @description Met à jour partiellement les informations d'un avoir.
+       * @param {string} id - L'identifiant de l'avoir.
+       * @param {Partial<CreditNote>} data - Les données à mettre à jour.
+       */
+      updateCreditNote: (id, data) =>
+        set((state) => ({
+          creditNotes: state.creditNotes.map((c) =>
+            c.id === id ? { ...c, ...data } : c,
+          ),
+        })),
+      /**
+       * @function replaceCreditNote
+       * @description Remplace une entrée avoir (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire de l'avoir.
+       * @param {CreditNote} confirmed - L'objet avoir confirmé par le serveur.
+       */
+      replaceCreditNote: (tempId, confirmed) =>
+        set((state) => ({
+          creditNotes: state.creditNotes.map((c) =>
+            c.id === tempId ? confirmed : c,
+          ),
+        })),
+
 
       /**
        * @function setSettings

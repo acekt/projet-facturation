@@ -295,3 +295,26 @@ if (isSessionValid && session && !isApiRequest && !isPublicAsset) {
 
 **Path:** `app/api/auth/login/route.ts` & `lib/api/auth.ts`
 **Notes:** HMAC-SHA256 session signatures, and timeout-wrapped audit logging hooks met performance requirements preventing main thread blocks during DB bursts.
+
+## 7. AUDIT DE L'ARCHITECTURE D'ÉTAT & INTÉGRATION ELECTRON (MODULE 5)
+
+### 7.1 Hydratation du Store et Coquille Applicative
+
+**Composants concernés :** `components/pages/protected-app-shell.tsx` & `components/data-sync.tsx`
+
+**Analyse :**
+L'application charge de multiples entités asynchrones au démarrage (Clients, Paramètres, Devis, Factures, etc.). Le composant `DataSync` utilise efficacement `Promise.allSettled` pour requêter ces données en parallèle, limitant ainsi les goulots d'étranglement lors du chargement des données.
+L'interface de l'application affiche un spinner de chargement élégant via `framer-motion` (`AnimatePresence`) tant que `isDataLoaded` est `false`. Un timeout délibéré de 600ms est appliqué avant de passer `isDataLoaded` à `true`, empêchant un clignotement de l'UI (flicker) si la réponse locale (environnement desktop Electron) est trop rapide. L'écran de chargement bloque l'accès à l'application dans un état potentiellement inconsistant, assurant une bonne UX.
+
+**Verdict :** L'implémentation de la coquille applicative et du chargement des données est performante, élégante et déjà optimisée.
+
+### 7.2 Synergie Electron : Impression et Export PDF
+
+**Composants concernés :** `components/fullscreen-document-viewer.tsx` & `lib/electron-print.ts`
+
+**Analyse :**
+L'application Electron utilise la communication `window.electron.exportPDF(htmlDoc, filename)` via IPC pour interagir entre le processus de rendu (React) et le processus Main (Node/Chromium caché) lors de l'export natif de PDF.
+Cette fonctionnalité cruciale est gérée de manière asynchrone et est déjà entourée d'un bloc `try/catch` atomique dans `handleExportPDF`. En cas d'erreur de l'appel IPC (par exemple, processus natif indisponible, fichier bloqué), le composant renvoie proprement une exception capturée pour déclencher un `toast.error` détaillé, informant l'utilisateur sans faire crasher la boucle d'événements UI. La même protection a été mise en place pour `window.electron.printDocument`.
+La présence de ces blocs protège l'application de défaillances silencieuses dues aux exceptions natives de Chromium ou Electron.
+
+**Verdict :** La synergie Electron est bien implémentée, les appels IPC sont correctement encapsulés et incluent une bonne gestion des retours pour l'utilisateur, évitant un plantage complet.
