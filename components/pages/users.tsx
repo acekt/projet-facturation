@@ -191,7 +191,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             toast.error(data.error || "Erreur lors de la création")
         }
     } catch (e) {
-        toast.error("Erreur réseau")
+        toast.error(e instanceof Error ? e.message : "Erreur réseau")
     } finally {
         setIsSubmitting(false)
     }
@@ -232,7 +232,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             toast.error(errData.error || "Erreur")
         }
     } catch (e) {
-        toast.error("Erreur réseau")
+        toast.error(e instanceof Error ? e.message : "Erreur réseau")
     } finally {
         setIsSubmitting(false)
     }
@@ -264,7 +264,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             toast.error(data.error)
         }
     } catch (e) {
-        toast.error("Erreur réseau")
+        toast.error(e instanceof Error ? e.message : "Erreur réseau")
     } finally {
         setIsSubmitting(false);
     }
@@ -289,7 +289,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             toast.error(data.error || "Erreur")
         }
     } catch (e) {
-        toast.error("Erreur réseau")
+        toast.error(e instanceof Error ? e.message : "Erreur réseau")
     } finally {
         setIsSubmitting(false);
     }
@@ -311,7 +311,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             setIsPasswordDisplayOpen(true)
         }
     } catch (e) {
-        toast.error("Erreur réseau")
+        toast.error(e instanceof Error ? e.message : "Erreur réseau")
     } finally {
         setIsSubmitting(false);
     }
