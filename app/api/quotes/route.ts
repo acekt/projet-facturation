@@ -20,6 +20,19 @@ import type {
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
+const insertQuoteStmt = db.prepare(`
+  INSERT INTO quotes (
+    id, number, clientId, clientName, clientEmail, date,
+    subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount,
+    total, notes, subject, validUntil, status, created_by
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+
+const insertQuoteItemStmt = db.prepare(`
+  INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
+  VALUES (?, ?, ?, ?, ?, ?)
+`);
+
 /**
  * GET /api/quotes
  * Fetch all non-deleted quotes with their items.
@@ -116,13 +129,7 @@ export async function POST(request: Request) {
     const insertQuote = db.transaction((quoteItems: any[]) => {
       const number = getNextNumber('quote');
 
-      db.prepare(`
-        INSERT INTO quotes (
-          id, number, clientId, clientName, clientEmail, date,
-          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount,
-          total, notes, subject, validUntil, status, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
+      insertQuoteStmt.run(
         id,
         number,
         data.clientId,
@@ -143,13 +150,8 @@ export async function POST(request: Request) {
         session.userId,
       );
 
-      const insertItem = db.prepare(`
-        INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-
       for (const item of quoteItems) {
-        insertItem.run(
+        insertQuoteItemStmt.run(
           crypto.randomUUID(),
           id,
           item.description,

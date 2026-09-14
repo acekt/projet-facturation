@@ -34,17 +34,6 @@ export function SettingsPage() {
     setFormData(settings)
   }, [settings])
 
-  if (!isDataLoaded) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground font-medium">Chargement des paramètres...</p>
-        </div>
-      </div>
-    )
-  }
-
   const validateAndUpload = (file: File) => {
     if (file.size > 2 * 1024 * 1024) {
         toast.error("Le fichier est trop volumineux (max 2 Mo)")
@@ -107,19 +96,31 @@ export function SettingsPage() {
       // Automatically use the response JSON, assuming PATCH returns the updated object.
       // This enforces an atomic state update without requiring an extra GET /api/settings request
       const updatedSettings = await response.json()
-      setSettings(updatedSettings)
+      setSettings({ ...settings, ...updatedSettings })
       toast.success("Paramètres enregistrés")
     } catch (error) {
-      toast.error("Erreur lors de l'enregistrement")
+      const msg = error instanceof Error ? error.message : "Erreur inconnue"
+      toast.error(`Erreur lors de l'enregistrement : ${msg}`)
     } finally {
       setIsSaving(false)
     }
   }
 
+  if (!isDataLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Chargement des paramètres...</p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6 max-w-4xl">
       {!isAdmin && (
-        <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
+        <Alert variant="destructive" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription className="font-medium">
             Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
