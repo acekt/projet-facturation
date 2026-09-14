@@ -34,17 +34,6 @@ export function SettingsPage() {
     setFormData(settings)
   }, [settings])
 
-  if (!isDataLoaded) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground font-medium">Chargement des paramètres...</p>
-        </div>
-      </div>
-    )
-  }
-
   const validateAndUpload = (file: File) => {
     if (file.size > 2 * 1024 * 1024) {
         toast.error("Le fichier est trop volumineux (max 2 Mo)")
@@ -110,10 +99,22 @@ export function SettingsPage() {
       setSettings({ ...settings, ...updatedSettings })
       toast.success("Paramètres enregistrés")
     } catch (error) {
-      toast.error("Erreur lors de l'enregistrement")
+      const msg = error instanceof Error ? error.message : "Erreur inconnue"
+      toast.error(`Erreur lors de l'enregistrement : ${msg}`)
     } finally {
       setIsSaving(false)
     }
+  }
+
+  if (!isDataLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Chargement des paramètres...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
