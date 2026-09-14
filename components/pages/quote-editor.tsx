@@ -122,22 +122,32 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     toast.success("Brouillon enregistré temporairement.");
   };
 
-  // Cleanup: purge global draft on unmount to prevent ghost data
+  // Cleanup: purge global draft on mount/unmount to prevent ghost data
   React.useEffect(() => {
-    // 1. Force clear on mount for NEW items explicitly
     if (isNew) {
       clearQuoteDraft();
-      setLocalDraft(structuredClone(freshDraft));
+      setLocalDraft({
+        selectedClient: null,
+        items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
+        quoteDate: new Date().toISOString().split("T")[0],
+        discount: 0,
+        notes: settings.mentionsLegales || "",
+        subject: "",
+        validUntil: (() => {
+          const d = new Date();
+          d.setDate(d.getDate() + 30);
+          return d.toISOString().split("T")[0];
+        })(),
+        status: "EN_ATTENTE" as Quote["status"],
+      });
     }
 
-    // 2. Clear on unmount strictly
     return () => {
       if (isNew) {
         clearQuoteDraft();
-        setLocalDraft(structuredClone(freshDraft));
       }
     };
-  }, [isNew, clearQuoteDraft, freshDraft]);
+  }, [isNew, clearQuoteDraft, settings.mentionsLegales]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");
@@ -596,7 +606,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                             parseFloat(e.target.value) || 0,
                           )
                         }
-                        className="text-right"
+                        className="text-right tabular-nums"
                         disabled={status === "CONVERTI" || isSubmitting}
                       />
                     </div>
@@ -611,7 +621,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                             parseFloat(e.target.value) || 0,
                           )
                         }
-                        className="text-right"
+                        className="text-right tabular-nums"
                         disabled={status === "CONVERTI" || isSubmitting}
                       />
                     </div>
@@ -774,27 +784,25 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
           type="devis"
           title="Brouillon - Devis"
           onClose={() => setPreviewOpen(false)}
-          data={
-            {
-              id: "draft",
-              number: "BROUILLON",
-              clientId: selectedClient.id,
-              clientName: selectedClient.name,
-              clientEmail: selectedClient.email,
-              date: quoteDate,
-              items: items as any,
-              subtotal: subtotal,
-              discount: discount,
-              taxBase: taxBase,
-              tpsAmount: tpsAmount,
-              tvaAmount: tvaAmount,
-              cssAmount: cssAmount,
-              total: total,
-              notes: notes,
-              status: "draft",
-              createdAt: new Date().toISOString(),
-            } as any
-          }
+          data={{
+            id: "draft",
+            number: "BROUILLON",
+            clientId: selectedClient.id,
+            clientName: selectedClient.name,
+            clientEmail: selectedClient.email,
+            date: quoteDate,
+            items: items as DraftItem[],
+            subtotal: subtotal,
+            discount: discount,
+            taxBase: taxBase,
+            tpsAmount: tpsAmount,
+            tvaAmount: tvaAmount,
+            cssAmount: cssAmount,
+            total: total,
+            notes: notes,
+            status: "draft",
+            createdAt: new Date().toISOString(),
+          } as unknown as Quote}
         />
       )}
     </motion.div>

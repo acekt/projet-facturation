@@ -103,20 +103,26 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     toast.success("Brouillon enregistré temporairement.");
   };
 
-  // Cleanup: purge global draft on unmount to prevent ghost data
+  // Cleanup: purge global draft on mount/unmount to prevent ghost data
   React.useEffect(() => {
     if (isNew) {
       clearInvoiceDraft();
-      setLocalDraft(structuredClone(freshDraft));
+      setLocalDraft({
+        selectedClient: null,
+        items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
+        invoiceDate: new Date().toISOString().split("T")[0],
+        discount: 0,
+        notes: settings.mentionsLegales || "",
+        subject: "",
+      });
     }
 
     return () => {
       if (isNew) {
         clearInvoiceDraft();
-        setLocalDraft(structuredClone(freshDraft));
       }
     };
-  }, [isNew, clearInvoiceDraft, freshDraft]);
+  }, [isNew, clearInvoiceDraft, settings.mentionsLegales]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");
@@ -549,7 +555,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                             parseFloat(e.target.value) || 0,
                           )
                         }
-                        className="text-right"
+                        className="text-right tabular-nums"
                       />
                     </div>
                     <div className="col-span-4 md:col-span-2">
@@ -563,7 +569,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                             parseFloat(e.target.value) || 0,
                           )
                         }
-                        className="text-right"
+                        className="text-right tabular-nums"
                       />
                     </div>
                     <div className="col-span-3 md:col-span-1 text-right pt-2 font-medium">
@@ -730,7 +736,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             clientEmail: selectedClient.email,
             date: invoiceDate,
             dueDate: invoiceDate,
-            items: items as any,
+            items: items as DraftItem[],
             subtotal: subtotal,
             discount: discount,
             taxBase: taxBase,
@@ -742,7 +748,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             status: "draft",
             payments: [],
             createdAt: new Date().toISOString(),
-          }}
+          } as unknown as Invoice}
         />
       )}
     </motion.div>
