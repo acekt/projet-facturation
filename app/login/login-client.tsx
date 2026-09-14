@@ -6,7 +6,7 @@
  */
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -34,7 +34,27 @@ export default function LoginClient() {
   const [showDemoOptions, setShowDemoOptions] = React.useState(false);
 
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setUser = useStore((state) => state.setUser);
+
+  // Gérer l'affichage des erreurs provenant des redirections du middleware
+  React.useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam) {
+      // Nettoyer l'URL sans recharger la page
+      const url = new URL(window.location.href);
+      url.searchParams.delete("error");
+      window.history.replaceState({}, "", url.toString());
+
+      if (errorParam === "forbidden") {
+        toast.error("Accès non autorisé");
+      } else if (errorParam === "session_expired") {
+        toast.error("Votre session a expiré");
+      } else {
+        toast.error("Une erreur est survenue");
+      }
+    }
+  }, [searchParams]);
 
   // Soumission du formulaire
   const handleLogin = async (e: React.FormEvent) => {
