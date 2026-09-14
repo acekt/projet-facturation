@@ -37,15 +37,22 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
   const setUser = useStore(state => state.setUser)
   const isDataLoaded = useStore(state => state.isDataLoaded)
 
-  // Synchronisation prioritaire (via useEffect uniquement) :
-  // évite qu'un cache obsolète dans localStorage n'écrase le rôle réel de l'utilisateur connecté.
-  // L'appel est déplacé dans useEffect pour ne pas déclencher de setState pendant le rendu
-  // (ce qui causerait le warning "Cannot update a component while rendering a different component").
-  React.useEffect(() => {
+  // Synchronisation prioritaire :
+  // On utilise useRef pour garder trace de l'initialisation afin de ne déclencher le setState
+  // qu'une seule fois si le store ne correspond pas au Server Component.
+  const hasInitialized = React.useRef(false)
+
+  if (!hasInitialized.current) {
     if (initialUser && (!user || user.id !== initialUser.id || user.role !== initialUser.role)) {
-      setUser(initialUser)
+      // Nous effectuons la mise à jour de manière asynchrone pour éviter le warning React
+      // "Cannot update a component while rendering a different component"
+      // mais au sein de la même tick event loop pour limiter le flickering.
+      queueMicrotask(() => {
+        setUser(initialUser)
+      })
     }
-  }, [initialUser, user, setUser])
+    hasInitialized.current = true
+  }
 
   const [currentPage, setCurrentPage] = React.useState("dashboard")
   const [editingId, setEditingId] = React.useState<string | null>(null)
