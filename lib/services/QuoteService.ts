@@ -10,6 +10,25 @@ export class QuoteServiceError extends Error {
   }
 }
 
+const insertInvoiceStmt = db.prepare(`
+  INSERT INTO invoices (
+    id, number, quoteId, clientId, clientName, clientEmail, date,
+    subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes, subject, created_by
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+
+const insertItemStmt = db.prepare(`
+  INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total)
+  VALUES (?, ?, ?, ?, ?, ?)
+`);
+
+const updateQuoteStatusStmt = db.prepare(`UPDATE quotes SET status = ? WHERE id = ?`);
+
+const insertAuditLogStmt = db.prepare(`
+  INSERT INTO audit_logs (id, userId, userName, action, entityType, entityId, details)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+
 export const QuoteService = {
   convertToInvoice(quoteId: string, userId: string, role: string): QuoteConvertResponse {
     const quote = db.prepare('SELECT * FROM quotes WHERE id = ?').get(quoteId) as (DbQuote & { created_by?: string }) | undefined;
@@ -43,29 +62,10 @@ export const QuoteService = {
 
     const invoiceId = crypto.randomUUID();
 
-    const insertInvoice = db.prepare(`
-      INSERT INTO invoices (
-        id, number, quoteId, clientId, clientName, clientEmail, date,
-        subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes, subject, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `);
-
-    const insertItem = db.prepare(`
-      INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total)
-      VALUES (?, ?, ?, ?, ?, ?)
-    `);
-
-    const updateQuoteStatus = db.prepare(`UPDATE quotes SET status = ? WHERE id = ?`);
-
-    const insertAuditLog = db.prepare(`
-      INSERT INTO audit_logs (id, userId, userName, action, entityType, entityId, details)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `);
-
     const convert = db.transaction((userName: string | null) => {
       const number = getNextNumber('invoice');
 
-      insertInvoice.run(
+      insertInvoiceStmt.run(
         invoiceId,
         number,
         quoteId,
@@ -87,7 +87,7 @@ export const QuoteService = {
       );
 
       for (const item of items) {
-        insertItem.run(
+        insertItemStmt.run(
           crypto.randomUUID(),
           invoiceId,
           item.description,
@@ -97,10 +97,10 @@ export const QuoteService = {
         );
       }
 
-      updateQuoteStatus.run(QUOTE_STATUS.CONVERTI, quoteId);
+      updateQuoteStatusStmt.run(QUOTE_STATUS.CONVERTI, quoteId);
 
       const logDetails = `Devis converti en facture: ${number}`;
-      insertAuditLog.run(crypto.randomUUID(), userId, userName, 'CREATE', 'invoice', invoiceId, logDetails);
+      insertAuditLogStmt.run(crypto.randomUUID(), userId, userName, 'CREATE', 'invoice', invoiceId, logDetails);
 
       return {
         invoiceId,
