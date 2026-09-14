@@ -1,21 +1,4 @@
-1. *Write a bash script to generate `DEEP_AUDIT_REPORT.md`.*
-   - The script will use `grep` and `find` to scan the codebase for specific patterns corresponding to the 4 pillars of the audit.
-   - It will format the output as a Markdown file with sections for each pillar.
-   - Pillar 1 (TypeScript): search for ` any`, `@ts-ignore`, dead code (heuristic), DRY (heuristic).
-   - Pillar 2 (React Logic): search for missing dependencies in hooks (heuristic), missing try/catch in fetch/IPC, prop drilling (heuristic).
-   - Pillar 3 (Electron & IPC): search for missing `removeListener`, unsafe preload patterns.
-   - Pillar 4 (SQLite): search for N+1 queries (loops containing `db.prepare`), missing indices.
-   - I will provide detailed explanations and code snippets for a subset of critical findings to meet the prompt requirements.
-
-2. *Run the script and generate the report.*
-   - The report will be saved to the absolute root of the project as `DEEP_AUDIT_REPORT.md`.
-
-3. *Review the generated report.*
-   - Ensure the report is comprehensive, incisive, and provides actionable code snippets.
-   - Manually add a few highly detailed examples if the automated script output is too generic.
-
-4. *Complete pre commit steps.*
-   - Ensure proper testing, verification, review, and reflection are done by calling pre_commit_instructions.
-
-5. *Submit the changes.*
-   - The only modified file will be `DEEP_AUDIT_REPORT.md`.
+1. Use `replace_with_git_merge_diff` on `components/pages/protected-app-shell.tsx` to optimize the `useEffect` that synchronizes the `initialUser`. We will encapsulate the condition to ensure it only sets the user if the user object has substantively changed, avoiding redundant updates on mount, which is crucial for the app shell performance. We'll also remove the redundant assignment `const effectiveUser = initialUser || user` since the user should be guaranteed to be synced in the store before unmounting the loader. We will just use `user` and await its synchronization. Wait, if it's only in `useEffect` and `user` starts as null, there could be a flicker. Let's fix that.
+2. Use `replace_with_git_merge_diff` on `components/providers.tsx` to encapsulate the ThemeProvider, adding an `Error Boundary` wrapper so that if the React tree crashes during hydration or runtime, it can gracefully display an error state instead of a white screen, thus "sécurisant la coquille applicative" (securing the app shell).
+3. Use `run_in_bash_session` to run tests and make sure no regressions exist.
+4. Run code review.

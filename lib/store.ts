@@ -155,8 +155,23 @@ interface AppState {
   quoteDraft: QuoteDraft;
 
   // Actions
+  /**
+   * @function setIsDataLoaded
+   * @description Flag controlling the visibility of the loading spinner during DataSync hydration.
+   * @param {boolean} loaded - True when background API calls are fully complete.
+   */
   setIsDataLoaded: (loaded: boolean) => void;
+  /**
+   * @function setDashboardMetrics
+   * @description Updates global dashboard analytical metrics.
+   * @param {DashboardMetricsResponse | null} metrics - The analytics dataset.
+   */
   setDashboardMetrics: (metrics: DashboardMetricsResponse | null) => void;
+  /**
+   * @function setUser
+   * @description Updates the connected user and maps their RBAC permissions.
+   * @param {User | null} user - The authenticated user or null on logout.
+   */
   setUser: (user: User | null) => void;
   /**
    * @function setClients

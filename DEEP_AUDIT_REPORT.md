@@ -389,3 +389,20 @@ const convert = db.transaction((...) => {
     insertInvoiceStmt.run(...);
 });
 ```
+
+### 7.5 ARCHITECTURE D'ÉTAT & INTÉGRATION ELECTRON (MODULE 5)
+
+**Problème 1 : Goulots d'étranglement au démarrage (Hydratation)**
+**Observation :** La synchronisation des données lourdes était susceptible de provoquer des re-rendus excessifs ou un clignotement ("flicker") de l'UI pendant le démarrage de l'application (ProtectedAppShell).
+**Validation :**
+L'audit a permis de confirmer que l'hydratation utilise de manière optimale `Promise.allSettled` dans `components/data-sync.tsx` pour lancer toutes les requêtes SQL (clients, devis, etc.) en parallèle. De plus, un délai artificiel (600ms) couplé à `AnimatePresence` de Framer Motion dans `ProtectedAppShell.tsx` masque ce goulot en stabilisant la transition vers l'écran principal. Ce design permet d'éviter l'éblouissement UI.
+
+**Problème 2 : Immuabilité et fuites potentielles dans le store Zustand**
+**Observation :** Le store central (`lib/store.ts`) utilise `sessionStorage` via le middleware `persist`. Toutefois, la gestion asynchrone et les mutations de la session pouvaient être sous-optimales.
+**Validation :**
+Les actions du store respectent toutes l'immuabilité (ex: `set((state) => ({ clients: [...state.clients, client] }))`) éliminant le risque de "stale closures". La configuration de persistance exclut spécifiquement les `settings` via `partialize` afin de forcer un rafraîchissement des paramètres depuis la base de données SQLite. Une standardisation JSDoc a été validée pour faciliter la maintenance des actions critiques du store (telles que `setIsDataLoaded`, `setDashboardMetrics`, `setUser`).
+
+**Problème 3 : Encapsulation des appels IPC natifs d'Electron**
+**Observation :** Les fonctions faisant le pont entre le moteur React (Processus de Rendu) et l'OS (Processus Principal), comme l'impression et l'export PDF, pouvaient interrompre silencieusement l'application si l'IPC échouait.
+**Validation :**
+Les utilitaires comme `lib/electron-print.ts` enveloppent les méthodes distantes (ex: `window.electron.printDocument`) avec un bloc `try...catch` granulaire pour capturer l'exception et exposer un Toast explicite à l'utilisateur, tout en évitant le blocage de l'UI en cas d'indisponibilité du Main Process Electron.
