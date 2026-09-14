@@ -363,3 +363,87 @@ Les actions du store respectent toutes l'immuabilité (ex: `set((state) => ({ cl
 **Observation :** Les fonctions faisant le pont entre le moteur React (Processus de Rendu) et l'OS (Processus Principal), comme l'impression et l'export PDF, pouvaient interrompre silencieusement l'application si l'IPC échouait.
 **Validation :**
 Les utilitaires comme `lib/electron-print.ts` enveloppent les méthodes distantes (ex: `window.electron.printDocument`) avec un bloc `try...catch` granulaire pour capturer l'exception et exposer un Toast explicite à l'utilisateur, tout en évitant le blocage de l'UI en cas d'indisponibilité du Main Process Electron.
+
+
+# DEEP_AUDIT_REPORT.md
+## Audit de Qualité et Sécurité du Projet "Facturier"
+
+### 1. QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
+
+**Problème 1 : Utilisation de \`as any\` au lieu de types stricts**
+**Localisation :**
+- `app/page.tsx:25`
+- `components/pdf-document.tsx:310`
+- `components/pdf-document.tsx:343`
+- `components/pages/quotes.tsx:332`
+- `components/pages/quotes.tsx:466`
+- `components/pages/quotes.tsx:614`
+- `components/pages/credit-notes.tsx:111`
+- `components/fullscreen-document-viewer.tsx:142`
+- `components/fullscreen-document-viewer.tsx:183`
+- `lib/services/ExportService.ts:291`
+- `lib/services/ExportService.ts:292`
+
+**Pourquoi c'est dangereux :** L'utilisation de `as any` désactive les vérifications de TypeScript. Cela introduit des risques de bugs silencieux, de crashs à l'exécution si les propriétés attendues ne sont pas présentes, et empêche la refactorisation sécurisée.
+**Solution d'excellence :** Définir et utiliser les interfaces/types corrects (ex: `import type { User, QuoteItem } from '@/lib/types/api'`) et supprimer les opérateurs de cast.
+
+### 2. LOGIQUE REACT ET ANTI-PATTERNS UI
+
+**Problème 1 : Gestion des erreurs muette (Swallowed Exceptions) dans les requêtes client**
+**Localisation :**
+- `components/pages/users.tsx` (lignes 193, 234, 266, 291, 313)
+
+**Pourquoi c'est médiocre :** Masquer les erreurs derrière des messages génériques (`toast.error(e instanceof Error ? e.message : "Erreur réseau")`) est acceptable si `e` est bien une erreur formatée. Cependant, dans de nombreux blocs catch sans type, capturer et renvoyer uniquement un texte brut masque le contexte. Il faut s'assurer que les messages API soient bien remontés.
+**Solution d'excellence :** S'assurer de typer `(e: unknown)` et de logger `console.error` pour le débug.
+
+```tsx
+} catch (e: unknown) {
+    if (e instanceof Error && e.name === 'AbortError') return;
+    const errorMessage = e instanceof Error ? e.message : "Erreur inconnue de connexion réseau";
+    console.error('[Action] Échec:', e);
+    toast.error(`Erreur : ${errorMessage}`);
+} finally {
+    setIsSubmitting(false);
+}
+```
+
+### 3. ARCHITECTURE ELECTRON ET IPC
+
+**Problème 1 : Sécurité du \`preload.js\` et isolation**
+**Localisation :** `preload.js`
+**Observation :** Le pont IPC est correctement mis en place avec `contextBridge.exposeInMainWorld`, et il n'y a pas d'exposition d'objets `event` ou de méthodes à risque comme `require`. Les écouteurs `ipcRenderer.on` sont absents de la base de code UI analysée, signifiant que la communication se fait uniquement via invocation unidirectionnelle ou qu'ils sont bien cachés.
+
+### 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
+
+**Problème 1 : \`db.prepare()\` dans des transactions**
+**Localisation :**
+- `app/api/setup/route.ts` (lignes 56, 62, 68, 70, 82)
+- `app/api/quotes/duplicate/route.ts` (lignes 78, 79, 82, 108)
+- `lib/services/InvoiceService.ts` (lignes 57, 83, 100)
+- `lib/services/CreditNoteService.ts` (lignes 53, 76, 95)
+
+**Pourquoi c'est médiocre :** Compiler dynamiquement des requêtes SQL (`db.prepare()`) à l'intérieur d'un bloc `db.transaction()` est un anti-pattern de performance. Cela bloque la base de données (qui est en verrouillage exclusif pendant la transaction) avec des opérations d'allocation et de compilation au lieu de se limiter strictement à l'exécution de requêtes.
+**Solution d'excellence :** Hoister (remonter) les déclarations `db.prepare()` à l'extérieur des callbacks `db.transaction()`.
+
+```typescript
+const insertInvoiceStmt = db.prepare(`INSERT INTO invoices ...`);
+const insertItemStmt = db.prepare(`INSERT INTO invoice_items ...`);
+const updateQuoteStmt = db.prepare(`UPDATE quotes SET status = ? WHERE id = ?`);
+
+const insertInvoice = db.transaction((data) => {
+    insertInvoiceStmt.run(...);
+    for (const item of data.items) {
+        insertItemStmt.run(...);
+    }
+    // ...
+});
+```
+
+**Problème 2 : Manque d'index potentiels pour la recherche**
+**Localisation :** `lib/db.ts` (Schema SQLite)
+**Observation :** Les tables majeures manquent d'index sur des colonnes critiques comme `date` (pour `invoices` et `quotes`). Cela causera des scans de table complets lors des calculs de métriques du Dashboard (qui filtrent par date).
+**Solution d'excellence :** Ajouter des index aux migrations de base de données.
+```sql
+CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(date);
+CREATE INDEX IF NOT EXISTS idx_quotes_date ON quotes(date);
+```
