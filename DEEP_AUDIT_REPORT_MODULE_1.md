@@ -305,3 +305,21 @@ export default function LoginClient() {
   )
 }
 ```
+
+## Diagnostic et Corrections (Module 1 : Sécurité & Authentification)
+
+### 1. `app/api/auth/login/route.ts`
+- **Faille / Anti-pattern :** Compilations dynamiques des requêtes SQLite (`db.prepare`) à l'intérieur des fonctions de route (`POST`) et utilitaires (`verifyUserPassword`). Cela peut entraîner des erreurs `SQLITE_BUSY` (verrous) sous forte charge.
+- **Correction apportée :** Hoisting (remontée au niveau du module) des requêtes préparées `updatePasswordStmt` et `getUserStmt` pour n'être compilées qu'une seule fois au démarrage. Le reste du code était déjà conforme (RBAC, fallback offline dev, vérification bcrypt dummy pour timing attacks, `logAudit` asynchrone).
+
+### 2. `app/api/auth/me/route.ts`
+- **Faille / Anti-pattern :** Compilation dynamique de la requête `db.prepare('SELECT ... FROM users WHERE id = ?')` à l'intérieur de la fonction `GET`.
+- **Correction apportée :** Hoisting de la requête `getUserByIdStmt` au niveau du module.
+
+### 3. `app/login/page.tsx`
+- **Faille / Anti-pattern :** Compilation dynamique de la requête `db.prepare('SELECT COUNT(*) ...')` à l'intérieur du composant asynchrone `LoginPage`.
+- **Correction apportée :** Hoisting de la requête `getUserCountStmt` au niveau du module.
+
+### 4. `middleware.ts` & `app/api/auth/logout/route.ts` & UI
+- Les fichiers `middleware.ts` et `logout/route.ts` ont été audités et ont été jugés conformes aux standards exigés (arrays typés avec commentaires, redirection 403, 503 fallback pour erreur d'environnement).
+- Le composant `app/login/login-client.tsx` répond aux exigences d'interface premium avec une gestion fine des erreurs, des états de chargement (désactivation des boutons et `Loader2`), et conformité avec les règles de React.
