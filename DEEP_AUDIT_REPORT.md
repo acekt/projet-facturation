@@ -447,3 +447,27 @@ const insertInvoice = db.transaction((data) => {
 CREATE INDEX IF NOT EXISTS idx_invoices_date ON invoices(date);
 CREATE INDEX IF NOT EXISTS idx_quotes_date ON quotes(date);
 ```
+
+## 8. AUDIT CONTINU - ARCHITECTURE D'ÉTAT & INTÉGRATION ELECTRON (MODULE 5)
+
+### 8.1 Analyse des Goulots d'Étranglement au Démarrage (Hydratation)
+L'hydratation initiale de l'application (passage de l'état serveur à l'état client interactif) est la phase la plus critique pour l'expérience utilisateur et les performances perçues, particulièrement dans un environnement Electron encapsulant Next.js et SQLite.
+
+**Observations des anti-patterns potentiels évités :**
+1.  **Flicker de l'Interface Utilisateur (UI Flicker) :** Un problème courant est le clignotement de l'écran lorsque le composant de shell s'affiche momentanément avant que les données ne soient complètement chargées depuis l'API locale, ou pire, si le `useStore` tente de réconcilier l'utilisateur préchargé (`initialUser` via Server Component) avec une valeur nulle par défaut.
+2.  **Cascade de Requêtes (Waterfall Fetching) :** Si l'application chargeait les entités métier (clients, devis, factures, paramètres, etc.) de manière séquentielle (`await fetchClients(); await fetchQuotes(); ...`), le temps de chargement total serait la somme du temps de chaque requête, entraînant un écran de chargement prolongé (goulot d'étranglement majeur).
+3.  **Fuites de Mémoire Zustand (Stale Closures) :** Lors de mutations asynchrones fréquentes sur le store, si les actions modifiant le state ne se basaient pas strictement sur la signature fonctionnelle `set((state) => ...)`, elles risquaient d'écraser des mises à jour concurrentes, corrompant les données affichées.
+
+**Validation de l'Excellence Architecturale :**
+Le code de la coquille applicative (`ProtectedAppShell.tsx`) et la synchronisation de données (`components/data-sync.tsx`) contournent ces écueils avec les patterns suivants :
+-   **Parallélisation via `Promise.allSettled` :** `DataSync` orchestre l'appel de 7 endpoints API distincts en parallèle strict. Cela réduit le temps total d'hydratation métier au temps de la requête la plus longue, supprimant le goulot d'étranglement séquentiel.
+-   **Transition Visuelle Fluide (`queueMicrotask` & `AnimatePresence`) :** Pour prévenir le message d'avertissement React *"Cannot update a component while rendering a different component"* (souvent ignoré par les développeurs) lors de la synchronisation du `initialUser` avec le store, le state est mis à jour asynchronement via `queueMicrotask`. Cette méthode injecte la mise à jour à la fin de la file d'attente d'exécution courante, sans attendre le prochain tick d'événement (contrairement à `setTimeout`), assurant une réconciliation invisible à l'œil nu. L'utilisation conjointe de `Framer Motion` (`AnimatePresence` avec un délai tampon artificiel de 600ms) masque efficacement le travail de rendu sous un spinner accessible et élégant.
+-   **Immuabilité Stricte & Persistance Partielle :** Les 34 actions métier (CRUD) du store Zustand sont formellement immuables (`set((state) => ({...state, ...}))`). Le point crucial est l'utilisation experte de l'option `partialize` du middleware de persistance : bien que l'application sauvegarde son état dans `sessionStorage` pour résister aux rechargements de la SPA, la tranche `settings` (ainsi que les listes métier) en est exclue. Cela force le système à toujours se fier à la source de vérité (SQLite via l'API) au démarrage, garantissant une conformité fiscale absolue (ex: si un administrateur change le taux de TVA, le client le récupère immédiatement sans rester bloqué sur un cache de session).
+
+### 8.2 Sécurisation de la Synergie Electron (IPC)
+Les appels inter-processus (IPC) depuis l'interface de rendu (React) vers le processus hôte (Electron Main) constituent une frontière vulnérable : une défaillance silencieuse du pont IPC ou l'annulation de la fenêtre d'enregistrement système par l'utilisateur peut laisser le composant React bloqué dans un état de chargement infini.
+
+**Validation de l'Excellence Architecturale :**
+Dans `components/fullscreen-document-viewer.tsx` et `lib/electron-print.ts`, l'appel critique `await window.electron.exportPDF(htmlDoc, filename)` est scrupuleusement encapsulé :
+-   **Gestion Explicite des Défaillances :** Tout rejet de l'IPC est capturé dans un bloc `catch`. Plus important encore, les erreurs bénignes telles que l'annulation de la boîte de dialogue système par l'utilisateur (`cancel` ou `annul`) sont filtrées pour ne pas lever de fausses alertes techniques à l'utilisateur.
+-   **Garantie de Déblocage (`finally`) :** L'état `isExporting` (qui désactive les boutons et lance les spinners) est réinitialisé inconditionnellement au sein d'un bloc `finally`, protégeant le composant contre les situations de blocage (deadlocks) en cas d'interruption abrupte de l'IPC.
