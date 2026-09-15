@@ -54,8 +54,8 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   // ── NEW vs EDIT: strict lifecycle ──
   const isNew = !editingId;
 
-  // Build a fresh blank draft (used for NEW mode)
-  const freshDraft = React.useMemo(() => {
+  // Local State: always start blank, then load from API in EDIT mode
+  const [localDraft, setLocalDraft] = React.useState(() => {
     const today = new Date();
     return {
       selectedClient: null as (typeof clients)[0] | null,
@@ -65,11 +65,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       notes: "",
       subject: "",
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally stable — only computed once on mount
-
-  // Local State: always start blank, then load from API in EDIT mode
-  const [localDraft, setLocalDraft] = React.useState(freshDraft);
+  });
 
   const selectedClient = localDraft.selectedClient;
   const items = localDraft.items;
@@ -572,7 +568,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                         className="text-right tabular-nums"
                       />
                     </div>
-                    <div className="col-span-3 md:col-span-1 text-right pt-2 font-medium">
+                    <div className="col-span-3 md:col-span-1 text-right pt-2 font-medium tabular-nums">
                       {formatCurrency(item.total)}
                     </div>
                     <div className="col-span-1 text-right">
@@ -621,7 +617,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
               <div className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Total HT Brut</span>
-                  <span className="text-foreground font-medium">
+                  <span className="text-foreground font-medium text-right tabular-nums">
                     {formatCurrency(subtotal)}
                   </span>
                 </div>
@@ -645,7 +641,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                 <div className="pt-2 border-t border-border/50">
                   <div className="flex justify-between text-sm font-semibold">
                     <span>Net HT</span>
-                    <span>{formatCurrency(netHT)}</span>
+                    <span className="text-right tabular-nums">{formatCurrency(netHT)}</span>
                   </div>
                 </div>
 
@@ -653,7 +649,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                   <span className="text-muted-foreground">
                     CSS ({settings.cssRate}%)
                   </span>
-                  <span className="text-foreground">
+                  <span className="text-foreground text-right tabular-nums">
                     {formatCurrency(cssAmount)}
                   </span>
                 </div>
@@ -661,7 +657,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                 <div className="pt-1 border-t border-dashed border-border/30">
                   <div className="flex justify-between text-xs font-medium">
                     <span className="text-muted-foreground">Base TVA</span>
-                    <span>{formatCurrency(taxBase)}</span>
+                    <span className="text-right tabular-nums">{formatCurrency(taxBase)}</span>
                   </div>
                 </div>
 
@@ -669,7 +665,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                   <span className="text-muted-foreground">
                     TPS ({settings.tpsRate || 9.5}%)
                   </span>
-                  <span className="text-foreground">
+                  <span className="text-foreground text-right tabular-nums">
                     {formatCurrency(tpsAmount)}
                   </span>
                 </div>
@@ -678,7 +674,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                   <span className="text-muted-foreground">
                     TVA ({settings.tvaRate}%)
                   </span>
-                  <span className="text-foreground">
+                  <span className="text-foreground text-right tabular-nums">
                     {formatCurrency(tvaAmount)}
                   </span>
                 </div>
@@ -689,7 +685,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                   <span className="text-foreground font-bold">
                     TOTAL TTC (XAF)
                   </span>
-                  <span className="text-2xl font-bold text-primary">
+                  <span className="text-2xl font-bold text-primary text-right tabular-nums">
                     {formatCurrency(total)}
                   </span>
                 </div>
