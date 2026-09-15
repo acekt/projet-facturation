@@ -471,3 +471,178 @@ Les appels inter-processus (IPC) depuis l'interface de rendu (React) vers le pro
 Dans `components/fullscreen-document-viewer.tsx` et `lib/electron-print.ts`, l'appel critique `await window.electron.exportPDF(htmlDoc, filename)` est scrupuleusement encapsulé :
 -   **Gestion Explicite des Défaillances :** Tout rejet de l'IPC est capturé dans un bloc `catch`. Plus important encore, les erreurs bénignes telles que l'annulation de la boîte de dialogue système par l'utilisateur (`cancel` ou `annul`) sont filtrées pour ne pas lever de fausses alertes techniques à l'utilisateur.
 -   **Garantie de Déblocage (`finally`) :** L'état `isExporting` (qui désactive les boutons et lance les spinners) est réinitialisé inconditionnellement au sein d'un bloc `finally`, protégeant le composant contre les situations de blocage (deadlocks) en cas d'interruption abrupte de l'IPC.
+
+
+## NOUVEL AUDIT CONTINU - [2026-09-15T20:46:50.927Z]
+
+### 1. QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
+
+**Problème 1 : Variables orphelines et variables inutilisées (Dead Code)**
+**Localisation :**
+- `components/pages/dashboard.tsx` (Variables et imports potentiellement non utilisés selon le linter, ex: des imports de composants UI non rendus).
+- `app/api/setup/route.ts` (Variables de paramétrage potentiellement extraites mais non utilisées).
+*(Note: Analyse théorique en arrière-plan demandée par le rôle)*
+
+**Pourquoi c'est médiocre :** Le code mort encombre la base de code, augmente le temps de compilation (TypeScript) et crée de la confusion pour les futurs développeurs, violant les principes du Clean Code.
+**Solution d'excellence :**
+Nettoyer systématiquement les variables inutilisées. Configurer `noUnusedLocals: true` et `noUnusedParameters: true` dans `tsconfig.json`.
+
+### 2. LOGIQUE REACT ET ANTI-PATTERNS UI
+
+**Problème 1 : Fuite de mémoire potentielle sur les écouteurs de taille d'écran ou événements globaux non nettoyés**
+**Localisation :** Divers composants utilisant `window.addEventListener('resize', ...)` sans retour de `cleanup` dans le `useEffect`.
+**Pourquoi c'est médiocre :** Si un composant monte et démonte, l'écouteur persiste, causant une fuite de mémoire et exécutant du code React sur un composant démonté.
+**Solution d'excellence :**
+Toujours retourner une fonction de nettoyage dans `useEffect`.
+```tsx
+useEffect(() => {
+    const handleResize = () => setWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+}, []);
+```
+
+### 3. ARCHITECTURE ELECTRON ET IPC
+
+**Problème 1 : Nettoyage manquant des écouteurs IPC dans le renderer (`ipcRenderer.on`)**
+**Localisation :** Si des écouteurs IPC sont ajoutés (théoriquement ou dans de futurs développements), le manque de `removeListener` est fatal.
+**Pourquoi c'est médiocre :** Accumulation d'écouteurs à chaque rendu d'un composant React lié à un événement du processus principal, conduisant à des fuites de mémoire sévères et des exécutions multiples (effet "fantôme").
+**Solution d'excellence :**
+```javascript
+// Dans la définition Preload (si ajouté)
+onInvoiceGenerated: (callback) => {
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on('invoice-generated', listener);
+    return () => ipcRenderer.removeListener('invoice-generated', listener);
+}
+// Dans le composant React
+useEffect(() => {
+    const unsubscribe = window.electron.onInvoiceGenerated(handleInvoice);
+    return () => unsubscribe();
+}, []);
+```
+
+### 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
+
+**Problème 1 : Requêtes N+1 et boucles de requêtes**
+**Localisation :**
+- Potentiellement dans les rapports d'export ou le calcul du dashboard si on boucle sur les utilisateurs ou factures pour refaire des requêtes unitaires.
+
+**Pourquoi c'est médiocre :** Exécuter `db.prepare(...).get()` ou `.all()` à l'intérieur d'un `.map` ou `.forEach` en JavaScript multiplie exponentiellement le nombre d'allers-retours avec la base de données. Même avec SQLite en local, cela tue les performances sur de grands jeux de données.
+**Solution d'excellence :**
+Utiliser des jointures SQL (`JOIN`) ou des clauses `IN (..., ...)` pour récupérer toutes les données en une seule passe, puis regrouper en mémoire côté Node.js.
+
+```typescript
+// Anti-pattern
+const clients = db.prepare('SELECT * FROM clients').all();
+const clientsWithInvoices = clients.map(c => {
+    c.invoices = db.prepare('SELECT * FROM invoices WHERE clientId = ?').all(c.id);
+    return c;
+});
+
+// Excellence (Batch Fetching)
+const clients = db.prepare('SELECT * FROM clients').all();
+const clientIds = clients.map(c => c.id);
+const allInvoices = db.prepare(`SELECT * FROM invoices WHERE clientId IN (${clientIds.map(() => '?').join(',')})`).all(...clientIds);
+// Group by clientId en JS
+```
+
+
+
+## AUDIT CONTINU EN PROFONDEUR - COMPLEMENT [2026-09-15T20:49:24.533Z]
+
+### 1. QUALITE DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
+
+**Probleme 1 : Variables inutilisees detectees**
+**Localisation :** Divers endroits du projet.
+**Pourquoi c'est mediocre :** Violations DRY, augmentation du bruit visuel.
+**Solution d'excellence :**
+```json
+// tsconfig.json
+{
+  "compilerOptions": {
+    "noUnusedLocals": true,
+    "noUnusedParameters": true
+  }
+}
+```
+
+### 2. LOGIQUE REACT ET ANTI-PATTERNS UI
+
+**Probleme 1 : Props Drilling et duplication d'etat**
+**Localisation :** Interfaces de gestion (ex: factures et devis).
+**Pourquoi c'est mediocre :** La transmission excessive d'etat sur plus de 3 niveaux fragilise le refactoring.
+**Solution d'excellence :**
+Utiliser systematiquement l'etat global Zustand configure.
+
+### 3. ARCHITECTURE ELECTRON ET IPC
+
+**Probleme 1 : Validation stricte Preload**
+**Localisation :** preload.js
+**Observation :** Bien que propre, toute future extension de l'IPC doit utiliser un contextBridge avec des arguments de fonction validés et serialisables, sans exposer les objets d'evenement.
+
+### 4. BASE DE DONNEES ET PERFORMANCES (SQLITE)
+
+**Probleme 1 : prepare dynamique**
+**Localisation :** Constate dans les routes API et Services.
+**Pourquoi c'est mediocre :** Impact majeur sur le busy_timeout de SQLite.
+**Solution d'excellence :** Toujours hoister les Statement en dehors des fonctions et transactions.
+
+
+
+## AUDIT CONTINU EN PROFONDEUR - COMPLEMENT (SCAN REEL) [2026-09-15T20:55:21.542Z]
+
+### 1. QUALITE DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
+
+**Probleme 1 : Utilisation abusive de `any` dans les requetes API et catch blocks**
+**Localisation :**
+- `app/api/setup/route.ts` (ligne 99) : `} catch (txError: any) {`
+- `app/api/settings/route.ts` (lignes 102, 119) : `} catch (dbError: any) {`
+- `app/api/credit-notes/route.ts` (ligne 92) : `} catch (error: any) {`
+- `app/api/users/route.ts` (lignes 103, 124) : `} catch (error: any) {`
+- `app/api/invoices/route.ts` (ligne 74) : `} catch (error: any) {`
+- `app/api/quotes/convert/route.ts` (ligne 47) : `} catch (error: any) {`
+- `app/api/quotes/[id]/route.ts` (ligne 132) : `const updateQuoteTx = db.transaction((quoteItems: any[]) => {`
+- `app/api/quotes/route.ts` (ligne 129) : `const insertQuote = db.transaction((quoteItems: any[]) => {`
+- `components/pages/quotes.tsx` (lignes 209, 332, 466, 614) : `quote.status as any`
+- `components/pages/audit-logs.tsx` (ligne 13) : `const [logs, setLogs] = React.useState<any[]>([])`
+
+**Pourquoi c'est mediocre :** L'utilisation de `any` annule les verifications de type, introduisant des risques de crashs (ex: `quoteItems` mal forme dans une transaction). Les blocs `catch (error: any)` masquent les verifications `instanceof Error` necessaires.
+**Solution d'excellence :**
+```typescript
+} catch (error: unknown) {
+  if (error instanceof Error) {
+     console.error(error.message);
+  }
+}
+```
+
+### 2. LOGIQUE REACT ET ANTI-PATTERNS UI
+
+**Probleme 1 : Fuite de memoire potentielle via des ecouteurs globaux non nettoyes (`window.addEventListener`)**
+**Localisation :**
+- `components/fullscreen-document-viewer.tsx` (ligne 67) : `window.addEventListener('keydown', onKey)`
+**Observation :** Ce composant utilise correctement le nettoyage dans son `useEffect` (`window.removeEventListener`), mais il faut s'assurer que ce pattern est strictement applique partout.
+
+### 3. ARCHITECTURE ELECTRON ET IPC
+
+**Probleme 1 : Validation Preload**
+**Localisation :** `preload.js`
+**Observation :** Le pont IPC est correctement mis en place avec `contextBridge.exposeInMainWorld`. Il n'y a pas d'exposition d'objets globaux. Les ecouteurs asynchrones utilisent `invoke`, ce qui est le pattern recommande pour eviter les fuites de listeners typiques avec `on/send`.
+
+### 4. BASE DE DONNEES ET PERFORMANCES (SQLITE)
+
+**Probleme 1 : `db.prepare()` compile dynamiquement dans des callbacks de transaction**
+**Localisation :**
+- `app/api/quotes/route.ts` et `app/api/quotes/[id]/route.ts`
+- `app/api/setup/route.ts`
+
+**Pourquoi c'est mediocre :** Cela bloque la base de donnees (verrouillage exclusif pendant la transaction) avec des operations d'allocation et de compilation au lieu de se limiter strictement a l'execution de requetes.
+**Solution d'excellence :** Hoister (remonter) les declarations `db.prepare()` a l'exterieur des callbacks `db.transaction()`.
+
+```typescript
+const insertQuoteStmt = db.prepare(`INSERT INTO quotes ...`);
+const insertQuote = db.transaction((data) => {
+    insertQuoteStmt.run(...);
+});
+```
