@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 
 import { Toaster } from "sonner"
 
-function FallbackError({ error, resetErrorBoundary }: { error: Error; resetErrorBoundary: () => void }) {
+function FallbackError({ error, resetErrorBoundary }: { error: any; resetErrorBoundary: (...args: any[]) => void }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-center">
       <AlertTriangle className="w-16 h-16 text-destructive mb-4" />

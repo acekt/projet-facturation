@@ -62,8 +62,9 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   // ── NEW vs EDIT: strict lifecycle ──
   const isNew = !editingId;
 
-  // Build a fresh blank draft (used for NEW mode)
-  const freshDraft = React.useMemo(() => {
+  // Local State to prevent global re-renders on every keystroke
+  // For NEW mode: always start blank. For EDIT: start blank then load from API.
+  const [localDraft, setLocalDraft] = React.useState(() => {
     const today = new Date();
     const next30 = new Date(today);
     next30.setDate(today.getDate() + 30);
@@ -77,12 +78,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
       validUntil: next30.toISOString().split("T")[0],
       status: "EN_ATTENTE" as Quote["status"],
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // intentionally stable — only computed once on mount
-
-  // Local State to prevent global re-renders on every keystroke
-  // For NEW mode: always start blank. For EDIT: start blank then load from API.
-  const [localDraft, setLocalDraft] = React.useState(isNew ? freshDraft : freshDraft);
+  });
 
   const selectedClient = localDraft.selectedClient;
   const items = localDraft.items;
@@ -625,7 +621,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                         disabled={status === "CONVERTI" || isSubmitting}
                       />
                     </div>
-                    <div className="col-span-3 md:col-span-1 text-right pt-2 font-medium">
+                    <div className="col-span-3 md:col-span-1 text-right pt-2 font-medium tabular-nums">
                       {formatCurrency(item.total)}
                     </div>
                     <div className="col-span-1 text-right">
@@ -743,7 +739,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                   <span className="text-foreground font-bold">
                     TOTAL TTC (XAF)
                   </span>
-                  <span className="text-2xl font-bold text-primary">
+                  <span className="text-2xl font-bold text-primary tabular-nums text-right">
                     {formatCurrency(total)}
                   </span>
                 </div>
