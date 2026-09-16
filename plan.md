@@ -1,4 +1,4 @@
-1. Use `replace_with_git_merge_diff` on `components/pages/protected-app-shell.tsx` to optimize the `useEffect` that synchronizes the `initialUser`. We will encapsulate the condition to ensure it only sets the user if the user object has substantively changed, avoiding redundant updates on mount, which is crucial for the app shell performance. We'll also remove the redundant assignment `const effectiveUser = initialUser || user` since the user should be guaranteed to be synced in the store before unmounting the loader. We will just use `user` and await its synchronization. Wait, if it's only in `useEffect` and `user` starts as null, there could be a flicker. Let's fix that.
-2. Use `replace_with_git_merge_diff` on `components/providers.tsx` to encapsulate the ThemeProvider, adding an `Error Boundary` wrapper so that if the React tree crashes during hydration or runtime, it can gracefully display an error state instead of a white screen, thus "sécurisant la coquille applicative" (securing the app shell).
-3. Use `run_in_bash_session` to run tests and make sure no regressions exist.
-4. Run code review.
+1. Execute the tool to generate the diagnostic report `DEEP_AUDIT_REPORT.md` (Already done, appended to the file).
+2. The user specifically asked to generate an audit report without changing any code:
+"RÈGLE D'OR : NE MODIFIE AUCUN FICHIER SOURCE. Ton unique but est de générer un rapport de diagnostic impitoyable."
+3. Request code review.
