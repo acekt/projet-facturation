@@ -646,3 +646,18 @@ const insertQuote = db.transaction((data) => {
     insertQuoteStmt.run(...);
 });
 ```
+
+### AUDIT MODULE 5/5 : ARCHITECTURE D'ÉTAT & INTÉGRATION ELECTRON
+
+#### 1. Hydratation du Store (Goulots d'étranglement au démarrage)
+**Analyse :** Le montage de `ProtectedAppShell.tsx` s'appuie sur `components/data-sync.tsx` pour hydrater l'application. La récupération des données lourdes (clients, paramètres, devis) est parfaitement gérée en parallèle via `Promise.allSettled`.
+L'utilisation de `AnimatePresence` avec un léger délai (`setTimeout` de 600ms) avant de passer `isDataLoaded` à `true` masque le goulot d'étranglement, offrant un spinner de chargement élégant sans provoquer de clignotement de l'UI (flicker) en environnement local ultra-rapide.
+**Conclusion :** L'architecture de démarrage est déjà optimisée et sécurisée.
+
+#### 2. Optimisation Zustand (`lib/store.ts`)
+**Analyse :** Le middleware `persist` est utilisé judicieusement avec `partialize` pour exclure `settings`, forçant ainsi le rafraîchissement depuis SQLite. Les actions CRUD appliquent strictement l'immuabilité (ex: spread operator, map, filter), évitant la mutation directe de l'état. Des commentaires JSDoc ont été validés sur les actions, facilitant la maintenance.
+**Conclusion :** Le store Zustand est performant et n'introduit aucune fuite de mémoire connue. L'immuabilité est respectée.
+
+#### 3. Synergie Electron (IPC)
+**Analyse :** Les communications IPC, telles que l'impression (`printDocument`) et l'export PDF (`exportPDF`), sont encapsulées dans des blocs `try/catch` robustes. (ex: dans `lib/electron-print.ts` et `components/fullscreen-document-viewer.tsx`). Les exceptions asynchrones sont gérées et exposées via `toast.error`, empêchant le renderer de crasher ou de se bloquer infiniment sur des spinners.
+**Conclusion :** Le pont IPC est sécurisé et gère gracieusement les échecs asynchrones.
