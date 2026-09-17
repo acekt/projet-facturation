@@ -45,7 +45,7 @@ import {
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
-import { computeTotals } from "@/lib/math-logic";
+import { computeTotals, computeItemTotal } from "@/lib/math-logic";
 
 interface QuoteEditorProps {
   onBack: () => void;
@@ -120,27 +120,30 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
   // Cleanup: purge global draft on mount/unmount to prevent ghost data
   React.useEffect(() => {
+    const blankDraft = {
+      selectedClient: null,
+      items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
+      quoteDate: new Date().toISOString().split("T")[0],
+      discount: 0,
+      notes: settings.mentionsLegales || "",
+      subject: "",
+      validUntil: (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        return d.toISOString().split("T")[0];
+      })(),
+      status: "EN_ATTENTE" as Quote["status"],
+    };
+
     if (isNew) {
       clearQuoteDraft();
-      setLocalDraft({
-        selectedClient: null,
-        items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
-        quoteDate: new Date().toISOString().split("T")[0],
-        discount: 0,
-        notes: settings.mentionsLegales || "",
-        subject: "",
-        validUntil: (() => {
-          const d = new Date();
-          d.setDate(d.getDate() + 30);
-          return d.toISOString().split("T")[0];
-        })(),
-        status: "EN_ATTENTE" as Quote["status"],
-      });
+      setLocalDraft(blankDraft);
     }
 
     return () => {
       if (isNew) {
         clearQuoteDraft();
+        setLocalDraft(blankDraft);
       }
     };
   }, [isNew, clearQuoteDraft, settings.mentionsLegales]);
@@ -151,8 +154,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
   // Fix React Form Submission Anti-Pattern
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [isPending, startSubmitTransition] = React.useTransition();
-  const isActionLocked = isSubmitting || isPending;
+  const isActionLocked = isSubmitting;
 
   const [isLoading, setIsLoading] = React.useState(!!editingId);
 
@@ -225,10 +227,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
           const updated = { ...item, [field]: value };
           if (field === "quantity" || field === "unitPrice") {
             if (Number(updated.unitPrice) < 0) updated.unitPrice = 0;
-            updated.total = Math.round(
-              (Number(updated.quantity) || 0) *
-                (Number(updated.unitPrice) || 0),
-            );
+            updated.total = computeItemTotal(Number(updated.quantity), Number(updated.unitPrice));
           }
 
           // Auto-population from catalog
@@ -238,9 +237,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             );
             if (matchedService) {
               updated.unitPrice = matchedService.unitPrice;
-              updated.total = Math.round(
-                (Number(updated.quantity) || 0) * updated.unitPrice,
-              );
+              updated.total = computeItemTotal(Number(updated.quantity), updated.unitPrice);
             }
           }
 
@@ -329,12 +326,10 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
       const newQuotes = await fetch("/api/quotes").then((res) => res.json());
 
-      startSubmitTransition(() => {
-        setQuotes(newQuotes);
-        clearQuoteDraft();
-        toast.success("Devis enregistré avec succès");
-        onBack();
-      });
+      setQuotes(newQuotes);
+      clearQuoteDraft();
+      toast.success("Devis enregistré avec succès");
+      onBack();
     } catch (error) {
       console.error("[QuoteEditor] handleSave error:", error);
       toast.error("Erreur lors de l'enregistrement du devis");
@@ -682,7 +677,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                     </span>
                     <Input
                       type="number"
-                      className="w-24 h-7 text-right text-sm"
+                      className="w-24 h-7 text-right tabular-nums text-sm"
                       value={discount || 0}
                       onChange={(e) =>
                         setDiscount(parseFloat(e.target.value) || 0)

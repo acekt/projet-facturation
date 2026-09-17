@@ -36,7 +36,7 @@ import {
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
-import { computeTotals } from "@/lib/math-logic";
+import { computeTotals, computeItemTotal } from "@/lib/math-logic";
 
 interface InvoiceEditorProps {
   onBack: () => void;
@@ -101,21 +101,24 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
 
   // Cleanup: purge global draft on mount/unmount to prevent ghost data
   React.useEffect(() => {
+    const blankDraft = {
+      selectedClient: null,
+      items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
+      invoiceDate: new Date().toISOString().split("T")[0],
+      discount: 0,
+      notes: settings.mentionsLegales || "",
+      subject: "",
+    };
+
     if (isNew) {
       clearInvoiceDraft();
-      setLocalDraft({
-        selectedClient: null,
-        items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
-        invoiceDate: new Date().toISOString().split("T")[0],
-        discount: 0,
-        notes: settings.mentionsLegales || "",
-        subject: "",
-      });
+      setLocalDraft(blankDraft);
     }
 
     return () => {
       if (isNew) {
         clearInvoiceDraft();
+        setLocalDraft(blankDraft);
       }
     };
   }, [isNew, clearInvoiceDraft, settings.mentionsLegales]);
@@ -126,8 +129,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
 
   // Fix React Form Submission Anti-Pattern
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const [isPending, startTransition] = React.useTransition();
-  const isActionLocked = isSubmitting || isPending;
+  const isActionLocked = isSubmitting;
 
   const [isLoading, setIsLoading] = React.useState(!!editingId);
 
@@ -198,10 +200,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
           const updated = { ...item, [field]: value };
           if (field === "quantity" || field === "unitPrice") {
             if (Number(updated.unitPrice) < 0) updated.unitPrice = 0;
-            updated.total = Math.round(
-              (Number(updated.quantity) || 0) *
-                (Number(updated.unitPrice) || 0),
-            );
+            updated.total = computeItemTotal(Number(updated.quantity), Number(updated.unitPrice));
           }
 
           // Auto-population from catalog
@@ -211,9 +210,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             );
             if (matchedService) {
               updated.unitPrice = matchedService.unitPrice;
-              updated.total = Math.round(
-                (Number(updated.quantity) || 0) * updated.unitPrice,
-              );
+              updated.total = computeItemTotal(Number(updated.quantity), updated.unitPrice);
             }
           }
 
@@ -296,12 +293,10 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         res.json(),
       );
 
-      startTransition(() => {
-        setInvoices(newInvoices);
-        clearInvoiceDraft();
-        toast.success("Facture créée avec succès");
-        onBack();
-      });
+      setInvoices(newInvoices);
+      clearInvoiceDraft();
+      toast.success("Facture enregistrée avec succès");
+      onBack();
     } catch (error) {
       console.error("[InvoiceEditor] handleSave error:", error);
       toast.error("Erreur lors de l'enregistrement de la facture");
@@ -552,6 +547,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                           )
                         }
                         className="text-right tabular-nums"
+                        disabled={isSubmitting}
                       />
                     </div>
                     <div className="col-span-4 md:col-span-2">
@@ -566,6 +562,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                           )
                         }
                         className="text-right tabular-nums"
+                        disabled={isSubmitting}
                       />
                     </div>
                     <div className="col-span-3 md:col-span-1 text-right pt-2 font-medium tabular-nums">
@@ -629,11 +626,12 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                     </span>
                     <Input
                       type="number"
-                      className="w-24 h-7 text-right text-sm"
+                      className="w-24 h-7 text-right tabular-nums text-sm"
                       value={discount || 0}
                       onChange={(e) =>
                         setDiscount(parseFloat(e.target.value) || 0)
                       }
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>

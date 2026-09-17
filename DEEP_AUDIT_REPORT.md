@@ -646,3 +646,8 @@ const insertQuote = db.transaction((data) => {
     insertQuoteStmt.run(...);
 });
 ```
+
+### 5. TRANSACTIONAL ATOMICITY
+
+**Problem addressed :** Conversion de devis en facture (Quote -> Invoice).
+**Observation :** Les services `/api/quotes/convert` et `lib/services/QuoteService.ts` ont été audités. La transaction SQLite gère correctement la création de la facture, la duplication des items, la mise à jour du statut du devis et l'enregistrement de l'historique d'audit au sein d'un seul bloc `db.transaction()`. Le clonage des données est atomique, évitant ainsi toute création de données orphelines.

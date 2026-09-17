@@ -39,6 +39,14 @@ export interface ComputedTotals {
 // ============================================================================
 
 /**
+ * Computes the total for a single item line.
+ * Extracts pure calculation logic for item rows.
+ */
+export function computeItemTotal(quantity: number, unitPrice: number): number {
+  return Math.round((Number(quantity) || 0) * (Number(unitPrice) || 0));
+}
+
+/**
  * Pure mathematical calculation engine for invoice and quote totals.
  * Safe to import in both Client and Server environments.
  */
