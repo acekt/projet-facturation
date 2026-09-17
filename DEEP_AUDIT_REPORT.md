@@ -647,47 +647,7 @@ const insertQuote = db.transaction((data) => {
 });
 ```
 
-## NOUVEL AUDIT CONTINU - [2026-09-16T20:35:39.158Z]
+### 5. TRANSACTIONAL ATOMICITY
 
-### 1. QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
-
-**Problème 1 : Utilisation abusive de `any`**
-**Localisation :**
-- `app/api/setup/route.ts` (ligne 99)
-- `app/api/settings/route.ts` (lignes 102, 119)
-- `app/api/credit-notes/route.ts` (ligne 92)
-- `app/api/users/route.ts` (lignes 103, 124)
-- `app/api/invoices/route.ts` (ligne 74)
-- `app/api/quotes/convert/route.ts` (ligne 47)
-- `app/api/quotes/[id]/route.ts` (ligne 132)
-- `app/api/quotes/route.ts` (ligne 129)
-- `components/pages/quotes.tsx` (lignes 209, 332, 466, 614)
-- `components/pages/audit-logs.tsx` (ligne 13)
-
-**Pourquoi c'est médiocre :** L'utilisation de `any` annule les vérifications de type TypeScript. Les blocs `catch (error: any)` contournent `unknown`.
-**Solution d'excellence :**
-Utiliser `unknown` dans les blocs catch et vérifier le type de l'erreur (`if (error instanceof Error)`). Typer les variables explicitement, par exemple en utilisant des types de données spécifiques au lieu de `any[]`.
-
-### 2. LOGIQUE REACT ET ANTI-PATTERNS UI
-
-**Problème 1 : Fuite de mémoire potentielle via des écouteurs globaux non nettoyés**
-**Localisation :**
-- `components/pages/protected-app-shell.tsx` (ligne 70) : `window.addEventListener('keydown', onKey)`
-
-**Observation :** Ce composant utilise correctement le nettoyage dans son `useEffect` (`window.removeEventListener`), ce pattern doit être strictement appliqué partout.
-
-### 3. ARCHITECTURE ELECTRON ET IPC
-
-**Observation :**
-Le pont IPC dans `preload.js` utilise `contextBridge.exposeInMainWorld`, une pratique recommandée, limitant l'exposition globale.
-
-### 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
-
-**Problème 1 : `db.prepare()` compilé dynamiquement dans des transactions**
-**Localisation :**
-- `app/api/quotes/route.ts` et `app/api/quotes/[id]/route.ts`
-- `app/api/setup/route.ts`
-
-**Pourquoi c'est médiocre :** Compiler les requêtes dans une transaction SQLite bloque l'accès à la base de données inutilement.
-**Solution d'excellence :**
-Hoister les déclarations `db.prepare()` à l'extérieur des transactions `db.transaction()`.
+**Problem addressed :** Conversion de devis en facture (Quote -> Invoice).
+**Observation :** Les services `/api/quotes/convert` et `lib/services/QuoteService.ts` ont été audités. La transaction SQLite gère correctement la création de la facture, la duplication des items, la mise à jour du statut du devis et l'enregistrement de l'historique d'audit au sein d'un seul bloc `db.transaction()`. Le clonage des données est atomique, évitant ainsi toute création de données orphelines.
