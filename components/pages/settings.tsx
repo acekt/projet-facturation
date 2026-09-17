@@ -120,7 +120,7 @@ export function SettingsPage() {
   return (
     <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6 max-w-4xl">
       {!isAdmin && (
-        <Alert variant="destructive" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
+        <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription className="font-medium">
             Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
