@@ -651,3 +651,89 @@ const insertQuote = db.transaction((data) => {
 
 **Problem addressed :** Conversion de devis en facture (Quote -> Invoice).
 **Observation :** Les services `/api/quotes/convert` et `lib/services/QuoteService.ts` ont été audités. La transaction SQLite gère correctement la création de la facture, la duplication des items, la mise à jour du statut du devis et l'enregistrement de l'historique d'audit au sein d'un seul bloc `db.transaction()`. Le clonage des données est atomique, évitant ainsi toute création de données orphelines.
+
+## AUDIT CONTINU EN PROFONDEUR - DERNIÈRE PASSE (EXHAUSTIF) [2026-09-15T21:10:00.000Z]
+
+### 1. QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
+
+**Problème 1 : Utilisation forcée du type `any` via `as any` ou erreurs typées en `any`**
+**Localisation :**
+- `app/page.tsx` (ligne 25) : `const user = db.prepare('...').get(session.userId) as any`
+- `components/pdf-document.tsx` (lignes 310, 343) : `(document as any).notes`, `(document as any).discount`
+- `components/pages/quotes.tsx` (lignes 332, 466, 614) : `quote.status as any`
+- `components/pages/credit-notes.tsx` (ligne 111) : `(c as any).amount`
+- `components/fullscreen-document-viewer.tsx` (lignes 142, 183) : `(docProps.data as any)?.number`
+- `lib/services/ExportService.ts` (lignes 291, 292) : `(q as any).validUntil`
+- `components/pages/invoice-editor.tsx` (ligne 733) : `items: items as DraftItem[],`
+- `components/pages/quote-editor.tsx` (ligne 785) : `items: items as DraftItem[],`
+- Catch blocks non sécurisés : `lib/db.ts` (lignes 125, 410) : `} catch (fatalErr: any) {`, `} catch (schemaErr: any) {`
+
+**Pourquoi c'est médiocre :** L'utilisation de `as any` ou de `any` explicite pour les erreurs désactive les vérifications de TypeScript. Cela introduit des risques de bugs silencieux, de crashs à l'exécution si les propriétés attendues ne sont pas présentes, et empêche la refactorisation sécurisée. Les erreurs typées en `any` masquent l'absence de vérification `instanceof Error`.
+**Solution d'excellence :**
+Définir et utiliser les interfaces/types corrects et utiliser `unknown` pour les exceptions.
+
+```typescript
+// Exemple sans 'as any'
+import type { DbUser } from '@/lib/types/api';
+const user = db.prepare('SELECT * FROM users WHERE id = ?').get(session.userId) as DbUser;
+
+// Exemple catch
+} catch (error: unknown) {
+  if (error instanceof Error) {
+    console.error(error.message);
+  }
+}
+```
+
+### 2. LOGIQUE REACT ET ANTI-PATTERNS UI
+
+**Problème 1 : Gestion des exceptions réseau silencieuse**
+**Localisation :**
+- `components/dashboard/user.tsx` (ligne 131)
+- `components/dashboard/admin.tsx` (ligne 90)
+- `components/pages/invoice-editor.tsx` (ligne 300)
+- `components/pages/user-editor.tsx` (lignes 73, 154)
+- `components/pages/payments.tsx` (lignes 171, 223)
+- `components/pages/quote-editor.tsx` (ligne 333)
+- `components/pages/settings.tsx` (ligne 101)
+- `components/pages/invoices.tsx` (lignes 144, 179, 217, 264, 319)
+- `components/pages/services.tsx` (lignes 150, 188, 220)
+- `components/pages/quotes.tsx` (lignes 148, 178, 209, 227)
+- `components/pages/clients.tsx` (lignes 157, 186, 234)
+- `components/pages/credit-notes.tsx` (ligne 76)
+- `components/fullscreen-document-viewer.tsx` (lignes 95, 165, 170)
+
+**Observation :** Bien que des efforts aient été faits pour limiter les exceptions silencieuses (Swallowed Exceptions), de nombreux blocs `catch` attrapent toujours des erreurs sans remonter le message exact de l'exception à l'utilisateur (ou en ne vérifiant pas `instanceof Error`), causant une mauvaise expérience de diagnostic.
+
+**Solution d'excellence :**
+```tsx
+} catch (err: unknown) {
+  const message = err instanceof Error ? err.message : "Erreur inattendue";
+  toast.error(`Échec de l'opération: ${message}`);
+  console.error(err);
+}
+```
+
+### 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
+
+**Problème 1 : `db.prepare()` dans des transactions (Cas restants détectés)**
+**Localisation :**
+- `lib/services/InvoiceService.ts` (lignes 57, 83, 100) : `db.prepare(...)` à l'intérieur de `db.transaction()`
+- `lib/services/CreditNoteService.ts` (lignes 53, 76, 95) : `db.prepare(...)` à l'intérieur de `db.transaction()`
+- `app/api/setup/route.ts` (lignes 56, 62, 68, 70, 82) : `db.prepare(...)` à l'intérieur de `db.transaction()`
+- `app/api/quotes/duplicate/route.ts` (lignes 78, 79, 82, 108) : `db.prepare(...)` à l'intérieur de `db.transaction()`
+- `app/api/quotes/[id]/route.ts` (lignes 134, 159, 162) : `db.prepare(...)` à l'intérieur de `updateQuoteTx = db.transaction(...)`
+
+**Pourquoi c'est médiocre :** Compiler dynamiquement des requêtes SQL (`db.prepare()`) à l'intérieur d'un bloc `db.transaction()` est un anti-pattern de performance. Cela bloque la base de données (qui est en verrouillage exclusif pendant la transaction) avec des opérations d'allocation et de compilation au lieu de se limiter strictement à l'exécution de requêtes.
+**Solution d'excellence :** Hoister (remonter) les déclarations `db.prepare()` à l'extérieur des callbacks `db.transaction()`.
+
+```typescript
+const countUsersStmt = db.prepare('SELECT COUNT(*) as c FROM users');
+const insertUserStmt = db.prepare(`INSERT INTO users ...`);
+
+const setupTransaction = db.transaction(() => {
+    const innerCount = countUsersStmt.get();
+    if (innerCount.c > 0) throw new Error('ALREADY_INITIALIZED');
+    insertUserStmt.run(...);
+});
+```
