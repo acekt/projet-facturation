@@ -647,17 +647,47 @@ const insertQuote = db.transaction((data) => {
 });
 ```
 
-### AUDIT MODULE 5/5 : ARCHITECTURE D'ÉTAT & INTÉGRATION ELECTRON
+## NOUVEL AUDIT CONTINU - [2026-09-16T20:35:39.158Z]
 
-#### 1. Hydratation du Store (Goulots d'étranglement au démarrage)
-**Analyse :** Le montage de `ProtectedAppShell.tsx` s'appuie sur `components/data-sync.tsx` pour hydrater l'application. La récupération des données lourdes (clients, paramètres, devis) est parfaitement gérée en parallèle via `Promise.allSettled`.
-L'utilisation de `AnimatePresence` avec un léger délai (`setTimeout` de 600ms) avant de passer `isDataLoaded` à `true` masque le goulot d'étranglement, offrant un spinner de chargement élégant sans provoquer de clignotement de l'UI (flicker) en environnement local ultra-rapide.
-**Conclusion :** L'architecture de démarrage est déjà optimisée et sécurisée.
+### 1. QUALITÉ DU CODE STATIQUE ET TYPAGE (TYPESCRIPT)
 
-#### 2. Optimisation Zustand (`lib/store.ts`)
-**Analyse :** Le middleware `persist` est utilisé judicieusement avec `partialize` pour exclure `settings`, forçant ainsi le rafraîchissement depuis SQLite. Les actions CRUD appliquent strictement l'immuabilité (ex: spread operator, map, filter), évitant la mutation directe de l'état. Des commentaires JSDoc ont été validés sur les actions, facilitant la maintenance.
-**Conclusion :** Le store Zustand est performant et n'introduit aucune fuite de mémoire connue. L'immuabilité est respectée.
+**Problème 1 : Utilisation abusive de `any`**
+**Localisation :**
+- `app/api/setup/route.ts` (ligne 99)
+- `app/api/settings/route.ts` (lignes 102, 119)
+- `app/api/credit-notes/route.ts` (ligne 92)
+- `app/api/users/route.ts` (lignes 103, 124)
+- `app/api/invoices/route.ts` (ligne 74)
+- `app/api/quotes/convert/route.ts` (ligne 47)
+- `app/api/quotes/[id]/route.ts` (ligne 132)
+- `app/api/quotes/route.ts` (ligne 129)
+- `components/pages/quotes.tsx` (lignes 209, 332, 466, 614)
+- `components/pages/audit-logs.tsx` (ligne 13)
 
-#### 3. Synergie Electron (IPC)
-**Analyse :** Les communications IPC, telles que l'impression (`printDocument`) et l'export PDF (`exportPDF`), sont encapsulées dans des blocs `try/catch` robustes. (ex: dans `lib/electron-print.ts` et `components/fullscreen-document-viewer.tsx`). Les exceptions asynchrones sont gérées et exposées via `toast.error`, empêchant le renderer de crasher ou de se bloquer infiniment sur des spinners.
-**Conclusion :** Le pont IPC est sécurisé et gère gracieusement les échecs asynchrones.
+**Pourquoi c'est médiocre :** L'utilisation de `any` annule les vérifications de type TypeScript. Les blocs `catch (error: any)` contournent `unknown`.
+**Solution d'excellence :**
+Utiliser `unknown` dans les blocs catch et vérifier le type de l'erreur (`if (error instanceof Error)`). Typer les variables explicitement, par exemple en utilisant des types de données spécifiques au lieu de `any[]`.
+
+### 2. LOGIQUE REACT ET ANTI-PATTERNS UI
+
+**Problème 1 : Fuite de mémoire potentielle via des écouteurs globaux non nettoyés**
+**Localisation :**
+- `components/pages/protected-app-shell.tsx` (ligne 70) : `window.addEventListener('keydown', onKey)`
+
+**Observation :** Ce composant utilise correctement le nettoyage dans son `useEffect` (`window.removeEventListener`), ce pattern doit être strictement appliqué partout.
+
+### 3. ARCHITECTURE ELECTRON ET IPC
+
+**Observation :**
+Le pont IPC dans `preload.js` utilise `contextBridge.exposeInMainWorld`, une pratique recommandée, limitant l'exposition globale.
+
+### 4. BASE DE DONNÉES ET PERFORMANCES (SQLITE)
+
+**Problème 1 : `db.prepare()` compilé dynamiquement dans des transactions**
+**Localisation :**
+- `app/api/quotes/route.ts` et `app/api/quotes/[id]/route.ts`
+- `app/api/setup/route.ts`
+
+**Pourquoi c'est médiocre :** Compiler les requêtes dans une transaction SQLite bloque l'accès à la base de données inutilement.
+**Solution d'excellence :**
+Hoister les déclarations `db.prepare()` à l'extérieur des transactions `db.transaction()`.
