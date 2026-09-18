@@ -6,6 +6,7 @@ import { updateInvoiceStatus } from '@/lib/api/invoice-logic';
 import type { ErrorResponse, DbPayment } from '@/lib/types/api';
 
 const softDeletePaymentStmt = db.prepare("UPDATE payments SET deletedAt = datetime('now') WHERE id = ?");
+const getPaymentStmt = db.prepare('SELECT invoiceId FROM payments WHERE id = ? AND deletedAt IS NULL');
 
 export async function DELETE(
   request: Request,
@@ -30,7 +31,7 @@ export async function DELETE(
     }
 
     // Get payment details before soft delete
-    const payment = db.prepare('SELECT invoiceId FROM payments WHERE id = ? AND deletedAt IS NULL').get(id) as DbPayment | undefined;
+    const payment = getPaymentStmt.get(id) as DbPayment | undefined;
     if (!payment) {
       const errorResponse: ErrorResponse = {
         error: 'Payment not found',

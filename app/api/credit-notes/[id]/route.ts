@@ -7,13 +7,17 @@ import type { CreditNoteResponse, CreditNoteItem, ErrorResponse, DbCreditNote, D
 
 export const dynamic = 'force-dynamic';
 
+const getCreditNoteStmt = db.prepare('SELECT * FROM credit_notes WHERE id = ? AND deletedAt IS NULL');
+const getCreditNoteItemsStmt = db.prepare('SELECT * FROM credit_note_items WHERE creditNoteId = ?');
+const softDeleteCreditNoteStmt = db.prepare("UPDATE credit_notes SET deletedAt = datetime('now'), status = 'cancelled' WHERE id = ?");
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const note = db.prepare('SELECT * FROM credit_notes WHERE id = ? AND deletedAt IS NULL').get(id) as DbCreditNote | undefined;
+    const note = getCreditNoteStmt.get(id) as DbCreditNote | undefined;
     if (!note) {
       const errorResponse: ErrorResponse = {
         error: 'Credit note not found',
@@ -21,7 +25,7 @@ export async function GET(
       return NextResponse.json(errorResponse, { status: 404 });
     }
 
-    const items = db.prepare('SELECT * FROM credit_note_items WHERE creditNoteId = ?').all(id) as DbCreditNoteItem[];
+    const items = getCreditNoteItemsStmt.all(id) as DbCreditNoteItem[];
 
     const response: CreditNoteResponse = {
       ...note,
@@ -68,7 +72,7 @@ export async function DELETE(
     }
 
     // Get credit note details before soft delete
-    const note = db.prepare('SELECT * FROM credit_notes WHERE id = ? AND deletedAt IS NULL').get(id) as DbCreditNote | undefined;
+    const note = getCreditNoteStmt.get(id) as DbCreditNote | undefined;
     if (!note) {
       const errorResponse: ErrorResponse = {
         error: 'Credit note not found',
@@ -79,7 +83,7 @@ export async function DELETE(
     // AN-6 FIX: Soft delete the credit note inside a transaction,
     // then recalculate invoice status from ACTUAL payments instead of forcing 'UNPAID'.
     const deleteResult = db.transaction(() => {
-      const result = db.prepare("UPDATE credit_notes SET deletedAt = datetime('now'), status = 'cancelled' WHERE id = ?").run(id);
+      const result = softDeleteCreditNoteStmt.run(id);
 
       if (result.changes === 0) {
         return null;
