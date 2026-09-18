@@ -57,6 +57,9 @@ const insertPaymentStmt = db.prepare(`
   VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
 
+const checkInvoiceStmt = db.prepare('SELECT total, created_by FROM invoices WHERE id = ? AND deletedAt IS NULL');
+const checkTotalPaidStmt = db.prepare('SELECT COALESCE(SUM(amount), 0) as totalPaid FROM payments WHERE invoiceId = ? AND deletedAt IS NULL');
+
 export async function POST(request: Request) {
   try {
     const session = await getSession();
@@ -96,7 +99,7 @@ export async function POST(request: Request) {
     const { invoiceId, amount, paymentMethod, date, reference }: PaymentCreateRequest = validation.data;
 
     // Check if invoice exists and is not soft deleted
-    const invoice = db.prepare('SELECT total, created_by FROM invoices WHERE id = ? AND deletedAt IS NULL').get(invoiceId) as { total: number; created_by?: string } | undefined;
+    const invoice = checkInvoiceStmt.get(invoiceId) as { total: number; created_by?: string } | undefined;
     if (!invoice) {
       const errorResponse: ErrorResponse = {
         error: 'Facture introuvable ou supprimée',
@@ -113,7 +116,7 @@ export async function POST(request: Request) {
     }
 
     // Check overpayment (Trop-perçu)
-    const paidResult = db.prepare('SELECT COALESCE(SUM(amount), 0) as totalPaid FROM payments WHERE invoiceId = ? AND deletedAt IS NULL').get(invoiceId) as { totalPaid: number };
+    const paidResult = checkTotalPaidStmt.get(invoiceId) as { totalPaid: number };
     const totalPaid = Math.round(paidResult.totalPaid || 0);
     const totalTTC = Math.round(invoice.total);
     const remaining = totalTTC - totalPaid;
