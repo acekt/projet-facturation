@@ -381,7 +381,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label className="text-muted-foreground text-sm">
-                    Date d'émission
+                    Date d'émission <span className="text-destructive">*</span>
                   </Label>
                   <DatePicker
                     value={quoteDate || ""}
@@ -427,7 +427,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                 <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border border-border">
                   <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10 ring-2 ring-border">
-                      <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-sm font-medium">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
                         {selectedClient.name
                           .split(" ")
                           .map((n) => n[0])

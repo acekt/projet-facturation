@@ -229,7 +229,7 @@ export function SettingsPage() {
 
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                   <div className="space-y-2">
-                    <Label htmlFor="company-name">Nom Commercial</Label>
+                    <Label htmlFor="company-name">Nom Commercial <span className="text-destructive">*</span></Label>
                     <Input
                       id="company-name"
                       value={formData.companyName || ""}
@@ -239,7 +239,7 @@ export function SettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="legal-form">Forme Juridique</Label>
+                    <Label htmlFor="legal-form">Forme Juridique <span className="text-destructive">*</span></Label>
                     <Input
                       id="legal-form"
                       value={formData.legalForm || ""}
@@ -313,7 +313,7 @@ export function SettingsPage() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>TVA (%)</Label>
+                  <Label>TVA (%) <span className="text-destructive">*</span></Label>
                   <Input
                     type="number"
                     value={formData.tvaRate ?? 0}
@@ -324,7 +324,7 @@ export function SettingsPage() {
                   <p className="text-[10px] text-muted-foreground italic">Fixé à 18% (DGI)</p>
                 </div>
                 <div className="space-y-2">
-                  <Label>CSS (%)</Label>
+                  <Label>CSS (%) <span className="text-destructive">*</span></Label>
                   <Input
                     type="number"
                     value={formData.cssRate ?? 0}
@@ -344,7 +344,7 @@ export function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Code Entreprise (Ex: GM)</Label>
+                  <Label>Code Entreprise (Ex: GM) <span className="text-destructive">*</span></Label>
                   <Input
                     value={formData.companyCode || ""}
                     onChange={(e) => setFormData({ ...formData, companyCode: e.target.value })}
@@ -356,7 +356,7 @@ export function SettingsPage() {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Préfixe des Devis (Ex: DEV)</Label>
+                  <Label>Préfixe des Devis (Ex: DEV) <span className="text-destructive">*</span></Label>
                   <Input
                     value={formData.quotePrefix || ""}
                     onChange={(e) => setFormData({ ...formData, quotePrefix: e.target.value })}
@@ -365,7 +365,7 @@ export function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Préfixe des Factures (Ex: FAC)</Label>
+                  <Label>Préfixe des Factures (Ex: FAC) <span className="text-destructive">*</span></Label>
                   <Input
                     value={formData.invoicePrefix || ""}
                     onChange={(e) => setFormData({ ...formData, invoicePrefix: e.target.value })}
@@ -464,7 +464,7 @@ export function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Expiration de la session (en minutes)</Label>
+                  <Label>Expiration de la session (en minutes) <span className="text-destructive">*</span></Label>
                   <Input
                     type="number"
                     value={formData.sessionTimeout ?? 60}

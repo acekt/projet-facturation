@@ -199,7 +199,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nom complet *</Label>
+                  <Label htmlFor="name">Nom complet <span className="text-destructive">*</span></Label>
                   <Input
                     id="name"
                     value={formData.name || ""}
@@ -211,7 +211,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email *</Label>
+                  <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
                   <Input
                     id="email"
                     type="email"
@@ -251,7 +251,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="role">Rôle *</Label>
+                  <Label htmlFor="role">Rôle <span className="text-destructive">*</span></Label>
                   <Select
                     value={formData.role}
                     onValueChange={(value: "admin" | "user") => setFormData({ ...formData, role: value })}

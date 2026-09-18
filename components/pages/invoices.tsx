@@ -704,7 +704,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-                <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Type de règlement</Label>
+                <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Type de règlement <span className="text-destructive">*</span></Label>
                 <Select value={paymentType} onValueChange={(val) => {
                     setPaymentType(val);
                     if (val === 'full' && paymentInvoice) {
@@ -723,7 +723,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                 </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="payment-amount" className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Montant du paiement (XAF)</Label>
+              <Label htmlFor="payment-amount" className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Montant du paiement (XAF) <span className="text-destructive">*</span></Label>
               <Input
                 id="payment-amount"
                 type="number"
@@ -750,7 +750,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
               )}
             </div>
             <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Mode de règlement</Label>
+              <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Mode de règlement <span className="text-destructive">*</span></Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger className="bg-secondary border-border text-foreground h-11">
                   <SelectValue placeholder="Sélectionner..." />

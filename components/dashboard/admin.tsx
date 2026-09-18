@@ -129,9 +129,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             <h1 className="text-2xl font-semibold text-foreground tracking-tighter">Tableau de Bord</h1>
             <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest mt-1">Vision stratégique admin</p>
         </div>
-        <div className="flex items-center gap-2">
-            <Badge variant="outline" className="h-8 border-amber-500/20 text-amber-600 bg-amber-500/5 px-3">SANTÉ OPTIMALE</Badge>
-        </div>
+
       </div>
 
       {/* Cartes KPI */}

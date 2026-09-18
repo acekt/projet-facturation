@@ -436,7 +436,7 @@ async function createWindow(port) {
       preload: path.join(__dirname, 'preload.js'),
       webSecurity: !isDev,
     },
-    icon: path.join(__dirname, 'public', 'icon.png'),
+    icon: path.join(__dirname, 'build', 'icon.png'),
     show: false,
     backgroundColor: '#030303',
   });

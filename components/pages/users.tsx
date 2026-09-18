@@ -501,15 +501,15 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-                <Label htmlFor="add-name">Nom complet</Label>
+                <Label htmlFor="add-name">Nom complet <span className="text-destructive">*</span></Label>
                 <Input id="add-name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Jean Dupont" className="bg-secondary" />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="add-email">Email</Label>
+                <Label htmlFor="add-email">Email <span className="text-destructive">*</span></Label>
                 <Input id="add-email" type="email" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="jean@facturier.ga" className="bg-secondary" />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="add-role">Rôle</Label>
+                <Label htmlFor="add-role">Rôle <span className="text-destructive">*</span></Label>
                 <Select value={formData.role} onValueChange={v => setFormData({...formData, role: v})}>
                     <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                     <SelectContent className="bg-card border-border">
@@ -543,11 +543,11 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
                 <Input value={formData.email} disabled className="bg-muted opacity-50" />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="edit-name">Nom complet</Label>
+                <Label htmlFor="edit-name">Nom complet <span className="text-destructive">*</span></Label>
                 <Input id="edit-name" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="bg-secondary" />
             </div>
             <div className="space-y-2">
-                <Label htmlFor="edit-role">Rôle</Label>
+                <Label htmlFor="edit-role">Rôle <span className="text-destructive">*</span></Label>
                 <Select value={formData.role} onValueChange={v => setFormData({...formData, role: v})}>
                     <SelectTrigger className="bg-secondary border-border"><SelectValue /></SelectTrigger>
                     <SelectContent className="bg-card border-border">

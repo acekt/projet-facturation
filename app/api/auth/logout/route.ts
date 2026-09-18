@@ -14,8 +14,12 @@ export async function POST() {
         }
       }, 0);
     }
-    (await cookies()).delete("auth_session");
-    return NextResponse.json({ success: true });
+    const response = NextResponse.json({ success: true });
+    response.cookies.delete("auth_session");
+    try {
+      (await cookies()).delete("auth_session");
+    } catch (e) {}
+    return response;
   } catch (error) {
     return NextResponse.json(
       { error: "Erreur lors de la déconnexion" },

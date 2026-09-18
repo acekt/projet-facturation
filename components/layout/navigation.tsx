@@ -20,9 +20,11 @@ import {
   LogOut,
   BarChart3,
   ScrollText,
+  User,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useStore } from "@/lib/store"
+import Image from "next/image"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -33,6 +35,13 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip"
 import { ThemeToggle } from "@/components/theme-toggle"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 interface SidebarProps {
   currentPage: string
@@ -71,7 +80,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
         await fetch('/api/auth/logout', { method: 'POST' });
     } catch (e) {}
     setUser(null);
-    router.push('/login');
+    window.location.href = '/login';
   };
 
   const filteredItems = navItems.filter(item => item.roles.includes(user?.role || 'user'));
@@ -132,28 +141,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
         className="fixed left-0 top-0 h-screen bg-card border-r border-border flex flex-col z-50 shadow-sm"
       >
-        {/* Logo Section */}
-        <div className="h-20 flex flex-col justify-center px-4 border-b border-border">
-          <motion.div
-            className="flex items-center gap-3"
-            animate={{ justifyContent: collapsed ? "center" : "flex-start" }}
-          >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg shadow-primary/20">
-              <Star className="w-5 h-5 text-white" />
-            </div>
-            {!collapsed && (
-              <div className="flex flex-col">
-                <span className="font-bold text-primary tracking-tight text-lg">FACTURIER</span>
-                <span className={cn(
-                    "text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded w-fit",
-                    user?.role === 'admin' ? "bg-accent-light text-accent dark:bg-accent/20 dark:text-accent-light" : "bg-primary-light text-primary dark:bg-primary/20 dark:text-primary-light"
-                )}>
-                    {user?.role === 'admin' ? "Administration" : "Opérations"}
-                </span>
-              </div>
-            )}
-          </motion.div>
-        </div>
+
 
         {/* Action Button (User Only) */}
         {user?.role === 'user' && (
@@ -223,38 +211,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
             {bottomItems.map(renderItem)}
           </div>
 
-          <div className={cn(
-            "flex items-center gap-3 p-2 rounded-xl bg-secondary/50",
-            collapsed && "justify-center"
-          )}>
-            <Avatar className="w-9 h-9 ring-2 ring-background">
-              <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xs font-medium">
-                {user?.name?.substring(0, 2).toUpperCase() || 'AD'}
-              </AvatarFallback>
-            </Avatar>
-            {!collapsed && (
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-foreground truncate">{user?.name || 'Utilisateur'}</p>
-                <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive transition-colors mt-0.5"
-                >
-                    <LogOut className="w-3 h-3" />
-                    Déconnexion
-                </button>
-              </div>
-            )}
-            {collapsed && (
-                <Tooltip>
-                    <TooltipTrigger asChild>
-                        <Button variant="ghost" size="icon" onClick={handleLogout} className="h-8 w-8 text-muted-foreground hover:text-destructive">
-                            <LogOut className="h-4 w-4" />
-                        </Button>
-                    </TooltipTrigger>
-                    <TooltipContent side="right">Déconnexion</TooltipContent>
-                </Tooltip>
-            )}
-          </div>
+          {/* Le profil utilisateur a été déplacé dans la barre supérieure */}
         </div>
 
         {/* Toggle Button */}
@@ -275,6 +232,18 @@ interface TopBarProps {
 }
 
 export function TopBar({ collapsed, onCommandOpen }: TopBarProps) {
+  const user = useStore((state) => state.user)
+  const setUser = useStore((state) => state.setUser)
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    try {
+        await fetch('/api/auth/logout', { method: 'POST' });
+    } catch (e) {}
+    setUser(null);
+    window.location.href = '/login';
+  };
+
   return (
     <motion.header
       initial={false}
@@ -297,12 +266,41 @@ export function TopBar({ collapsed, onCommandOpen }: TopBarProps) {
         </div>
       </button>
 
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
         <ThemeToggle />
         <button className="relative p-2.5 rounded-xl text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors border border-transparent hover:border-border">
           <Bell className="w-5 h-5" />
-          <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-primary ring-2 ring-background" />
+          <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-background" />
         </button>
+
+        <div className="w-px h-8 bg-border mx-2" />
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button className="flex items-center gap-3 hover:bg-secondary/50 p-1.5 pr-2 rounded-full transition-colors text-left outline-none">
+              <div className="hidden sm:flex flex-col items-end">
+                <p className="text-sm font-bold text-foreground leading-none">{user?.name || 'Utilisateur'}</p>
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mt-1">{user?.role === 'admin' ? 'Admin' : 'User'}</p>
+              </div>
+              <Avatar className="w-9 h-9 ring-2 ring-background bg-secondary">
+                <AvatarFallback className="bg-primary/10 text-primary font-extrabold text-sm">
+                  {user?.name?.substring(0, 2).toUpperCase() || 'AD'}
+                </AvatarFallback>
+              </Avatar>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-48">
+            <DropdownMenuItem className="cursor-pointer">
+              <User className="w-4 h-4 mr-2" />
+              Mon compte
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={handleLogout} className="text-destructive cursor-pointer">
+              <LogOut className="w-4 h-4 mr-2" />
+              Déconnexion
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </motion.header>
   )

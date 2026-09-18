@@ -294,7 +294,7 @@ export function ClientsPage() {
               </DialogHeader>
               <form onSubmit={handleAddClient} className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name" className="text-muted-foreground">Nom complet / Raison sociale</Label>
+                  <Label htmlFor="name" className="text-muted-foreground">Nom complet / Raison sociale <span className="text-destructive">*</span></Label>
                   <Input
                     id="name"
                     value={newClient.name}
@@ -306,7 +306,7 @@ export function ClientsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-muted-foreground">Email</Label>
+                  <Label htmlFor="email" className="text-muted-foreground">Email <span className="text-destructive">*</span></Label>
                   <Input
                     id="email"
                     type="email"
@@ -363,7 +363,7 @@ export function ClientsPage() {
                 </DialogHeader>
                 <form onSubmit={handleEditClient} className="space-y-4 mt-4">
                   <div className="space-y-2">
-                    <Label htmlFor="edit-name" className="text-muted-foreground">Nom complet / Raison sociale</Label>
+                    <Label htmlFor="edit-name" className="text-muted-foreground">Nom complet / Raison sociale <span className="text-destructive">*</span></Label>
                     <Input
                       id="edit-name"
                       value={editingClient?.name || ''}
@@ -375,7 +375,7 @@ export function ClientsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-email" className="text-muted-foreground">Email</Label>
+                    <Label htmlFor="edit-email" className="text-muted-foreground">Email <span className="text-destructive">*</span></Label>
                     <Input
                       id="edit-email"
                       type="email"
@@ -449,7 +449,7 @@ export function ClientsPage() {
                 <DataTableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="w-8 h-8 ring-1 ring-border">
-                      <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground text-xs font-semibold">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                         {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -513,7 +513,7 @@ export function ClientsPage() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <Avatar className="w-10 h-10 ring-1 ring-border">
-                      <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground text-sm font-semibold">
+                      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
                         {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                       </AvatarFallback>
                     </Avatar>
@@ -588,7 +588,7 @@ export function ClientsPage() {
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <Avatar className="w-10 h-10 ring-1 ring-border">
-                        <AvatarFallback className="bg-gradient-to-br from-primary/80 to-accent text-primary-foreground text-sm font-semibold">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
                           {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>

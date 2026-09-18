@@ -536,7 +536,7 @@ export function ServicesPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="service-name" className="text-muted-foreground">Nom du service</Label>
+              <Label htmlFor="service-name" className="text-muted-foreground">Nom du service <span className="text-destructive">*</span></Label>
               <Input
                 id="service-name"
                 value={formData.name}
@@ -549,7 +549,7 @@ export function ServicesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="service-category" className="text-muted-foreground">Catégorie</Label>
+                <Label htmlFor="service-category" className="text-muted-foreground">Catégorie <span className="text-destructive">*</span></Label>
                 <Input
                   id="service-category"
                   value={formData.category}
@@ -560,7 +560,7 @@ export function ServicesPage() {
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="service-price" className="text-muted-foreground">Prix Unitaire (XAF)</Label>
+                <Label htmlFor="service-price" className="text-muted-foreground">Prix Unitaire (XAF) <span className="text-destructive">*</span></Label>
                 <Input
                   id="service-price"
                   type="number"
