@@ -251,9 +251,9 @@ export function PaymentsPage() {
               <div className="w-10 h-10 rounded-xl bg-emerald-500/10 flex items-center justify-center">
                 <ArrowDownLeft className="w-5 h-5 text-emerald-500" />
               </div>
-              <div className="flex-1">
+              <div className="flex-1 text-right">
                 <p className="text-muted-foreground text-sm">Entrées ce mois</p>
-                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums text-right">
                   {formatShortCurrency(incomeThisMonth)}
                 </p>
               </div>
@@ -267,9 +267,9 @@ export function PaymentsPage() {
               <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
                 <Wallet className="w-5 h-5 text-primary" />
               </div>
-              <div>
+              <div className="text-right">
                 <p className="text-muted-foreground text-sm">Chiffre d'Affaires Annuel</p>
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-2xl font-bold text-foreground tabular-nums text-right">
                     {formatShortCurrency(invoices
                         .filter(i => i.status === 'PAID' && i.date?.startsWith(currentYear))
                         .reduce((sum, i) => sum + (Number(i.total) || 0), 0))}
@@ -284,9 +284,9 @@ export function PaymentsPage() {
               <div className="w-10 h-10 rounded-xl bg-amber-500/10 flex items-center justify-center">
                 <Clock className="w-5 h-5 text-amber-500" />
               </div>
-              <div>
+              <div className="text-right">
                 <p className="text-muted-foreground text-sm">En attente</p>
-                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
+                <p className="text-2xl font-bold text-amber-600 dark:text-amber-400 tabular-nums text-right">
                   {formatShortCurrency(pendingPayments)}
                 </p>
               </div>
