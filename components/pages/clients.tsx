@@ -99,17 +99,6 @@ export function ClientsPage() {
     setCurrentPage(1)
   }, [searchQuery])
 
-  if (!isDataLoaded) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground font-medium">Chargement des clients...</p>
-        </div>
-      </div>
-    )
-  }
-
   const handleAddClient = async (e: React.FormEvent) => {
     e.preventDefault()
     if (isSubmitting) return
@@ -242,6 +231,14 @@ export function ClientsPage() {
   }
 
   return (
+    !isDataLoaded ? (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Chargement des clients...</p>
+        </div>
+      </div>
+    ) : (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
       {user?.role !== 'admin' && (
         <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
@@ -280,7 +277,7 @@ export function ClientsPage() {
             {user?.role === 'admin' && (
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20">
+                <Button disabled={user?.role !== 'admin'} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20">
                   <Plus className="w-4 h-4" />
                   Nouveau client
                 </Button>
@@ -693,5 +690,6 @@ export function ClientsPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    )
   )
 }
