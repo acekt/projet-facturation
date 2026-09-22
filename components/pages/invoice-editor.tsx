@@ -106,7 +106,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
       invoiceDate: new Date().toISOString().split("T")[0],
       discount: 0,
-      notes: settings.mentionsLegales || "",
+      notes: "",
       subject: "",
     };
 
@@ -121,7 +121,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         setLocalDraft(blankDraft);
       }
     };
-  }, [isNew, clearInvoiceDraft, settings.mentionsLegales]);
+  }, [isNew, clearInvoiceDraft]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");

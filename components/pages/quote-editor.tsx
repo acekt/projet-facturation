@@ -125,7 +125,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
       items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
       quoteDate: new Date().toISOString().split("T")[0],
       discount: 0,
-      notes: settings.mentionsLegales || "",
+      notes: "",
       subject: "",
       validUntil: (() => {
         const d = new Date();
@@ -146,7 +146,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         setLocalDraft(blankDraft);
       }
     };
-  }, [isNew, clearQuoteDraft, settings.mentionsLegales]);
+  }, [isNew, clearQuoteDraft]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");

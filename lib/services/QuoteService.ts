@@ -53,8 +53,6 @@ export const QuoteService = {
       throw new QuoteServiceError('Impossible de convertir : ce devis a expiré.', 400);
     }
 
-    const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(quoteId) as DbQuoteItem[];
-
     const settings = db.prepare('SELECT invoicePrefix, companyCode FROM settings WHERE id = 1').get() as DbSettings | undefined;
     if (!settings) {
       throw new QuoteServiceError('Settings not found', 500);
@@ -63,6 +61,8 @@ export const QuoteService = {
     const invoiceId = crypto.randomUUID();
 
     const convert = db.transaction((userName: string | null) => {
+      const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(quoteId) as DbQuoteItem[];
+
       const number = getNextNumber('invoice');
 
       insertInvoiceStmt.run(
