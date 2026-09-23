@@ -96,12 +96,19 @@ export async function POST(request: Request) {
     const { invoiceId, amount, paymentMethod, date, reference }: PaymentCreateRequest = validation.data;
 
     // Check if invoice exists and is not soft deleted
-    const invoice = db.prepare('SELECT total, created_by FROM invoices WHERE id = ? AND deletedAt IS NULL').get(invoiceId) as { total: number; created_by?: string } | undefined;
+    const invoice = db.prepare('SELECT total, created_by, status FROM invoices WHERE id = ? AND deletedAt IS NULL').get(invoiceId) as { total: number; created_by?: string; status: string } | undefined;
     if (!invoice) {
       const errorResponse: ErrorResponse = {
         error: 'Facture introuvable ou supprimée',
       };
       return NextResponse.json(errorResponse, { status: 404 });
+    }
+
+    if (invoice.status === 'cancelled') {
+      const errorResponse: ErrorResponse = {
+        error: 'Impossible d\'ajouter un paiement sur une facture annulée',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
     // Check RLS: user can only pay their own invoices unless admin

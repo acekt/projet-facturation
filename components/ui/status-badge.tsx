@@ -41,6 +41,10 @@ const VARIANT_MAP = {
     base: "bg-red-50 text-red-700 border-red-200",
     label: "Non payé",
   },
+  "invoice-cancelled": {
+    base: "bg-slate-100 text-slate-700 border-slate-200",
+    label: "Annulée",
+  },
   // Devis — statuts de cycle de vie
   "quote-pending": {
     base: "bg-primary-light text-primary border-primary/20",
@@ -143,6 +147,7 @@ interface InvoicePaymentInfo {
 export function getInvoiceStatusVariant(
   info: InvoicePaymentInfo,
 ): StatusBadgeVariant {
+  if (info.status === INVOICE_STATUS.CANCELLED) return "invoice-cancelled";
   const { paidAmount, total } = info;
   if (paidAmount >= total && total > 0) return "invoice-paid";
   if (paidAmount > 0) return "invoice-partial";
