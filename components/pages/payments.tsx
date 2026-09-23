@@ -391,6 +391,7 @@ export function PaymentsPage() {
           </CardHeader>
           <CardContent className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div className="flex-1 overflow-x-auto overflow-y-auto min-h-0 border border-border rounded-xl">
+              <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10">
                   <tr>
@@ -460,6 +461,7 @@ export function PaymentsPage() {
                   )}
                 </tbody>
               </table>
+              </div>
             </div>
             <div className="pt-4">
               <Pagination
