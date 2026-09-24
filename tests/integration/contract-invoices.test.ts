@@ -99,7 +99,7 @@ describe('Contrat Front-API — Module Factures (Invoices)', () => {
       notes: 'Test de résilience et de contrat Front-API',
       items: [
         {
-          description: 'Licence Logiciel L\'Facturier Desktop',
+          description: 'Licence Logiciel Facturier Desktop',
           quantity: 2,
           unitPrice: 150000, // Entier XAF obligatoire
         },
