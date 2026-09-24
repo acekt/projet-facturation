@@ -14,7 +14,7 @@ import crypto from 'crypto';
  * 4. Navigation vers la facture convertie, enregistrement d'un paiement partiel (acompte) et vérification du statut "Partiel"
  */
 
-test.describe('Parcours Critique E2E — Le Tunnel de Vente (L\'Facturier)', () => {
+test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => {
 
   test.beforeEach(async () => {
     const dataDir = path.join(process.cwd(), 'data');
