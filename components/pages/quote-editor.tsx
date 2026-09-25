@@ -35,6 +35,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { StatusBadge, getQuoteStatusVariant } from "@/components/ui/status-badge";
 
 import {
   useStore,
@@ -146,7 +147,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         setLocalDraft(blankDraft);
       }
     };
-  }, [isNew, clearQuoteDraft, settings.mentionsLegales]);
+  }, [isNew, clearQuoteDraft]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");
@@ -361,10 +362,8 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {status === "CONVERTI" && (
-            <div className="px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 text-sm font-semibold">
-              Devis Converti (Lecture seule)
-            </div>
+          {status && (
+            <StatusBadge variant={getQuoteStatusVariant(status as any)} />
           )}
         </div>
       </div>
