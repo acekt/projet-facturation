@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 
 import { Toaster } from "sonner"
 
-function FallbackError({ error, resetErrorBoundary }: { error: any; resetErrorBoundary: (...args: any[]) => void }) {
+function FallbackError({ error, resetErrorBoundary }: { error: unknown; resetErrorBoundary: (...args: any[]) => void }) {
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-background p-4 text-center">
       <AlertTriangle className="w-16 h-16 text-destructive mb-4" />
@@ -17,7 +17,7 @@ function FallbackError({ error, resetErrorBoundary }: { error: any; resetErrorBo
         Le composant applicatif a rencontré un problème. Veuillez rafraîchir la page ou retourner à l'accueil.
       </p>
       <div className="bg-slate-100 p-4 rounded-md mb-6 w-full max-w-lg text-left overflow-auto text-sm text-slate-800">
-        <code>{error.message}</code>
+        <code>{error instanceof Error ? error.message : String(error)}</code>
       </div>
       <Button onClick={resetErrorBoundary}>Réessayer</Button>
     </div>
