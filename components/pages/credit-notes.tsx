@@ -245,7 +245,7 @@ export function CreditNotesPage() {
                       <div className="flex items-center gap-8">
                         <div className="text-right hidden sm:block">
                           <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold text-orange-600">Montant Avoir</p>
-                          <p className="text-xl font-bold text-foreground">{formatCurrency(note.total)}</p>
+                          <p className="text-xl font-bold text-foreground text-right tabular-nums">{formatCurrency(note.total)}</p>
                         </div>
                         <Button
                           variant="outline"
@@ -323,7 +323,7 @@ export function CreditNotesPage() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                      <p className="text-lg font-semibold text-foreground tracking-tighter">{formatCurrency(note.total)}</p>
+                      <p className="text-lg font-semibold text-foreground tracking-tighter text-right tabular-nums">{formatCurrency(note.total)}</p>
                       <Badge className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0 h-5 border-orange-200">Avoir</Badge>
                     </div>
                   </CardContent>

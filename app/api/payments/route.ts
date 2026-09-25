@@ -5,6 +5,7 @@ import db from '@/lib/db';
 import crypto from 'crypto';
 import { paymentCreateSchema } from '@/lib/validations';
 import { updateInvoiceStatus } from '@/lib/api/invoice-logic';
+import { INVOICE_STATUS } from '@/lib/constants';
 import type { PaymentCreateRequest, PaymentResponse, ErrorResponse, DbPayment } from '@/lib/types/api';
 
 export const dynamic = 'force-dynamic';
@@ -96,12 +97,19 @@ export async function POST(request: Request) {
     const { invoiceId, amount, paymentMethod, date, reference }: PaymentCreateRequest = validation.data;
 
     // Check if invoice exists and is not soft deleted
-    const invoice = db.prepare('SELECT total, created_by FROM invoices WHERE id = ? AND deletedAt IS NULL').get(invoiceId) as { total: number; created_by?: string } | undefined;
+    const invoice = db.prepare('SELECT total, created_by, status FROM invoices WHERE id = ? AND deletedAt IS NULL').get(invoiceId) as { total: number; created_by?: string; status: string } | undefined;
     if (!invoice) {
       const errorResponse: ErrorResponse = {
         error: 'Facture introuvable ou supprimée',
       };
       return NextResponse.json(errorResponse, { status: 404 });
+    }
+
+    if (invoice.status === INVOICE_STATUS.CANCELLED) {
+      const errorResponse: ErrorResponse = {
+        error: 'Cannot record payment for a cancelled invoice',
+      };
+      return NextResponse.json(errorResponse, { status: 400 });
     }
 
     // Check RLS: user can only pay their own invoices unless admin
