@@ -227,17 +227,17 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
           const remaining = paymentInvoice.total - totalPaid
           const amount = parseFloat(paymentAmount)
-          
+
           if (amount <= 0) {
               toast.error("Le montant doit être supérieur à 0")
               return
           }
-          
+
           if (amount > remaining) {
               toast.error(`Le montant ne peut pas dépasser le reste à payer (${formatCurrency(remaining)})`)
               return
           }
-          
+
           try {
             const response = await fetch('/api/payments', {
               method: 'POST',
@@ -616,7 +616,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                     </div>
                   </div>
                   <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                    <p className="text-sm font-semibold tracking-tight text-foreground text-right tabular-nums">{formatCurrency(invoice.total)}</p>
+                    <p className="text-sm font-semibold tracking-tight text-foreground tabular-nums">{formatCurrency(invoice.total)}</p>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">

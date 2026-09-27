@@ -1,0 +1,11 @@
+--- ./components/pages/invoices.tsx
++++ ./components/pages/invoices.tsx
+@@ -620,7 +620,7 @@
+                     </div>
+                   </div>
+                   <div className="flex items-center justify-between pt-3 border-t border-border/50">
+-                    <p className="text-sm font-semibold tracking-tight text-foreground tabular-nums">{formatCurrency(invoice.total)}</p>
++                    <p className="text-sm font-semibold tracking-tight text-foreground text-right tabular-nums">{formatCurrency(invoice.total)}</p>
+                     <DropdownMenu>
+                       <DropdownMenuTrigger asChild>
+                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">

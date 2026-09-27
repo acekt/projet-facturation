@@ -1,0 +1,11 @@
+--- ./lib/services/QuoteService.ts
++++ ./lib/services/QuoteService.ts
+@@ -107,7 +107,7 @@
+       updateQuoteStatusStmt.run(QUOTE_STATUS.CONVERTI, quoteId);
+
+       const logDetails = `Devis converti en facture: ${number}`;
+-      insertAuditLogStmt.run(crypto.randomUUID(), userId, userName, 'CREATE', 'invoice', invoiceId, logDetails);
++      insertAuditLogStmt.run(crypto.randomUUID(), userId, userName || userId, 'CREATE', 'invoice', invoiceId, logDetails);
+
+       return {
+         invoiceId,
