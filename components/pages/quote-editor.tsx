@@ -206,10 +206,6 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     return () => controller.abort();
   }, [editingId]);
 
-  const TAX_RATE = (settings.tvaRate ?? 0) / 100;
-  const TPS_RATE = (settings.tpsRate ?? 9.5) / 100;
-  const CSS_RATE = (settings.cssRate ?? 0) / 100;
-
   const filteredClients = clients.filter(
     (client) =>
       client.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
