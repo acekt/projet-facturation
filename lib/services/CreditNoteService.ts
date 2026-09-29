@@ -12,13 +12,25 @@ export class CreditNoteServiceError extends Error {
   }
 }
 
+const getInvoiceStmt = db.prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL');
+const getSettingsStmt = db.prepare('SELECT companyCode, tvaRate, tpsRate, cssRate FROM settings WHERE id = 1');
+const insertCreditNoteStmt = db.prepare(`
+  INSERT INTO credit_notes (
+    id, number, invoiceId, clientId, clientName, date, reason,
+    subtotal, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+const insertCreditNoteItemStmt = db.prepare(`
+  INSERT INTO credit_note_items (id, creditNoteId, description, quantity, unitPrice, total)
+  VALUES (?, ?, ?, ?, ?, ?)
+`);
+const updateInvoiceStatusStmt = db.prepare(`UPDATE invoices SET status = '${INVOICE_STATUS.CANCELLED}' WHERE id = ?`);
+
 export const CreditNoteService = {
   createCreditNote(data: CreditNoteCreateRequest, userId: string) {
     const { invoiceId, reason, items } = data;
 
-    const invoice = db
-      .prepare('SELECT * FROM invoices WHERE id = ? AND deletedAt IS NULL')
-      .get(invoiceId) as DbInvoice | undefined;
+    const invoice = getInvoiceStmt.get(invoiceId) as DbInvoice | undefined;
     if (!invoice) {
       throw new CreditNoteServiceError('Invoice not found', 404);
     }
@@ -28,9 +40,7 @@ export const CreditNoteService = {
       throw new CreditNoteServiceError('Cannot create a credit note for an already cancelled invoice', 400);
     }
 
-    const settings = db
-      .prepare('SELECT companyCode, tvaRate, tpsRate, cssRate FROM settings WHERE id = 1')
-      .get() as (DbSettings & { tvaRate: number; tpsRate?: number; cssRate: number }) | undefined;
+    const settings = getSettingsStmt.get() as (DbSettings & { tvaRate: number; tpsRate?: number; cssRate: number }) | undefined;
     if (!settings) {
       throw new CreditNoteServiceError('Settings not found', 500);
     }
@@ -50,12 +60,7 @@ export const CreditNoteService = {
       };
       const computed = computeTotals(items, 0, rates);
 
-      db.prepare(`
-        INSERT INTO credit_notes (
-          id, number, invoiceId, clientId, clientName, date, reason,
-          subtotal, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(
+      insertCreditNoteStmt.run(
         id,
         number,
         invoice.id,
@@ -73,13 +78,8 @@ export const CreditNoteService = {
         userId
       );
 
-      const insertItem = db.prepare(`
-        INSERT INTO credit_note_items (id, creditNoteId, description, quantity, unitPrice, total)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `);
-
       for (const item of items) {
-        insertItem.run(
+        insertCreditNoteItemStmt.run(
           crypto.randomUUID(),
           id,
           item.description,
@@ -92,7 +92,7 @@ export const CreditNoteService = {
       // --- AN-5 FIX: Only cancel the invoice if the credit note covers its FULL total ---
       const invoiceTotal = Math.round(invoice.total);
       if (computed.total >= invoiceTotal) {
-        db.prepare(`UPDATE invoices SET status = '${INVOICE_STATUS.CANCELLED}' WHERE id = ?`).run(invoice.id);
+        updateInvoiceStatusStmt.run(invoice.id);
       }
 
       return { id, number };
