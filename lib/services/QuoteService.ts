@@ -93,7 +93,15 @@ export const QuoteService = {
 
     const invoiceId = crypto.randomUUID();
 
-    const convert = db.transaction((userName: string | null) => {
+    const convert = db.transaction(() => {
+      let userName = null;
+      try {
+          const u = db.prepare('SELECT name, username FROM users WHERE id = ?').get(userId) as { name?: string; username?: string } | undefined;
+          if (u) {
+              userName = u.name || u.username || null;
+          }
+      } catch (e) {}
+
       const number = getNextNumber('invoice');
 
       insertInvoiceStmt.run(
@@ -131,7 +139,7 @@ export const QuoteService = {
       updateQuoteStatusStmt.run(QUOTE_STATUS.CONVERTI, quoteId);
 
       const logDetails = `Devis converti en facture: ${number}`;
-      insertAuditLogStmt.run(crypto.randomUUID(), userId, userName, 'CREATE', 'invoice', invoiceId, logDetails);
+      insertAuditLogStmt.run(crypto.randomUUID(), userId, userName || userId, 'CREATE', 'invoice', invoiceId, logDetails);
 
       return {
         invoiceId,
@@ -140,17 +148,7 @@ export const QuoteService = {
       };
     });
 
-    // We can't query users table easily inside the transaction if we just want the username,
-    // so let's get it outside or pass it. We'll query it here to pass to transaction.
-    let userName = null;
-    try {
-        const u = db.prepare('SELECT name, username FROM users WHERE id = ?').get(userId) as { name?: string; username?: string } | undefined;
-        if (u) {
-            userName = u.name || u.username || null;
-        }
-    } catch (e) {}
-
-    return convert(userName || userId);
+    return convert();
   },
 
   duplicateQuote(quoteId: string, userId: string, role: string): QuoteDuplicateResponse {
@@ -244,5 +242,5 @@ export const QuoteService = {
     });
 
     return performDuplicate();
-  },
+  }
 };
