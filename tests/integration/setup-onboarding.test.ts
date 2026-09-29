@@ -45,7 +45,7 @@ describe('ðŸš¨ MISSION ARCHITECTURE : FLUX D\'INITIALISATION (FIRST-RUN SETUP) ð
         email: 'admin@facturier.ga',
         password: 'Password123!',
         phone: '+241 01 02 03 04',
-        companyName: 'L\'Facturier S.A.',
+        companyName: 'Facturier S.A.',
         nif: '123456NIF',
         rccm: 'GA-LBV-2026-B01',
         address: 'Quartier Louis, Libreville',
@@ -75,7 +75,7 @@ describe('ðŸš¨ MISSION ARCHITECTURE : FLUX D\'INITIALISATION (FIRST-RUN SETUP) ð
 
       const settingsInDb = testDb.prepare('SELECT * FROM settings WHERE id = 1').get() as any;
       expect(settingsInDb).toBeDefined();
-      expect(settingsInDb.companyName).toBe('L\'Facturier S.A.');
+      expect(settingsInDb.companyName).toBe('Facturier S.A.');
       expect(settingsInDb.nif).toBe('123456NIF');
       expect(settingsInDb.tvaRate).toBe(18.0);
 
@@ -87,7 +87,7 @@ describe('ðŸš¨ MISSION ARCHITECTURE : FLUX D\'INITIALISATION (FIRST-RUN SETUP) ð
       const auditLog = testDb.prepare("SELECT * FROM audit_logs WHERE details LIKE '%FIRST_RUN_SETUP%'").get() as any;
       expect(auditLog).toBeDefined();
       expect(auditLog.action).toBe('CREATE');
-      expect(auditLog.details).toContain('L\'Facturier S.A.');
+      expect(auditLog.details).toContain('Facturier S.A.');
     });
 
     it('devrait retourner 403 Forbidden dÃ¨s qu\'un utilisateur existe dans la base (`count > 0`)', async () => {
