@@ -106,18 +106,16 @@ export function SettingsPage() {
     }
   }
 
-  if (!isDataLoaded) {
-    return (
-      <div className="flex-1 flex items-center justify-center">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-          <p className="text-sm text-muted-foreground font-medium">Chargement des paramètres...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
+    <>
+      {!isDataLoaded ? (
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            <p className="text-sm text-muted-foreground font-medium">Chargement des paramètres...</p>
+          </div>
+        </div>
+      ) : (
     <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6 max-w-4xl">
       {!isAdmin && (
         <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
@@ -481,5 +479,7 @@ export function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
+      )}
+    </>
   )
 }
