@@ -48,7 +48,7 @@ export const QuoteService = {
     if (quote.status === QUOTE_STATUS.CONVERTI) {
       throw new QuoteServiceError('Quote already converted', 400);
     }
-    
+
     if (quote.validUntil && new Date() > new Date(quote.validUntil)) {
       throw new QuoteServiceError('Impossible de convertir : ce devis a expiré.', 400);
     }
@@ -108,7 +108,7 @@ export const QuoteService = {
       updateQuoteStatusStmt.run(QUOTE_STATUS.CONVERTI, quoteId);
 
       const logDetails = `Devis converti en facture: ${number}`;
-      insertAuditLogStmt.run(crypto.randomUUID(), userId, userName || userId, 'CREATE', 'invoice', invoiceId, logDetails);
+      insertAuditLogStmt.run(crypto.randomUUID(), userId, userName, 'CREATE', 'invoice', invoiceId, logDetails);
 
       return {
         invoiceId,

@@ -12,7 +12,7 @@ export function DataTable({
   className?: string
 }) {
   return (
-    <Card className={cn("border border-border shadow-sm overflow-x-auto", className)}>
+    <Card className={cn("overflow-hidden border border-border shadow-sm", className)}>
       <CardContent className="p-0 overflow-x-auto">
         <table className="w-full caption-bottom text-sm">{children}</table>
       </CardContent>

@@ -118,9 +118,6 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     toast.success("Brouillon enregistré temporairement.");
   };
 
-  // Store initial mentionsLegales to avoid ghost data from late settings hydration
-  const initialMentionsLegales = React.useRef(settings.mentionsLegales);
-
   // Cleanup: purge global draft on mount/unmount to prevent ghost data
   React.useEffect(() => {
     const blankDraft = {
@@ -128,7 +125,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
       items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
       quoteDate: new Date().toISOString().split("T")[0],
       discount: 0,
-      notes: initialMentionsLegales.current || "",
+      notes: settings.mentionsLegales || "",
       subject: "",
       validUntil: (() => {
         const d = new Date();
@@ -149,6 +146,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         setLocalDraft(blankDraft);
       }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNew, clearQuoteDraft]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
@@ -208,6 +206,10 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
     return () => controller.abort();
   }, [editingId]);
+
+  const TAX_RATE = (settings.tvaRate ?? 0) / 100;
+  const TPS_RATE = (settings.tpsRate ?? 9.5) / 100;
+  const CSS_RATE = (settings.cssRate ?? 0) / 100;
 
   const filteredClients = clients.filter(
     (client) =>

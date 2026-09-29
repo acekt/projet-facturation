@@ -1,0 +1,11 @@
+--- ./components/ui/data-table.tsx
++++ ./components/ui/data-table.tsx
+@@ -10,7 +10,7 @@
+   className?: string
+ }) {
+   return (
+-    <Card className={cn("overflow-hidden border border-border shadow-sm", className)}>
++    <Card className={cn("border border-border shadow-sm overflow-x-auto", className)}>
+       <CardContent className="p-0 overflow-x-auto">
+         <table className="w-full caption-bottom text-sm">{children}</table>
+       </CardContent>
