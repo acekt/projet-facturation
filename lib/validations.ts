@@ -114,42 +114,43 @@ export const quoteSchema = z.object({
 // ============================================================================
 
 export const settingsSchema = z.object({
-  companyName: z.string()
+  companyName: z.string({ required_error: "Ce champ est requis", invalid_type_error: "Ce champ est requis" })
     .min(1, "Le nom de l'entreprise est requis")
     .max(255, "Le nom de l'entreprise ne peut pas dépasser 255 caractères"),
-  legalForm: z.string()
+  legalForm: z.string({ required_error: "Ce champ est requis", invalid_type_error: "Ce champ est requis" })
     .min(1, "La forme juridique est requise")
     .max(255, "La forme juridique ne peut pas dépasser 255 caractères"),
-  nif: z.string().max(255, "Le NIF ne peut pas dépasser 255 caractères"),
-  rccm: z.string().max(255, "Le RCCM ne peut pas dépasser 255 caractères"),
-  address: z.string().max(1000, "L'adresse ne peut pas dépasser 1000 caractères"),
-  email: z.string()
-    .email("Adresse email invalide")
-    .max(255, "L'email ne peut pas dépasser 255 caractères"),
-  phone: z.string().max(255, "Le téléphone ne peut pas dépasser 255 caractères"),
-  bankName: z.string().max(255, "Le nom de la banque ne peut pas dépasser 255 caractères"),
-  bankAgency: z.string().max(255, "L'agence bancaire ne peut pas dépasser 255 caractères"),
-  accountNumber: z.string().max(255, "Le numéro de compte ne peut pas dépasser 255 caractères"),
-  swiftCode: z.string().max(255, "Le code SWIFT ne peut pas dépasser 255 caractères"),
-  iban: z.string().max(255, "L'IBAN ne peut pas dépasser 255 caractères"),
-  tvaRate: z.number().min(0),
-  tpsRate: z.number().min(0).optional(),
-  cssRate: z.number().min(0),
-  sessionTimeout: z.number().min(1),
-  invoicePrefix: z.string()
+  nif: z.string({ invalid_type_error: "Format invalide" }).max(255, "Le NIF ne peut pas dépasser 255 caractères").nullable().optional(),
+  rccm: z.string({ invalid_type_error: "Format invalide" }).max(255, "Le RCCM ne peut pas dépasser 255 caractères").nullable().optional(),
+  address: z.string({ invalid_type_error: "Format invalide" }).max(1000, "L'adresse ne peut pas dépasser 1000 caractères").nullable().optional(),
+  email: z.union([
+    z.literal(""),
+    z.string().email("Adresse email invalide").max(255, "L'email ne peut pas dépasser 255 caractères")
+  ]).optional().nullable(),
+  phone: z.string({ invalid_type_error: "Format invalide" }).max(255, "Le téléphone ne peut pas dépasser 255 caractères").nullable().optional(),
+  bankName: z.string({ invalid_type_error: "Format invalide" }).max(255, "Le nom de la banque ne peut pas dépasser 255 caractères").nullable().optional(),
+  bankAgency: z.string({ invalid_type_error: "Format invalide" }).max(255, "L'agence bancaire ne peut pas dépasser 255 caractères").nullable().optional(),
+  accountNumber: z.string({ invalid_type_error: "Format invalide" }).max(255, "Le numéro de compte ne peut pas dépasser 255 caractères").nullable().optional(),
+  swiftCode: z.string({ invalid_type_error: "Format invalide" }).max(255, "Le code SWIFT ne peut pas dépasser 255 caractères").nullable().optional(),
+  iban: z.string({ invalid_type_error: "Format invalide" }).max(255, "L'IBAN ne peut pas dépasser 255 caractères").nullable().optional(),
+  tvaRate: z.number({ required_error: "La TVA est requise", invalid_type_error: "La TVA est requise" }).min(0),
+  tpsRate: z.number({ invalid_type_error: "Format invalide" }).min(0).nullable().optional(),
+  cssRate: z.number({ required_error: "La CSS est requise", invalid_type_error: "La CSS est requise" }).min(0),
+  sessionTimeout: z.number({ required_error: "Ce champ est requis", invalid_type_error: "Ce champ est requis" }).min(1),
+  invoicePrefix: z.string({ required_error: "Ce champ est requis", invalid_type_error: "Ce champ est requis" })
     .min(1, "Le préfixe de facture est requis")
     .max(255, "Le préfixe de facture ne peut pas dépasser 255 caractères"),
-  quotePrefix: z.string()
+  quotePrefix: z.string({ required_error: "Ce champ est requis", invalid_type_error: "Ce champ est requis" })
     .min(1, "Le préfixe de devis est requis")
     .max(255, "Le préfixe de devis ne peut pas dépasser 255 caractères"),
-  companyCode: z.string()
+  companyCode: z.string({ required_error: "Ce champ est requis", invalid_type_error: "Ce champ est requis" })
     .min(1, "Le code de l'entreprise est requis")
     .max(255, "Le code de l'entreprise ne peut pas dépasser 255 caractères"),
-  mentionsLegales: z.string()
+  mentionsLegales: z.string({ invalid_type_error: "Format invalide" })
     .max(5000, "Les mentions légales ne peuvent pas dépasser 5000 caractères")
     .nullable()
     .optional(),
-  logo: z.string()
+  logo: z.string({ invalid_type_error: "Format invalide" })
     .max(2 * 1024 * 1024, "Le logo est trop volumineux (max 2 Mo encodé)")
     .nullable()
     .optional(),

@@ -109,10 +109,11 @@ export async function POST(request: Request) {
 
     const data = validation.data as QuoteCreateRequest;
 
-    // --- AN-2 FIX: Validate clientId against active (non-soft-deleted) clients ---
-    const client = db
-      .prepare('SELECT id FROM clients WHERE id = ? AND deletedAt IS NULL')
-      .get(data.clientId) as DbClient | undefined;
+    // --- Valider que le client existe et n'est pas supprimé (référentiel commun) ---
+    // Pas de filtre created_by : un opérateur peut créer un devis pour n'importe quel client actif.
+    const client = db.prepare(
+      'SELECT id FROM clients WHERE id = ? AND deletedAt IS NULL'
+    ).get(data.clientId) as DbClient | undefined;
     if (!client) {
       const errorResponse: ErrorResponse = {
         error: 'Client introuvable ou supprimé. Impossible de créer un devis pour ce client.',

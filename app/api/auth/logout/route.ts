@@ -1,29 +1,40 @@
-import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { logAudit } from "@/lib/api/audit";
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { logAudit } from '@/lib/api/audit';
+import { getSession } from '@/lib/api/auth';
 
 export async function POST() {
-  try {
-    const sessionCookie = (await cookies()).get("auth_session");
-    if (sessionCookie) {
-      setTimeout(() => {
-        try {
-          logAudit("LOGOUT_SUCCESS", "user", null, "Déconnexion réussie", null);
-        } catch (e) {
-          console.error("[Audit Log Error]", e);
-        }
-      }, 0);
-    }
-    const response = NextResponse.json({ success: true });
-    response.cookies.delete("auth_session");
     try {
-      (await cookies()).delete("auth_session");
-    } catch (e) {}
-    return response;
-  } catch (error) {
-    return NextResponse.json(
-      { error: "Erreur lors de la déconnexion" },
-      { status: 500 },
-    );
-  }
+        const cookieStore = await cookies();
+        const sessionCookie = cookieStore.get('auth_session');
+        
+        if (sessionCookie) {
+            // Extraction de la session pour identifier l'utilisateur avant de détruire le cookie
+            const session = await getSession(sessionCookie.value);
+            
+            if (session && session.userId) {
+                try {
+                    // Écriture synchrone/bloquante assurée avant la fin de la requête
+                    await logAudit(
+                        'LOGOUT_SUCCESS', 
+                        'user', 
+                        session.userId, 
+                        'Déconnexion réussie', 
+                        session.userId,
+                        session.name || null
+                    );
+                } catch (e) {
+                    console.error('[Audit Log Error]', e);
+                }
+            }
+        }
+        
+        // Suppression du cookie de session
+        cookieStore.delete('auth_session');
+        
+        return NextResponse.json({ success: true });
+    } catch (error) {
+        console.error('[Logout Error]', error);
+        return NextResponse.json({ error: 'Erreur lors de la déconnexion' }, { status: 500 });
+    }
 }

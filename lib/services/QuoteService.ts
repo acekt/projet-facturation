@@ -1,7 +1,7 @@
 import db from '@/lib/db';
 import crypto from 'crypto';
 import { getNextNumber } from '@/lib/api/numbering';
-import { DbQuote, DbQuoteItem, DbSettings, QuoteConvertResponse } from '@/lib/types/api';
+import { DbQuote, DbQuoteItem, DbSettings, QuoteConvertResponse, QuoteDuplicateResponse } from '@/lib/types/api';
 import { ROLES, QUOTE_STATUS, INVOICE_STATUS } from '@/lib/constants';
 
 export class QuoteServiceError extends Error {
@@ -28,6 +28,37 @@ const insertAuditLogStmt = db.prepare(`
   INSERT INTO audit_logs (id, userId, userName, action, entityType, entityId, details)
   VALUES (?, ?, ?, ?, ?, ?, ?)
 `);
+
+// ─── Statements pré-compilés pour la duplication de devis (module-level)
+const selectQuoteForDuplicateStmt = db.prepare(
+  'SELECT * FROM quotes WHERE id = ? AND deletedAt IS NULL'
+);
+
+const selectQuoteItemsForDuplicateStmt = db.prepare(
+  'SELECT * FROM quote_items WHERE quoteId = ?'
+);
+
+const insertDuplicateQuoteStmt = db.prepare(`
+  INSERT INTO quotes (
+    id, number, clientId, clientName, clientEmail, date,
+    subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total,
+    notes, subject, validUntil, status, created_by
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+`);
+
+const insertDuplicateItemStmt = db.prepare(`
+  INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
+  VALUES (?, ?, ?, ?, ?, ?)
+`);
+
+const insertDuplicateAuditStmt = db.prepare(`
+  INSERT INTO audit_logs (id, userId, userName, action, entityType, entityId, details)
+  VALUES (?, ?, ?, ?, ?, ?, ?)
+`);
+
+const selectUserForDuplicateStmt = db.prepare(
+  'SELECT name, username FROM users WHERE id = ?'
+);
 
 export const QuoteService = {
   convertToInvoice(quoteId: string, userId: string, role: string): QuoteConvertResponse {
@@ -120,5 +151,98 @@ export const QuoteService = {
     } catch (e) {}
 
     return convert(userName || userId);
-  }
+  },
+
+  duplicateQuote(quoteId: string, userId: string, role: string): QuoteDuplicateResponse {
+    // 1. Récupérer le devis source (soft-delete exclu)
+    const quote = selectQuoteForDuplicateStmt.get(quoteId) as
+      | (DbQuote & { created_by?: string; tpsAmount?: number })
+      | undefined;
+
+    if (!quote) {
+      throw new QuoteServiceError('Quote not found', 404);
+    }
+
+    // 2. RBAC Règle métier : SEUL un opérateur (role='user') peut dupliquer un devis.
+    //    Un admin supervise mais ne peut pas créer/dupliquer des documents opérationnels.
+    if (role !== ROLES.USER) {
+      throw new QuoteServiceError('Unauthorized: Only Users can duplicate quotes', 403);
+    }
+
+    // 3a. Un opérateur ne peut dupliquer que ses propres devis
+    if (quote.created_by !== userId) {
+      throw new QuoteServiceError(
+        'Forbidden: You can only duplicate your own quotes',
+        403
+      );
+    }
+
+    // 3. Récupérer les lignes du devis source
+    const items = selectQuoteItemsForDuplicateStmt.all(quoteId) as DbQuoteItem[];
+
+    // 4. Récupérer le nom d'utilisateur hors transaction (évite un SELECT sous verrou)
+    let userName: string | null = null;
+    try {
+      const u = selectUserForDuplicateStmt.get(userId) as
+        | { name?: string; username?: string }
+        | undefined;
+      userName = u?.name || u?.username || null;
+    } catch {
+      // Non bloquant — l'audit log aura userId en fallback
+    }
+
+    const newId = crypto.randomUUID();
+
+    // 5. Transaction atomique — tous les statements sont déjà compilés (module-level)
+    const performDuplicate = db.transaction(() => {
+      // getNextNumber gère : incrément, reset annuel, format DEV-001/CODE/YEAR
+      const number = getNextNumber('quote');
+
+      insertDuplicateQuoteStmt.run(
+        newId,
+        number,
+        quote.clientId,
+        quote.clientName,
+        quote.clientEmail,
+        new Date().toISOString().split('T')[0], // date = aujourd'hui
+        quote.subtotal,
+        quote.discount,
+        quote.taxBase,
+        quote.tvaAmount,
+        quote.tpsAmount ?? 0,
+        quote.cssAmount,
+        quote.total,
+        quote.notes ?? null,
+        quote.subject ?? null,
+        quote.validUntil ?? null,
+        QUOTE_STATUS.EN_ATTENTE, // statut réinitialisé à brouillon
+        userId
+      );
+
+      for (const item of items) {
+        insertDuplicateItemStmt.run(
+          crypto.randomUUID(),
+          newId,
+          item.description,
+          item.quantity,
+          item.unitPrice,
+          item.total
+        );
+      }
+
+      insertDuplicateAuditStmt.run(
+        crypto.randomUUID(),
+        userId,
+        userName,
+        'CREATE',
+        'quote',
+        newId,
+        `Devis dupliqué depuis ${quoteId} → nouveau numéro: ${number}`
+      );
+
+      return { quoteId: newId, quoteNumber: number } satisfies QuoteDuplicateResponse;
+    });
+
+    return performDuplicate();
+  },
 };

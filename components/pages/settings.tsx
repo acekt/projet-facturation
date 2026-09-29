@@ -26,12 +26,21 @@ export function SettingsPage() {
   const isAdmin = user?.role === 'admin'
 
   const [formData, setFormData] = React.useState(settings)
+  const [activeTab, setActiveTab] = React.useState("company")
+  const [errors, setErrors] = React.useState<Record<string, string[]>>({})
   const [isSaving, setIsSaving] = React.useState(false)
   const [isDragging, setIsDragging] = React.useState(false)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
   React.useEffect(() => {
-    setFormData(settings)
+    setFormData({
+      ...settings,
+      tvaRate: settings.tvaRate ?? 18,
+      cssRate: settings.cssRate ?? 0,
+      tpsRate: settings.tpsRate ?? 9.5,
+      sessionTimeout: settings.sessionTimeout ?? 60,
+    })
+    setErrors({})
   }, [settings])
 
   const validateAndUpload = (file: File) => {
@@ -90,6 +99,23 @@ export function SettingsPage() {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}))
+        if (errorData.details && errorData.details.fieldErrors) {
+          const e = errorData.details.fieldErrors
+          setErrors(e)
+          
+          // Basculer automatiquement vers le premier onglet en erreur
+          if (e.companyName || e.legalForm || e.email || e.phone || e.nif || e.rccm || e.address || e.logo) {
+            setActiveTab("company")
+          } else if (e.tvaRate || e.cssRate || e.tpsRate || e.companyCode || e.quotePrefix || e.invoicePrefix || e.mentionsLegales) {
+            setActiveTab("billing")
+          } else if (e.bankName || e.bankAgency || e.accountNumber || e.swiftCode || e.iban) {
+            setActiveTab("bank")
+          } else if (e.sessionTimeout) {
+            setActiveTab("security")
+          }
+
+          throw new Error("Veuillez corriger les erreurs signalées (voir les points rouges sur les onglets)")
+        }
         throw new Error(errorData.error || 'Failed to update settings')
       }
 
@@ -97,6 +123,7 @@ export function SettingsPage() {
       // This enforces an atomic state update without requiring an extra GET /api/settings request
       const updatedSettings = await response.json()
       setSettings({ ...settings, ...updatedSettings })
+      setErrors({})
       toast.success("Paramètres enregistrés")
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Erreur inconnue"
@@ -116,6 +143,11 @@ export function SettingsPage() {
       </div>
     )
   }
+
+  const hasCompanyErrors = !!(errors.companyName || errors.legalForm || errors.email || errors.phone || errors.nif || errors.rccm || errors.address || errors.logo)
+  const hasBillingErrors = !!(errors.tvaRate || errors.cssRate || errors.tpsRate || errors.companyCode || errors.quotePrefix || errors.invoicePrefix || errors.mentionsLegales)
+  const hasBankErrors = !!(errors.bankName || errors.bankAgency || errors.accountNumber || errors.swiftCode || errors.iban)
+  const hasSecurityErrors = !!(errors.sessionTimeout)
 
   return (
     <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6 max-w-4xl">
@@ -150,12 +182,24 @@ export function SettingsPage() {
         )}
       </div>
 
-      <Tabs defaultValue="company" className="w-full">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
         <TabsList className="bg-secondary p-1 rounded-xl mb-6">
-          <TabsTrigger value="company" className="rounded-lg px-6">Entreprise</TabsTrigger>
-          <TabsTrigger value="billing" className="rounded-lg px-6">Facturation</TabsTrigger>
-          <TabsTrigger value="bank" className="rounded-lg px-6">Banque</TabsTrigger>
-          <TabsTrigger value="security" className="rounded-lg px-6">Sécurité</TabsTrigger>
+          <TabsTrigger value="company" className="rounded-lg px-6 relative">
+            Entreprise
+            {hasCompanyErrors && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />}
+          </TabsTrigger>
+          <TabsTrigger value="billing" className="rounded-lg px-6 relative">
+            Facturation
+            {hasBillingErrors && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />}
+          </TabsTrigger>
+          <TabsTrigger value="bank" className="rounded-lg px-6 relative">
+            Banque
+            {hasBankErrors && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />}
+          </TabsTrigger>
+          <TabsTrigger value="security" className="rounded-lg px-6 relative">
+            Sécurité
+            {hasSecurityErrors && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="company" className="mt-0">
@@ -229,34 +273,37 @@ export function SettingsPage() {
 
                 <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
                   <div className="space-y-2">
-                    <Label htmlFor="company-name">Nom Commercial <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="company-name" className={errors.companyName ? "text-destructive" : ""}>Nom Commercial <span className="text-destructive">*</span></Label>
                     <Input
                       id="company-name"
                       value={formData.companyName || ""}
-                      onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
-                      className="bg-secondary/50 border-border"
+                      onChange={(e) => { setFormData({ ...formData, companyName: e.target.value }); setErrors({...errors, companyName: []}) }}
+                      className={cn("bg-secondary/50 border-border", errors.companyName && "border-destructive focus-visible:ring-destructive")}
                       disabled={!isAdmin}
                     />
+                    {errors.companyName && <p className="text-[10px] text-destructive mt-1 font-medium">{errors.companyName[0]}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="legal-form">Forme Juridique <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="legal-form" className={errors.legalForm ? "text-destructive" : ""}>Forme Juridique <span className="text-destructive">*</span></Label>
                     <Input
                       id="legal-form"
                       value={formData.legalForm || ""}
-                      onChange={(e) => setFormData({ ...formData, legalForm: e.target.value })}
-                      className="bg-secondary/50 border-border"
+                      onChange={(e) => { setFormData({ ...formData, legalForm: e.target.value }); setErrors({...errors, legalForm: []}) }}
+                      className={cn("bg-secondary/50 border-border", errors.legalForm && "border-destructive focus-visible:ring-destructive")}
                       placeholder="Ex: SARL, SA..."
                       disabled={!isAdmin}
                     />
+                    {errors.legalForm && <p className="text-[10px] text-destructive mt-1 font-medium">{errors.legalForm[0]}</p>}
                   </div>
                   <div className="space-y-2">
-                    <Label>Email contact</Label>
+                    <Label className={errors.email ? "text-destructive" : ""}>Email contact</Label>
                     <Input
                       value={formData.email || ""}
-                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      className="bg-secondary/50 border-border"
+                      onChange={(e) => { setFormData({ ...formData, email: e.target.value }); setErrors({...errors, email: []}) }}
+                      className={cn("bg-secondary/50 border-border", errors.email && "border-destructive focus-visible:ring-destructive")}
                       disabled={!isAdmin}
                     />
+                    {errors.email && <p className="text-[10px] text-destructive mt-1 font-medium">{errors.email[0]}</p>}
                   </div>
                   <div className="space-y-2">
                     <Label>Téléphone</Label>
@@ -313,14 +360,15 @@ export function SettingsPage() {
             <CardContent className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="space-y-2">
-                  <Label>TVA (%) <span className="text-destructive">*</span></Label>
+                  <Label className={errors.tvaRate ? "text-destructive" : ""}>TVA (%) <span className="text-destructive">*</span></Label>
                   <Input
                     type="number"
                     value={formData.tvaRate ?? 0}
-                    onChange={(e) => setFormData({ ...formData, tvaRate: parseFloat(e.target.value) || 0 })}
-                    className="bg-secondary/50 border-border"
+                    onChange={(e) => { setFormData({ ...formData, tvaRate: parseFloat(e.target.value) || 0 }); setErrors({...errors, tvaRate: []}) }}
+                    className={cn("bg-secondary/50 border-border", errors.tvaRate && "border-destructive focus-visible:ring-destructive")}
                     disabled={!isAdmin}
                   />
+                  {errors.tvaRate && <p className="text-[10px] text-destructive font-medium">{errors.tvaRate[0]}</p>}
                   <p className="text-[10px] text-muted-foreground italic">Fixé à 18% (DGI)</p>
                 </div>
                 <div className="space-y-2">
@@ -344,34 +392,37 @@ export function SettingsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label>Code Entreprise (Ex: GM) <span className="text-destructive">*</span></Label>
+                  <Label className={errors.companyCode ? "text-destructive" : ""}>Code Entreprise (Ex: GM) <span className="text-destructive">*</span></Label>
                   <Input
                     value={formData.companyCode || ""}
-                    onChange={(e) => setFormData({ ...formData, companyCode: e.target.value })}
-                    className="bg-secondary/50 border-border"
+                    onChange={(e) => { setFormData({ ...formData, companyCode: e.target.value }); setErrors({...errors, companyCode: []}) }}
+                    className={cn("bg-secondary/50 border-border", errors.companyCode && "border-destructive focus-visible:ring-destructive")}
                     disabled={!isAdmin}
                   />
+                  {errors.companyCode && <p className="text-[10px] text-destructive font-medium">{errors.companyCode[0]}</p>}
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Préfixe des Devis (Ex: DEV) <span className="text-destructive">*</span></Label>
+                  <Label className={errors.quotePrefix ? "text-destructive" : ""}>Préfixe des Devis (Ex: DEV) <span className="text-destructive">*</span></Label>
                   <Input
                     value={formData.quotePrefix || ""}
-                    onChange={(e) => setFormData({ ...formData, quotePrefix: e.target.value })}
-                    className="bg-secondary/50 border-border"
+                    onChange={(e) => { setFormData({ ...formData, quotePrefix: e.target.value }); setErrors({...errors, quotePrefix: []}) }}
+                    className={cn("bg-secondary/50 border-border", errors.quotePrefix && "border-destructive focus-visible:ring-destructive")}
                     disabled={!isAdmin}
                   />
+                  {errors.quotePrefix && <p className="text-[10px] text-destructive mt-1 font-medium">{errors.quotePrefix[0]}</p>}
                 </div>
                 <div className="space-y-2">
-                  <Label>Préfixe des Factures (Ex: FAC) <span className="text-destructive">*</span></Label>
+                  <Label className={errors.invoicePrefix ? "text-destructive" : ""}>Préfixe des Factures (Ex: FAC) <span className="text-destructive">*</span></Label>
                   <Input
                     value={formData.invoicePrefix || ""}
-                    onChange={(e) => setFormData({ ...formData, invoicePrefix: e.target.value })}
-                    className="bg-secondary/50 border-border"
+                    onChange={(e) => { setFormData({ ...formData, invoicePrefix: e.target.value }); setErrors({...errors, invoicePrefix: []}) }}
+                    className={cn("bg-secondary/50 border-border", errors.invoicePrefix && "border-destructive focus-visible:ring-destructive")}
                     disabled={!isAdmin}
                   />
+                  {errors.invoicePrefix && <p className="text-[10px] text-destructive mt-1 font-medium">{errors.invoicePrefix[0]}</p>}
                 </div>
               </div>
 
@@ -464,15 +515,16 @@ export function SettingsPage() {
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label>Expiration de la session (en minutes) <span className="text-destructive">*</span></Label>
+                  <Label className={errors.sessionTimeout ? "text-destructive" : ""}>Expiration de la session (en minutes) <span className="text-destructive">*</span></Label>
                   <Input
                     type="number"
                     value={formData.sessionTimeout ?? 60}
-                    onChange={(e) => setFormData({ ...formData, sessionTimeout: parseInt(e.target.value) || 60 })}
-                    className="bg-secondary/50 border-border"
+                    onChange={(e) => { setFormData({ ...formData, sessionTimeout: parseInt(e.target.value) || 60 }); setErrors({...errors, sessionTimeout: []}) }}
+                    className={cn("bg-secondary/50 border-border", errors.sessionTimeout && "border-destructive focus-visible:ring-destructive")}
                     disabled={!isAdmin}
                     min={1}
                   />
+                  {errors.sessionTimeout && <p className="text-[10px] text-destructive font-medium">{errors.sessionTimeout[0]}</p>}
                   <p className="text-[10px] text-muted-foreground italic">Déconnexion automatique après inactivité</p>
                 </div>
               </div>

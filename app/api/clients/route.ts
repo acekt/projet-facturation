@@ -25,7 +25,10 @@ export async function GET() {
       return NextResponse.json(errorResponse, { status: 401 });
     }
 
-    const clients = db.prepare('SELECT * FROM clients WHERE deletedAt IS NULL ORDER BY name ASC').all() as DbClient[];
+    // Clients = référentiel commun : tous les utilisateurs authentifiés voient tous les clients.
+    // La restriction created_by s'applique uniquement aux mutations (PATCH/DELETE), jamais au GET.
+    const sql = 'SELECT * FROM clients WHERE deletedAt IS NULL ORDER BY name ASC';
+    const clients = db.prepare(sql).all() as DbClient[];
     const response = NextResponse.json(clients);
     response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     response.headers.set('Pragma', 'no-cache');

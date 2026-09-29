@@ -73,7 +73,7 @@ export interface UserResponse {
   is_active: number;
   created_at: string;
   last_login_at?: string;
-  phone?: string;
+  phone?: string | null;
   deletedAt?: string;
 }
 
@@ -111,10 +111,11 @@ export interface DbUser {
   email: string;
   role: 'admin' | 'user';
   is_active: number;
+  force_password_change?: number;
   created_at: string;
   last_login_at?: string;
-  created_by?: string;
-  phone?: string;
+  created_by?: string | null;  // null quand créé lors du setup initial
+  phone?: string | null;
   deletedAt?: string;
 }
 
@@ -580,18 +581,18 @@ export interface DbService {
 export interface SettingsUpdateRequest {
   companyName?: string;
   legalForm?: string;
-  nif?: string;
-  rccm?: string;
-  address?: string;
-  email?: string;
-  phone?: string;
-  bankName?: string;
-  bankAgency?: string;
-  accountNumber?: string;
-  swiftCode?: string;
-  iban?: string;
+  nif?: string | null;           // champs optionnels : null autorisé (Zod .nullable())
+  rccm?: string | null;
+  address?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  bankName?: string | null;
+  bankAgency?: string | null;
+  accountNumber?: string | null;
+  swiftCode?: string | null;
+  iban?: string | null;
   tvaRate?: number;
-  tpsRate?: number;
+  tpsRate?: number | null;
   cssRate?: number;
   sessionTimeout?: number;
   invoicePrefix?: string;

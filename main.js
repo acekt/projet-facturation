@@ -593,24 +593,35 @@ app.whenReady().then(async () => {
   let port;
 
   if (isDev) {
-    // [FIX-3] Sonder la plage de ports pour trouver le serveur dev actif
-    const foundPort = await scanForDevServer();
+    createSplashWindow();
+    logToFile('INFO', '[Dev] Recherche du serveur Next.js en cours...');
+    
+    let foundPort = null;
+    let attempts = 0;
+    
+    // Boucle dynamique : on scanne continuellement jusqu'à l'apparition du serveur (ex: port 3001)
+    while (!foundPort && attempts < 60) { // Timeout global de 30 secondes (60 * 500ms)
+      foundPort = await scanForDevServer();
+      if (!foundPort) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+        attempts++;
+      }
+    }
 
     if (foundPort) {
       port = foundPort;
-      // [FIX-IPv4] Attendre que le serveur dev soit pleinement prêt avant de charger l'UI.
-      // Même chose qu'en production — évite ERR_CONNECTION_REFUSED au démarrage rapide.
-      logToFile('INFO', `[Dev] Serveur trouvé sur le port ${port} — attente du health check...`);
+      logToFile('INFO', `[Dev] Serveur Next.js détecté avec succès sur le port ${port} !`);
       try {
         await waitForServer(`http://127.0.0.1:${port}`, 60000);
       } catch (e) {
         logToFile('WARN', `[Dev] Health check timeout: ${e.message} — tentative de chargement quand même.`);
       }
     } else {
-      // Aucun serveur dev actif → utiliser 3000 par défaut et laisser
-      // did-fail-load + retry gérer la reconnexion quand next dev démarre
-      port = DEV_PORT_RANGE_START;
-      logToFile('WARN', '[main] Aucun serveur Next.js dev trouvé — lancez `npm run dev` dans un autre terminal.');
+      // Si Next.js n'a jamais démarré
+      logToFile('ERROR', '[Dev] Impossible de trouver Next.js. Avez-vous lancé npm run dev ?');
+      dialog.showErrorBox('Serveur Introuvable', "Aucun serveur Next.js n'a été détecté. Veuillez lancer 'npm run dev' dans un terminal.");
+      app.quit();
+      return;
     }
   } else {
     // Production : trouver un port libre et démarrer le serveur standalone
