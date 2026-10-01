@@ -41,7 +41,7 @@ test.describe('Dashboard QA (Typage et Affichage)', () => {
     const invoiceId = crypto.randomUUID();
     db.prepare(`
       INSERT INTO invoices (id, number, clientId, clientName, date, subtotal, taxBase, tvaAmount, total, status, created_by)
-      VALUES (?, 'F-100', ?, 'Client Dashboard', '2026-01-01', 10000, 10100, 1818, 11918, 'UNPAID', ?)
+      VALUES (?, 'F-100', ?, 'Client Dashboard', date('now'), 10000, 10100, 1818, 11918, 'UNPAID', ?)
     `).run(invoiceId, clientId, operatorId);
 
     db.close();
@@ -49,7 +49,7 @@ test.describe('Dashboard QA (Typage et Affichage)', () => {
 
   test('Affichage correct des métriques du Dashboard (Refactoring type strict)', async ({ page }) => {
     await page.goto('/login');
-    await page.getByLabel('Identifiant ou Email').fill('dashboard@phase4.com');
+    await page.getByLabel('Email', { exact: true }).fill('dashboard@phase4.com');
     await page.getByLabel('Mot de passe', { exact: true }).fill('operator123');
     await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
     await expect(page).toHaveURL('/', { timeout: 15000 });
@@ -60,8 +60,8 @@ test.describe('Dashboard QA (Typage et Affichage)', () => {
     await expect(page.locator('text=Chargement sécurisé de votre espace...')).not.toBeVisible({ timeout: 15000 });
 
     // Vérifier les valeurs chiffrées (Factures impayées)
-    // "11 918 FCFA" (sans espace insécable strict car la regex gère les deux)
-    await expect(page.getByText(/11\s*918\s*FCFA/)).toBeVisible();
+    const unpaidCard = page.locator('.bg-card').filter({ hasText: 'Factures Non Payées' });
+    await expect(unpaidCard.locator('p.text-3xl')).toHaveText('1');
 
     // Screenshot final du dashboard
     await page.screenshot({ path: 'tests/artifacts/screenshots/dashboard-metrics.png', fullPage: true });

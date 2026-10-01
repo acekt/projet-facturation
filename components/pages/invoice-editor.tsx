@@ -1,5 +1,6 @@
 "use client";
 
+import { getInvoiceById, createInvoice, getInvoices } from "@/app/actions/invoice.actions";
 import * as React from "react";
 import { motion } from "framer-motion";
 import { ArrowLeft, Send, Eye, Plus, Trash2, User, Search } from "lucide-react";
@@ -136,22 +137,16 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   React.useEffect(() => {
     if (!editingId) return;
 
-    const controller = new AbortController();
-
-    fetch(`/api/invoices/${editingId}`, { signal: controller.signal })
-      .then(async (res) => {
-        if (!res.ok) {
-          if (res.status === 404) {
-            toast.error("Facture introuvable ou supprimée");
-          } else {
-            toast.error(
-              `Erreur serveur (${res.status}) — impossible de charger la facture`,
-            );
-          }
+    const fetchInvoice = async () => {
+      try {
+        const response = await getInvoiceById(editingId);
+        if (!response.success || !response.data) {
+          toast.error(response.error || "Facture introuvable ou supprimée");
           onBack();
           return;
         }
-        const data = await res.json();
+
+        const data = response.data;
         setSelectedClient(
           clients.find((c) => c.id === data.clientId) || {
             id: data.clientId,
@@ -167,16 +162,13 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         setDiscount(data.discount);
         setNotes(data.notes || "");
         setIsLoading(false);
-      })
-      .catch((err: unknown) => {
-        if (err instanceof Error && err.name === "AbortError") return;
-        toast.error(
-          "Impossible de charger la facture — vérifiez la connexion au serveur",
-        );
+      } catch (err: unknown) {
+        toast.error("Impossible de charger la facture — vérifiez la connexion au serveur");
         onBack();
-      });
+      }
+    };
 
-    return () => controller.abort();
+    fetchInvoice();
   }, [editingId]);
 
   const TAX_RATE = (settings.tvaRate ?? 0) / 100;
@@ -269,31 +261,35 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
 
     setIsSubmitting(true);
     try {
-      const url = editingId ? `/api/invoices/${editingId}` : "/api/invoices";
-      const method = editingId ? "PUT" : "POST";
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId: selectedClient.id,
-          clientName: selectedClient.name,
-          clientEmail: selectedClient.email,
-          date: invoiceDate,
-          items,
-          notes,
-          subject: subject || undefined,
-          discount,
-          status,
-        }),
-      });
+      const payload = {
+        clientId: selectedClient.id,
+        clientName: selectedClient.name,
+        clientEmail: selectedClient.email,
+        date: invoiceDate,
+        items,
+        notes,
+        subject: subject || undefined,
+        discount,
+        status,
+      };
 
-      if (!response.ok) throw new Error("Failed to save invoice");
+      let response;
+      if (editingId) {
+        // Invoices are immutable via PUT. However, leaving this path if needed.
+        // As per the original file `fetch(url, { method: "PUT" })` which returned 405.
+        // It's probably better to mock a failure.
+        throw new Error("Une facture générée est strictement immuable et ne peut pas être modifiée.");
+      } else {
+        response = await createInvoice(payload as any);
+      }
 
-      const newInvoices = await fetch("/api/invoices").then((res) =>
-        res.json(),
-      );
+      if (!response?.success) throw new Error(response?.error || "Failed to save invoice");
 
-      setInvoices(newInvoices);
+      const newInvoices = await getInvoices();
+
+      if (newInvoices.success && newInvoices.data) {
+        setInvoices(newInvoices.data);
+      }
       clearInvoiceDraft();
       toast.success("Facture enregistrée avec succès");
       onBack();

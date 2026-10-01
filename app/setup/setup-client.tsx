@@ -1,5 +1,6 @@
 "use client"
 
+import { setupApp } from "@/app/actions/setup.actions"
 import * as React from 'react'
 import { useRouter } from 'next/navigation'
 import { Input } from "@/components/ui/input"
@@ -73,34 +74,29 @@ export default function SetupClient() {
 
     setLoading(true)
     try {
-      const res = await fetch('/api/setup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          email,
-          password,
-          phone,
-          companyName,
-          nif,
-          rccm,
-          address,
-          companyPhone,
-          companyEmail,
-        }),
+      const res = await setupApp({
+        name,
+        email,
+        password,
+        phone,
+        companyName,
+        nif,
+        rccm,
+        address,
+        companyPhone,
+        companyEmail,
       })
 
-      const data = await res.json()
-      if (res.ok) {
+      if (res.success) {
         toast.success("Initialisation de Facturier réussie !")
-        if (data.user) {
-          setUser(data.user)
+        if (res.data?.user) {
+          setUser(res.data.user)
         }
         await new Promise(resolve => setTimeout(resolve, 300))
         router.push('/')
         router.refresh()
       } else {
-        toast.error(data.error || "Erreur lors de l'initialisation")
+        toast.error(res.error || "Erreur lors de l'initialisation")
       }
     } catch (err) {
       toast.error("Impossible de joindre le serveur local")

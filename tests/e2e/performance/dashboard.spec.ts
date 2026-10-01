@@ -45,7 +45,7 @@ test.describe('Phase 4 : Audit de Performance', () => {
 
   test('Vérifier que le chargement initial du tableau de bord prend moins de 1.5 seconde', async ({ page }) => {
     await page.goto('/login');
-    await page.getByLabel('Identifiant ou Email').fill('admin@phase4.com');
+    await page.getByLabel('Email', { exact: true }).fill('admin@phase4.com');
     await page.getByLabel('Mot de passe', { exact: true }).fill('admin123');
 
     const startTime = Date.now();

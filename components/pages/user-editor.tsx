@@ -1,5 +1,6 @@
 "use client"
 
+import { getUsers, createUser, updateUser as updateUserService } from "@/app/actions/user.actions"
 import * as React from "react"
 import { motion } from "framer-motion"
 import {
@@ -54,9 +55,9 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
 
   const fetchUser = async () => {
     try {
-      const res = await fetch(`/api/users`)
-      if (res.ok) {
-        const users = await res.json()
+      const res = await getUsers()
+      if (res.success && res.data) {
+        const users = res.data
         const user = users.find((u: { id: string }) => u.id === editingId)
         if (user) {
           setFormData({
@@ -65,10 +66,13 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
             phone: user.phone || "",
             role: user.role,
             password: "",
-            force_password_change: user.force_password_change === 1,
+            force_password_change: (user as any).force_password_change === 1,
             is_active: user.is_active === 1,
           })
         }
+      } else {
+          toast.error(res.error || "Erreur lors du chargement de l'utilisateur")
+          onBack()
       }
     } catch (err) {
       toast.error("Erreur lors du chargement de l'utilisateur")
@@ -115,9 +119,6 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
 
     startSubmitTransition(async () => {
       try {
-        const url = editingId ? `/api/users/${editingId}` : '/api/users'
-        const method = editingId ? 'PATCH' : 'POST'
-        
         const payload = editingId 
           ? {
               name: formData.name,
@@ -138,18 +139,13 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
               is_active: formData.is_active,
             }
 
-        const res = await fetch(url, {
-          method,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
-        })
+        const res = editingId ? await updateUserService(editingId, payload) : await createUser(payload)
 
-        if (res.ok) {
+        if (res.success) {
           toast.success(editingId ? "Utilisateur mis à jour" : "Utilisateur créé avec succès")
           onBack()
         } else {
-          const data = await res.json()
-          toast.error(data.error || "Erreur lors de l'opération")
+          toast.error(res.error || "Erreur lors de l'opération")
         }
       } catch (err) {
         console.error('[UserEditor] handleSubmit error:', err)

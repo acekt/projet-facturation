@@ -14,6 +14,15 @@
 import * as React from "react"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
+import { getClients } from "@/app/actions/client.actions"
+import { getServices } from "@/app/actions/service.actions"
+
+import { getSettings } from "@/app/actions/settings.actions"
+
+import { getCreditNotes } from "@/app/actions/credit-note.actions"
+import { getQuotes } from "@/app/actions/quote.actions"
+import { getInvoices } from "@/app/actions/invoice.actions"
+import { getPayments } from "@/app/actions/payment.actions"
 
 export function DataSync() {
   const userId = useStore(state => state.user?.id)
@@ -42,21 +51,17 @@ export function DataSync() {
       setIsDataLoaded(false)
       try {
         const endpoints = [
-          { url: '/api/clients',      setter: setClients },
-          { url: '/api/quotes',       setter: setQuotes },
-          { url: '/api/invoices',     setter: setInvoices },
-          { url: '/api/services',     setter: setServices },
-          { url: '/api/payments',     setter: setPayments },
-          { url: '/api/settings',     setter: setSettings },
-          { url: '/api/credit-notes', setter: setCreditNotes },
+          { action: getClients,       setter: setClients },
+          { action: getServices,      setter: setServices },
+          { action: getSettings,      setter: setSettings },
+          { action: getCreditNotes,   setter: setCreditNotes },
+          { action: getQuotes,        setter: setQuotes },
+          { action: getInvoices,      setter: setInvoices },
+          { action: getPayments,      setter: setPayments },
         ]
 
         const results = await Promise.allSettled(
-          endpoints.map(ep =>
-            fetch(ep.url, { signal })
-              .then(res => (res.ok ? res.json().catch(() => null) : null))
-              .catch(() => null)
-          )
+          endpoints.map(ep => ep.action().then((res: any) => res?.success ? res.data : null).catch(() => null))
         )
 
         results.forEach((res, idx) => {

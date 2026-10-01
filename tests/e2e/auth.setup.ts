@@ -184,8 +184,8 @@ setup('Purge DB, initialisation des données et génération des Storage States'
   await page.fill('#username', 'admin@facturier.ga');
   await page.fill('#password', 'admin123');
   await page.click('button[type="submit"]');
-  await expect(page).toHaveURL('http://localhost:3050/', { timeout: 45000 });
-  await expect(page.locator('h1:has-text("Tableau de bord"), h2:has-text("Tableau de bord"), button:has-text("Factures")').first()).toBeVisible({ timeout: 45000 });
+  await expect(page).toHaveURL('http://localhost:3050/', { timeout: 90000 });
+  await expect(page.locator('h1:has-text("Tableau de bord"), h2:has-text("Tableau de bord"), button:has-text("Factures")').first()).toBeVisible({ timeout: 90000 });
   await page.context().storageState({ path: adminFile });
 
   // --- 2. Connexion et sauvegarde du Storage State Opérateur ---

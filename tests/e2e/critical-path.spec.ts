@@ -17,16 +17,13 @@ import crypto from 'crypto';
 test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => {
 
   test.beforeEach(async () => {
-    const dataDir = path.join(process.cwd(), 'data');
-    if (!require('fs').existsSync(dataDir)) {
-      require('fs').mkdirSync(dataDir, { recursive: true });
-    }
-    const dbPath = path.join(dataDir, 'database.sqlite');
+    const dbPath = process.env.TEST_DB_PATH || path.join(require('os').tmpdir(), 'fintech-invoicing-e2e-test.sqlite');
     const db = new Database(dbPath);
 
     // Purge de toutes les tables pour garantir l'idempotence absolue du test
     db.pragma('foreign_keys = OFF');
     db.exec(`
+      DELETE FROM settings;
       DELETE FROM audit_logs;
       DELETE FROM payments;
       DELETE FROM invoice_items;
@@ -62,6 +59,11 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => 
       VALUES (?, ?, ?, ?, 'admin', ?, 1, CURRENT_TIMESTAMP)
     `).run(adminId, 'admin@facturier.ga', 'admin@facturier.ga', adminHash, 'Administrateur Système');
 
+    db.prepare(`
+      INSERT INTO settings (id, companyName, quotePrefix, invoicePrefix, tvaRate, tpsRate, cssRate)
+      VALUES (1, 'Facturier SARL', 'DEV', 'FAC', 18.0, 9.5, 1.0)
+    `).run();
+
     // Création d'un service au catalogue
     const serviceId = crypto.randomUUID();
     db.prepare(`
@@ -78,9 +80,9 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => 
     // ══════════════════════════════════════════════════════════════════════
     await page.goto('/login');
 
-    await page.getByLabel('Identifiant ou Email').fill('operateur@facturier.ga');
-    await page.getByLabel('Mot de passe').fill('operateur123');
-    await page.getByRole('button', { name: /Se connecter/i }).click();
+    await page.getByLabel('Email', { exact: true }).fill('admin@facturier.ga');
+    await page.getByLabel('Mot de passe', { exact: true }).fill('admin123');
+    await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
 
     // Vérification de la redirection et de l'affichage du PageHeader du Dashboard
     await expect(page).toHaveURL('/');
@@ -89,10 +91,10 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => 
     // ══════════════════════════════════════════════════════════════════════
     // ÉTAPE 2 : CRÉATION D'UN CLIENT
     // ══════════════════════════════════════════════════════════════════════
-    await page.getByRole('button', { name: 'Clients' }).click();
+    await page.locator('button').filter({ hasText: /^Clients$/ }).first().click();
     await expect(page.locator('h1:has-text("Clients"), h2:has-text("Clients")').first()).toBeVisible();
 
-    await page.getByRole('button', { name: /Nouveau client/i }).click();
+    await page.getByRole('button', { name: /Nouveau client/i }).first().click();
 
     await page.getByLabel('Nom complet / Raison sociale').fill('Société Gabonaise de Tech');
     await page.getByLabel('Email').fill('contact@sgtech.ga');
@@ -128,6 +130,9 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => 
     // Enregistrement du devis
     await page.getByRole('button', { name: /Enregistrer/i }).click();
 
+    // TEMPORARY: Wait a bit to let the toast appear or logs to accumulate
+    await page.waitForTimeout(2000);
+
     await expect(page.locator('text=Devis enregistré avec succès')).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Société Gabonaise de Tech')).toBeVisible();
 
@@ -137,7 +142,7 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => 
     await page.getByRole('menuitem', { name: /Convertir en facture/i }).click();
 
     await expect(page.getByText('Devis converti en facture avec succès')).toBeVisible();
-    await expect(page.getByText('Converti')).toBeVisible();
+    await expect(page.getByText('Converti', { exact: true }).first()).toBeVisible();
 
     // ──────────────────────────────────────────────────────────────────────
     // 3. VÉRIFICATION DU CALCUL DES TAXES ET DU TOTAL SUR LA FACTURE

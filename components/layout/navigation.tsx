@@ -1,5 +1,6 @@
 "use client"
 
+import { logoutUser } from "@/app/actions/auth.actions"
 import * as React from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -63,7 +64,6 @@ const navItems = [
   // Groupe Opérations
   { id: "quotes", label: "Devis", icon: FileText, roles: ['admin', 'user'], group: 'business' },
   { id: "invoices", label: "Factures", icon: FileText, roles: ['admin', 'user'], group: 'business' },
-  { id: "payments", label: "Paiements", icon: CreditCard, roles: ['admin', 'user'], group: 'business' },
   { id: "credit-notes", label: "Avoirs", icon: RefreshCcw, roles: ['admin', 'user'], group: 'business' },
 
   // Bas de Sidebar
@@ -77,7 +77,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle }: Side
 
   const handleLogout = async () => {
     try {
-        await fetch('/api/auth/logout', { method: 'POST' });
+        await logoutUser();
     } catch (e) {}
     setUser(null);
     window.location.href = '/login';
@@ -238,7 +238,7 @@ export function TopBar({ collapsed, onCommandOpen }: TopBarProps) {
 
   const handleLogout = async () => {
     try {
-        await fetch('/api/auth/logout', { method: 'POST' });
+        await logoutUser();
     } catch (e) {}
     setUser(null);
     window.location.href = '/login';

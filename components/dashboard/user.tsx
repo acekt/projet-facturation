@@ -1,5 +1,6 @@
 "use client"
 
+import { getDashboardMetrics } from "@/app/actions/dashboard.actions"
 import { useState, useEffect } from "react"
 import { useStore } from "@/lib/store"
 import {
@@ -35,7 +36,7 @@ interface UserDashboardState extends Omit<Partial<DashboardMetricsResponse>, 'us
   paymentMethodData?: Array<{ method: string; amount: number }>;
   recentInvoices?: Invoice[];
   activityTimeline?: Array<{ id: string; action: string; client: string; time: string }>;
-  userPerformance?: Array<{ username: string; total_collected: number }>;
+  userPerformance?: Array<{ name: string; docsCount: number; totalRevenue: number }>;
 }
 
 export function DashboardUser({ onNavigate }: DashboardUserProps) {
@@ -76,57 +77,26 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
 
     ;(async () => {
       try {
-        const res = await fetch('/api/dashboard/metrics?range=month', {
-          signal: controller.signal,
-          cache: 'no-store',
-        })
+        const res = await getDashboardMetrics('month')
 
-        // --- Guard 1: HTTP error (401 Middleware redirect, 500 crash, etc.) ---
-        if (!res.ok) {
-          const contentType = res.headers.get('content-type') ?? ''
-          if (!contentType.includes('application/json')) {
-            throw new Error(
-              `Le serveur a renvoyé une page inattendue (HTTP ${res.status}). ` +
-              `Vérifiez que SESSION_SECRET est configuré dans .env.local et que le serveur est démarré.`
-            )
-          }
-          const errorBody = await res.json().catch(() => ({}))
-          throw new Error(errorBody?.error || `Erreur HTTP ${res.status}`)
+        if (!res.success) {
+          throw new Error(res.error || `Erreur serveur lors de la récupération des métriques`)
         }
 
-        // --- Guard 2: Successful response but wrong Content-Type (e.g. proxy returning HTML) ---
-        const contentType = res.headers.get('content-type') ?? ''
-        if (!contentType.includes('application/json')) {
-          throw new Error(
-            'Le serveur a renvoyé une réponse non-JSON. ' +
-            'Le middleware ou un proxy a peut-être intercepté la requête.'
-          )
-        }
-
-        const d = await res.json().catch(() => null)
+        const d = res.data
         if (!controller.signal.aborted && d && typeof d === 'object') {
           const normalizedData: UserDashboardState = {
             ...d,
-            metrics: d.metrics || {
-              totalRevenue: d.totalRevenue ?? 0,
-              growth: d.growth ?? 0,
-              pendingRevenue: d.pendingRevenue ?? 0,
-              overdueRevenue: d.overdueRevenue ?? 0,
-              paidCount: d.paidCount ?? 0,
-              unpaidCount: d.unpaidCount ?? 0,
-              partiallyPaidCount: d.partiallyPaidCount ?? 0,
-              totalInvoicesCount: d.totalInvoicesCount ?? 0,
-              pendingQuotesCount: d.pendingQuotesCount ?? 0,
-            },
+            metrics: d as unknown as DashboardMetricsResponse,
             revenueData: d.revenueData || [],
             paymentMethodData: d.paymentMethodData || [],
-            recentInvoices: d.recentInvoices || [],
+            recentInvoices: (d as any).recentInvoices || [],
             activityTimeline: d.activityTimeline || [],
             topClients: d.topClients || [],
             userPerformance: d.userPerformance || [],
           }
           setData(normalizedData)
-          useStore.getState().setDashboardMetrics(normalizedData as unknown as DashboardMetricsResponse)
+          useStore.getState().setDashboardMetrics(d as DashboardMetricsResponse)
         }
       } catch (err) {
         if (err instanceof Error && err.name === 'AbortError') return

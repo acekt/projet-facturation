@@ -209,6 +209,23 @@ export interface InvoiceItem {
   total: number;
 }
 
+export interface InvoiceCreateRequest {
+  quoteId?: string;
+  clientId: string;
+  clientName: string;
+  clientEmail: string;
+  date: string;
+  dueDate: string;
+  discount: number;
+  notes?: string;
+  subject?: string;
+  items: Array<{
+    description: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
+}
+
 export interface InvoiceResponse {
   id: string;
   number: string;

@@ -28,6 +28,7 @@ import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
+import { createClient, updateClient as updateClientAction, deleteClient } from "@/app/actions/client.actions"
 // ── Design System
 import { PageHeader } from "@/components/ui/page-header"
 import { SearchBar } from "@/components/ui/search-bar"
@@ -125,18 +126,13 @@ export function ClientsPage() {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch('/api/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(clientToCreate),
-      })
+      const response = await createClient(clientToCreate)
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        throw new Error(errData.error || `HTTP ${response.status}`)
+      if (!response.success) {
+        throw new Error(response.error)
       }
 
-      const createdClient = await response.json()
+      const createdClient = response.data
 
       // SERVER-FIRST: only close dialog and reset form AFTER server confirms success.
       addClient(createdClient) // use confirmed server record, not temp
@@ -165,12 +161,9 @@ export function ClientsPage() {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`/api/clients/${id}`, {
-        method: 'DELETE',
-      })
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        throw new Error(errData.error || `HTTP ${response.status}`)
+      const response = await deleteClient(id)
+      if (!response.success) {
+        throw new Error(response.error)
       }
     } catch (error) {
       // ROLLBACK — re-insert the previously removed client
@@ -202,18 +195,13 @@ export function ClientsPage() {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`/api/clients/${clientToSave.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(clientToSave),
-      })
+      const response = await updateClientAction(clientToSave.id, clientToSave)
 
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        throw new Error(errData.error || `HTTP ${response.status}`)
+      if (!response.success) {
+        throw new Error(response.error)
       }
 
-      const updatedClient = await response.json()
+      const updatedClient = response.data
 
       // SERVER-FIRST: apply optimistic update only after server confirms.
       updateClient(clientToSave.id, updatedClient)

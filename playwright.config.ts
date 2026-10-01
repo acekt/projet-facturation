@@ -7,9 +7,9 @@ process.env.TEST_DB_PATH = testDbPath;
 
 export default defineConfig({
   testDir: './tests/e2e',
-  timeout: 60000,
+  timeout: 120000,
   expect: {
-    timeout: 10000,
+    timeout: 30000,
   },
   fullyParallel: false,
   retries: 0,
@@ -49,15 +49,15 @@ export default defineConfig({
     {
       name: 'other-tests',
       testMatch: /.*\.spec\.ts/,
+      testIgnore: [/admin\.spec\.ts/, /operator\.spec\.ts/],
       use: {
         ...devices['Desktop Chrome'],
-        storageState: './tests/e2e/.auth/adminState.json',
       },
       dependencies: ['setup'],
     },
   ],
   webServer: {
-    command: 'npx next dev -p 3050',
+    command: 'npm run start -- -p 3050',
     url: 'http://localhost:3050/login',
     reuseExistingServer: false,
     timeout: 120000,

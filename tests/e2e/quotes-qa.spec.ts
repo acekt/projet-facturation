@@ -35,29 +35,35 @@ test.describe('Quotes QA (Conversion et UI)', () => {
       VALUES (?, ?, ?, ?, ?, 'active', CURRENT_TIMESTAMP)
     `).run(clientId, 'QA Client Quote', 'qaclient2@phase4.com', '', '');
 
+    const serviceId = crypto.randomUUID();
+    db.prepare(`
+      INSERT INTO services (id, name, description, category, unitPrice, createdAt)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `).run(serviceId, 'Mission QA', 'Desc', 'Consulting', 200000);
+
     db.close();
   });
 
   test('Conversion de devis en facture', async ({ page }) => {
     // Authentification
     await page.goto('/login');
-    await page.getByLabel('Identifiant ou Email').fill('qa_quote@phase4.com');
+    await page.getByLabel('Email', { exact: true }).fill('qa_quote@phase4.com');
     await page.getByLabel('Mot de passe', { exact: true }).fill('operator123');
     await page.getByRole('button', { name: 'Se connecter', exact: true }).click();
     await expect(page).toHaveURL('/', { timeout: 15000 });
 
     // Création d'un devis
     await page.getByRole('button', { name: 'Devis', exact: true }).click();
-    await page.locator('.border-dashed').getByRole('button', { name: 'Nouveau devis', exact: true }).click();
+    await page.getByRole('button', { name: 'Nouveau devis', exact: true }).first().click();
 
     await page.getByText('Sélectionner un client').click();
     const clientDialog = page.locator('[role="dialog"]:has-text("Rechercher un client")');
     await expect(clientDialog).toBeVisible();
     await clientDialog.getByText('QA Client Quote').click();
 
-    await page.getByPlaceholder('Description de la prestation...').first().fill('Mission QA');
-    await page.getByPlaceholder('0', { exact: true }).first().fill('1');
-    await page.getByPlaceholder('0.00', { exact: true }).first().fill('200000');
+    await page.getByText('Sélectionner un service...').first().click();
+    await page.getByRole('option', { name: 'Mission QA' }).click();
+    await page.locator('input[type="number"]').nth(0).fill('1');
 
     await page.getByRole('button', { name: 'Enregistrer le Devis', exact: true }).click();
     await expect(page.locator('text=Devis enregistré avec succès')).toBeVisible({ timeout: 10000 });
@@ -72,7 +78,7 @@ test.describe('Quotes QA (Conversion et UI)', () => {
     await expect(page.locator('text=Devis converti en facture avec succès')).toBeVisible();
 
     // Vérification du badge converti
-    await expect(page.getByText('Converti')).toBeVisible();
+    await expect(page.getByText('Converti', { exact: true }).first()).toBeVisible();
     await page.screenshot({ path: 'tests/artifacts/screenshots/quote-converted.png', fullPage: true });
   });
 });

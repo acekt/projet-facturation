@@ -1,5 +1,9 @@
 "use client"
 
+import { getInvoices, deleteInvoice } from "@/app/actions/invoice.actions"
+import { getQuotes } from "@/app/actions/quote.actions"
+import { getCreditNotes } from "@/app/actions/credit-note.actions"
+import { createPayment, getPayments } from "@/app/actions/payment.actions"
 import * as React from "react"
 import { motion } from "framer-motion"
 import { exportInvoicesToExcel } from "@/lib/services/ExportService"
@@ -130,17 +134,22 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     if (isDeleting) return
     setIsDeleting(true)
     try {
-      const response = await fetch(`/api/invoices/${id}`, { method: 'DELETE' })
-      if (response.status === 403) {
-        toast.error("Action refusée : Vous manquez de droits pour supprimer cette facture.")
+      const response = await deleteInvoice(id)
+      if (!response.success) {
+        if (response.error?.includes('Forbidden')) {
+          toast.error("Action refusée : Vous manquez de droits pour supprimer cette facture.")
+        } else {
+          throw new Error('Delete failed')
+        }
         setInvoiceToDeleteId(null)
         return
       }
-      if (!response.ok) throw new Error('Delete failed')
       toast.success("Facture supprimée")
       setInvoiceToDeleteId(null)
-      const updatedInvoices = await fetch('/api/invoices').then(res => res.json())
-      setInvoices(updatedInvoices)
+      const updatedInvoices = await getInvoices()
+      if (updatedInvoices.success && updatedInvoices.data) {
+        setInvoices(updatedInvoices.data)
+      }
     } catch (error) {
       toast.error("Erreur lors de la suppression")
     } finally {
@@ -152,30 +161,29 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     if (!invoiceToCancel || isCancelling) return
     setIsCancelling(true)
     try {
-      const response = await fetch(`/api/invoices/${invoiceToCancel.id}`, {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ deleteQuote: deleteAssociatedQuote }),
-      });
+      const response = await deleteInvoice(invoiceToCancel.id, deleteAssociatedQuote);
 
-      if (response.status === 403) {
-        toast.error("Action refusée : Vous manquez de droits pour annuler/supprimer cette facture.")
+      if (!response.success) {
+        if (response.error?.includes('Forbidden')) {
+          toast.error("Action refusée : Vous manquez de droits pour annuler/supprimer cette facture.")
+        } else {
+          throw new Error('Failed to cancel invoice')
+        }
         setInvoiceToCancel(null)
         return
       }
-      if (!response.ok) throw new Error('Failed to cancel invoice');
 
       toast.success("Facture annulée avec succès");
       setInvoiceToCancel(null);
       setDeleteAssociatedQuote(false);
 
       // Replace Promise.all with sequential fetches to prevent Zustand race conditions
-      const updatedInvoices = await fetch('/api/invoices').then(res => res.json());
-      setInvoices(updatedInvoices);
-      const updatedQuotes = await fetch('/api/quotes').then(res => res.json());
-      setQuotes(updatedQuotes);
-      const updatedNotes = await fetch('/api/credit-notes').then(res => res.json());
-      setCreditNotes(updatedNotes);
+      const updatedInvoices = await getInvoices();
+      if (updatedInvoices.success && updatedInvoices.data) setInvoices(updatedInvoices.data);
+      const updatedQuotes = await getQuotes();
+      if (updatedQuotes.success && updatedQuotes.data) setQuotes(updatedQuotes.data);
+      const updatedNotes = await getCreditNotes();
+      if (updatedNotes.success && updatedNotes.data) setCreditNotes(updatedNotes.data);
     } catch (error) {
       toast.error("Erreur lors de l'annulation de la facture");
     } finally {
@@ -239,26 +247,22 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           }
           
           try {
-            const response = await fetch('/api/payments', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
+            const response = await createPayment({
                   invoiceId: paymentInvoice.id,
                   amount: amount,
                   paymentMethod,
                   date: new Date().toISOString().split('T')[0]
-              }),
             })
 
-            if (!response.ok) throw new Error('Failed to record payment')
+            if (!response.success) throw new Error('Failed to record payment')
 
             toast.success("Paiement enregistré")
 
             // Replace Promise.all with sequential fetches to prevent Zustand race conditions
-            const updatedInvoices = await fetch('/api/invoices').then(res => res.json());
-            setInvoices(updatedInvoices);
-            const updatedPayments = await fetch('/api/payments').then(res => res.json());
-            setPayments(updatedPayments);
+            const updatedInvoices = await getInvoices();
+            if (updatedInvoices.success && updatedInvoices.data) setInvoices(updatedInvoices.data);
+            const updatedPayments = await getPayments();
+            if (updatedPayments.success && updatedPayments.data) setPayments(updatedPayments.data);
             setPaymentDialogOpen(false);
             setPaymentInvoice(null);
           } catch (error) {
@@ -447,12 +451,12 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                         <Download className="w-4 h-4" />
                         {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
                       </DropdownMenuItem>
-                      {invoice.status !== 'PAID' && user?.role === 'user' && invoice.created_by === user?.id && (
+                      {invoice.status !== 'PAID' && (user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && (
                         <DropdownMenuItem className="gap-2 text-accent" onClick={() => markAsPaid(invoice)}>
                           <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                         </DropdownMenuItem>
                       )}
-                      {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== INVOICE_STATUS.CANCELLED && (
+                      {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && invoice.status !== INVOICE_STATUS.CANCELLED && (
                         <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
                           setInvoiceToCancel(invoice)
                           setDeleteAssociatedQuote(false)
@@ -460,7 +464,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <RefreshCcw className="w-4 h-4" /> Annuler la facture
                         </DropdownMenuItem>
                       )}
-                      {user?.role === 'user' && invoice.created_by === user?.id && (
+                      {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && (
                         <>
                           <div className="h-px bg-border my-1" />
                           <DropdownMenuItem
@@ -544,12 +548,12 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                             <Download className="w-4 h-4" />
                             {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
                           </DropdownMenuItem>
-                          {invoice.status !== 'PAID' && user?.role === 'user' && invoice.created_by === user?.id && (
+                          {invoice.status !== 'PAID' && (user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && (
                             <DropdownMenuItem className="gap-2 text-accent" onClick={() => markAsPaid(invoice)}>
                               <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                             </DropdownMenuItem>
                           )}
-                          {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== INVOICE_STATUS.CANCELLED && (
+                          {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && invoice.status !== INVOICE_STATUS.CANCELLED && (
                              <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
                                setInvoiceToCancel(invoice)
                                setDeleteAssociatedQuote(false)
@@ -557,7 +561,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                                <RefreshCcw className="w-4 h-4" /> Annuler la facture
                              </DropdownMenuItem>
                           )}
-                          {user?.role === 'user' && invoice.created_by === user?.id && (
+                          {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && (
                             <>
                               <div className="h-px bg-border my-1" />
                               <DropdownMenuItem
@@ -638,7 +642,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <Download className="w-4 h-4" />
                           {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
                         </DropdownMenuItem>
-                        {invoice.status !== 'PAID' && user?.role === 'user' && invoice.created_by === user?.id && (
+                        {invoice.status !== 'PAID' && (user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && (
                           <DropdownMenuItem className="gap-2 text-accent" onClick={() => markAsPaid(invoice)}>
                             <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                           </DropdownMenuItem>

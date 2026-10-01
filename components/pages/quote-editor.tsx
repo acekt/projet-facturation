@@ -1,5 +1,6 @@
 "use client";
 
+import { getQuoteById, createQuote, updateQuote, getQuotes } from "@/app/actions/quote.actions";
 import * as React from "react";
 import { motion } from "framer-motion";
 import {
@@ -166,20 +167,16 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
     const controller = new AbortController();
 
-    fetch(`/api/quotes/${editingId}`, { signal: controller.signal })
-      .then(async (res) => {
-        if (!res.ok) {
-          if (res.status === 404) {
-            toast.error("Devis introuvable ou supprimé");
-          } else {
-            toast.error(
-              `Erreur serveur (${res.status}) — impossible de charger le devis`,
-            );
-          }
+    const fetchQuote = async () => {
+      try {
+        const response = await getQuoteById(editingId);
+        if (!response.success || !response.data) {
+          toast.error(response.error || "Devis introuvable ou supprimé");
           onBack();
           return;
         }
-        const data = await res.json();
+
+        const data = response.data;
         setSelectedClient(
           clients.find((c) => c.id === data.clientId) || {
             id: data.clientId,
@@ -197,14 +194,13 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         setNotes(data.notes || "");
         setStatus(data.status);
         setIsLoading(false);
-      })
-      .catch((err: unknown) => {
-        if (err instanceof Error && err.name === "AbortError") return;
-        toast.error(
-          "Impossible de charger le devis — vérifiez la connexion au serveur",
-        );
+      } catch (err: unknown) {
+        toast.error("Impossible de charger le devis — vérifiez la connexion au serveur");
         onBack();
-      });
+      }
+    };
+
+    fetchQuote();
 
     return () => controller.abort();
   }, [editingId]);
@@ -302,30 +298,33 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
     setIsSubmitting(true);
     try {
-      const url = editingId ? `/api/quotes/${editingId}` : "/api/quotes";
-      const method = editingId ? "PUT" : "POST";
-      const response = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          clientId: selectedClient.id,
-          clientName: selectedClient.name,
-          clientEmail: selectedClient.email,
-          date: quoteDate,
-          items,
-          notes,
-          subject: subject || undefined,
-          validUntil: validUntil || undefined,
-          discount,
-          status,
-        }),
-      });
+      const payload = {
+        clientId: selectedClient.id,
+        clientName: selectedClient.name,
+        clientEmail: selectedClient.email,
+        date: quoteDate,
+        items,
+        notes,
+        subject: subject || undefined,
+        validUntil: validUntil || undefined,
+        discount,
+        status,
+      };
 
-      if (!response.ok) throw new Error("Failed to save quote");
+      let response;
+      if (editingId) {
+        response = await updateQuote(editingId, payload as any);
+      } else {
+        response = await createQuote(payload as any);
+      }
 
-      const newQuotes = await fetch("/api/quotes").then((res) => res.json());
+      if (!response.success) throw new Error(response.error || "Failed to save quote");
 
-      setQuotes(newQuotes);
+      const newQuotes = await getQuotes();
+
+      if (newQuotes.success && newQuotes.data) {
+        setQuotes(newQuotes.data);
+      }
       clearQuoteDraft();
       toast.success("Devis enregistré avec succès");
       onBack();

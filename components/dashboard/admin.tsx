@@ -1,5 +1,6 @@
 "use client"
 
+import { getDashboardMetrics } from "@/app/actions/dashboard.actions"
 import { useState, useEffect } from "react"
 import { useStore } from "@/lib/store"
 import {
@@ -73,17 +74,13 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
 
     const fetchMetrics = async () => {
       try {
-        const res = await fetch('/api/dashboard/metrics?range=month', { cache: 'no-store' })
-        if (!res.ok) {
-          if (res.status === 401 || res.status === 403) {
-            console.warn('[Dashboard Admin] Access denied or session invalid during metrics fetch:', res.status)
-          } else {
-            console.warn('[Dashboard Admin] API returned non-ok status:', res.status)
-          }
+        const res = await getDashboardMetrics('month')
+        if (!res.success) {
+          console.warn('[Dashboard Admin] API returned error:', res.error)
           return
         }
-        const d = await res.json().catch(() => null) as DashboardAdminData | null
-        if (d && typeof d === 'object' && !('error' in d)) {
+        const d = res.data as DashboardAdminData | null
+        if (d && typeof d === 'object') {
           setData(d)
           setDashboardMetrics(d as DashboardMetricsResponse)
         }

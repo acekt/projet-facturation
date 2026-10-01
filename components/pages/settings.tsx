@@ -17,6 +17,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
 import { cn } from "@/lib/utils"
+import { updateSettings } from "@/app/actions/settings.actions"
 
 export function SettingsPage() {
   const settings = useStore(state => state.settings)
@@ -91,16 +92,11 @@ export function SettingsPage() {
       // On exclut les champs non reconnus par le schéma Zod côté serveur (ex: 'id')
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, ...payload } = formData as typeof formData & { id?: number }
-      const response = await fetch('/api/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      const response = await updateSettings(payload)
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        if (errorData.details && errorData.details.fieldErrors) {
-          const e = errorData.details.fieldErrors
+      if (!response.success) {
+        if (response.details) {
+          const e = response.details
           setErrors(e)
           
           // Basculer automatiquement vers le premier onglet en erreur
@@ -116,12 +112,12 @@ export function SettingsPage() {
 
           throw new Error("Veuillez corriger les erreurs signalées (voir les points rouges sur les onglets)")
         }
-        throw new Error(errorData.error || 'Failed to update settings')
+        throw new Error(response.error)
       }
 
       // Automatically use the response JSON, assuming PATCH returns the updated object.
       // This enforces an atomic state update without requiring an extra GET /api/settings request
-      const updatedSettings = await response.json()
+      const updatedSettings = response.data
       setSettings({ ...settings, ...updatedSettings })
       setErrors({})
       toast.success("Paramètres enregistrés")

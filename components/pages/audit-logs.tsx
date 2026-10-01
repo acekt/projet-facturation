@@ -1,5 +1,6 @@
 "use client"
 
+import { getAuditLogs } from "@/app/actions/audit.actions"
 import * as React from "react"
 import { ShieldCheck, User } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -18,22 +19,19 @@ export function AuditLogsPage() {
   React.useEffect(() => {
     const fetchLogs = async () => {
       try {
-        const res = await fetch('/api/audit-logs')
+        const res = await getAuditLogs()
         
-        if (!res.ok) {
-          const errorData = await res.json().catch(() => ({}))
-          console.warn('[AuditLogsPage] API response not ok:', res.status, errorData)
-          if (res.status === 401 || res.status === 403) {
+        if (!res.success) {
+          if (res.error === 'Unauthorized') {
             toast.error("Accès non autorisé ou session expirée pour le journal d'audit")
           } else {
-            toast.error(errorData.error || `Erreur lors du chargement des logs (${res.status})`)
+            toast.error(res.error || `Erreur lors du chargement des logs`)
           }
           return
         }
         
-        const data = await res.json()
-        if (!data.error && Array.isArray(data)) {
-          setLogs(data)
+        if (res.data && Array.isArray(res.data)) {
+          setLogs(res.data)
         }
       } catch (err) {
         console.error('[AuditLogsPage] Fetch error:', err)

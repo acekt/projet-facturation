@@ -28,7 +28,9 @@ import os from 'os';
 function resolveDatabasePath(): string {
   // ── TEST : chemin forcé pour la suite de tests (isolement total)
   if (process.env.TEST_DB_PATH) {
-    return path.resolve(process.env.TEST_DB_PATH);
+    const p = path.resolve(process.env.TEST_DB_PATH);
+    console.log(`[db] Niveau 0 (Test/E2E) : ${p}`);
+    return p;
   }
 
   const dbFileName = process.env.DB_FILE_NAME || 'database.sqlite';

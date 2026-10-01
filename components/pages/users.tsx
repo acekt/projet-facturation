@@ -1,5 +1,6 @@
 "use client"
 
+import { getUsers, createUser, updateUser as updateUserService, deleteUser } from "@/app/actions/user.actions"
 import * as React from "react"
 import {
     UserPlus, MoreVertical,
@@ -89,24 +90,20 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
 
   const fetchUsers = async (signal: AbortSignal) => {
     try {
-      const res = await fetch('/api/users', { signal })
+      const res = await getUsers()
 
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}))
-        console.warn('[UsersPage] API response not ok:', res.status, errorData)
-        if (res.status === 401 || res.status === 403) {
+      if (!res.success) {
+        if (res.error === 'Forbidden') {
           toast.error("Accès non autorisé ou session expirée pour les utilisateurs")
         } else {
-          toast.error(errorData.error || `Erreur lors du chargement des utilisateurs (${res.status})`)
+          toast.error(res.error || `Erreur lors du chargement des utilisateurs`)
         }
         return
       }
 
-      const data = await res.json()
-      setUsers(data)
+      if (res.data) setUsers(res.data)
     } catch (err) {
-      // AbortError is expected on component unmount — do not display an error toast
-      if (err instanceof Error && err.name === 'AbortError') return
+      if (signal.aborted) return
       console.error('[UsersPage] Fetch error:', err)
       toast.error(`Erreur chargement utilisateurs : ${err instanceof Error ? err.message : 'Inconnue'}`)
     } finally {
@@ -175,20 +172,14 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
     }
     setIsSubmitting(true);
     try {
-        const res = await fetch('/api/users', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...formData, username: formData.email })
-        })
-        const data = await res.json()
-        if (res.ok) {
+        const res = await createUser({ ...formData, username: formData.email })
+        if (res.success && res.data) {
             toast.success("Utilisateur créé avec succès")
-            // Use the JSON response to update UI instead of refetching
-            setUsers([...users, data.user || data])
+            setUsers([...users, res.data])
             setIsAddModalOpen(false)
             setIsPasswordDisplayOpen(true)
         } else {
-            toast.error(data.error || "Erreur lors de la création")
+            toast.error(res.error || "Erreur lors de la création")
         }
     } catch (e) {
         toast.error(e instanceof Error ? e.message : "Erreur réseau")
@@ -212,24 +203,23 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
     }
     setIsSubmitting(true);
     try {
-        const res = await fetch(`/api/users/${selectedUser.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: formData.name,
-              email: formData.email || selectedUser.email,
-              role: formData.role,
-              is_active: checkIsActive(selectedUser)
-            })
+        const res = await updateUserService(selectedUser.id, {
+          name: formData.name,
+          email: formData.email || selectedUser.email,
+          role: formData.role,
+          is_active: checkIsActive(selectedUser)
         })
-        if (res.ok) {
-            const data = await res.json()
+        if (res.success) {
             toast.success("Utilisateur mis à jour")
-            updateUser(selectedUser.id, data.user || data)
+            // Fetch users to get the updated user response, since updateUser only returns true
+            const updatedUsers = await getUsers()
+            if (updatedUsers.success && updatedUsers.data) {
+                const user = updatedUsers.data.find(u => u.id === selectedUser.id)
+                if (user) updateUser(selectedUser.id, user)
+            }
             setIsEditModalOpen(false)
         } else {
-            const errData = await res.json()
-            toast.error(errData.error || "Erreur")
+            toast.error(res.error || "Erreur")
         }
     } catch (e) {
         toast.error(e instanceof Error ? e.message : "Erreur réseau")
@@ -244,24 +234,23 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
     try {
         const currentActive = checkIsActive(selectedUser);
         const newStatus = !currentActive; // Invert status as boolean
-        const res = await fetch(`/api/users/${selectedUser.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              name: selectedUser.name,
-              email: selectedUser.email,
-              role: selectedUser.role,
-              is_active: newStatus
-            })
+        const res = await updateUserService(selectedUser.id, {
+          name: selectedUser.name,
+          email: selectedUser.email,
+          role: selectedUser.role,
+          is_active: newStatus
         })
-        if (res.ok) {
-            const data = await res.json()
+        if (res.success) {
             toast.success(!newStatus ? "Compte désactivé" : "Compte réactivé")
-            updateUser(selectedUser.id, data.user || data)
+            // Fetch users to get the updated user response, since updateUser only returns true
+            const updatedUsers = await getUsers()
+            if (updatedUsers.success && updatedUsers.data) {
+                const user = updatedUsers.data.find(u => u.id === selectedUser.id)
+                if (user) updateUser(selectedUser.id, user)
+            }
             setIsStatusModalOpen(false)
         } else {
-            const data = await res.json()
-            toast.error(data.error)
+            toast.error(res.error || "Erreur")
         }
     } catch (e) {
         toast.error(e instanceof Error ? e.message : "Erreur réseau")
@@ -278,15 +267,14 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
     }
     setIsSubmitting(true);
     try {
-        const res = await fetch(`/api/users/${selectedUser.id}`, { method: 'DELETE' })
-        if (res.ok) {
+        const res = await deleteUser(selectedUser.id)
+        if (res.success) {
             toast.success("Utilisateur supprimé")
             removeUser(selectedUser.id)
             setIsDeleteModalOpen(false)
             setDeleteConfirmName("")
         } else {
-            const data = await res.json()
-            toast.error(data.error || "Erreur")
+            toast.error(res.error || "Erreur")
         }
     } catch (e) {
         toast.error(e instanceof Error ? e.message : "Erreur réseau")
@@ -300,15 +288,13 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
     const pw = generatePassword()
     setIsSubmitting(true);
     try {
-        const res = await fetch(`/api/users/${selectedUser.id}`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: pw })
-        })
-        if (res.ok) {
+        const res = await updateUserService(selectedUser.id, { password: pw })
+        if (res.success) {
             setTempPassword(pw)
             setIsResetModalOpen(false)
             setIsPasswordDisplayOpen(true)
+        } else {
+            toast.error(res.error || "Erreur")
         }
     } catch (e) {
         toast.error(e instanceof Error ? e.message : "Erreur réseau")

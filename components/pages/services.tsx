@@ -27,6 +27,7 @@ import { toast } from "sonner"
 import { formatCurrency } from "@/lib/utils"
 import { Pagination } from "@/components/ui/pagination-custom"
 import { EmptyState } from "@/components/ui/empty-state"
+import { createService, updateService as updateServiceAction, deleteService } from "@/app/actions/service.actions"
 // ── Design System
 import { PageHeader } from "@/components/ui/page-header"
 import { SearchBar } from "@/components/ui/search-bar"
@@ -116,21 +117,17 @@ export function ServicesPage() {
 
       setIsSubmitting(true)
       try {
-        const response = await fetch(`/api/services/${editingService.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        })
-        if (response.status === 403) {
-          toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
-          return
-        }
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}))
-          throw new Error(errData.error || `HTTP ${response.status}`)
+        const response = await updateServiceAction(editingService.id, formData)
+        
+        if (!response.success) {
+          if (response.error === 'Forbidden') {
+            toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
+            return
+          }
+          throw new Error(response.error)
         }
 
-        const updatedService = await response.json()
+        const updatedService = response.data
 
         // Apply update only after server confirms
         updateService(editingService.id, updatedService)
@@ -155,20 +152,15 @@ export function ServicesPage() {
 
       setIsSubmitting(true)
       try {
-        const response = await fetch('/api/services', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(serviceToCreate),
-        })
-        if (response.status === 403) {
-          toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
-          return
+        const response = await createService(serviceToCreate)
+        if (!response.success) {
+          if (response.error === 'Forbidden') {
+            toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
+            return
+          }
+          throw new Error(response.error)
         }
-        if (!response.ok) {
-          const errData = await response.json().catch(() => ({}))
-          throw new Error(errData.error || `HTTP ${response.status}`)
-        }
-        const created = await response.json()
+        const created = response.data
         // Use confirmed server record — form resets only on success
         addService(created)
         setIsDialogOpen(false)
@@ -196,15 +188,14 @@ export function ServicesPage() {
 
     setIsSubmitting(true)
     try {
-      const response = await fetch(`/api/services/${id}`, { method: 'DELETE' })
-      if (response.status === 403) {
-        if (serviceToRestore) addService(serviceToRestore)
-        toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
-        return
-      }
-      if (!response.ok) {
-        const errData = await response.json().catch(() => ({}))
-        throw new Error(errData.error || `HTTP ${response.status}`)
+      const response = await deleteService(id)
+      if (!response.success) {
+        if (response.error === 'Forbidden') {
+          if (serviceToRestore) addService(serviceToRestore)
+          toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
+          return
+        }
+        throw new Error(response.error)
       }
     } catch (error) {
       // ROLLBACK — re-insert the removed service

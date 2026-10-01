@@ -1,5 +1,7 @@
 "use client";
 
+import { getQuotes, deleteQuote, convertQuoteToInvoice } from "@/app/actions/quote.actions";
+import { getInvoices } from "@/app/actions/invoice.actions";
 import * as React from "react";
 import { motion } from "framer-motion";
 import { exportQuotesToExcel } from "@/lib/services/ExportService";
@@ -134,17 +136,15 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
 
   const handleDelete = async (id: string) => {
     try {
-      const response = await fetch(`/api/quotes/${id}`, {
-        method: "DELETE",
-      });
+      const response = await deleteQuote(id);
 
-      if (!response.ok) throw new Error("Delete failed");
+      if (!response.success) throw new Error(response.error || "Delete failed");
       toast.success("Devis supprimé");
       setQuoteToDeleteId(null);
-      const updatedQuotes = await fetch("/api/quotes").then((res) =>
-        res.json(),
-      );
-      setQuotes(updatedQuotes);
+      const updatedQuotes = await getQuotes();
+      if (updatedQuotes.success && updatedQuotes.data) {
+        setQuotes(updatedQuotes.data);
+      }
     } catch (error) {
       toast.error("Erreur lors de la suppression");
     }
@@ -185,27 +185,26 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
 
   const handleConvertToInvoice = async (quoteId: string) => {
     try {
-      const response = await fetch("/api/quotes/convert", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ quoteId }),
-      });
+      const response = await convertQuoteToInvoice(quoteId);
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Conversion failed");
+      if (!response.success) {
+        throw new Error(response.error || "Conversion failed");
       }
 
       toast.success("Devis converti en facture avec succès");
 
       // Refresh data
       const [newQuotes, newInvoices] = await Promise.all([
-        fetch("/api/quotes").then((res) => res.json()),
-        fetch("/api/invoices").then((res) => res.json()),
+        getQuotes(),
+        getInvoices(),
       ]);
 
-      setQuotes(newQuotes);
-      setInvoices(newInvoices);
+      if (newQuotes.success && newQuotes.data) {
+        setQuotes(newQuotes.data);
+      }
+      if (newInvoices.success && newInvoices.data) {
+        setInvoices(newInvoices.data);
+      }
     } catch (error: any) {
       toast.error(`Erreur: ${error.message}`);
     }
@@ -234,7 +233,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
               <DownloadCloud className="w-4 h-4" />
               Export Excel
             </Button>
-            {user?.role === "user" && (
+            {(user?.role === "user" || user?.role === "admin") && (
               <Button
                 onClick={() => onCreateQuote()}
                 className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
@@ -371,8 +370,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           : "Télécharger PDF"}
                       </DropdownMenuItem>
                       {quote.status !== "CONVERTI" &&
-                        user?.role === "user" &&
-                        quote.created_by === user?.id && (
+                        (user?.role === "user" || user?.role === "admin") &&
+                        (quote.created_by === user?.id || user?.role === "admin") && (
                           <>
                             <DropdownMenuItem
                               className="gap-2"
@@ -394,8 +393,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                               )}
                           </>
                         )}
-                      {user?.role === "user" &&
-                        quote.created_by === user?.id && (
+                      {(user?.role === "user" || user?.role === "admin") &&
+                        (quote.created_by === user?.id || user?.role === "admin") && (
                           <>
                             <div className="h-px bg-border my-1" />
                             <DropdownMenuItem
@@ -525,8 +524,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                                 : "Télécharger PDF"}
                             </DropdownMenuItem>
                             {quote.status !== "CONVERTI" &&
-                              user?.role === "user" &&
-                              quote.created_by === user?.id && (
+                              (user?.role === "user" || user?.role === "admin") &&
+                              (quote.created_by === user?.id || user?.role === "admin") && (
                                 <>
                                   <DropdownMenuItem
                                     className="gap-2"
@@ -549,8 +548,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                                     )}
                                 </>
                               )}
-                            {user?.role === "user" &&
-                              quote.created_by === user?.id && (
+                            {(user?.role === "user" || user?.role === "admin") &&
+                              (quote.created_by === user?.id || user?.role === "admin") && (
                                 <>
                                   <div className="h-px bg-border my-1" />
                                   <DropdownMenuItem
@@ -579,12 +578,12 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                     : "Créez votre premier devis pour commencer."
                 }
                 actionLabel={
-                  !searchQuery && user?.role === "user"
+                  !searchQuery && (user?.role === "user" || user?.role === "admin")
                     ? "Nouveau devis"
                     : undefined
                 }
                 onAction={
-                  !searchQuery && user?.role === "user"
+                  !searchQuery && (user?.role === "user" || user?.role === "admin")
                     ? () => onCreateQuote()
                     : undefined
                 }
@@ -665,8 +664,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                               : "Télécharger PDF"}
                           </DropdownMenuItem>
                           {quote.status !== "CONVERTI" &&
-                            user?.role === "user" &&
-                            quote.created_by === user?.id && (
+                            (user?.role === "user" || user?.role === "admin") &&
+                            (quote.created_by === user?.id || user?.role === "admin") && (
                               <>
                                 <DropdownMenuItem
                                   className="gap-2"

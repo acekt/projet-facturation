@@ -12,7 +12,6 @@ import { QuoteEditor } from "@/components/pages/quote-editor"
 import { InvoiceEditor } from "@/components/pages/invoice-editor"
 import { ClientsPage } from "@/components/pages/clients"
 import { ServicesPage } from "@/components/pages/services"
-import { PaymentsPage } from "@/components/pages/payments"
 import { SettingsPage } from "@/components/pages/settings"
 import { CreditNotesPage } from "@/components/pages/credit-notes"
 import { AuditLogsPage } from "@/components/pages/audit-logs"
@@ -154,8 +153,6 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
         return <ClientsPage />
       case "services":
         return <ServicesPage />
-      case "payments":
-        return <PaymentsPage />
       case "credit-notes":
         return <CreditNotesPage />
       case "audit":

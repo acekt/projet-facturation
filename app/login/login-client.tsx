@@ -1,5 +1,6 @@
 "use client";
 
+import { loginUser } from "@/app/actions/auth.actions";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
@@ -90,14 +91,9 @@ export default function LoginClient() {
     setIsSubmitting(true);
 
     try {
-      const res = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
-      const data = await res.json();
+      const res = await loginUser({ username, password });
 
-      if (res.ok) {
+      if (res.success) {
         // Sauvegarder ou oublier l'email selon la case cochée
         if (rememberMe) {
           localStorage.setItem("facturier_remembered_username", username);
@@ -106,12 +102,12 @@ export default function LoginClient() {
         }
 
         toast.success("Connexion réussie. Bienvenue dans Facturier !");
-        setUser(data.user);
+        setUser(res.data.user);
         await new Promise((resolve) => setTimeout(resolve, 250));
         router.push("/");
         router.refresh();
       } else {
-        toast.error(data.error || "Identifiants invalides");
+        toast.error(res.error || "Identifiants invalides");
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
