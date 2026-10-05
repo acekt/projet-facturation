@@ -17,11 +17,19 @@ describe('computeTotals Performance & Stress Test', () => {
     const discount = 15000;
 
     // Measure execution time
+    const startMemory = process.memoryUsage().heapUsed;
     const start = performance.now();
     const result = computeTotals(items, discount, rates);
     const end = performance.now();
 
     const executionTime = end - start;
+
+    const endMemory = process.memoryUsage().heapUsed;
+    const memoryFootprint = endMemory - startMemory;
+    console.log(`Memory footprint: ${(memoryFootprint / 1024 / 1024).toFixed(2)} MB`);
+
+    // Verify memory overhead is minimal (under 10MB)
+    expect(memoryFootprint).toBeLessThan(10 * 1024 * 1024);
 
     console.log(`Execution time for 10,000 items: ${executionTime.toFixed(2)}ms`);
 
