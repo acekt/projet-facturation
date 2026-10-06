@@ -27,14 +27,7 @@ export async function GET() {
     }
 
     let query = `
-      SELECT cn.id, cn.number, cn.invoiceId, cn.clientId, cn.clientName, cn.date, cn.reason, cn.subtotal, cn.taxBase, cn.tvaAmount, cn.tpsAmount, cn.cssAmount, cn.total, cn.status, cn.createdAt, cn.deletedAt, cn.created_by,
-             (SELECT json_group_array(json_object(
-               'id', id,
-               'description', description,
-               'quantity', quantity,
-               'unitPrice', unitPrice,
-               'total', total
-             )) FROM credit_note_items WHERE creditNoteId = cn.id) as items
+      SELECT cn.id, cn.number, cn.invoiceId, cn.clientId, cn.clientName, cn.date, cn.reason, cn.subtotal, cn.taxBase, cn.tvaAmount, cn.tpsAmount, cn.cssAmount, cn.total, cn.status, cn.createdAt, cn.deletedAt, cn.created_by
       FROM credit_notes cn
       WHERE cn.deletedAt IS NULL
     `;
@@ -45,11 +38,11 @@ export async function GET() {
     }
     query += ' ORDER BY createdAt DESC';
 
-    const notes = db.prepare(query).all(...params) as (DbCreditNote & { items: string })[];
+    const notes = db.prepare(query).all(...params) as DbCreditNote[];
 
     const formatted: CreditNoteResponse[] = notes.map((n): CreditNoteResponse => ({
       ...n,
-      items: JSON.parse(n.items || '[]') as CreditNoteItem[],
+      items: [],
     }));
 
     const response = NextResponse.json(formatted);

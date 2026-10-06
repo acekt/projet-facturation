@@ -61,13 +61,20 @@ export function CreditNotesPage() {
   const handleDownloadPDF = async (note: CreditNote) => {
     try {
       setIsDownloading(note.id)
+
+      const response = await fetch(`/api/credit-notes/${note.id}`);
+      if (!response.ok) {
+        throw new Error("Failed to fetch full credit note details");
+      }
+      const fullNote = await response.json();
+
       const { pdf } = await import('@react-pdf/renderer')
       const { PDFDocument } = await import('@/components/pdf-document')
-      const blob = await pdf(<PDFDocument document={note} type="avoir" settings={settings} />).toBlob()
+      const blob = await pdf(<PDFDocument document={fullNote} type="avoir" settings={settings} />).toBlob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
-      link.download = `AVOIR_${note.number}.pdf`
+      link.download = `AVOIR_${fullNote.number}.pdf`
       document.body.appendChild(link)
       link.click()
       document.body.removeChild(link)
