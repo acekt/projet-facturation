@@ -24,6 +24,10 @@ function FallbackError({ error, resetErrorBoundary }: { error: any; resetErrorBo
   )
 }
 
+/**
+ * @function Providers
+ * @description Global application providers wrapping the root layout. Includes Theme, Error Boundaries, and Toast notifications.
+ */
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider

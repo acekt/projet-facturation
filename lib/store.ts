@@ -474,6 +474,10 @@ const DEFAULT_SETTINGS: Settings = {
 // ============================================================================
 // Store
 // ============================================================================
+/**
+ * @constant useStore
+ * @description Single source of truth Zustand store with session persistence and immutable updates.
+ */
 export const useStore = create<AppState>()(
   persist(
     (set) => ({
