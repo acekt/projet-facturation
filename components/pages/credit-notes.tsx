@@ -82,11 +82,28 @@ export function CreditNotesPage() {
 
   const format = viewFormat.creditNotes || 'horizontal'
 
+  // Optimisation: Création d'un dictionnaire O(1) pour les factures
+  const invoiceMap = React.useMemo(() => {
+    const map = new Map();
+    invoices.forEach(i => map.set(i.id, i));
+    return map;
+  }, [invoices]);
+
+  // Optimisation: Création d'un dictionnaire O(1) pour la somme des paiements par facture
+  const paymentsByInvoiceMap = React.useMemo(() => {
+    const map = new Map<string, number>();
+    payments.forEach(p => {
+      const current = map.get(p.invoiceId) || 0;
+      map.set(p.invoiceId, current + Number(p.amount));
+    });
+    return map;
+  }, [payments]);
+
   // Helper pour StatusBadge de la facture liée
-  const getInvoiceStatusInfo = (invoiceId: string) => {
-    const invoice = invoices.find(i => i.id === invoiceId);
+  const getInvoiceStatusInfo = React.useCallback((invoiceId: string) => {
+    const invoice = invoiceMap.get(invoiceId);
     if (!invoice) return null;
-    const totalPaid = payments.filter(p => p.invoiceId === invoice.id).reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    const totalPaid = paymentsByInvoiceMap.get(invoice.id) || 0;
     const remaining = Number(invoice.total) - totalPaid;
     return {
       status: invoice.status,
@@ -94,7 +111,7 @@ export function CreditNotesPage() {
       remainingAmount: remaining,
       total: Number(invoice.total)
     };
-  }
+  }, [invoiceMap, paymentsByInvoiceMap])
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
@@ -144,6 +161,7 @@ export function CreditNotesPage() {
 
       {format === 'table' ? (
         <div className="flex-1 overflow-auto bg-card rounded-xl border border-border shadow-sm">
+          {/* Wrapper responsive overflow-x-auto */}
           <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10">
@@ -245,7 +263,7 @@ export function CreditNotesPage() {
                       <div className="flex items-center gap-8">
                         <div className="text-right hidden sm:block">
                           <p className="text-sm text-muted-foreground uppercase tracking-wider font-semibold text-orange-600">Montant Avoir</p>
-                          <p className="text-xl font-bold text-foreground">{formatCurrency(note.total)}</p>
+                          <p className="text-xl font-bold text-foreground tabular-nums text-right">{formatCurrency(note.total)}</p>
                         </div>
                         <Button
                           variant="outline"
@@ -323,7 +341,7 @@ export function CreditNotesPage() {
                       </div>
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                      <p className="text-lg font-semibold text-foreground tracking-tighter">{formatCurrency(note.total)}</p>
+                      <p className="text-lg font-semibold text-foreground tracking-tighter tabular-nums text-right">{formatCurrency(note.total)}</p>
                       <Badge className="bg-orange-100 text-orange-700 text-[10px] px-2 py-0 h-5 border-orange-200">Avoir</Badge>
                     </div>
                   </CardContent>

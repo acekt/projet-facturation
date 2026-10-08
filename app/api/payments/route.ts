@@ -130,9 +130,15 @@ export async function POST(request: Request) {
 
     const id = crypto.randomUUID();
 
+    /**
+     * TRANSACTIONAL LOGIC:
+     * Registers a new payment and recalculates the invoice's overall payment status
+     * (PAID or PARTIALLY_PAID) atomically to ensure database integrity.
+     */
     const insertPayment = db.transaction(() => {
       insertPaymentStmt.run(id, invoiceId, Math.round(amount), paymentMethod, date, reference || null, session.userId);
 
+      // Ensures the parent invoice's status is recalculated and updated safely within this transaction
       const newStatus = updateInvoiceStatus(invoiceId);
       logAudit('CREATE', 'payment', id, `Paiement enregistré: ${amount} XAF sur facture ${invoiceId}`, session.userId, session.name || session.username || null);
       return { id, newStatus };

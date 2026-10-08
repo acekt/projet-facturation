@@ -35,7 +35,11 @@ export const CreditNoteService = {
       throw new CreditNoteServiceError('Invoice not found', 404);
     }
 
-    // Check if the invoice is already cancelled
+    /**
+     * CONSTRAINT VALIDATION:
+     * Prevents the creation of a credit note if the parent invoice is already cancelled.
+     * This safeguards the system against duplicating credit notes for the same invoice.
+     */
     if (invoice.status === INVOICE_STATUS.CANCELLED) {
       throw new CreditNoteServiceError('Cannot create a credit note for an already cancelled invoice', 400);
     }
