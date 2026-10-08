@@ -99,29 +99,41 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     toast.success("Brouillon enregistré temporairement.");
   };
 
+  const isInitialized = React.useRef(false);
+  const initialMentionsLegales = React.useRef(settings.mentionsLegales);
+
   // Cleanup: purge global draft on mount/unmount to prevent ghost data
   React.useEffect(() => {
+    if (isInitialized.current) return;
+
+    // Fallback if settings hydration is slightly delayed, but don't re-trigger infinitely
+    if (!initialMentionsLegales.current && settings.mentionsLegales) {
+        initialMentionsLegales.current = settings.mentionsLegales;
+    }
+
     const blankDraft = {
       selectedClient: null,
       items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
       invoiceDate: new Date().toISOString().split("T")[0],
       discount: 0,
-      notes: settings.mentionsLegales || "",
+      notes: initialMentionsLegales.current || "",
       subject: "",
     };
 
     if (isNew) {
       clearInvoiceDraft();
       setLocalDraft(blankDraft);
+      isInitialized.current = true;
     }
 
     return () => {
       if (isNew) {
         clearInvoiceDraft();
-        setLocalDraft(blankDraft);
+        // Reset initialization on unmount
+        isInitialized.current = false;
       }
     };
-  }, [isNew, clearInvoiceDraft, settings.mentionsLegales]);
+  }, [isNew, clearInvoiceDraft]);
 
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");

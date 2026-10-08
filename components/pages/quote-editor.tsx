@@ -118,11 +118,17 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     toast.success("Brouillon enregistré temporairement.");
   };
 
-  // Store initial mentionsLegales to avoid ghost data from late settings hydration
+  const isInitialized = React.useRef(false);
   const initialMentionsLegales = React.useRef(settings.mentionsLegales);
 
   // Cleanup: purge global draft on mount/unmount to prevent ghost data
   React.useEffect(() => {
+    if (isInitialized.current) return;
+
+    if (!initialMentionsLegales.current && settings.mentionsLegales) {
+      initialMentionsLegales.current = settings.mentionsLegales;
+    }
+
     const blankDraft = {
       selectedClient: null,
       items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
@@ -141,12 +147,13 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     if (isNew) {
       clearQuoteDraft();
       setLocalDraft(blankDraft);
+      isInitialized.current = true;
     }
 
     return () => {
       if (isNew) {
         clearQuoteDraft();
-        setLocalDraft(blankDraft);
+        isInitialized.current = false;
       }
     };
   }, [isNew, clearQuoteDraft]);
