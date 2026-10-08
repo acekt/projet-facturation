@@ -132,10 +132,17 @@ export function PaymentsPage() {
     tooltipText: isDark ? "#ffffff" : "#0a0a0a",
   }
 
+  // Optimisation: Création d'un dictionnaire O(1) pour les factures
+  const invoiceMap = React.useMemo(() => {
+    const map = new Map();
+    invoices.forEach(i => map.set(i.id, i));
+    return map;
+  }, [invoices]);
+
   const filteredTransactions = React.useMemo(() => {
     return sortedPayments.filter(
         (p) => {
-          const invoice = invoices.find(i => i.id === p.invoiceId);
+          const invoice = invoiceMap.get(p.invoiceId);
           return (
             invoice?.clientName.toLowerCase().includes(searchQuery.toLowerCase()) ||
             invoice?.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -143,7 +150,7 @@ export function PaymentsPage() {
           );
         }
       )
-  }, [sortedPayments, invoices, searchQuery])
+  }, [sortedPayments, invoiceMap, searchQuery])
 
   const totalPages = Math.ceil(filteredTransactions.length / itemsPerPage)
   const paginatedTransactions = filteredTransactions.slice(
@@ -188,9 +195,19 @@ export function PaymentsPage() {
     visible: { opacity: 1, y: 0 },
   }
 
+  // Optimisation: Création d'un dictionnaire O(1) pour la somme des paiements par facture
+  const paymentsByInvoiceMap = React.useMemo(() => {
+    const map = new Map<string, number>();
+    payments.forEach(p => {
+      const current = map.get(p.invoiceId) || 0;
+      map.set(p.invoiceId, current + Number(p.amount));
+    });
+    return map;
+  }, [payments]);
+
   // ── Helper pour StatusBadge ───────────────────────────────────────────────
   const getPaymentStatusInfo = (invoice: any) => {
-    const totalPaid = payments.filter(p => p.invoiceId === invoice.id).reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    const totalPaid = paymentsByInvoiceMap.get(invoice.id) || 0;
     const remaining = Number(invoice.total) - totalPaid;
     return {
       status: invoice.status,
@@ -390,6 +407,7 @@ export function PaymentsPage() {
             </div>
           </CardHeader>
           <CardContent className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            {/* Wrapper responsive overflow-x-auto */}
             <div className="flex-1 overflow-x-auto overflow-y-auto min-h-0 border border-border rounded-xl">
               <table className="w-full text-sm text-left">
                 <thead className="text-xs text-muted-foreground bg-secondary/50 sticky top-0 z-10">
@@ -406,7 +424,7 @@ export function PaymentsPage() {
                 <tbody className="divide-y divide-border">
                   {paginatedTransactions.length > 0 ? (
                     paginatedTransactions.map((p) => {
-                      const invoice = invoices.find(i => i.id === p.invoiceId);
+                      const invoice = invoiceMap.get(p.invoiceId);
                       const paymentInfo = invoice ? getPaymentStatusInfo(invoice) : null;
                       return (
                         <tr key={p.id} className="hover:bg-muted/50 transition-colors">

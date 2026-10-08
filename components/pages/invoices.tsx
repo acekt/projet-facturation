@@ -452,6 +452,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                         </DropdownMenuItem>
                       )}
+                      {/* UI CONSTRAINT: Prevents creation of a credit note on cancelled invoices by hiding the cancel action */}
                       {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== INVOICE_STATUS.CANCELLED && (
                         <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
                           setInvoiceToCancel(invoice)
@@ -549,6 +550,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                               <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                             </DropdownMenuItem>
                           )}
+                          {/* UI CONSTRAINT: Prevents creation of a credit note on cancelled invoices by hiding the cancel action */}
                           {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== INVOICE_STATUS.CANCELLED && (
                              <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
                                setInvoiceToCancel(invoice)
@@ -643,6 +645,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                             <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                           </DropdownMenuItem>
                         )}
+                        {/* UI CONSTRAINT: Prevents creation of a credit note on cancelled invoices by hiding the cancel action */}
                         {user?.role === 'user' && invoice.created_by === user?.id && invoice.status !== INVOICE_STATUS.CANCELLED && (
                           <DropdownMenuItem
                             className="gap-2 text-orange-600"

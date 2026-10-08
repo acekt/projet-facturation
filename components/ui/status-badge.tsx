@@ -31,11 +31,11 @@ const VARIANT_MAP = {
   // Factures — statuts de paiement
   "invoice-paid": {
     base: "bg-emerald-100 text-emerald-700 border-emerald-200",
-    label: "Soldé",
+    label: "PAYÉ",
   },
   "invoice-partial": {
     base: "bg-orange-100 text-orange-700 border-orange-200",
-    label: "Partiel",
+    label: "PARTIEL",
   },
   "invoice-unpaid": {
     base: "bg-red-50 text-red-700 border-red-200",
@@ -106,13 +106,13 @@ export function StatusBadge({
   let text: React.ReactNode = label ?? config.label;
 
   if (variant === "invoice-paid" && amount !== undefined) {
-    text = `Soldé (${formatCurrency(amount)})`;
+    text = `PAYÉ (${formatCurrency(amount)})`;
   } else if (
     variant === "invoice-partial" &&
     paidAmount !== undefined &&
     remainingAmount !== undefined
   ) {
-    text = `Partiel — Payé: ${formatCurrency(paidAmount)} | Reste: ${formatCurrency(remainingAmount)}`;
+    text = `PARTIEL — Payé: ${formatCurrency(paidAmount)} | Reste: ${formatCurrency(remainingAmount)}`;
   } else if (variant === "invoice-unpaid" && remainingAmount !== undefined) {
     text = `Non payé — Reste: ${formatCurrency(remainingAmount)}`;
   }
