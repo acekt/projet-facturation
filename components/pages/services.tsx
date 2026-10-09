@@ -259,7 +259,8 @@ export function ServicesPage() {
                   setFormData({ name: "", description: "", category: "", unitPrice: 0 })
                   setIsDialogOpen(true)
                 }}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
+                variant="primary-shadow"
+                className="gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Nouveau service

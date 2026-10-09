@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
  * que le serveur Next.js est pleinement démarré et prêt à servir
  * l'application avant d'afficher la fenêtre principale (Splash Screen lock).
  */
-export const dynamic = 'force-dynamic';
+export const instant = false;
 
 export async function GET() {
   return NextResponse.json(

@@ -2,11 +2,13 @@ import { redirect } from 'next/navigation';
 import db from '@/lib/db';
 import LoginClient from './login-client';
 
-export const dynamic = 'force-dynamic';
+export const instant = false;
 
 import { Suspense } from 'react';
+import { connection } from 'next/server';
 
 export default async function LoginPage() {
+  await connection();
   let userCount = 0;
   
   // Isolation stricte de la requête pour éviter que 'no such table' ne crashe le composant

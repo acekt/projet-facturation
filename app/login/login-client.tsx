@@ -104,8 +104,7 @@ export default function LoginClient() {
         toast.success("Connexion réussie. Bienvenue dans Facturier !");
         setUser(res.data.user);
         await new Promise((resolve) => setTimeout(resolve, 250));
-        router.push("/");
-        router.refresh();
+        window.location.href = "/";
       } else {
         toast.error(res.error || "Identifiants invalides");
       }

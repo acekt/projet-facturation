@@ -16,8 +16,10 @@
     "seed": "npx tsx scripts/seed.ts",
     "rebuild:node": "npm rebuild better-sqlite3",
     "rebuild:electron": "node -e \"const fs=require('fs'),p=require('path'),d=p.resolve('node_modules/better-sqlite3/build');if(fs.existsSync(d)){fs.rmSync(d,{recursive:true,force:true});console.log('[purge] Cache ABI supprimé:',d);}else{console.log('[purge] Rien à purger.');}\" && electron-builder install-app-deps",
+    "patch-standalone": "node -e \"const fs = require('fs'); const file = '.next/standalone/server.js'; let content = fs.readFileSync(file, 'utf8'); content = content.replace('process.chdir(__dirname)', 'process.cwd = () => __dirname;'); fs.writeFileSync(file, content);\"",
+    "prepare-standalone": "node scripts/prepare-standalone.js",
     "sync-sqlite": "node -e \"const fs=require('fs'); const p=require('path'); const src=p.resolve('node_modules/better-sqlite3/build/Release/better_sqlite3.node'); const dst=p.resolve('.next/standalone/node_modules/better-sqlite3/build/Release/better_sqlite3.node'); fs.mkdirSync(p.dirname(dst),{recursive:true}); fs.copyFileSync(src,dst); console.log('[sync-sqlite] Binaire natif synchronisé :', dst);\"",
-    "build:electron": "cross-env NEXT_TELEMETRY_DISABLED=1 NEXT_BUILD=1 npm run rebuild:node && next build --webpack && npm run rebuild:electron && npm run sync-sqlite",
+    "build:electron": "cross-env NEXT_TELEMETRY_DISABLED=1 NEXT_BUILD=1 npm run rebuild:node && next build --webpack && npm run rebuild:electron && npm run sync-sqlite && npm run patch-standalone && npm run prepare-standalone",
     "dist": "npm run build:electron && electron-builder",
     "dist:win": "npm run build:electron && electron-builder --win",
     "pack": "electron-builder"
@@ -37,7 +39,7 @@
         "repo": "projet-facturation"
       }
     ],
-    "asar": false,
+    "asar": true,
     "npmRebuild": true,
     "files": [
       "main.js",
@@ -48,37 +50,19 @@
       "node_modules/builder-util-runtime/**/*",
       "node_modules/lazy-val/**/*",
       "node_modules/tiny-typed-emitter/**/*",
+      "public/**/*",
+      ".next/standalone/**/*",
+      ".next/static/**/*",
       "!**/*.ts",
       "!**/*.tsx",
       "!**/*.map",
-      "!.next",
       "!.git"
     ],
-    "extraResources": [
-      {
-        "from": ".next/standalone",
-        "to": "standalone",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": ".next/static",
-        "to": "standalone/.next/static",
-        "filter": [
-          "**/*"
-        ]
-      },
-      {
-        "from": "public",
-        "to": "standalone/public",
-        "filter": [
-          "**/*"
-        ]
-      }
+    "asarUnpack": [
+      "**/*.node"
     ],
     "win": {
-      "icon": "build/icon.ico",
+      "icon": "build/icon.png",
       "target": [
         {
           "target": "nsis",
@@ -89,14 +73,16 @@
       ]
     },
     "nsis": {
-      "oneClick": false,
+      "oneClick": true,
       "perMachine": false,
-      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": false,
       "deleteAppDataOnUninstall": false,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true,
       "shortcutName": "Facturier",
-      "artifactName": "${productName}-Setup-${version}.${ext}"
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "runAfterFinish": true
     },
     "mac": {
       "icon": "build/icon.icns",
@@ -141,6 +127,7 @@
     "@radix-ui/react-tooltip": "1.2.8",
     "@radix-ui/react-visually-hidden": "^1.2.4",
     "@react-pdf/renderer": "^4.5.1",
+    "adm-zip": "^0.6.1",
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.10.0",
@@ -177,6 +164,7 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19",
     "@vitejs/plugin-react": "^6.1.1",
+    "babel-plugin-react-compiler": "^1.0.0",
     "cross-env": "^10.1.0",
     "electron": "^42.3.0",
     "electron-builder": "^25.1.8",

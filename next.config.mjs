@@ -43,6 +43,23 @@ const nextConfig = {
   experimental: {
     optimizeCss: false,
   },
+  cacheComponents: true,
+  reactCompiler: true,
+  async headers() {
+    return [
+      {
+        // Désactive le proxy buffering pour permettre le bon fonctionnement
+        // de React Suspense & Streaming via le serveur interne / Electron
+        source: '/:path*{/}?',
+        headers: [
+          {
+            key: 'X-Accel-Buffering',
+            value: 'no',
+          },
+        ],
+      },
+    ];
+  },
   webpack: (config, { dev, isServer }) => {
     if (!dev && !isServer) {
       // Désactive totalement la minification (contournement du crash mémoire OOM Rust SWC sur Next 15)

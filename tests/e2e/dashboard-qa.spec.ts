@@ -11,15 +11,11 @@ test.describe('Dashboard QA (Typage et Affichage)', () => {
 
     db.pragma('foreign_keys = OFF');
     db.exec(`
-      DELETE FROM invoices;
-      DELETE FROM clients;
-      DELETE FROM users;
-      DELETE FROM settings;
-    `);
+      `);
     db.pragma('foreign_keys = ON');
 
     db.prepare(`
-      INSERT INTO settings (id, companyName, quotePrefix, invoicePrefix, tvaRate, tpsRate, cssRate)
+      INSERT OR REPLACE INTO settings (id, companyName, quotePrefix, invoicePrefix, tvaRate, tpsRate, cssRate)
       VALUES (1, 'QA Corp', 'DEV', 'FAC', 18, 9.5, 1)
     `).run();
 
@@ -27,7 +23,7 @@ test.describe('Dashboard QA (Typage et Affichage)', () => {
     const operatorId = crypto.randomUUID();
     const operatorHash = bcrypt.hashSync('operator123', 10);
     db.prepare(`
-      INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
+      INSERT OR IGNORE INTO users (id, username, email, password, role, name, is_active, created_at)
       VALUES (?, ?, ?, ?, 'user', ?, 1, CURRENT_TIMESTAMP)
     `).run(operatorId, 'dashboard@phase4.com', 'dashboard@phase4.com', operatorHash, 'Dashboard User');
 

@@ -27,16 +27,17 @@ import os from 'os';
  */
 function resolveDatabasePath(): string {
   // ── TEST : chemin forcé pour la suite de tests (isolement total)
-  if (process.env.TEST_DB_PATH) {
-    const p = path.resolve(process.env.TEST_DB_PATH);
+  const testDbPath = process.env['TEST_DB_PATH'];
+  if (testDbPath) {
+    const p = path.resolve(testDbPath);
     console.log(`[db] Niveau 0 (Test/E2E) : ${p}`);
     return p;
   }
 
-  const dbFileName = process.env.DB_FILE_NAME || 'database.sqlite';
+  const dbFileName = process.env['DB_FILE_NAME'] || 'database.sqlite';
 
   // ── NIVEAU 1 : Production Electron (ELECTRON_USERDATA_PATH injecté par main.js)
-  const electronUserDataPath = process.env.ELECTRON_USERDATA_PATH;
+  const electronUserDataPath = process.env['ELECTRON_USERDATA_PATH'];
   if (electronUserDataPath) {
     const dataDir = path.join(electronUserDataPath, 'data');
     try {

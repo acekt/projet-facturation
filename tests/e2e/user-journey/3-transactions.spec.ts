@@ -15,27 +15,14 @@ test.describe('Phase 3 : User Journey (Transaction Operator)', () => {
 
     db.pragma('foreign_keys = OFF');
     db.exec(`
-      DELETE FROM settings;
-      DELETE FROM audit_logs;
-      DELETE FROM payments;
-      DELETE FROM invoice_items;
-      DELETE FROM invoices;
-      DELETE FROM quote_items;
-      DELETE FROM quotes;
-      DELETE FROM credit_note_items;
-      DELETE FROM credit_notes;
-      DELETE FROM services;
-      DELETE FROM clients;
-      DELETE FROM users;
-      DELETE FROM sequences;
-    `);
+      `);
     db.pragma('foreign_keys = ON');
 
-    db.prepare("INSERT INTO sequences (name, current_value, last_year) VALUES ('quote', 0, strftime('%Y', 'now'))").run();
-    db.prepare("INSERT INTO sequences (name, current_value, last_year) VALUES ('invoice', 0, strftime('%Y', 'now'))").run();
+    db.prepare("INSERT OR IGNORE INTO sequences (name, current_value, last_year) VALUES ('quote', 0, strftime('%Y', 'now'))").run();
+    db.prepare("INSERT OR IGNORE INTO sequences (name, current_value, last_year) VALUES ('invoice', 0, strftime('%Y', 'now'))").run();
 
     db.prepare(`
-      INSERT INTO settings (id, companyName, quotePrefix, invoicePrefix, tvaRate, tpsRate, cssRate)
+      INSERT OR REPLACE INTO settings (id, companyName, quotePrefix, invoicePrefix, tvaRate, tpsRate, cssRate)
       VALUES (1, 'Phase 3 Corp', 'DEV', 'FAC', 0, 9.5, 0)
     `).run();
 
@@ -43,7 +30,7 @@ test.describe('Phase 3 : User Journey (Transaction Operator)', () => {
     const operatorId = crypto.randomUUID();
     const operatorHash = bcrypt.hashSync('operator123', 10);
     db.prepare(`
-      INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
+      INSERT OR IGNORE INTO users (id, username, email, password, role, name, is_active, created_at)
       VALUES (?, ?, ?, ?, 'user', ?, 1, CURRENT_TIMESTAMP)
     `).run(operatorId, 'operator@phase3.com', 'operator@phase3.com', operatorHash, 'John Operator');
 
@@ -90,7 +77,7 @@ test.describe('Phase 3 : User Journey (Transaction Operator)', () => {
     await clientDialog.getByText('Client Phase 3').click();
 
     await page.getByText('Sélectionner un service...').click();
-    await page.getByRole('option', { name: 'Consulting IT Gabonese' }).click();
+    await page.getByRole('option', { name: 'Consulting IT Gabonese' }).first().click();
 
     // 1. Intégrité Financière (Devis) : Vérifier que le montant total s'affiche à l'écran (avec regex pour gérer l'espace insécable potentiel)
     const pageText = await page.evaluate(() => document.body.innerText);

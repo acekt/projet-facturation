@@ -22,7 +22,7 @@ test.describe('Opérateur — Tunnel de Vente, Taxes et Cycle de Vie des Transac
 
     // Sélection du service du catalogue (Consulting IT Gabonese : 150 000 FCFA)
     await page.locator('button:has-text("Sélectionner un service...")').click();
-    await page.getByRole('option', { name: /Consulting IT Gabonese/i }).click();
+    await page.getByRole('option', { name: /Consulting IT Gabonese/i }).first().click();
 
     // Enregistrement du devis
     await page.getByRole('button', { name: 'Enregistrer le Devis' }).click();

@@ -11,22 +11,16 @@ test.describe('Invoices QA (Création, Calculs, Affichage)', () => {
 
     db.pragma('foreign_keys = OFF');
     db.exec(`
-      DELETE FROM invoice_items;
-      DELETE FROM invoices;
-      DELETE FROM services;
-      DELETE FROM clients;
-      DELETE FROM users;
-      DELETE FROM sequences;
-    `);
+      `);
     db.pragma('foreign_keys = ON');
 
-    db.prepare("INSERT INTO sequences (name, current_value, last_year) VALUES ('invoice', 0, strftime('%Y', 'now'))").run();
+    db.prepare("INSERT OR IGNORE INTO sequences (name, current_value, last_year) VALUES ('invoice', 0, strftime('%Y', 'now'))").run();
 
     const bcrypt = require('bcryptjs');
     const operatorId = crypto.randomUUID();
     const operatorHash = bcrypt.hashSync('operator123', 10);
     db.prepare(`
-      INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
+      INSERT OR IGNORE INTO users (id, username, email, password, role, name, is_active, created_at)
       VALUES (?, ?, ?, ?, 'user', ?, 1, CURRENT_TIMESTAMP)
     `).run(operatorId, 'qa_user@phase4.com', 'qa_user@phase4.com', operatorHash, 'QA User');
 
@@ -70,7 +64,7 @@ test.describe('Invoices QA (Création, Calculs, Affichage)', () => {
     await page.getByText('Sélectionner un client').click();
     const clientDialog = page.locator('[role="dialog"]:has-text("Rechercher un client")');
     await expect(clientDialog).toBeVisible();
-    await clientDialog.getByText('QA Client').click();
+    await clientDialog.getByText('QA Client', { exact: true }).click();
 
     // Ajouter 2 articles
     await page.getByText('Sélectionner un service...').first().click();

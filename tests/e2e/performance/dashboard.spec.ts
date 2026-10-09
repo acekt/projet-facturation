@@ -11,24 +11,11 @@ test.describe('Phase 4 : Audit de Performance', () => {
 
     db.pragma('foreign_keys = OFF');
     db.exec(`
-      DELETE FROM settings;
-      DELETE FROM audit_logs;
-      DELETE FROM payments;
-      DELETE FROM invoice_items;
-      DELETE FROM invoices;
-      DELETE FROM quote_items;
-      DELETE FROM quotes;
-      DELETE FROM credit_note_items;
-      DELETE FROM credit_notes;
-      DELETE FROM services;
-      DELETE FROM clients;
-      DELETE FROM users;
-      DELETE FROM sequences;
-    `);
+      `);
     db.pragma('foreign_keys = ON');
 
     db.prepare(`
-      INSERT INTO settings (id, companyName, quotePrefix, invoicePrefix)
+      INSERT OR REPLACE INTO settings (id, companyName, quotePrefix, invoicePrefix)
       VALUES (1, 'Phase 4 Corp', 'DEV', 'FAC')
     `).run();
 
@@ -36,7 +23,7 @@ test.describe('Phase 4 : Audit de Performance', () => {
     const adminId = crypto.randomUUID();
     const adminHash = bcrypt.hashSync('admin123', 10);
     db.prepare(`
-      INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
+      INSERT OR IGNORE INTO users (id, username, email, password, role, name, is_active, created_at)
       VALUES (?, ?, ?, ?, 'admin', ?, 1, CURRENT_TIMESTAMP)
     `).run(adminId, 'admin@phase4.com', 'admin@phase4.com', adminHash, 'Admin Phase 4');
 

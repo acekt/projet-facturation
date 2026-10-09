@@ -1,10 +1,12 @@
 import { redirect } from 'next/navigation';
 import db from '@/lib/db';
 import SetupClient from './setup-client';
+import { connection } from 'next/server';
 
-export const dynamic = 'force-dynamic';
+export const instant = false;
 
 export default async function SetupPage() {
+  await connection();
   let userCount = 0;
 
   try {

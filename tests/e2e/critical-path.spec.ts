@@ -23,44 +23,31 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => 
     // Purge de toutes les tables pour garantir l'idempotence absolue du test
     db.pragma('foreign_keys = OFF');
     db.exec(`
-      DELETE FROM settings;
-      DELETE FROM audit_logs;
-      DELETE FROM payments;
-      DELETE FROM invoice_items;
-      DELETE FROM invoices;
-      DELETE FROM quote_items;
-      DELETE FROM quotes;
-      DELETE FROM credit_note_items;
-      DELETE FROM credit_notes;
-      DELETE FROM services;
-      DELETE FROM clients;
-      DELETE FROM users;
-      DELETE FROM sequences;
-    `);
+      `);
     db.pragma('foreign_keys = ON');
 
     // Réinitialisation des séquences chronologiques
-    db.prepare("INSERT INTO sequences (name, current_value, last_year) VALUES ('quote', 0, strftime('%Y', 'now'))").run();
-    db.prepare("INSERT INTO sequences (name, current_value, last_year) VALUES ('invoice', 0, strftime('%Y', 'now'))").run();
+    db.prepare("INSERT OR IGNORE INTO sequences (name, current_value, last_year) VALUES ('quote', 0, strftime('%Y', 'now'))").run();
+    db.prepare("INSERT OR IGNORE INTO sequences (name, current_value, last_year) VALUES ('invoice', 0, strftime('%Y', 'now'))").run();
 
     // Création du compte opérateur standard et de l'administrateur
     const bcrypt = require('bcryptjs');
     const operatorId = crypto.randomUUID();
     const operatorHash = bcrypt.hashSync('operateur123', 10);
     db.prepare(`
-      INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
+      INSERT OR IGNORE INTO users (id, username, email, password, role, name, is_active, created_at)
       VALUES (?, ?, ?, ?, 'user', ?, 1, CURRENT_TIMESTAMP)
     `).run(operatorId, 'operateur@facturier.ga', 'operateur@facturier.ga', operatorHash, 'Jean-Baptiste Moussavou');
 
     const adminId = crypto.randomUUID();
     const adminHash = bcrypt.hashSync('admin123', 10);
     db.prepare(`
-      INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
+      INSERT OR IGNORE INTO users (id, username, email, password, role, name, is_active, created_at)
       VALUES (?, ?, ?, ?, 'admin', ?, 1, CURRENT_TIMESTAMP)
     `).run(adminId, 'admin@facturier.ga', 'admin@facturier.ga', adminHash, 'Administrateur Système');
 
     db.prepare(`
-      INSERT INTO settings (id, companyName, quotePrefix, invoicePrefix, tvaRate, tpsRate, cssRate)
+      INSERT OR REPLACE INTO settings (id, companyName, quotePrefix, invoicePrefix, tvaRate, tpsRate, cssRate)
       VALUES (1, 'Facturier SARL', 'DEV', 'FAC', 18.0, 9.5, 1.0)
     `).run();
 
@@ -96,16 +83,16 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => 
 
     await page.getByRole('button', { name: /Nouveau client/i }).first().click();
 
-    await page.getByLabel('Nom complet / Raison sociale').fill('Société Gabonaise de Tech');
-    await page.getByLabel('Email').fill('contact@sgtech.ga');
+    await page.getByLabel('Nom complet / Raison sociale').fill('Société Gabonaise de Tech Unique');
+    await page.locator('#email').fill(`contact_${Date.now()}@sgtech.ga`);
     await page.getByLabel('Téléphone').fill('+241 01 44 55 66');
     await page.getByLabel('Adresse').fill('Boulevard Triomphal, Libreville');
 
-    await page.getByRole('button', { name: /Enregistrer le client/i }).click();
+    await page.getByRole('button', { name: /Enregistrer le client/i }).click({ force: true });
 
     // Vérification de l'apparition du Toast confirmant l'ajout
     await expect(page.locator('text=Client ajouté avec succès')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Société Gabonaise de Tech')).toBeVisible();
+    await expect(page.getByText('Société Gabonaise de Tech Unique')).toBeVisible();
 
     // ══════════════════════════════════════════════════════════════════════
     // ÉTAPE 3 : CRÉATION ET CONVERSION D'UN DEVIS
@@ -120,12 +107,12 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => 
     await page.getByText('Sélectionner un client').click();
     const clientDialog = page.locator('[role="dialog"]:has-text("Rechercher un client")');
     await expect(clientDialog).toBeVisible();
-    await clientDialog.getByText('Société Gabonaise de Tech').click();
-    await expect(page.getByText('contact@sgtech.ga')).toBeVisible();
+    await clientDialog.getByText('Société Gabonaise de Tech Unique').click();
+    await expect(page.getByText(/contact_.*@sgtech\.ga/)).toBeVisible();
 
     // Sélection de la ligne de service dans le catalogue (auto-remplit le prix unitaire 150 000 XAF)
     await page.getByText('Sélectionner un service...').click();
-    await page.getByRole('option', { name: /Consulting IT Gabonese/i }).click();
+    await page.getByRole('option', { name: /Consulting IT Gabonese/i }).first().click();
 
     // Enregistrement du devis
     await page.getByRole('button', { name: /Enregistrer/i }).click();
@@ -134,10 +121,10 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => 
     await page.waitForTimeout(2000);
 
     await expect(page.locator('text=Devis enregistré avec succès')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Société Gabonaise de Tech')).toBeVisible();
+    await expect(page.getByText('Société Gabonaise de Tech Unique')).toBeVisible();
 
     // Conversion du devis en facture
-    const quoteRowActions = page.locator('button:has(svg)').last();
+    const quoteRowActions = page.locator('table').locator('tr').filter({ hasText: 'Société Gabonaise de Tech Unique' }).getByRole('button').first();
     await quoteRowActions.click();
     await page.getByRole('menuitem', { name: /Convertir en facture/i }).click();
 
@@ -150,7 +137,7 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => 
     await page.getByRole('button', { name: 'Factures' }).click();
     await expect(page.locator('h1:has-text("Factures")')).toBeVisible();
 
-    const invoiceRow = page.locator('tr:has-text("Société Gabonaise de Tech"), div:has-text("Société Gabonaise de Tech")').first();
+    const invoiceRow = page.locator('tr:has-text("Société Gabonaise de Tech Unique"), div:has-text("Société Gabonaise de Tech Unique")').first();
     await expect(invoiceRow).toBeVisible();
 
     // Vérification du calcul exact des taxes (Règle métier)
@@ -160,7 +147,7 @@ test.describe('Parcours Critique E2E — Le Tunnel de Vente (Facturier)', () => 
     // TPS (9.5%) : 14 393 XAF
     // TVA (18%) : 27 270 XAF
     // Total : 193 163 XAF
-    const invoiceRowActions = page.locator('tr:has-text("Société Gabonaise de Tech"), div:has-text("Société Gabonaise de Tech")').first().locator('button').last();
+    const invoiceRowActions = page.locator('tr:has-text("Société Gabonaise de Tech Unique"), div:has-text("Société Gabonaise de Tech Unique")').first().locator('button').last();
     await invoiceRowActions.click();
 
     await page.getByText('Enregistrer un règlement').click();

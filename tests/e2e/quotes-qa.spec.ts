@@ -11,21 +11,17 @@ test.describe('Quotes QA (Conversion et UI)', () => {
 
     db.pragma('foreign_keys = OFF');
     db.exec(`
-      DELETE FROM quotes;
-      DELETE FROM clients;
-      DELETE FROM users;
-      DELETE FROM sequences;
-    `);
+      `);
     db.pragma('foreign_keys = ON');
 
-    db.prepare("INSERT INTO sequences (name, current_value, last_year) VALUES ('quote', 0, strftime('%Y', 'now'))").run();
-    db.prepare("INSERT INTO sequences (name, current_value, last_year) VALUES ('invoice', 0, strftime('%Y', 'now'))").run();
+    db.prepare("INSERT OR IGNORE INTO sequences (name, current_value, last_year) VALUES ('quote', 0, strftime('%Y', 'now'))").run();
+    db.prepare("INSERT OR IGNORE INTO sequences (name, current_value, last_year) VALUES ('invoice', 0, strftime('%Y', 'now'))").run();
 
     const bcrypt = require('bcryptjs');
     const operatorId = crypto.randomUUID();
     const operatorHash = bcrypt.hashSync('operator123', 10);
     db.prepare(`
-      INSERT INTO users (id, username, email, password, role, name, is_active, created_at)
+      INSERT OR IGNORE INTO users (id, username, email, password, role, name, is_active, created_at)
       VALUES (?, ?, ?, ?, 'user', ?, 1, CURRENT_TIMESTAMP)
     `).run(operatorId, 'qa_quote@phase4.com', 'qa_quote@phase4.com', operatorHash, 'QA User Quote');
 

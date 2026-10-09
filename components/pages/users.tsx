@@ -321,7 +321,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             {users.filter(u => checkIsActive(u)).length} actifs — {users.filter(u => !checkIsActive(u)).length} inactifs
           </p>
         </div>
-        <Button onClick={handleOpenAdd} disabled={currentUser?.role !== 'admin'} className="gap-2 bg-primary shadow-lg shadow-primary/20">
+        <Button onClick={handleOpenAdd} disabled={currentUser?.role !== 'admin'} variant="primary-shadow" className="gap-2">
           <UserPlus className="w-4 h-4" />
           Ajouter un utilisateur
         </Button>

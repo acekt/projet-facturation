@@ -201,6 +201,13 @@ a, button, [role='button'], label {
   }
 }
 
+/* Accessible large text preset */
+.typeset-large {
+  --typeset-size: 16px;
+  --typeset-leading: 2;
+  --typeset-flow: 2em;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

@@ -236,7 +236,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
             {(user?.role === "user" || user?.role === "admin") && (
               <Button
                 onClick={() => onCreateQuote()}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 shadow-lg shadow-primary/20"
+                variant="primary-shadow"
+                className="gap-2"
               >
                 <Plus className="w-4 h-4" />
                 Nouveau devis

@@ -183,7 +183,7 @@ setup('Purge DB, initialisation des données et génération des Storage States'
   await page.waitForTimeout(1000);
   await page.fill('#username', 'admin@facturier.ga');
   await page.fill('#password', 'admin123');
-  await page.click('button[type="submit"]');
+  await page.click('button[type="submit"]', { force: true });
   await expect(page).toHaveURL('http://localhost:3050/', { timeout: 90000 });
   await expect(page.locator('h1:has-text("Tableau de bord"), h2:has-text("Tableau de bord"), button:has-text("Factures")').first()).toBeVisible({ timeout: 90000 });
   await page.context().storageState({ path: adminFile });
@@ -197,7 +197,7 @@ setup('Purge DB, initialisation des données et génération des Storage States'
   await operatorPage.waitForTimeout(1000);
   await operatorPage.fill('#username', 'operateur@facturier.ga');
   await operatorPage.fill('#password', 'operateur123');
-  await operatorPage.click('button[type="submit"]');
+  await operatorPage.click('button[type="submit"]', { force: true });
   await expect(operatorPage).toHaveURL('http://localhost:3050/', { timeout: 45000 });
   await expect(operatorPage.locator('h1:has-text("Tableau de bord"), h2:has-text("Tableau de bord"), button:has-text("Factures")').first()).toBeVisible({ timeout: 45000 });
   await operatorContext.storageState({ path: operatorFile });

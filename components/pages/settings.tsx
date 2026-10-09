@@ -165,7 +165,8 @@ export function SettingsPage() {
             <Button
                 onClick={handleSave}
                 disabled={isSaving}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground gap-2 h-11 px-6 shadow-lg shadow-primary/20"
+                variant="primary-shadow"
+                className="gap-2 h-11 px-6"
             >
                 <Save className="w-4 h-4" />
                 {isSaving ? "En cours..." : "Enregistrer"}

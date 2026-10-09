@@ -4,7 +4,7 @@ import { getSession } from '@/lib/api/auth'
 import db from '@/lib/db'
 import { ProtectedAppShell } from '@/components/pages/protected-app-shell'
 
-export const dynamic = 'force-dynamic';
+export const instant = false;
 
 import type { UserResponse } from '@/lib/types/api'
 

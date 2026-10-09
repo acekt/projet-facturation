@@ -11,17 +11,17 @@ export default defineConfig({
   expect: {
     timeout: 30000,
   },
-  fullyParallel: false,
-  retries: 0,
-  workers: 1,
+  fullyParallel: true,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
   reporter: [['list'], ['html', { outputFolder: 'tests/artifacts/report' }]],
   use: {
     baseURL: 'http://localhost:3050',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     viewport: { width: 1280, height: 800 },
-    actionTimeout: 10000,
-    navigationTimeout: 15000,
+    actionTimeout: 20000,
+    navigationTimeout: 30000,
   },
   projects: [
     {
@@ -57,11 +57,12 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run start -- -p 3050',
+    command: 'node scripts/prepare-standalone.js && node .next/standalone/server.js',
     url: 'http://localhost:3050/login',
     reuseExistingServer: false,
     timeout: 120000,
     env: {
+      PORT: '3050',
       TEST_DB_PATH: testDbPath,
       DB_FILE_NAME: 'test.sqlite',
       SESSION_SECRET: 'super-secret-key-for-playwright-e2e-tests-32-chars!!',

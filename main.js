@@ -21,7 +21,7 @@
 
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell, Menu, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, Menu, dialog, utilityProcess, nativeImage } = require('electron');
 const { autoUpdater } = require('electron-updater');
 Menu.setApplicationMenu(null);
 const { spawn, execSync }                     = require('child_process');
@@ -75,9 +75,7 @@ function logToFile(level, message) {
 // extraResources copie .next/standalone → resources/standalone/ SANS filtrage,
 // préservant intégralement le node_modules tree-shaked de Next.js.
 const isDev = !app.isPackaged;
-const STANDALONE_SERVER = isDev
-  ? path.join(__dirname, '.next', 'standalone', 'server.js')
-  : path.join(process.resourcesPath, 'standalone', 'server.js');
+const STANDALONE_SERVER = path.join(__dirname, '.next', 'standalone', 'server.js');
 
 logToFile('INFO', `Démarrage — mode: ${isDev ? 'DÉVELOPPEMENT' : 'PRODUCTION'} | userData: ${USER_DATA_PATH}`);
 
@@ -178,8 +176,9 @@ function createSplashWindow() {
     transparent: false,
     resizable: false,
     show: false,
-    backgroundColor: '#09090b',
-    icon: path.join(__dirname, 'public', 'icon.png'),
+    backgroundColor: '#fafafa',
+    // Redimensionner le logo dynamique via nativeImage pour éviter le recadrage GDI de Windows
+    icon: nativeImage.createFromPath(path.join(__dirname, 'public', 'logo.png')).resize({ width: 32, height: 32 }),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -262,9 +261,9 @@ function waitForServer(baseUrl, timeoutMs = 60000) {
         );
       }
 
-      // ── Pause stricte de 1 s avant la prochaine tentative ──────────────
-      // Garantit au maximum 1 requête/seconde → zéro DDoS local.
-      await sleep(1000);
+      // ── Pause réduite (250ms) pour accélérer le démarrage ──────────────
+      // 4 requêtes/seconde = négligeable pour un test local.
+      await sleep(250);
     }
   })();
 }
@@ -312,6 +311,10 @@ function killNextProcess() {
  * @param {number} port - Port sur lequel le serveur doit écouter
  * @returns {Promise<void>} - Résout quand le serveur est prêt
  */
+// ══════════════════════════════════════════════════════════════════════
+// Démarrage du serveur Next.js
+// ══════════════════════════════════════════════════════════════════════
+
 async function startNextServer(port) {
   const crypto = require('crypto');
 
@@ -377,14 +380,11 @@ async function startNextServer(port) {
 
   logToFile('INFO', `[Server] Démarrage de Next.js standalone sur le port ${port}...`);
 
-  nextProcess = spawn(process.execPath, [STANDALONE_SERVER], {
+  nextProcess = utilityProcess.fork(STANDALONE_SERVER, [], {
     // [AUDIT-3] cwd: userData → Next.js écrira son cache dans AppData (accessible en écriture)
     cwd: USER_DATA_PATH,
-    // [AUDIT-2] detached: true sur Unix → permet process.kill(-pid) (group kill)
-    detached: process.platform !== 'win32',
     env: {
       ...process.env,
-      ELECTRON_RUN_AS_NODE: '1',              // Force Electron à agir comme Node.js, pas GUI
       ELECTRON_USERDATA_PATH: USER_DATA_PATH, // [P0-A] Transmission EXPLICITE du chemin userData
       PORT: String(port),
       HOSTNAME: '127.0.0.1',
@@ -432,11 +432,12 @@ async function createWindow(port) {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false,         // Requis pour better-sqlite3
+      sandbox: true,          // Isolation native Chromium activée
       preload: path.join(__dirname, 'preload.js'),
       webSecurity: !isDev,
     },
-    icon: path.join(__dirname, 'build', 'icon.png'),
+    // Redimensionner le logo dynamique via nativeImage pour éviter le recadrage GDI de Windows
+    icon: nativeImage.createFromPath(path.join(__dirname, 'public', 'logo.png')).resize({ width: 32, height: 32 }),
     show: false,
     backgroundColor: '#030303',
   });
@@ -491,13 +492,18 @@ async function createWindow(port) {
   }
 
   mainWindow.once('ready-to-show', () => {
-    if (splashWindow && !splashWindow.isDestroyed()) {
-      splashWindow.destroy();
-      splashWindow = null;
-    }
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.show();
-    }
+    // [UI] Prolongement artificiel du splash screen (4 secondes)
+    // Cela permet de masquer l'écran blanc de transition "Chargement..." (loading.tsx)
+    // de Next.js pendant l'hydratation et les redirections initiales.
+    setTimeout(() => {
+      if (splashWindow && !splashWindow.isDestroyed()) {
+        splashWindow.destroy();
+        splashWindow = null;
+      }
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show();
+      }
+    }, 4000);
   });
 
   // [AUDIT-4] Retry inconditionnel (dev ET prod) avec délai de 2s.
@@ -589,7 +595,65 @@ async function createWindow(port) {
 // Lifecycle
 // ══════════════════════════════════════════════════════════════════════
 
+/**
+ * [Backup] Sauvegarde automatique de la base de données.
+ * Conserve les 7 derniers jours glissants.
+ */
+function performDailyBackup() {
+  try {
+    const dataDir = path.join(USER_DATA_PATH, 'data');
+    const dbPath = path.join(dataDir, 'database.sqlite');
+    const backupDir = path.join(USER_DATA_PATH, 'backups');
+
+    if (!fs.existsSync(dbPath)) {
+      logToFile('INFO', '[Backup] Aucune base de données source, sauvegarde ignorée.');
+      return;
+    }
+
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true });
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    const backupFileName = `backup_${today}.sqlite`;
+    const backupFilePath = path.join(backupDir, backupFileName);
+
+    if (fs.existsSync(backupFilePath)) {
+      logToFile('INFO', `[Backup] Sauvegarde du jour déjà existante : ${backupFileName}`);
+    } else {
+      fs.copyFileSync(dbPath, backupFilePath);
+      logToFile('INFO', `[Backup] Sauvegarde journalière effectuée avec succès : ${backupFileName}`);
+    }
+
+    // Nettoyage (Rétention de 7 jours)
+    const files = fs.readdirSync(backupDir);
+    const backupFiles = files
+      .filter(f => f.startsWith('backup_') && f.endsWith('.sqlite'))
+      .map(f => ({ 
+        name: f, 
+        path: path.join(backupDir, f), 
+        time: fs.statSync(path.join(backupDir, f)).mtime.getTime() 
+      }))
+      .sort((a, b) => b.time - a.time);
+
+    if (backupFiles.length > 7) {
+      const toDelete = backupFiles.slice(7);
+      for (const file of toDelete) {
+        try {
+          fs.unlinkSync(file.path);
+          logToFile('INFO', `[Backup] Nettoyage : Ancienne sauvegarde supprimée (${file.name})`);
+        } catch (e) {
+          logToFile('ERROR', `[Backup] Erreur nettoyage ${file.name} : ${e.message}`);
+        }
+      }
+    }
+  } catch (err) {
+    logToFile('ERROR', `[Backup] Échec fatal de la sauvegarde : ${err.message}`);
+  }
+}
+
 app.whenReady().then(async () => {
+  performDailyBackup();
   let port;
 
   if (isDev) {
@@ -738,13 +802,14 @@ ipcMain.handle('print-to-pdf', async () => {
  * et contourne le bug de "Cette application ne prend pas en charge l'aperçu" sous Windows.
  */
 ipcMain.handle('print-document', async (event, htmlContent) => {
-  return new Promise((resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     // 1. Création d'une fenêtre invisible
     let printWin = new BrowserWindow({
       show: false, // Inivisible pour l'utilisateur
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
+        sandbox: true,
       }
     });
 
@@ -754,7 +819,7 @@ ipcMain.handle('print-document', async (event, htmlContent) => {
     const tempPath = path.join(USER_DATA_PATH, `print_temp_${Date.now()}.html`);
     
     try {
-      fs.writeFileSync(tempPath, htmlContent, 'utf8');
+      await fs.promises.writeFile(tempPath, htmlContent, 'utf8');
     } catch (err) {
       logToFile('ERROR', `[Print] Impossible d'écrire le fichier temp: ${err.message}`);
       printWin.destroy();
@@ -764,7 +829,7 @@ ipcMain.handle('print-document', async (event, htmlContent) => {
     let isSettled = false;
 
     // Timeout de sécurité (15s) pour éviter un memory leak si le chargement bloque
-    const timer = setTimeout(() => {
+    const timer = setTimeout(async () => {
       if (!isSettled) {
         isSettled = true;
         logToFile('ERROR', `[Print] Timeout de 15s atteint lors de la génération.`);
@@ -774,7 +839,7 @@ ipcMain.handle('print-document', async (event, htmlContent) => {
           printWin.destroy();
           printWin = null;
         }
-        try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch (e) {}
+        try { if (fs.existsSync(tempPath)) await fs.promises.unlink(tempPath); } catch (e) {}
         reject(new Error('Timeout lors de la préparation du document.'));
       }
     }, 15000);
@@ -789,7 +854,7 @@ ipcMain.handle('print-document', async (event, htmlContent) => {
         silent: false, 
         printBackground: true,
         // On peut forcer des paramètres spécifiques ici si besoin
-      }, (success, errorType) => {
+      }, async (success, errorType) => {
         if (isSettled) return;
         isSettled = true;
         clearTimeout(timer);
@@ -799,9 +864,8 @@ ipcMain.handle('print-document', async (event, htmlContent) => {
           printWin.destroy();
         }
         printWin = null;
-        
         try {
-          if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+          if (fs.existsSync(tempPath)) await fs.promises.unlink(tempPath);
         } catch (e) {
           logToFile('WARN', `[Print] Impossible de supprimer le fichier temp: ${e.message}`);
         }
@@ -816,7 +880,7 @@ ipcMain.handle('print-document', async (event, htmlContent) => {
     });
 
     // Gestion des erreurs de chargement
-    printWin.webContents.on('did-fail-load', (event, errorCode, errorDescription) => {
+    printWin.webContents.on('did-fail-load', async (event, errorCode, errorDescription) => {
       if (isSettled) return;
       isSettled = true;
       clearTimeout(timer);
@@ -826,7 +890,7 @@ ipcMain.handle('print-document', async (event, htmlContent) => {
         printWin.destroy();
       }
       printWin = null;
-      try { if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath); } catch (e) {}
+      try { if (fs.existsSync(tempPath)) await fs.promises.unlink(tempPath); } catch (e) {}
       reject(new Error('Échec du rendu du document.'));
     });
 
@@ -865,7 +929,7 @@ ipcMain.handle('export-pdf', async (event, htmlContent, defaultFilename = 'docum
   try {
     // 1. Écriture du HTML dans un fichier temporaire (physique, pas data URI)
     //    Évite les limites de taille et garantit le chargement de Tailwind CDN.
-    fs.writeFileSync(tempPath, htmlContent, 'utf8');
+    await fs.promises.writeFile(tempPath, htmlContent, 'utf8');
     logToFile('INFO', `[PDF] Fichier HTML temp écrit : ${tempPath}`);
 
     // 2. Création d'une fenêtre Chromium invisible pour le rendu
@@ -876,6 +940,7 @@ ipcMain.handle('export-pdf', async (event, htmlContent, defaultFilename = 'docum
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true,
+        sandbox: true,
         // Pas de preload nécessaire — fenêtre interne sans UI React
       },
     });
@@ -937,7 +1002,7 @@ ipcMain.handle('export-pdf', async (event, htmlContent, defaultFilename = 'docum
       pdfWin = null;
     }
     try {
-      if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+      if (fs.existsSync(tempPath)) await fs.promises.unlink(tempPath);
       logToFile('INFO', `[PDF] Fichier temp nettoyé : ${tempPath}`);
     } catch (cleanErr) {
       logToFile('WARN', `[PDF] Impossible de nettoyer le temp : ${cleanErr.message}`);
