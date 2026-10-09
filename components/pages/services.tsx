@@ -101,7 +101,11 @@ export function ServicesPage() {
     e.preventDefault()
     if (isSubmitting) return
 
-    if (!formData.name) {
+    const trimmedName = formData.name.trim()
+    const trimmedCategory = (formData.category || "").trim()
+    const trimmedDescription = (formData.description || "").trim()
+
+    if (!trimmedName) {
       toast.error("Le nom du service est requis.")
       return
     }
@@ -109,6 +113,13 @@ export function ServicesPage() {
     if (formData.unitPrice < 0) {
       toast.error("Le prix unitaire ne peut pas être négatif.")
       return
+    }
+
+    const payloadToSave = {
+      ...formData,
+      name: trimmedName,
+      category: trimmedCategory,
+      description: trimmedDescription
     }
 
     if (editingService) {
@@ -119,11 +130,10 @@ export function ServicesPage() {
         const response = await fetch(`/api/services/${editingService.id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
+          body: JSON.stringify(payloadToSave),
         })
         if (response.status === 403) {
-          toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
-          return
+          throw new Error("Action refusée : Ce service est protégé ou vous manquez de droits.")
         }
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}))
@@ -147,10 +157,10 @@ export function ServicesPage() {
       const tempId = crypto.randomUUID()
       const serviceToCreate: Service = {
         id: tempId,
-        name: formData.name,
-        description: formData.description,
-        category: formData.category,
-        unitPrice: formData.unitPrice,
+        name: payloadToSave.name,
+        description: payloadToSave.description,
+        category: payloadToSave.category,
+        unitPrice: payloadToSave.unitPrice,
       }
 
       setIsSubmitting(true)
@@ -161,8 +171,7 @@ export function ServicesPage() {
           body: JSON.stringify(serviceToCreate),
         })
         if (response.status === 403) {
-          toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
-          return
+          throw new Error("Action refusée : Ce service est protégé ou vous manquez de droits.")
         }
         if (!response.ok) {
           const errData = await response.json().catch(() => ({}))
@@ -198,9 +207,7 @@ export function ServicesPage() {
     try {
       const response = await fetch(`/api/services/${id}`, { method: 'DELETE' })
       if (response.status === 403) {
-        if (serviceToRestore) addService(serviceToRestore)
-        toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
-        return
+        throw new Error("Action refusée : Ce service est protégé ou vous manquez de droits.")
       }
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}))
@@ -216,22 +223,24 @@ export function ServicesPage() {
     }
   }
 
-  return (
-    <>
-      {!isDataLoaded ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-muted-foreground font-medium">Chargement des services...</p>
-          </div>
+  if (!isDataLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Chargement des services...</p>
         </div>
-      ) : (
+      </div>
+    )
+  }
+
+  return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
       {user?.role !== 'admin' && (
         <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription className="font-medium">
-            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
+            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut gérer le catalogue de services.
           </AlertDescription>
         </Alert>
       )}
@@ -612,7 +621,5 @@ export function ServicesPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-      )}
-    </>
   )
 }

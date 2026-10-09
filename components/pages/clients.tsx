@@ -103,13 +103,18 @@ export function ClientsPage() {
     e.preventDefault()
     if (isSubmitting) return
 
-    if (!newClient.name || !newClient.email) {
+    const trimmedName = newClient.name.trim()
+    const trimmedEmail = newClient.email.trim()
+    const trimmedPhone = newClient.phone.trim()
+    const trimmedAddress = newClient.address.trim()
+
+    if (!trimmedName || !trimmedEmail) {
       toast.error("Le nom et l'email sont requis.")
       return
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(newClient.email)) {
+    if (!emailRegex.test(trimmedEmail)) {
       toast.error("L'adresse email est invalide.")
       return
     }
@@ -117,10 +122,10 @@ export function ClientsPage() {
     const tempId = crypto.randomUUID()
     const clientToCreate: Client = {
       id: tempId,
-      name: newClient.name,
-      email: newClient.email,
-      phone: newClient.phone,
-      address: newClient.address,
+      name: trimmedName,
+      email: trimmedEmail,
+      phone: trimmedPhone,
+      address: trimmedAddress,
     }
 
     setIsSubmitting(true)
@@ -186,19 +191,24 @@ export function ClientsPage() {
     e.preventDefault()
     if (!editingClient || isSubmitting) return
 
-    if (!editingClient.name || !editingClient.email) {
+    const trimmedName = editingClient.name.trim()
+    const trimmedEmail = editingClient.email.trim()
+    const trimmedPhone = (editingClient.phone || "").trim()
+    const trimmedAddress = (editingClient.address || "").trim()
+
+    if (!trimmedName || !trimmedEmail) {
         toast.error("Le nom et l'email sont requis.")
         return
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(editingClient.email)) {
+    if (!emailRegex.test(trimmedEmail)) {
         toast.error("L'adresse email est invalide.")
         return
     }
 
     const originalClient = clients.find(c => c.id === editingClient.id)
-    const clientToSave = editingClient
+    const clientToSave = { ...editingClient, name: trimmedName, email: trimmedEmail, phone: trimmedPhone, address: trimmedAddress }
 
     setIsSubmitting(true)
     try {
@@ -230,22 +240,24 @@ export function ClientsPage() {
     }
   }
 
-  return (
-    <>
-      {!isDataLoaded ? (
-        <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
-            <p className="text-sm text-muted-foreground font-medium">Chargement des clients...</p>
-          </div>
+  if (!isDataLoaded) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-muted-foreground font-medium">Chargement des clients...</p>
         </div>
-      ) : (
+      </div>
+    )
+  }
+
+  return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
       {user?.role !== 'admin' && (
         <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription className="font-medium">
-            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
+            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut gérer les clients.
           </AlertDescription>
         </Alert>
       )}
@@ -691,7 +703,5 @@ export function ClientsPage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-      )}
-    </>
   )
 }
