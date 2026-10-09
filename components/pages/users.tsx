@@ -164,12 +164,16 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
 
   const handleAddUser = async () => {
     if (isSubmitting) return;
-    if (!formData.name || !formData.email) {
+
+    const trimmedName = formData.name.trim();
+    const trimmedEmail = formData.email.trim();
+
+    if (!trimmedName || !trimmedEmail) {
         toast.error("Le nom et l'email sont requis.");
         return;
     }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(formData.email)) {
+    if (!emailRegex.test(trimmedEmail)) {
         toast.error("L'adresse email est invalide.");
         return;
     }
@@ -178,18 +182,19 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         const res = await fetch('/api/users', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ ...formData, username: formData.email })
+            body: JSON.stringify({ ...formData, name: trimmedName, email: trimmedEmail, username: trimmedEmail })
         })
-        const data = await res.json()
-        if (res.ok) {
-            toast.success("Utilisateur créé avec succès")
-            // Use the JSON response to update UI instead of refetching
-            setUsers([...users, data.user || data])
-            setIsAddModalOpen(false)
-            setIsPasswordDisplayOpen(true)
-        } else {
-            toast.error(data.error || "Erreur lors de la création")
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            throw new Error(data.error || "Erreur lors de la création")
         }
+
+        const data = await res.json()
+        toast.success("Utilisateur créé avec succès")
+        // Use the JSON response to update UI instead of refetching
+        setUsers([...users, data.user || data])
+        setIsAddModalOpen(false)
+        setIsPasswordDisplayOpen(true)
     } catch (e) {
         toast.error(e instanceof Error ? e.message : "Erreur réseau")
     } finally {
@@ -199,13 +204,17 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
 
   const handleUpdateUser = async () => {
     if (!selectedUser || isSubmitting) return;
-    if (!formData.name) {
+
+    const trimmedName = formData.name.trim();
+    const trimmedEmail = formData.email.trim();
+
+    if (!trimmedName) {
         toast.error("Le nom est requis.");
         return;
     }
-    if (formData.email) {
+    if (trimmedEmail) {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(formData.email)) {
+        if (!emailRegex.test(trimmedEmail)) {
             toast.error("L'adresse email est invalide.");
             return;
         }
@@ -216,21 +225,21 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              name: formData.name,
-              email: formData.email || selectedUser.email,
+              name: trimmedName,
+              email: trimmedEmail || selectedUser.email,
               role: formData.role,
               is_active: checkIsActive(selectedUser)
             })
         })
-        if (res.ok) {
-            const data = await res.json()
-            toast.success("Utilisateur mis à jour")
-            updateUser(selectedUser.id, data.user || data)
-            setIsEditModalOpen(false)
-        } else {
-            const errData = await res.json()
-            toast.error(errData.error || "Erreur")
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}))
+            throw new Error(errData.error || "Erreur lors de la mise à jour")
         }
+
+        const data = await res.json()
+        toast.success("Utilisateur mis à jour")
+        updateUser(selectedUser.id, data.user || data)
+        setIsEditModalOpen(false)
     } catch (e) {
         toast.error(e instanceof Error ? e.message : "Erreur réseau")
     } finally {
@@ -254,15 +263,15 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
               is_active: newStatus
             })
         })
-        if (res.ok) {
-            const data = await res.json()
-            toast.success(!newStatus ? "Compte désactivé" : "Compte réactivé")
-            updateUser(selectedUser.id, data.user || data)
-            setIsStatusModalOpen(false)
-        } else {
-            const data = await res.json()
-            toast.error(data.error)
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            throw new Error(data.error || "Erreur lors de la modification du statut")
         }
+
+        const data = await res.json()
+        toast.success(!newStatus ? "Compte désactivé" : "Compte réactivé")
+        updateUser(selectedUser.id, data.user || data)
+        setIsStatusModalOpen(false)
     } catch (e) {
         toast.error(e instanceof Error ? e.message : "Erreur réseau")
     } finally {
@@ -279,15 +288,15 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
     setIsSubmitting(true);
     try {
         const res = await fetch(`/api/users/${selectedUser.id}`, { method: 'DELETE' })
-        if (res.ok) {
-            toast.success("Utilisateur supprimé")
-            removeUser(selectedUser.id)
-            setIsDeleteModalOpen(false)
-            setDeleteConfirmName("")
-        } else {
-            const data = await res.json()
-            toast.error(data.error || "Erreur")
+        if (!res.ok) {
+            const data = await res.json().catch(() => ({}))
+            throw new Error(data.error || "Erreur lors de la suppression")
         }
+
+        toast.success("Utilisateur supprimé")
+        removeUser(selectedUser.id)
+        setIsDeleteModalOpen(false)
+        setDeleteConfirmName("")
     } catch (e) {
         toast.error(e instanceof Error ? e.message : "Erreur réseau")
     } finally {
@@ -305,11 +314,14 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ password: pw })
         })
-        if (res.ok) {
-            setTempPassword(pw)
-            setIsResetModalOpen(false)
-            setIsPasswordDisplayOpen(true)
+        if (!res.ok) {
+            const errData = await res.json().catch(() => ({}))
+            throw new Error(errData.error || "Erreur de réinitialisation")
         }
+
+        setTempPassword(pw)
+        setIsResetModalOpen(false)
+        setIsPasswordDisplayOpen(true)
     } catch (e) {
         toast.error(e instanceof Error ? e.message : "Erreur réseau")
     } finally {
@@ -323,7 +335,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
           <ShieldAlert className="h-4 w-4" />
           <AlertDescription className="font-medium">
-            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
+            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut gérer les utilisateurs.
           </AlertDescription>
         </Alert>
       )}
