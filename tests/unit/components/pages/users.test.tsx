@@ -84,6 +84,16 @@ const mockStore = (state: any) => {
   return vi.mocked(useStore).mockImplementation((selector: any) => selector(state))
 }
 
+// Mock server actions
+vi.mock('@/app/actions/user.actions', () => ({
+  deleteUser: vi.fn().mockImplementation(() =>
+    new Promise(resolve => setTimeout(() => resolve({ success: true }), 100))
+  ),
+  getUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
+  createUser: vi.fn(),
+  updateUser: vi.fn()
+}))
+
 describe('UsersPage Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -104,24 +114,6 @@ describe('UsersPage Component', () => {
       setUsers: vi.fn(),
       updateUser: vi.fn(),
       removeUser: vi.fn(),
-    })
-
-    // Custom mock for delete endpoint
-    const deleteMock = vi.fn().mockImplementation(() =>
-      new Promise(resolve => setTimeout(() => resolve({
-        ok: true,
-        json: () => Promise.resolve({ success: true }),
-      }), 100))
-    )
-
-    global.fetch = vi.fn((url, options) => {
-      if (options?.method === 'DELETE') {
-        return deleteMock()
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve([{ id: '1', name: 'User 1', email: 'test@example.com', role: 'user', is_active: 1, created_at: new Date().toISOString() }]),
-      })
     })
 
     render(<UsersPage onCreateUser={vi.fn()} onEditUser={vi.fn()} />)
@@ -149,13 +141,14 @@ describe('UsersPage Component', () => {
     const confirmButton = confirmButtons.find(b => !b.textContent?.includes('Annuler') && !b.disabled && b.textContent?.includes('Supprimer'))
 
     if (confirmButton) {
-      fireEvent.click(confirmButton)
-      fireEvent.click(confirmButton)
-      fireEvent.click(confirmButton)
+      await user.click(confirmButton)
+      await user.click(confirmButton)
+      await user.click(confirmButton)
     }
 
+    const { deleteUser } = await import('@/app/actions/user.actions')
     await waitFor(() => {
-      expect(deleteMock).toHaveBeenCalledTimes(1)
+      expect(deleteUser).toHaveBeenCalledTimes(1)
     })
   })
 

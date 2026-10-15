@@ -54,6 +54,15 @@ vi.mock('@/components/ui/empty-state', () => ({
   EmptyState: ({ title }: any) => <div data-testid="empty-state">{title}</div>
 }))
 
+// Mock server actions
+vi.mock('@/app/actions/service.actions', () => ({
+  deleteService: vi.fn().mockImplementation(() =>
+    new Promise(resolve => setTimeout(() => resolve({ success: true }), 100))
+  ),
+  createService: vi.fn(),
+  updateService: vi.fn()
+}))
+
 // Fix ResizeObserver not being defined in jsdom
 global.ResizeObserver = class ResizeObserver {
   observe() {}
@@ -113,12 +122,13 @@ describe('ServicesPage Component', () => {
     expect(confirmButton).toBeInTheDocument()
 
     // Click multiple times
-    fireEvent.click(confirmButton)
-    fireEvent.click(confirmButton)
-    fireEvent.click(confirmButton)
+    await user.click(confirmButton)
+    await user.click(confirmButton)
+    await user.click(confirmButton)
 
+    const { deleteService } = await import('@/app/actions/service.actions')
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledTimes(1)
+      expect(deleteService).toHaveBeenCalledTimes(1)
       expect(removeServiceMock).toHaveBeenCalledTimes(1)
     })
   })
