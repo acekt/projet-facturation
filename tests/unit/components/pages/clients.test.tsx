@@ -3,8 +3,16 @@ import userEvent from '@testing-library/user-event'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { ClientsPage } from '@/components/pages/clients'
 import { useStore } from '@/lib/store'
+import { deleteClient } from '@/app/actions/client.actions'
 import '@testing-library/jest-dom'
 import React from 'react'
+
+vi.mock('@/app/actions/client.actions', () => ({
+  getClients: vi.fn().mockResolvedValue({ success: true, data: [] }),
+  createClient: vi.fn(),
+  updateClient: vi.fn(),
+  deleteClient: vi.fn(),
+}))
 
 // Mock des composants UI pour simplifier
 vi.mock('@/components/ui/card', () => ({
@@ -68,12 +76,7 @@ const mockStore = (state: any) => {
 describe('ClientsPage Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    global.fetch = vi.fn().mockImplementation(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve({ success: true }),
-      })
-    )
+    vi.mocked(deleteClient).mockResolvedValue({ success: true })
   })
 
   it('prevents double submission when deleting client', async () => {
@@ -94,12 +97,8 @@ describe('ClientsPage Component', () => {
       setViewFormat: vi.fn(),
     })
 
-    // Deliberate delay to test double submission
-    global.fetch = vi.fn().mockImplementation(() =>
-      new Promise(resolve => setTimeout(() => resolve({
-        ok: true,
-        json: () => Promise.resolve({ success: true }),
-      }), 100))
+    vi.mocked(deleteClient).mockImplementation(() =>
+      new Promise(resolve => setTimeout(() => resolve({ success: true }), 100))
     )
 
     render(<ClientsPage />)
@@ -120,7 +119,7 @@ describe('ClientsPage Component', () => {
 
     // Check that function is called exactly once after multiple clicks
     await waitFor(() => {
-      expect(global.fetch).toHaveBeenCalledTimes(1)
+      expect(deleteClient).toHaveBeenCalledTimes(1)
       expect(removeClientMock).toHaveBeenCalledTimes(1)
     })
   })

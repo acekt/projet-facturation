@@ -3,8 +3,16 @@ import userEvent from '@testing-library/user-event'
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 import { UsersPage } from '@/components/pages/users'
 import { useStore } from '@/lib/store'
+import { deleteUser } from '@/app/actions/user.actions'
 import '@testing-library/jest-dom'
 import React from 'react'
+
+vi.mock('@/app/actions/user.actions', () => ({
+  getUsers: vi.fn().mockResolvedValue({ success: true, data: [] }),
+  createUser: vi.fn(),
+  updateUser: vi.fn(),
+  deleteUser: vi.fn(),
+}))
 
 // Mock des composants UI pour simplifier
 vi.mock('@/components/ui/card', () => ({
@@ -87,12 +95,7 @@ const mockStore = (state: any) => {
 describe('UsersPage Component', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    global.fetch = vi.fn().mockImplementation(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve([{ id: '1', name: 'User 1', email: 'test@example.com', role: 'user', isActive: true, createdAt: new Date().toISOString() }]),
-      })
-    )
+    vi.mocked(deleteUser).mockResolvedValue({ success: true })
   })
 
   it('prevents double submission when deleting user', async () => {
@@ -106,23 +109,9 @@ describe('UsersPage Component', () => {
       removeUser: vi.fn(),
     })
 
-    // Custom mock for delete endpoint
-    const deleteMock = vi.fn().mockImplementation(() =>
-      new Promise(resolve => setTimeout(() => resolve({
-        ok: true,
-        json: () => Promise.resolve({ success: true }),
-      }), 100))
+    vi.mocked(deleteUser).mockImplementation(() =>
+      new Promise(resolve => setTimeout(() => resolve({ success: true }), 100))
     )
-
-    global.fetch = vi.fn((url, options) => {
-      if (options?.method === 'DELETE') {
-        return deleteMock()
-      }
-      return Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve([{ id: '1', name: 'User 1', email: 'test@example.com', role: 'user', is_active: 1, created_at: new Date().toISOString() }]),
-      })
-    })
 
     render(<UsersPage onCreateUser={vi.fn()} onEditUser={vi.fn()} />)
 
@@ -155,7 +144,7 @@ describe('UsersPage Component', () => {
     }
 
     await waitFor(() => {
-      expect(deleteMock).toHaveBeenCalledTimes(1)
+      expect(deleteUser).toHaveBeenCalledTimes(1)
     })
   })
 
@@ -195,13 +184,6 @@ describe('UsersPage Component', () => {
       updateUser: vi.fn(),
       removeUser: vi.fn(),
     })
-
-    global.fetch = vi.fn().mockImplementation(() =>
-      Promise.resolve({
-        ok: true,
-        json: () => Promise.resolve(users),
-      })
-    )
 
     const start = performance.now()
     render(<UsersPage onCreateUser={vi.fn()} onEditUser={vi.fn()} />)
