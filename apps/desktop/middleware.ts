@@ -23,6 +23,11 @@ const matchRoute = (pathname: string, routes: string[]) => {
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // L'endpoint de santé du splash screen Electron ne doit JAMAIS être bloqué par les secrets de session
+  if (pathname === "/api/health" || pathname.startsWith("/api/health/")) {
+    return NextResponse.next();
+  }
+
   let SESSION_SECRET: string;
   try {
     SESSION_SECRET = getSessionSecret();
@@ -80,5 +85,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/health).*)"],
 };

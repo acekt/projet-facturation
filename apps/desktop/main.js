@@ -78,13 +78,30 @@ const isDev = !app.isPackaged;
 
 function resolveStandaloneServer() {
   const candidates = [
-    path.join(__dirname, '.next', 'standalone', 'server.js'),
+    // 1. Structure Monorepo nested Turborepo (standard Next.js)
     path.join(__dirname, '.next', 'standalone', 'apps', 'desktop', 'server.js'),
-    path.join(process.resourcesPath || '', 'app.asar.unpacked', '.next', 'standalone', 'server.js'),
     path.join(process.resourcesPath || '', 'app.asar.unpacked', '.next', 'standalone', 'apps', 'desktop', 'server.js'),
+    path.join(process.resourcesPath || '', 'standalone', 'apps', 'desktop', 'server.js'),
+
+    // 2. Structure standalone racine
+    path.join(__dirname, '.next', 'standalone', 'server.js'),
+    path.join(process.resourcesPath || '', 'app.asar.unpacked', '.next', 'standalone', 'server.js'),
     path.join(process.resourcesPath || '', 'standalone', 'server.js'),
     path.join(process.resourcesPath || '', 'app', '.next', 'standalone', 'server.js'),
+    path.join(__dirname, 'server.js'),
   ];
+
+  // Priorité absolue aux serveurs accompagnés de leur BUILD_ID vérifié
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      const buildId = path.join(path.dirname(c), '.next', 'BUILD_ID');
+      if (fs.existsSync(buildId)) {
+        return c;
+      }
+    }
+  }
+
+  // Fallback de sécurité
   for (const c of candidates) {
     if (fs.existsSync(c)) {
       return c;
@@ -398,9 +415,10 @@ async function startNextServer(port) {
 
   logToFile('INFO', `[Server] Démarrage de Next.js standalone sur le port ${port}...`);
 
+  const serverDir = path.dirname(STANDALONE_SERVER);
   nextProcess = utilityProcess.fork(STANDALONE_SERVER, [], {
-    // [AUDIT-3] cwd: userData → Next.js écrira son cache dans AppData (accessible en écriture)
-    cwd: USER_DATA_PATH,
+    // Next.js Standalone résout './.next' relativement à son propre dossier d'exécution
+    cwd: serverDir,
     env: {
       ...process.env,
       ELECTRON_USERDATA_PATH: USER_DATA_PATH, // [P0-A] Transmission EXPLICITE du chemin userData
