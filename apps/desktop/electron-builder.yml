@@ -36,43 +36,30 @@ copyright: "© 2026 Facturier — Tous droits réservés"
 # exécutés directement par le filesystem. L'ASAR empêche l'exécution native.
 # Sans ASAR, electron-builder génère un dossier app/ non archivé.
 #
-asar: false
+asar: true
 
-# ── Inclusion des fichiers dans le paquet ────────────────────────────────────
-#
-# STRATÉGIE D'APLATISSEMENT STANDALONE :
-#   Le dossier .next/standalone/ est copié à la RACINE (to: ".").
-#   Résultat : server.js est au même niveau que main.js.
-#   Next.js Standalone cherche public/ et .next/static/ relatifs à son CWD,
-#   qui correspond maintenant à la racine de l'app — les deux y sont bien présents.
-#
 files:
-  # Fichiers du processus principal Electron
   - main.js
   - preload.js
   - package.json
+  - node_modules/electron-updater/**/*
+  - node_modules/semver/**/*
+  - node_modules/builder-util-runtime/**/*
+  - node_modules/lazy-val/**/*
+  - node_modules/tiny-typed-emitter/**/*
+  - "!**/*.ts"
+  - "!**/*.tsx"
+  - "!**/*.map"
+  - "!.git"
 
-  # Aplatissement du standalone : server.js + node_modules de Next.js → racine
-  # Les .node natifs sont EXCLUS ici car electron-builder les rebuild séparément
+extraResources:
   - from: .next/standalone
-    to: "."
-    filter:
-      - "**/*"
-      - "!**/*.node"  # Binaires natifs : injectés par install-app-deps + sync-sqlite
-
-  # Assets statiques Next.js (CSS, JS chunks, polices)
-  - from: .next/static
-    to: .next/static
+    to: standalone
     filter:
       - "**/*"
 
-  # Assets statiques globaux (icônes, splash, images)
-  - from: public
-    to: public
-    filter:
-      - "**/*"
-
-  # ── EXCLUSIONS EXPLICITES ─────────────────────────────────────────────────
+asarUnpack:
+  - "**/*.node"
   - "!node_modules/**/*"        # node_modules racine : lourd et inutile
   - "!**/*.ts"
   - "!**/*.tsx"

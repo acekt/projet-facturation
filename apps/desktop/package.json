@@ -53,17 +53,22 @@
       "node_modules/builder-util-runtime/**/*",
       "node_modules/lazy-val/**/*",
       "node_modules/tiny-typed-emitter/**/*",
-      "public/**/*",
-      ".next/standalone/**/*",
-      ".next/static/**/*",
       "!**/*.ts",
       "!**/*.tsx",
       "!**/*.map",
       "!.git"
     ],
+    "extraResources": [
+      {
+        "from": ".next/standalone",
+        "to": "standalone",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
     "asarUnpack": [
-      "**/*.node",
-      ".next/standalone/**/*"
+      "**/*.node"
     ],
     "win": {
       "icon": "build/icon.png",

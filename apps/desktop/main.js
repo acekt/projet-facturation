@@ -78,13 +78,15 @@ const isDev = !app.isPackaged;
 
 function resolveStandaloneServer() {
   const candidates = [
-    // 1. Priorité ABSOLUE au filesystem réel décompressé (app.asar.unpacked) pour exécution Node/OS
-    path.join(process.resourcesPath || '', 'app.asar.unpacked', '.next', 'standalone', 'apps', 'desktop', 'server.js'),
-    path.join(process.resourcesPath || '', 'app.asar.unpacked', '.next', 'standalone', 'server.js'),
+    // 1. Priorité ABSOLUE à la production extraResources (resources/standalone/)
     path.join(process.resourcesPath || '', 'standalone', 'apps', 'desktop', 'server.js'),
     path.join(process.resourcesPath || '', 'standalone', 'server.js'),
 
-    // 2. Mode développement (non packagé) ou chemin local relatif
+    // 2. Production fallback décompressé (app.asar.unpacked)
+    path.join(process.resourcesPath || '', 'app.asar.unpacked', '.next', 'standalone', 'apps', 'desktop', 'server.js'),
+    path.join(process.resourcesPath || '', 'app.asar.unpacked', '.next', 'standalone', 'server.js'),
+
+    // 3. Mode développement (non packagé) ou chemin local relatif
     path.join(__dirname, '.next', 'standalone', 'apps', 'desktop', 'server.js'),
     path.join(__dirname, '.next', 'standalone', 'server.js'),
     path.join(process.resourcesPath || '', 'app', '.next', 'standalone', 'server.js'),
@@ -425,11 +427,28 @@ async function startNextServer(port) {
 
   let serverDir = path.dirname(effectiveServer);
   // Un chemin de travail (cwd) pour un processus OS ne peut PAS se trouver à l'intérieur d'une archive ASAR
-  if (serverDir.includes('app.asar')) {
+  if (serverDir.includes('app.asar') && !serverDir.includes('app.asar.unpacked')) {
     serverDir = USER_DATA_PATH;
   }
 
+  // Résolution résiliente de NODE_PATH pour le processus enfant Next.js
+  const standaloneNodeModules = path.join(process.resourcesPath || '', 'standalone', 'node_modules');
+  const serverNodeModules = path.join(serverDir, 'node_modules');
+  const parentNodeModules = path.join(path.dirname(serverDir), 'node_modules');
+  const rootNodeModules = path.join(path.dirname(path.dirname(serverDir)), 'node_modules');
+  const nodePathEntries = [
+    standaloneNodeModules,
+    rootNodeModules,
+    parentNodeModules,
+    serverNodeModules,
+    process.env.NODE_PATH || ''
+  ].filter(p => p && fs.existsSync(p));
+
+  const resolvedNodePath = nodePathEntries.join(path.delimiter);
   logToFile('INFO', `[Server] Exécution Next.js: ${effectiveServer} (cwd: ${serverDir})`);
+  if (resolvedNodePath) {
+    logToFile('INFO', `[Server] NODE_PATH injecté: ${resolvedNodePath}`);
+  }
 
   nextProcess = utilityProcess.fork(effectiveServer, [], {
     // Next.js Standalone résout './.next' relativement à son propre dossier d'exécution
@@ -441,6 +460,7 @@ async function startNextServer(port) {
       HOSTNAME: '127.0.0.1',
       NODE_ENV: 'production',
       NEXT_TELEMETRY_DISABLED: '1',
+      ...(resolvedNodePath ? { NODE_PATH: resolvedNodePath } : {}),
       // Secrets persistants — stables entre les redémarrages
       SESSION_SECRET: appSecrets.SESSION_SECRET,
       PASSWORD_SALT:  appSecrets.PASSWORD_SALT,
