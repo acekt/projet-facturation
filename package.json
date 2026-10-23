@@ -12,6 +12,7 @@
     "dev:web": "npm run dev --workspace=web-hub",
     "electron": "npm run electron --workspace=facturier-desktop",
     "build:desktop": "npm run build --workspace=facturier-desktop",
+    "dist:win": "npm run dist:win --workspace=facturier-desktop",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "lint": "turbo run lint",

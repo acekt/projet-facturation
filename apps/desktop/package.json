@@ -2,6 +2,7 @@
   "name": "facturier-desktop",
   "version": "1.0.0",
   "description": "Facturier — Logiciel de Gestion et Facturation Desktop",
+  "author": "acekt <apindaemmanuel@gmail.com>",
   "private": true,
   "main": "main.js",
   "scripts": {
@@ -17,7 +18,7 @@
     "seed": "npx tsx scripts/seed.ts",
     "rebuild:node": "npm rebuild better-sqlite3",
     "rebuild:electron": "node -e \"const fs=require('fs'),p=require('path'),d=p.join(p.dirname(require.resolve('better-sqlite3/package.json')),'build');if(fs.existsSync(d)){fs.rmSync(d,{recursive:true,force:true});console.log('[purge] Cache ABI supprimé:',d);}else{console.log('[purge] Rien à purger.');}\" && electron-builder install-app-deps",
-    "patch-standalone": "node -e \"const fs = require('fs'); const file = '.next/standalone/server.js'; let content = fs.readFileSync(file, 'utf8'); content = content.replace('process.chdir(__dirname)', 'process.cwd = () => __dirname;'); fs.writeFileSync(file, content);\"",
+    "patch-standalone": "node -e \"const fs = require('fs'); const candidates = ['.next/standalone/server.js', '.next/standalone/apps/desktop/server.js']; for (const file of candidates) { if (fs.existsSync(file)) { let content = fs.readFileSync(file, 'utf8'); content = content.replace('process.chdir(__dirname)', 'process.cwd = () => __dirname;'); fs.writeFileSync(file, content); console.log('[patch-standalone] Patché :', file); } } if (!fs.existsSync('.next/standalone/server.js') && fs.existsSync('.next/standalone/apps/desktop/server.js')) { fs.copyFileSync('.next/standalone/apps/desktop/server.js', '.next/standalone/server.js'); console.log('[patch-standalone] Miroir racine créé.'); }\"",
     "prepare-standalone": "node scripts/prepare-standalone.js",
     "sync-sqlite": "node -e \"const fs=require('fs'); const p=require('path'); const src=p.join(p.dirname(require.resolve('better-sqlite3/package.json')), 'build/Release/better_sqlite3.node'); const dst=p.resolve('.next/standalone/node_modules/better-sqlite3/build/Release/better_sqlite3.node'); fs.mkdirSync(p.dirname(dst),{recursive:true}); fs.copyFileSync(src,dst); console.log('[sync-sqlite] Binaire natif synchronisé :', dst);\"",
     "build:electron": "cross-env NEXT_TELEMETRY_DISABLED=1 NEXT_BUILD=1 npm run rebuild:node && next build --webpack && npm run rebuild:electron && npm run sync-sqlite && npm run patch-standalone && npm run prepare-standalone",
@@ -28,6 +29,7 @@
   "build": {
     "appId": "com.facturier.invoicing",
     "productName": "Facturier",
+    "electronVersion": "42.11.2",
     "copyright": "© 2026 Facturier — Tous droits réservés",
     "directories": {
       "buildResources": "build",
@@ -134,7 +136,6 @@
     "@react-pdf/font": "^4.1.2",
     "@react-pdf/primitives": "^4.4.0",
     "@react-pdf/renderer": "^4.5.1",
-    "@workspace/ui": "^1.0.0",
     "adm-zip": "^0.6.1",
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^3.0.3",
@@ -162,6 +163,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
+    "@workspace/ui": "^1.0.0",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/jest-dom": "^7.0.1",
     "@testing-library/react": "^16.3.3",
@@ -174,7 +176,7 @@
     "@vitejs/plugin-react": "^6.1.1",
     "babel-plugin-react-compiler": "^1.0.0",
     "cross-env": "^10.1.0",
-    "electron": "^42.3.0",
+    "electron": "42.11.2",
     "electron-builder": "^25.1.8",
     "jsdom": "^29.1.1",
     "playwright": "^1.60.0",
