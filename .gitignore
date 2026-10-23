@@ -8,6 +8,7 @@ __v0_jsx-dev-runtime.ts
 
 # Environment variables
 .env*.local
+!.env.example
 
 # Common ignores
 node_modules
@@ -26,3 +27,5 @@ tests/artifacts/
 playwright-report/
 tsconfig.tsbuildinfo
 data/
+.turbo/
+.idea/

@@ -1,0 +1,24 @@
+@import "../../../packages/ui/src/styles/theme.css";
+
+/* ═══════════════════════════════════════════════════════════
+   APPLICATION DESKTOP — RÈGLES NATIVES
+   Empêche la sélection de texte comme sur un site web.
+   Les inputs/textareas conservent user-select: text.
+   ═══════════════════════════════════════════════════════════ */
+*, *::before, *::after {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: default;
+}
+
+/* Réautoriser la sélection uniquement dans les champs de saisie */
+input, textarea, [contenteditable='true'], [contenteditable=''] {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+/* Liens et boutons : curseur pointeur natif */
+a, button, [role='button'], label {
+  cursor: pointer;
+}

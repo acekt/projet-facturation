@@ -1,0 +1,122 @@
+import db from '@/lib/db';
+import crypto from 'crypto';
+import { getNextNumber } from '@/lib/api/numbering';
+import { DbClient } from '@/lib/types/api';
+import { ROLES, QUOTE_STATUS, INVOICE_STATUS } from '@/lib/constants';
+import { getTaxRates } from '@/lib/api/invoice-logic';
+import { computeTotals } from '@/lib/math-logic';
+import { buildTenantFilter, resolveActiveTenantId } from '@/lib/api/tenant';
+
+export class InvoiceServiceError extends Error {
+  constructor(public message: string, public status: number) {
+    super(message);
+  }
+}
+
+export const InvoiceService = {
+  createInvoice(data: any, userId: string, role: string, tenantId?: string | null) {
+    const activeTenantId = resolveActiveTenantId(userId, tenantId);
+    const tf = buildTenantFilter(activeTenantId);
+
+    // Validate client
+    const client = db
+      .prepare(`SELECT id FROM clients WHERE id = ? AND deletedAt IS NULL${tf.sql}`)
+      .get(data.clientId, ...tf.params) as DbClient | undefined;
+    if (!client) {
+      throw new InvoiceServiceError('Client introuvable ou supprimé. Impossible de créer une facture pour ce client.', 400);
+    }
+
+    let quoteSubject: string | null = null;
+    if (data.quoteId) {
+      const quote = db
+        .prepare(`SELECT status, deletedAt, created_by, validUntil, subject FROM quotes WHERE id = ?${tf.sql}`)
+        .get(data.quoteId, ...tf.params) as { status: string; deletedAt: string | null; created_by?: string; validUntil?: string; subject?: string } | undefined;
+
+      if (!quote) {
+        throw new InvoiceServiceError('Devis introuvable.', 400);
+      }
+      if (role !== ROLES.ADMIN && quote.created_by !== userId) {
+        throw new InvoiceServiceError('Forbidden: You can only invoice your own quotes', 403);
+      }
+      if (quote.deletedAt !== null) {
+        throw new InvoiceServiceError('Le devis associé a été supprimé.', 400);
+      }
+      if (quote.status === QUOTE_STATUS.CONVERTI) {
+        throw new InvoiceServiceError('Ce devis a déjà été converti en facture.', 400);
+      }
+      if (quote.validUntil && new Date() > new Date(quote.validUntil)) {
+        throw new InvoiceServiceError('Impossible de convertir : ce devis a expiré.', 400);
+      }
+      quoteSubject = quote.subject ?? null;
+    }
+
+    const rates = getTaxRates();
+    const computed = computeTotals(data.items, data.discount, rates);
+
+    const id = crypto.randomUUID();
+    const dueDate =
+      data.dueDate ||
+      (() => {
+        const d = new Date(data.date || Date.now());
+        d.setDate(d.getDate() + 30);
+        return d.toISOString().split('T')[0];
+      })();
+
+    const insertInvoice = db.transaction(() => {
+      const number = getNextNumber('invoice');
+
+      db.prepare(`
+        INSERT INTO invoices (
+          id, number, quoteId, clientId, clientName, clientEmail, date, dueDate,
+          subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, notes, subject, created_by, tenant_id
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        id,
+        number,
+        data.quoteId ?? null,
+        data.clientId,
+        data.clientName,
+        data.clientEmail,
+        data.date,
+        dueDate,
+        computed.subtotal,
+        computed.discount,
+        computed.taxBase,
+        computed.tvaAmount,
+        computed.tpsAmount,
+        computed.cssAmount,
+        computed.total,
+        INVOICE_STATUS.UNPAID,
+        data.notes ?? null,
+        data.subject ?? quoteSubject,
+        userId,
+        activeTenantId
+      );
+
+      const insertItem = db.prepare(`
+        INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total, tenant_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+
+      for (const item of data.items) {
+        insertItem.run(
+          crypto.randomUUID(),
+          id,
+          item.description,
+          item.quantity,
+          Math.round(item.unitPrice),
+          Math.round(item.quantity * item.unitPrice),
+          activeTenantId
+        );
+      }
+
+      if (data.quoteId) {
+        db.prepare(`UPDATE quotes SET status = '${QUOTE_STATUS.CONVERTI}' WHERE id = ?`).run(data.quoteId);
+      }
+
+      return { id, number };
+    });
+
+    return insertInvoice();
+  }
+};

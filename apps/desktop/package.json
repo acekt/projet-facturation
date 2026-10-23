@@ -1,0 +1,187 @@
+{
+  "name": "facturier-desktop",
+  "version": "1.0.0",
+  "description": "Facturier — Logiciel de Gestion et Facturation Desktop",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "dev": "npm run rebuild:node && next dev --webpack",
+    "build": "next build --webpack",
+    "start": "next start",
+    "start:electron": "node .next/standalone/server.js",
+    "electron": "electron .",
+    "electron:prod": "npm run build:electron && electron .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "test:e2e:report": "playwright test --reporter=html",
+    "seed": "npx tsx scripts/seed.ts",
+    "rebuild:node": "npm rebuild better-sqlite3",
+    "rebuild:electron": "node -e \"const fs=require('fs'),p=require('path'),d=p.join(p.dirname(require.resolve('better-sqlite3/package.json')),'build');if(fs.existsSync(d)){fs.rmSync(d,{recursive:true,force:true});console.log('[purge] Cache ABI supprimé:',d);}else{console.log('[purge] Rien à purger.');}\" && electron-builder install-app-deps",
+    "patch-standalone": "node -e \"const fs = require('fs'); const file = '.next/standalone/server.js'; let content = fs.readFileSync(file, 'utf8'); content = content.replace('process.chdir(__dirname)', 'process.cwd = () => __dirname;'); fs.writeFileSync(file, content);\"",
+    "prepare-standalone": "node scripts/prepare-standalone.js",
+    "sync-sqlite": "node -e \"const fs=require('fs'); const p=require('path'); const src=p.join(p.dirname(require.resolve('better-sqlite3/package.json')), 'build/Release/better_sqlite3.node'); const dst=p.resolve('.next/standalone/node_modules/better-sqlite3/build/Release/better_sqlite3.node'); fs.mkdirSync(p.dirname(dst),{recursive:true}); fs.copyFileSync(src,dst); console.log('[sync-sqlite] Binaire natif synchronisé :', dst);\"",
+    "build:electron": "cross-env NEXT_TELEMETRY_DISABLED=1 NEXT_BUILD=1 npm run rebuild:node && next build --webpack && npm run rebuild:electron && npm run sync-sqlite && npm run patch-standalone && npm run prepare-standalone",
+    "dist": "npm run build:electron && electron-builder",
+    "dist:win": "npm run build:electron && electron-builder --win",
+    "pack": "electron-builder"
+  },
+  "build": {
+    "appId": "com.facturier.invoicing",
+    "productName": "Facturier",
+    "copyright": "© 2026 Facturier — Tous droits réservés",
+    "directories": {
+      "buildResources": "build",
+      "output": "dist"
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "acekt",
+        "repo": "projet-facturation"
+      }
+    ],
+    "asar": true,
+    "npmRebuild": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "package.json",
+      "node_modules/electron-updater/**/*",
+      "node_modules/semver/**/*",
+      "node_modules/builder-util-runtime/**/*",
+      "node_modules/lazy-val/**/*",
+      "node_modules/tiny-typed-emitter/**/*",
+      "public/**/*",
+      ".next/standalone/**/*",
+      ".next/static/**/*",
+      "!**/*.ts",
+      "!**/*.tsx",
+      "!**/*.map",
+      "!.git"
+    ],
+    "asarUnpack": [
+      "**/*.node"
+    ],
+    "win": {
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": true,
+      "perMachine": false,
+      "allowElevation": true,
+      "allowToChangeInstallationDirectory": false,
+      "deleteAppDataOnUninstall": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Facturier",
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "runAfterFinish": true
+    },
+    "mac": {
+      "icon": "build/icon.icns",
+      "category": "public.app-category.finance",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ]
+    },
+    "linux": {
+      "icon": "build/icon.png",
+      "category": "Finance",
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    }
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.9.1",
+    "@journeyapps/wa-sqlite": "^2.0.7",
+    "@powersync/react": "^2.0.2",
+    "@powersync/web": "^2.4.2",
+    "@supabase/supabase-js": "^2.117.3",
+    "@radix-ui/react-alert-dialog": "1.1.15",
+    "@radix-ui/react-avatar": "1.1.11",
+    "@radix-ui/react-checkbox": "1.3.3",
+    "@radix-ui/react-dialog": "1.1.15",
+    "@radix-ui/react-dropdown-menu": "2.1.16",
+    "@radix-ui/react-label": "2.1.8",
+    "@radix-ui/react-popover": "1.1.15",
+    "@radix-ui/react-select": "2.2.6",
+    "@radix-ui/react-separator": "1.1.8",
+    "@radix-ui/react-slot": "1.2.4",
+    "@radix-ui/react-switch": "1.2.6",
+    "@radix-ui/react-tabs": "1.1.13",
+    "@radix-ui/react-tooltip": "1.2.8",
+    "@radix-ui/react-visually-hidden": "^1.2.4",
+    "@react-pdf/font": "^4.1.2",
+    "@react-pdf/primitives": "^4.4.0",
+    "@react-pdf/renderer": "^4.5.1",
+    "@workspace/ui": "^1.0.0",
+    "adm-zip": "^0.6.1",
+    "autoprefixer": "^10.4.20",
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.10.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "1.1.1",
+    "date-fns": "^4.4.0",
+    "electron-updater": "^6.8.9",
+    "exceljs": "^4.4.0",
+    "framer-motion": "^12.43.0",
+    "lucide-react": "^0.564.0",
+    "next": "^16.4.0",
+    "next-themes": "^0.4.6",
+    "react": "^19.2.0",
+    "react-day-picker": "9.13.2",
+    "react-dom": "^19.2.0",
+    "react-error-boundary": "^6.1.5",
+    "react-hook-form": "^7.54.1",
+    "recharts": "2.15.0",
+    "sonner": "^1.7.1",
+    "tailwind-merge": "^3.3.1",
+    "zod": "^3.24.1",
+    "zustand": "^5.0.13"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@tailwindcss/postcss": "^4.3.3",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/node": "^22.20.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^6.1.1",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "cross-env": "^10.1.0",
+    "electron": "^42.3.0",
+    "electron-builder": "^25.1.8",
+    "jsdom": "^29.1.1",
+    "playwright": "^1.60.0",
+    "postcss": "^8.5",
+    "tailwindcss": "^4.3.3",
+    "tw-animate-css": "1.3.3",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  }
+}

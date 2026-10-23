@@ -1,0 +1,985 @@
+"use client";
+
+import { create } from "zustand";
+import { persist, createJSONStorage } from "zustand/middleware";
+
+// ============================================================================
+// Re-export canonical types from the Single Source of Truth
+// Components should import entity types from HERE (not from lib/types/api directly)
+// ============================================================================
+import type {
+  UserResponse,
+  ClientResponse,
+  InvoiceResponse,
+  QuoteResponse,
+  PaymentResponse,
+  ServiceResponse,
+  CreditNoteResponse,
+  SettingsResponse,
+  DashboardMetricsResponse,
+} from "@/lib/types/api";
+
+// Re-export InvoiceItem type to avoid breakage in editor components
+export type { InvoiceItem } from "@/lib/types/api";
+
+// ============================================================================
+// Store-local type aliases for backward compatibility
+// ============================================================================
+export type Client = ClientResponse;
+export type Invoice = InvoiceResponse;
+export type Quote = QuoteResponse;
+export type Payment = PaymentResponse;
+export type Service = ServiceResponse;
+export type CreditNote = CreditNoteResponse;
+export type Settings = SettingsResponse;
+
+/**
+ * DraftItem — item used inside the editor before the invoice/quote is saved.
+ * Unlike InvoiceItem/QuoteItem, it does NOT require invoiceId/quoteId since
+ * those foreign keys are only assigned at server persistence time.
+ */
+export interface DraftItem {
+  id: string;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+  total: number;
+}
+
+// ============================================================================
+// Draft interfaces (for in-memory edit persistence across SPA navigation)
+// ============================================================================
+export interface InvoiceDraft {
+  selectedClient: Client | null;
+  items: DraftItem[];
+  invoiceDate: string;
+  discount: number;
+  notes: string;
+  subject?: string;
+}
+
+export interface QuoteDraft {
+  selectedClient: Client | null;
+  items: DraftItem[];
+  quoteDate: string;
+  discount: number;
+  notes: string;
+  subject?: string;
+  validUntil?: string;
+  status: Quote["status"];
+}
+
+// ============================================================================
+// RBAC — Harmonized Matrix (Admin vs Operator/User)
+// ============================================================================
+export interface User {
+  id: string;
+  name: string;
+  role: "admin" | "user";
+  email?: string;
+  username?: string;
+  force_password_change?: number | boolean;
+  tenant_id?: string | null;
+}
+
+export interface RolePermissions {
+  canViewDashboard: boolean;
+  canViewSettings: boolean;
+  canManageSettings: boolean;
+  canViewAuditLog: boolean;
+  canViewUsers: boolean;
+  canManageUsers: boolean;
+  canViewCustomers: boolean;
+  canManageCustomers: boolean;
+  canViewQuotes: boolean;
+  canCreateQuote: boolean;
+  canViewInvoices: boolean;
+  canCreateInvoice: boolean;
+  canViewCreditNotes: boolean;
+  canViewServices: boolean;
+  canManageServices: boolean;
+  canResetPassword: boolean;
+  canDeactivateUser: boolean;
+}
+
+export const ADMIN_PERMISSIONS: RolePermissions = {
+  canViewDashboard: true,
+  canViewSettings: true,
+  canManageSettings: true,
+  canViewAuditLog: true,
+  canViewUsers: true,
+  canManageUsers: true,
+  canViewCustomers: true,
+  canManageCustomers: true,
+  canViewQuotes: true,
+  canCreateQuote: true,
+  canViewInvoices: true,
+  canCreateInvoice: true,
+  canViewCreditNotes: true,
+  canViewServices: true,
+  canManageServices: true,
+  canResetPassword: true,
+  canDeactivateUser: true,
+};
+
+export const USER_PERMISSIONS: RolePermissions = {
+  canViewDashboard: true,
+  canViewSettings: true,
+  canManageSettings: false,
+  canViewAuditLog: false,
+  canViewUsers: false,
+  canManageUsers: false,
+  canViewCustomers: true,
+  canManageCustomers: false,
+  canViewQuotes: true,
+  canCreateQuote: true,
+  canViewInvoices: true,
+  canCreateInvoice: true,
+  canViewCreditNotes: true,
+  canViewServices: true,
+  canManageServices: false,
+  canResetPassword: false,
+  canDeactivateUser: false,
+};
+
+export function getPermissionsForRole(role: "admin" | "user"): RolePermissions {
+  return role === "admin" ? ADMIN_PERMISSIONS : USER_PERMISSIONS;
+}
+
+interface ViewFormat {
+  quotes: "table" | "horizontal" | "block";
+  invoices: "table" | "horizontal" | "block";
+  clients: "table" | "horizontal" | "block";
+  services: "table" | "horizontal" | "block";
+  creditNotes: "table" | "horizontal" | "block";
+}
+
+// ============================================================================
+// Zustand AppState
+// ============================================================================
+interface AppState {
+  user: User | null;
+  permissions: RolePermissions | null;
+  isAuthenticated: boolean;
+  isDataLoaded: boolean;
+
+  clients: Client[];
+  quotes: Quote[];
+  invoices: Invoice[];
+  services: Service[];
+  payments: Payment[];
+  creditNotes: CreditNote[];
+  settings: Settings;
+  viewFormat: ViewFormat;
+  users: UserResponse[];
+  dashboardMetrics: DashboardMetricsResponse | null;
+
+  invoiceDraft: InvoiceDraft;
+  quoteDraft: QuoteDraft;
+
+  // Actions
+  /**
+   * @function setIsDataLoaded
+   * @description Flag controlling the visibility of the loading spinner during DataSync hydration.
+   * @param {boolean} loaded - True when background API calls are fully complete.
+   */
+  setIsDataLoaded: (loaded: boolean) => void;
+  /**
+   * @function setDashboardMetrics
+   * @description Updates global dashboard analytical metrics.
+   * @param {DashboardMetricsResponse | null} metrics - The analytics dataset.
+   */
+  setDashboardMetrics: (metrics: DashboardMetricsResponse | null) => void;
+  /**
+   * @function setUser
+   * @description Updates the connected user and maps their RBAC permissions.
+   * @param {User | null} user - The authenticated user or null on logout.
+   */
+  setUser: (user: User | null) => void;
+  /**
+   * @function setClients
+   * @description Overwrites the entire clients list (used initially by DataSync).
+   * @param {Client[]} clients - Full array of active clients.
+   */
+  setClients: (clients: Client[]) => void;
+  // Atomic client mutations — use these instead of setClients for optimistic UI
+  // to avoid stale closure overwrites during concurrent mutations.
+  /**
+   * @function addClient
+   * @description Ajoute un client de manière immuable au store.
+   * @param {Client} client - L'objet client à ajouter.
+   */
+  addClient: (client: Client) => void;
+  /**
+   * @function removeClient
+   * @description Supprime un client du store de manière immuable.
+   * @param {string} id - L'ID du client à supprimer.
+   */
+  removeClient: (id: string) => void;
+  /**
+   * @function updateClient
+   * @description Met à jour partiellement un client existant.
+   * @param {string} id - L'ID du client.
+   * @param {Partial<Client>} data - Les données à mettre à jour.
+   */
+  updateClient: (id: string, data: Partial<Client>) => void;
+  /**
+   * @function replaceClient
+   * @description Remplace un client (ex: ID temporaire remplacé par ID serveur).
+   * @param {string} tempId - L'ID temporaire à remplacer.
+   * @param {Client} confirmed - Le client confirmé.
+   */
+  replaceClient: (tempId: string, confirmed: Client) => void;
+
+  /**
+   * @function setQuotes
+   * @description Overwrites the entire quotes list (used initially by DataSync).
+   * @param {Quote[]} quotes - Full array of active quotes.
+   */
+  setQuotes: (quotes: Quote[]) => void;
+  /**
+   * @function addQuote
+   * @description Ajoute un devis de manière immuable au store.
+   * @param {Quote} quote - L'objet devis à ajouter.
+   */
+  addQuote: (quote: Quote) => void;
+  /**
+   * @function removeQuote
+   * @description Supprime un devis du store de manière immuable.
+   * @param {string} id - L'ID du devis à supprimer.
+   */
+  removeQuote: (id: string) => void;
+  /**
+   * @function updateQuote
+   * @description Met à jour partiellement un devis existant.
+   * @param {string} id - L'ID du devis.
+   * @param {Partial<Quote>} data - Les données à mettre à jour.
+   */
+  updateQuote: (id: string, data: Partial<Quote>) => void;
+  /**
+   * @function replaceQuote
+   * @description Remplace un devis (ex: ID temporaire remplacé par ID serveur).
+   * @param {string} tempId - L'ID temporaire à remplacer.
+   * @param {Quote} confirmed - Le devis confirmé.
+   */
+  replaceQuote: (tempId: string, confirmed: Quote) => void;
+  /**
+   * @function setInvoices
+   * @description Overwrites the entire invoices list (used initially by DataSync).
+   * @param {Invoice[]} invoices - Full array of active invoices.
+   */
+  setInvoices: (invoices: Invoice[]) => void;
+  /**
+   * @function addInvoice
+   * @description Ajoute une facture de manière immuable au store.
+   * @param {Invoice} invoice - L'objet facture à ajouter.
+   */
+  addInvoice: (invoice: Invoice) => void;
+  /**
+   * @function removeInvoice
+   * @description Supprime une facture du store de manière immuable.
+   * @param {string} id - L'ID de la facture à supprimer.
+   */
+  removeInvoice: (id: string) => void;
+  /**
+   * @function updateInvoice
+   * @description Met à jour partiellement une facture existante.
+   * @param {string} id - L'ID de la facture.
+   * @param {Partial<Invoice>} data - Les données à mettre à jour.
+   */
+  updateInvoice: (id: string, data: Partial<Invoice>) => void;
+  /**
+   * @function replaceInvoice
+   * @description Remplace une facture (ex: ID temporaire remplacé par ID serveur).
+   * @param {string} tempId - L'ID temporaire à remplacer.
+   * @param {Invoice} confirmed - La facture confirmée.
+   */
+  replaceInvoice: (tempId: string, confirmed: Invoice) => void;
+
+  /**
+   * @function setServices
+   * @description Overwrites the entire services list (used initially by DataSync).
+   * @param {Service[]} services - Full array of active services.
+   */
+  setServices: (services: Service[]) => void;
+  /**
+   * @function addService
+   * @description Adds a new service immutably to the store.
+   * @param {Service} service - The service object to add.
+   */
+  addService: (service: Service) => void;
+  /**
+   * @function removeService
+   * @description Removes a service from the store immutably.
+   * @param {string} id - The ID of the service to remove.
+   */
+  removeService: (id: string) => void;
+  /**
+   * @function updateService
+   * @description Partially updates an existing service.
+   * @param {string} id - The ID of the service.
+   * @param {Partial<Service>} data - The data to update.
+   */
+  updateService: (id: string, data: Partial<Service>) => void;
+  /**
+   * @function replaceService
+   * @description Replaces a service (e.g., replacing a temporary ID with a server ID).
+   * @param {string} tempId - The temporary ID to replace.
+   * @param {Service} confirmed - The confirmed service.
+   */
+  replaceService: (tempId: string, confirmed: Service) => void;
+
+  /**
+   * @function setPayments
+   * @description Overwrites the entire payments list (used initially by DataSync).
+   * @param {Payment[]} payments - Full array of payments.
+   */
+  setPayments: (payments: Payment[]) => void;
+  /**
+   * @function addPayment
+   * @description Adds a new payment immutably to the store.
+   * @param {Payment} payment - The payment object to add.
+   */
+  addPayment: (payment: Payment) => void;
+  /**
+   * @function removePayment
+   * @description Removes a payment from the store immutably.
+   * @param {string} id - The ID of the payment to remove.
+   */
+  removePayment: (id: string) => void;
+  /**
+   * @function updatePayment
+   * @description Partially updates an existing payment.
+   * @param {string} id - The ID of the payment.
+   * @param {Partial<Payment>} data - The data to update.
+   */
+  updatePayment: (id: string, data: Partial<Payment>) => void;
+  /**
+   * @function replacePayment
+   * @description Replaces a payment (e.g., replacing a temporary ID with a server ID).
+   * @param {string} tempId - The temporary ID to replace.
+   * @param {Payment} confirmed - The confirmed payment.
+   */
+  replacePayment: (tempId: string, confirmed: Payment) => void;
+  /**
+   * @function setCreditNotes
+   * @description Overwrites the entire credit notes list (used initially by DataSync).
+   * @param {CreditNote[]} creditNotes - Full array of credit notes.
+   */
+  setCreditNotes: (creditNotes: CreditNote[]) => void;
+  /**
+   * @function addCreditNote
+   * @description Adds a new credit note immutably to the store.
+   * @param {CreditNote} creditNote - The credit note object to add.
+   */
+  addCreditNote: (creditNote: CreditNote) => void;
+  /**
+   * @function removeCreditNote
+   * @description Removes a credit note from the store immutably.
+   * @param {string} id - The ID of the credit note to remove.
+   */
+  removeCreditNote: (id: string) => void;
+  /**
+   * @function updateCreditNote
+   * @description Partially updates an existing credit note.
+   * @param {string} id - The ID of the credit note.
+   * @param {Partial<CreditNote>} data - The data to update.
+   */
+  updateCreditNote: (id: string, data: Partial<CreditNote>) => void;
+  /**
+   * @function replaceCreditNote
+   * @description Replaces a credit note (e.g., replacing a temporary ID with a server ID).
+   * @param {string} tempId - The temporary ID to replace.
+   * @param {CreditNote} confirmed - The confirmed credit note.
+   */
+  replaceCreditNote: (tempId: string, confirmed: CreditNote) => void;
+
+  /**
+   * @function setSettings
+   * @description Replaces all global settings with fresh API data.
+   * @param {Settings} settings - The complete settings object.
+   */
+  setSettings: (settings: Settings) => void;
+  /**
+   * @function updateSettings
+   * @description Partially updates global configuration settings immutably.
+   * @param {Partial<Settings>} updates - Changed setting key-value pairs.
+   */
+  updateSettings: (updates: Partial<Settings>) => void;
+  /**
+   * @function setViewFormat
+   * @description Toggles display layout preference (table/block/etc.) for a specific view.
+   * @param {keyof ViewFormat} page - The view to format (e.g. 'quotes', 'invoices').
+   * @param {ViewFormat[keyof ViewFormat]} format - The layout type.
+   */
+  setViewFormat: (
+    page: keyof ViewFormat,
+    format: ViewFormat[keyof ViewFormat],
+  ) => void;
+  /**
+   * @function setUsers
+   * @description Overwrites the user registry (admin only).
+   * @param {UserResponse[]} users - The full list of system users.
+   */
+  setUsers: (users: UserResponse[]) => void;
+  /**
+   * @function addUser
+   * @description Adds a new user account immutably to the store.
+   * @param {UserResponse} user - The new user object.
+   */
+  addUser: (user: UserResponse) => void;
+  /**
+   * @function updateUser
+   * @description Modifies specific user properties immutably.
+   * @param {string} id - Target user ID.
+   * @param {Partial<UserResponse>} updates - The data to merge.
+   */
+  updateUser: (id: string, updates: Partial<UserResponse>) => void;
+  /**
+   * @function removeUser
+   * @description Performs a soft delete by setting is_active to 0 immutably.
+   * @param {string} id - The user ID to deactivate.
+   */
+  removeUser: (id: string) => void;
+
+  /**
+   * @function setInvoiceDraft
+   * @description Updates in-progress unsaved invoice modifications.
+   * @param {Partial<InvoiceDraft>} draft - Partial draft state to merge.
+   */
+  setInvoiceDraft: (draft: Partial<InvoiceDraft>) => void;
+  /**
+   * @function clearInvoiceDraft
+   * @description Resets the invoice editor to a blank baseline applying legal mentions.
+   */
+  clearInvoiceDraft: () => void;
+  /**
+   * @function setQuoteDraft
+   * @description Updates in-progress unsaved quote modifications.
+   * @param {Partial<QuoteDraft>} draft - Partial draft state to merge.
+   */
+  setQuoteDraft: (draft: Partial<QuoteDraft>) => void;
+  /**
+   * @function clearQuoteDraft
+   * @description Resets the quote editor with standard defaults (30 days validity).
+   */
+  clearQuoteDraft: () => void;
+}
+
+// ============================================================================
+// Default Settings — fallback before API response
+// ============================================================================
+const DEFAULT_SETTINGS: Settings = {
+  id: 1,
+  companyName: "Global Maintenance",
+  legalForm: "SARL",
+  nif: "XXXXXXXXXX",
+  rccm: "GA-LBV-XX-XXXX-XXXX",
+  address: "123 Boulevard Triomphal, Libreville, Gabon",
+  email: "facturation@globalm.ga",
+  phone: "+241 01 76 XX XX",
+  bankName: "BGFI Bank",
+  bankAgency: "Libreville",
+  accountNumber: "XXXXXXXXXX",
+  swiftCode: "BGFIGAXX",
+  iban: "GAXX XXXX XXXX XXXX XXXX",
+  tvaRate: 18,
+  tpsRate: 9.5,
+  cssRate: 1,
+  sessionTimeout: 30,
+  invoicePrefix: "FAC",
+  quotePrefix: "DEV",
+  companyCode: "GM",
+  mentionsLegales: null,
+  logo: null,
+};
+
+// ============================================================================
+// Store
+// ============================================================================
+export const useStore = create<AppState>()(
+  persist(
+    (set) => ({
+      user: null,
+      permissions: null,
+      isAuthenticated: false,
+      isDataLoaded: false,
+      clients: [],
+      quotes: [],
+      invoices: [],
+      services: [],
+      payments: [],
+      creditNotes: [],
+      settings: DEFAULT_SETTINGS,
+      users: [],
+      dashboardMetrics: null,
+      viewFormat: {
+        quotes: "table",
+        invoices: "table",
+        clients: "block",
+        services: "block",
+        creditNotes: "horizontal",
+      },
+      invoiceDraft: {
+        selectedClient: null,
+        items: [
+          { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
+        ],
+        invoiceDate: new Date().toISOString().split("T")[0],
+        discount: 0,
+        notes: "",
+      },
+      quoteDraft: {
+        selectedClient: null,
+        items: [
+          { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
+        ],
+        quoteDate: new Date().toISOString().split("T")[0],
+        discount: 0,
+        notes: "",
+        status: "EN_ATTENTE",
+      },
+
+      /**
+       * @function setIsDataLoaded
+       * @description Flag controlling the visibility of the loading spinner during DataSync hydration.
+       * @param {boolean} isDataLoaded - True when background API calls are fully complete.
+       */
+      setIsDataLoaded: (isDataLoaded) => set({ isDataLoaded }),
+
+      /**
+       * @function setDashboardMetrics
+       * @description Updates global dashboard analytical metrics.
+       * @param {DashboardMetricsResponse | null} dashboardMetrics - The analytics dataset.
+       */
+      setDashboardMetrics: (dashboardMetrics) => set({ dashboardMetrics }),
+
+      /**
+       * @function setUser
+       * @description Updates the connected user and maps their RBAC permissions.
+       * @param {User | null} user - The authenticated user or null on logout.
+       */
+      setUser: (user) => {
+        const permissions = user ? getPermissionsForRole(user.role) : null;
+        set({ user, permissions, isAuthenticated: !!user });
+      },
+
+      /**
+       * @function setClients
+       * @description Écrase l'intégralité de la liste des clients (utilisé lors du chargement initial via DataSync).
+       * @param {Client[]} clients - Tableau complet des clients actifs.
+       */
+      setClients: (clients) => set({ clients }),
+      // Atomic client mutations: each reads fresh state via set(state => ...) — no stale closure.
+      /**
+       * @function addClient
+       * @description Ajoute un nouveau client de manière strictement immuable au store.
+       * @param {Client} client - L'objet client à ajouter.
+       */
+      addClient: (client) =>
+        set((state) => ({ clients: [...state.clients, client] })),
+      /**
+       * @function removeClient
+       * @description Supprime un client existant en filtrant par ID de façon immuable.
+       * @param {string} id - L'identifiant unique du client.
+       */
+      removeClient: (id) =>
+        set((state) => ({ clients: state.clients.filter((c) => c.id !== id) })),
+      /**
+       * @function updateClient
+       * @description Met à jour partiellement les informations d'un client de manière immuable.
+       * @param {string} id - L'identifiant du client.
+       * @param {Partial<Client>} data - Les données à fusionner.
+       */
+      updateClient: (id, data) =>
+        set((state) => ({
+          clients: state.clients.map((c) =>
+            c.id === id ? { ...c, ...data } : c,
+          ),
+        })),
+      /**
+       * @function replaceClient
+       * @description Remplace une entrée client (utile pour réconcilier les ID temporaires de création locale avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire du client.
+       * @param {Client} confirmed - L'objet client confirmé par le serveur.
+       */
+      replaceClient: (tempId, confirmed) =>
+        set((state) => ({
+          clients: state.clients.map((c) => (c.id === tempId ? confirmed : c)),
+        })),
+
+      /**
+       * @function setQuotes
+       * @description Overwrites the entire quotes list (used initially by DataSync).
+       * @param {Quote[]} quotes - Full array of quotes.
+       */
+      setQuotes: (quotes) => set({ quotes }),
+      /**
+       * @function addQuote
+       * @description Ajoute un nouveau devis de manière immuable au store.
+       * @param {Quote} quote - L'objet devis à ajouter.
+       */
+      addQuote: (quote) =>
+        set((state) => ({ quotes: [quote, ...state.quotes] })),
+      /**
+       * @function removeQuote
+       * @description Supprime un devis existant en filtrant par ID.
+       * @param {string} id - L'identifiant unique du devis.
+       */
+      removeQuote: (id) =>
+        set((state) => ({ quotes: state.quotes.filter((q) => q.id !== id) })),
+      /**
+       * @function updateQuote
+       * @description Met à jour partiellement les informations d'un devis.
+       * @param {string} id - L'identifiant du devis.
+       * @param {Partial<Quote>} data - Les données à mettre à jour.
+       */
+      updateQuote: (id, data) =>
+        set((state) => ({
+          quotes: state.quotes.map((q) =>
+            q.id === id ? { ...q, ...data } : q,
+          ),
+        })),
+      /**
+       * @function replaceQuote
+       * @description Remplace une entrée devis (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire du devis.
+       * @param {Quote} confirmed - L'objet devis confirmé par le serveur.
+       */
+      replaceQuote: (tempId, confirmed) =>
+        set((state) => ({
+          quotes: state.quotes.map((q) => (q.id === tempId ? confirmed : q)),
+        })),
+
+      /**
+       * @function setInvoices
+       * @description Overwrites the entire invoices list (used initially by DataSync).
+       * @param {Invoice[]} invoices - Full array of invoices.
+       */
+      setInvoices: (invoices) => set({ invoices }),
+      /**
+       * @function addInvoice
+       * @description Ajoute une nouvelle facture de manière immuable au store.
+       * @param {Invoice} invoice - L'objet facture à ajouter.
+       */
+      addInvoice: (invoice) =>
+        set((state) => ({ invoices: [invoice, ...state.invoices] })),
+      /**
+       * @function removeInvoice
+       * @description Supprime une facture existante en filtrant par ID.
+       * @param {string} id - L'identifiant unique de la facture.
+       */
+      removeInvoice: (id) =>
+        set((state) => ({
+          invoices: state.invoices.filter((i) => i.id !== id),
+        })),
+      /**
+       * @function updateInvoice
+       * @description Met à jour partiellement les informations d'une facture.
+       * @param {string} id - L'identifiant de la facture.
+       * @param {Partial<Invoice>} data - Les données à mettre à jour.
+       */
+      updateInvoice: (id, data) =>
+        set((state) => ({
+          invoices: state.invoices.map((i) =>
+            i.id === id ? { ...i, ...data } : i,
+          ),
+        })),
+      /**
+       * @function replaceInvoice
+       * @description Remplace une entrée facture (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire de la facture.
+       * @param {Invoice} confirmed - L'objet facture confirmé par le serveur.
+       */
+      replaceInvoice: (tempId, confirmed) =>
+        set((state) => ({
+          invoices: state.invoices.map((i) =>
+            i.id === tempId ? confirmed : i,
+          ),
+        })),
+
+      /**
+       * @function setServices
+       * @description Overwrites the entire services list (used initially by DataSync).
+       * @param {Service[]} services - Full array of active services.
+       */
+      setServices: (services) => set({ services }),
+      // Atomic service mutations: same pattern as clients.
+      /**
+       * @function addService
+       * @description Ajoute un nouveau service de manière immuable au store.
+       * @param {Service} service - L'objet service à ajouter.
+       */
+      addService: (service) =>
+        set((state) => ({ services: [...state.services, service] })),
+      /**
+       * @function removeService
+       * @description Supprime un service existant en filtrant par ID.
+       * @param {string} id - L'identifiant unique du service.
+       */
+      removeService: (id) =>
+        set((state) => ({
+          services: state.services.filter((s) => s.id !== id),
+        })),
+      /**
+       * @function updateService
+       * @description Met à jour partiellement les informations d'un service.
+       * @param {string} id - L'identifiant du service.
+       * @param {Partial<Service>} data - Les données à mettre à jour.
+       */
+      updateService: (id, data) =>
+        set((state) => ({
+          services: state.services.map((s) =>
+            s.id === id ? { ...s, ...data } : s,
+          ),
+        })),
+      /**
+       * @function replaceService
+       * @description Remplace une entrée service (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire du service.
+       * @param {Service} confirmed - L'objet service confirmé par le serveur.
+       */
+      replaceService: (tempId, confirmed) =>
+        set((state) => ({
+          services: state.services.map((s) =>
+            s.id === tempId ? confirmed : s,
+          ),
+        })),
+
+      /**
+       * @function setPayments
+       * @description Overwrites the entire payments list (used initially by DataSync).
+       * @param {Payment[]} payments - Full array of payments.
+       */
+      setPayments: (payments) => set({ payments }),
+      /**
+       * @function addPayment
+       * @description Ajoute un nouveau paiement de manière immuable au store.
+       * @param {Payment} payment - L'objet paiement à ajouter.
+       */
+      addPayment: (payment) =>
+        set((state) => ({ payments: [payment, ...state.payments] })),
+      /**
+       * @function removePayment
+       * @description Supprime un paiement existant en filtrant par ID.
+       * @param {string} id - L'identifiant unique du paiement.
+       */
+      removePayment: (id) =>
+        set((state) => ({
+          payments: state.payments.filter((p) => p.id !== id),
+        })),
+      /**
+       * @function updatePayment
+       * @description Met à jour partiellement les informations d'un paiement.
+       * @param {string} id - L'identifiant du paiement.
+       * @param {Partial<Payment>} data - Les données à mettre à jour.
+       */
+      updatePayment: (id, data) =>
+        set((state) => ({
+          payments: state.payments.map((p) =>
+            p.id === id ? { ...p, ...data } : p,
+          ),
+        })),
+      /**
+       * @function replacePayment
+       * @description Remplace une entrée paiement (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire du paiement.
+       * @param {Payment} confirmed - L'objet paiement confirmé par le serveur.
+       */
+      replacePayment: (tempId, confirmed) =>
+        set((state) => ({
+          payments: state.payments.map((p) =>
+            p.id === tempId ? confirmed : p,
+          ),
+        })),
+      /**
+       * @function setCreditNotes
+       * @description Overwrites the entire credit notes list (used initially by DataSync).
+       * @param {CreditNote[]} creditNotes - Full array of credit notes.
+       */
+      setCreditNotes: (creditNotes) => set({ creditNotes }),
+      /**
+       * @function addCreditNote
+       * @description Ajoute un nouvel avoir de manière immuable au store.
+       * @param {CreditNote} creditNote - L'objet avoir à ajouter.
+       */
+      addCreditNote: (creditNote) =>
+        set((state) => ({ creditNotes: [creditNote, ...state.creditNotes] })),
+      /**
+       * @function removeCreditNote
+       * @description Supprime un avoir existant en filtrant par ID.
+       * @param {string} id - L'identifiant unique de l'avoir.
+       */
+      removeCreditNote: (id) =>
+        set((state) => ({
+          creditNotes: state.creditNotes.filter((c) => c.id !== id),
+        })),
+      /**
+       * @function updateCreditNote
+       * @description Met à jour partiellement les informations d'un avoir.
+       * @param {string} id - L'identifiant de l'avoir.
+       * @param {Partial<CreditNote>} data - Les données à mettre à jour.
+       */
+      updateCreditNote: (id, data) =>
+        set((state) => ({
+          creditNotes: state.creditNotes.map((c) =>
+            c.id === id ? { ...c, ...data } : c,
+          ),
+        })),
+      /**
+       * @function replaceCreditNote
+       * @description Remplace une entrée avoir (utile pour réconcilier les ID temporaires avec les ID confirmés par le serveur).
+       * @param {string} tempId - L'ID temporaire de l'avoir.
+       * @param {CreditNote} confirmed - L'objet avoir confirmé par le serveur.
+       */
+      replaceCreditNote: (tempId, confirmed) =>
+        set((state) => ({
+          creditNotes: state.creditNotes.map((c) =>
+            c.id === tempId ? confirmed : c,
+          ),
+        })),
+
+
+      /**
+       * @function setSettings
+       * @description Replaces all global settings with fresh API data.
+       * @param {Settings} settings - The complete settings object.
+       */
+      setSettings: (settings) => set({ settings }),
+
+      /**
+       * @function updateSettings
+       * @description Partially updates global configuration settings immutably.
+       * @param {Partial<Settings>} updates - Changed setting key-value pairs.
+       */
+      updateSettings: (updates) =>
+        set((state) => ({
+          settings: { ...state.settings, ...updates },
+        })),
+
+      /**
+       * @function setViewFormat
+       * @description Toggles display layout preference (table/block/etc.) for a specific view.
+       * @param {keyof ViewFormat} page - The view to format (e.g. 'quotes', 'invoices').
+       * @param {ViewFormat[keyof ViewFormat]} format - The layout type.
+       */
+      setViewFormat: (page, format) =>
+        set((state) => ({
+          viewFormat: { ...state.viewFormat, [page]: format },
+        })),
+
+      /**
+       * @function setUsers
+       * @description Overwrites the user registry (admin only).
+       * @param {UserResponse[]} users - The full list of system users.
+       */
+      setUsers: (users) => set({ users }),
+      /**
+       * @function addUser
+       * @description Adds a new user account immutably to the store.
+       * @param {UserResponse} user - The new user object.
+       */
+      addUser: (user) => set((state) => ({ users: [...state.users, user] })),
+
+      /**
+       * @function updateUser
+       * @description Modifies specific user properties immutably.
+       * @param {string} id - Target user ID.
+       * @param {Partial<UserResponse>} updates - The data to merge.
+       */
+      updateUser: (id, updates) =>
+        set((state) => ({
+          users: state.users.map((u) =>
+            u.id === id ? { ...u, ...updates } : u,
+          ),
+        })),
+
+      /**
+       * @function removeUser
+       * @description Performs a soft delete by setting is_active to 0 immutably.
+       * @param {string} id - The user ID to deactivate.
+       */
+      removeUser: (id) =>
+        set((state) => ({
+          users: state.users.map((u) =>
+            u.id === id
+              ? { ...u, is_active: 0, deletedAt: new Date().toISOString() }
+              : u,
+          ),
+        })),
+
+      /**
+       * @function setInvoiceDraft
+       * @description Updates in-progress unsaved invoice modifications.
+       * @param {Partial<InvoiceDraft>} draft - Partial draft state to merge.
+       */
+      setInvoiceDraft: (draft) =>
+        set((state) => ({
+          invoiceDraft: { ...state.invoiceDraft, ...draft },
+        })),
+
+      /**
+       * @function clearInvoiceDraft
+       * @description Resets the invoice editor to a blank baseline applying legal mentions.
+       */
+      clearInvoiceDraft: () =>
+        set((state) => ({
+          invoiceDraft: {
+            selectedClient: null,
+            items: [
+              { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
+            ],
+            invoiceDate: new Date().toISOString().split("T")[0],
+            discount: 0,
+            notes: state.settings.mentionsLegales || "",
+            subject: "",
+          },
+        })),
+
+      /**
+       * @function setQuoteDraft
+       * @description Updates in-progress unsaved quote modifications.
+       * @param {Partial<QuoteDraft>} draft - Partial draft state to merge.
+       */
+      setQuoteDraft: (draft) =>
+        set((state) => ({
+          quoteDraft: { ...state.quoteDraft, ...draft },
+        })),
+
+      /**
+       * @function clearQuoteDraft
+       * @description Resets the quote editor with standard defaults (30 days validity).
+       */
+      clearQuoteDraft: () => {
+        const today = new Date();
+        const next30Days = new Date(today);
+        next30Days.setDate(today.getDate() + 30);
+        return set((state) => ({
+          quoteDraft: {
+            selectedClient: null,
+            items: [
+              { id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 },
+            ],
+            quoteDate: today.toISOString().split("T")[0],
+            discount: 0,
+            notes: state.settings.mentionsLegales || "",
+            subject: "",
+            validUntil: next30Days.toISOString().split("T")[0],
+            status: "EN_ATTENTE",
+          },
+        }));
+      },
+    }),
+    {
+      name: 'facturier-storage',
+      storage: createJSONStorage(() => sessionStorage),
+      // OPTIMISATION : Ne pas persister `settings` pour forcer le chargement frais via SQLite (DataSync)
+      partialize: (state) => ({
+        user: state.user,
+        permissions: state.permissions,
+        isAuthenticated: state.isAuthenticated,
+        viewFormat: state.viewFormat,
+      }),
+    },
+  ),
+);
