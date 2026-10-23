@@ -196,16 +196,72 @@ function scanForDevServer(start = DEV_PORT_RANGE_START, end = DEV_PORT_RANGE_END
 }
 
 /**
- * Attend que le serveur Next.js accepte les connexions HTTP.
- * Retry toutes les 300ms jusqu'au timeout.
+ * Résout le chemin ou le NativeImage de l'icône de l'application de façon robuste.
+ * Évite impérativement `.resize()` qui détruit la transparence alpha sous Windows GDI.
  *
- * @param {string} url - URL à sonder
- * @param {number} timeoutMs - Timeout total
- * @returns {Promise<void>}
+ * @returns {import('electron').NativeImage | string | undefined}
+ */
+function resolveAppIcon() {
+  // 1. Chercher d'abord le fichier .ico décompressé sur le disque réel (meilleure qualité Win32)
+  const unpackedIco = path.join(process.resourcesPath || '', 'app.asar.unpacked', 'build', 'icon.ico');
+  if (fs.existsSync(unpackedIco)) {
+    return unpackedIco;
+  }
+
+  // 2. Chercher dans les chemins relatifs connus (dev ou asar)
+  const candidates = [
+    path.join(__dirname, 'build', 'icon.ico'),
+    path.join(__dirname, 'build', 'icon.png'),
+    path.join(__dirname, 'public', 'icon.png'),
+    path.join(__dirname, 'public', 'logo.png'),
+  ];
+
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      try {
+        const img = nativeImage.createFromPath(c);
+        if (!img.isEmpty()) {
+          return img;
+        }
+      } catch (err) {
+        logToFile('WARN', `[Icon] Erreur lors de la lecture de ${c} : ${err.message}`);
+      }
+    }
+  }
+
+  // Si aucun fichier trouvé, sur Windows packagé le binaire Facturier.exe contient déjà
+  // l'icône compilée par electron-builder.
+  return undefined;
+}
+
+/**
+ * Résout le chemin du fichier splash.html de façon résiliente.
+ *
+ * @returns {string}
+ */
+function resolveSplashPath() {
+  const candidates = [
+    path.join(__dirname, 'public', 'splash.html'),
+    path.join(__dirname, 'splash.html'),
+    path.join(process.resourcesPath || '', 'standalone', 'public', 'splash.html'),
+    path.join(process.resourcesPath || '', 'public', 'splash.html'),
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) {
+      return c;
+    }
+  }
+  return candidates[0];
+}
+
+/**
+ * Affiche la fenêtre de démarrage (Splash Screen) stylisée.
  */
 function createSplashWindow() {
   if (splashWindow && !splashWindow.isDestroyed()) return;
-  splashWindow = new BrowserWindow({
+
+  const appIcon = resolveAppIcon();
+  const splashOpts = {
     width: 400,
     height: 300,
     frame: false,
@@ -214,16 +270,25 @@ function createSplashWindow() {
     resizable: false,
     show: false,
     backgroundColor: '#fafafa',
-    // Redimensionner le logo dynamique via nativeImage pour éviter le recadrage GDI de Windows
-    icon: nativeImage.createFromPath(path.join(__dirname, 'public', 'logo.png')).resize({ width: 32, height: 32 }),
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
     },
+  };
+  if (appIcon) {
+    splashOpts.icon = appIcon;
+  }
+
+  splashWindow = new BrowserWindow(splashOpts);
+
+  const splashPath = resolveSplashPath();
+  const exists = fs.existsSync(splashPath);
+  logToFile('INFO', `[Splash] Chargement du splash screen : ${splashPath} (existe: ${exists})`);
+
+  splashWindow.loadFile(splashPath).catch((err) => {
+    logToFile('ERROR', `[Splash] Échec de loadFile(${splashPath}) : ${err.message}`);
   });
 
-  const splashPath = path.join(__dirname, 'public', 'splash.html');
-  splashWindow.loadFile(splashPath).catch(() => {});
   splashWindow.once('ready-to-show', () => {
     if (splashWindow && !splashWindow.isDestroyed()) {
       splashWindow.show();
@@ -493,7 +558,8 @@ async function startNextServer(port) {
 // ══════════════════════════════════════════════════════════════════════
 
 async function createWindow(port) {
-  mainWindow = new BrowserWindow({
+  const appIcon = resolveAppIcon();
+  const winOpts = {
     width: 1280,
     height: 820,
     minWidth: 900,
@@ -507,11 +573,14 @@ async function createWindow(port) {
       preload: path.join(__dirname, 'preload.js'),
       webSecurity: !isDev,
     },
-    // Redimensionner le logo dynamique via nativeImage pour éviter le recadrage GDI de Windows
-    icon: nativeImage.createFromPath(path.join(__dirname, 'public', 'logo.png')).resize({ width: 32, height: 32 }),
     show: false,
     backgroundColor: '#030303',
-  });
+  };
+  if (appIcon) {
+    winOpts.icon = appIcon;
+  }
+
+  mainWindow = new BrowserWindow(winOpts);
 
   const appUrl = `http://127.0.0.1:${port}`;
 
