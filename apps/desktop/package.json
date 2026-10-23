@@ -62,7 +62,8 @@
       "!.git"
     ],
     "asarUnpack": [
-      "**/*.node"
+      "**/*.node",
+      ".next/standalone/**/*"
     ],
     "win": {
       "icon": "build/icon.png",

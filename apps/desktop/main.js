@@ -78,15 +78,15 @@ const isDev = !app.isPackaged;
 
 function resolveStandaloneServer() {
   const candidates = [
-    // 1. Structure Monorepo nested Turborepo (standard Next.js)
-    path.join(__dirname, '.next', 'standalone', 'apps', 'desktop', 'server.js'),
+    // 1. Priorité ABSOLUE au filesystem réel décompressé (app.asar.unpacked) pour exécution Node/OS
     path.join(process.resourcesPath || '', 'app.asar.unpacked', '.next', 'standalone', 'apps', 'desktop', 'server.js'),
-    path.join(process.resourcesPath || '', 'standalone', 'apps', 'desktop', 'server.js'),
-
-    // 2. Structure standalone racine
-    path.join(__dirname, '.next', 'standalone', 'server.js'),
     path.join(process.resourcesPath || '', 'app.asar.unpacked', '.next', 'standalone', 'server.js'),
+    path.join(process.resourcesPath || '', 'standalone', 'apps', 'desktop', 'server.js'),
     path.join(process.resourcesPath || '', 'standalone', 'server.js'),
+
+    // 2. Mode développement (non packagé) ou chemin local relatif
+    path.join(__dirname, '.next', 'standalone', 'apps', 'desktop', 'server.js'),
+    path.join(__dirname, '.next', 'standalone', 'server.js'),
     path.join(process.resourcesPath || '', 'app', '.next', 'standalone', 'server.js'),
     path.join(__dirname, 'server.js'),
   ];
@@ -415,8 +415,23 @@ async function startNextServer(port) {
 
   logToFile('INFO', `[Server] Démarrage de Next.js standalone sur le port ${port}...`);
 
-  const serverDir = path.dirname(STANDALONE_SERVER);
-  nextProcess = utilityProcess.fork(STANDALONE_SERVER, [], {
+  let effectiveServer = STANDALONE_SERVER;
+  if (effectiveServer.includes('app.asar') && !effectiveServer.includes('app.asar.unpacked')) {
+    const unpacked = effectiveServer.replace('app.asar', 'app.asar.unpacked');
+    if (fs.existsSync(unpacked)) {
+      effectiveServer = unpacked;
+    }
+  }
+
+  let serverDir = path.dirname(effectiveServer);
+  // Un chemin de travail (cwd) pour un processus OS ne peut PAS se trouver à l'intérieur d'une archive ASAR
+  if (serverDir.includes('app.asar')) {
+    serverDir = USER_DATA_PATH;
+  }
+
+  logToFile('INFO', `[Server] Exécution Next.js: ${effectiveServer} (cwd: ${serverDir})`);
+
+  nextProcess = utilityProcess.fork(effectiveServer, [], {
     // Next.js Standalone résout './.next' relativement à son propre dossier d'exécution
     cwd: serverDir,
     env: {
