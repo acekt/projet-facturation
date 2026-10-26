@@ -579,7 +579,7 @@ async function createWindow(port) {
       webSecurity: !isDev,
     },
     show: false,
-    backgroundColor: '#030303',
+    backgroundColor: '#fafafa',
   };
   if (appIcon) {
     winOpts.icon = appIcon;
@@ -590,31 +590,31 @@ async function createWindow(port) {
   const appUrl = `http://127.0.0.1:${port}`;
 
   // [AUDIT-4] Fallback UI production-ready avec bouton de réessai.
-  // Remplace l'ancien message orienté développeur ("npm run dev").
+  // Harmonisé avec le thème fintech clair (#fafafa et bleu Facturier).
   const loadApp = () => {
     mainWindow.loadURL(appUrl).catch((err) => {
       logToFile('ERROR', `[UI] Échec de mainWindow.loadURL: ${err.message}`);
       const errorHtml = `<!DOCTYPE html>
 <html lang="fr">
 <head><meta charset="UTF-8"><title>Démarrage en cours...</title></head>
-<body style="background:#09090b;color:#fafafa;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+<body style="background:#fafafa;color:#0a0a0a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;
   display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;gap:16px;">
-  <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="#ef4444" stroke-width="1.5">
+  <svg width="48" height="48" fill="none" viewBox="0 0 24 24" stroke="#003399" stroke-width="1.5">
     <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/>
   </svg>
-  <h1 style="margin:0;font-size:1.25rem;color:#ef4444">Le service de facturation prend du temps à démarrer</h1>
-  <p style="margin:0;color:#a1a1aa;max-width:480px;text-align:center;line-height:1.6">
-    Le moteur local s'initialise (SQLite, cache...). Ce délai est normal au premier démarrage ou sur les machines lentes.
+  <h1 style="margin:0;font-size:1.25rem;color:#0a0a0a;font-weight:700">Initialisation du service Facturier</h1>
+  <p style="margin:0;color:#71717a;max-width:480px;text-align:center;line-height:1.6;font-size:0.9rem">
+    Le moteur local s'initialise (SQLite, cache...). Veuillez patienter quelques instants.
   </p>
-  <p style="margin:0;font-family:monospace;font-size:0.75rem;background:#18181b;padding:8px 16px;border-radius:6px;color:#71717a;max-width:480px;word-break:break-all">
+  <p style="margin:0;font-family:monospace;font-size:0.75rem;background:#f4f4f5;padding:8px 16px;border-radius:6px;color:#71717a;max-width:480px;word-break:break-all">
     ${err.message}
   </p>
-  <button onclick="window.location.reload()" style="margin-top:8px;padding:10px 24px;background:#3b82f6;border:none;
+  <button onclick="window.location.reload()" style="margin-top:8px;padding:10px 24px;background:#003399;border:none;
     border-radius:8px;color:white;cursor:pointer;font-weight:600;font-size:0.9rem;letter-spacing:0.02em;
-    transition:background 0.2s" onmouseover="this.style.background='#2563eb'" onmouseout="this.style.background='#3b82f6'">
+    transition:background 0.2s" onmouseover="this.style.background='#002277'" onmouseout="this.style.background='#003399'">
     Réessayer
   </button>
-  <p style="margin:0;font-size:0.7rem;color:#3f3f46">Journal de débogage : ${LOG_PATH}</p>
+  <p style="margin:0;font-size:0.7rem;color:#a1a1aa">Journal de débogage : ${LOG_PATH}</p>
 </body></html>`;
       mainWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(errorHtml)}`);
     });
@@ -636,19 +636,28 @@ async function createWindow(port) {
     loadApp();
   }
 
+  const showMainWindow = () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return;
+    if (mainWindow.isVisible()) return;
+
+    mainWindow.show();
+    if (splashWindow && !splashWindow.isDestroyed()) {
+      splashWindow.destroy();
+      splashWindow = null;
+    }
+  };
+
+  // Dès que le DOM est complètement chargé, fermer le splash et afficher la fenêtre
+  mainWindow.webContents.once('did-finish-load', () => {
+    logToFile('INFO', '[UI] did-finish-load reçu — affichage fluide de la fenêtre principale.');
+    showMainWindow();
+  });
+
+  // Garde-fou ready-to-show au cas où did-finish-load prendrait plus de 2.5 secondes
   mainWindow.once('ready-to-show', () => {
-    // [UI] Prolongement artificiel du splash screen (4 secondes)
-    // Cela permet de masquer l'écran blanc de transition "Chargement..." (loading.tsx)
-    // de Next.js pendant l'hydratation et les redirections initiales.
     setTimeout(() => {
-      if (splashWindow && !splashWindow.isDestroyed()) {
-        splashWindow.destroy();
-        splashWindow = null;
-      }
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        mainWindow.show();
-      }
-    }, 4000);
+      showMainWindow();
+    }, 2500);
   });
 
   // [AUDIT-4] Retry inconditionnel (dev ET prod) avec délai de 2s.
