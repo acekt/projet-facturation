@@ -22,6 +22,7 @@ export default function LoginClient() {
   const [username, setUsername] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [isRedirecting, setIsRedirecting] = React.useState(false);
   const [showPassword, setShowPassword] = React.useState(false);
   const [currentSlide, setCurrentSlide] = React.useState(0);
   const [rememberMe, setRememberMe] = React.useState(false);
@@ -30,6 +31,16 @@ export default function LoginClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const setUser = useStore((state) => state.setUser);
+
+  // Préchauffer la compilation de la page d'accueil (Dashboard) dès l'affichage du login
+  // pour que Next.js précompile la route pendant que l'utilisateur saisit ses identifiants
+  React.useEffect(() => {
+    try {
+      router.prefetch("/");
+    } catch {
+      // Ignorer
+    }
+  }, [router]);
 
   // Charger le nom d'utilisateur mémorisé au démarrage
   React.useEffect(() => {
@@ -89,120 +100,107 @@ export default function LoginClient() {
   // Soumission du formulaire
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isSubmitting) return;
+    if (isSubmitting || isRedirecting) return;
     setIsSubmitting(true);
 
+    let loggedUser: any = null;
+    const cleanEmail = username.trim();
+
     try {
-      let loggedUser: any = null;
-      const cleanEmail = username.trim();
+      // 1. PRIORITÉ STRICTE LOCAL-FIRST (Vérification SQLite immédiate en <15ms)
+      const localRes = await loginUser({ username: cleanEmail, password });
+      if (localRes.success) {
+        const localRole = (localRes.data.user.role || '').toLowerCase().trim();
+        if (localRole === 'superadmin' || localRole === 'super_admin' || cleanEmail.toLowerCase().includes('superadmin')) {
+          toast.error("Accès refusé : Le rôle Superadmin est réservé au Web Hub Cloud.");
+          setIsSubmitting(false);
+          return;
+        }
+        loggedUser = localRes.data.user;
 
-      // 1. Tentative de connexion via Supabase (Cloud & PowerSync)
-      try {
-        const { user } = await connector.login(cleanEmail, password);
+        // Connexion PowerSync/Supabase asynchrone non-bloquante pour la synchronisation Cloud
+        connector.login(cleanEmail, password).catch((cloudErr) => {
+          console.log("[Auth Desktop] Compte local pur ou synchronisation Cloud différée:", cloudErr?.message);
+        });
+      } else {
+        // 2. REPLI CLOUD : Si non trouvé en local, tenter l'authentification Supabase Cloud
+        try {
+          const { user } = await connector.login(cleanEmail, password);
 
-        if (user) {
-          // Extraire le rôle
-          let rawRole = (user.user_metadata?.role || (user.app_metadata as any)?.role || '').toLowerCase().trim();
-          let tenantId = user.user_metadata?.tenant_id;
+          if (user) {
+            let rawRole = (user.user_metadata?.role || (user.app_metadata as any)?.role || '').toLowerCase().trim();
+            let tenantId = user.user_metadata?.tenant_id;
 
-          // Si le rôle n'est pas explicite dans les métadonnées, tenter de le lire depuis la table profiles Supabase
-          if (!rawRole) {
-            try {
-              const { data: profile } = await connector.client
-                .from('profiles')
-                .select('role, tenant_id')
-                .eq('id', user.id)
-                .single();
-              if (profile) {
-                rawRole = (profile.role || '').toLowerCase().trim();
-                if (!tenantId) tenantId = profile.tenant_id;
+            if (!rawRole) {
+              try {
+                const { data: profile } = await connector.client
+                  .from('profiles')
+                  .select('role, tenant_id')
+                  .eq('id', user.id)
+                  .single();
+                if (profile) {
+                  rawRole = (profile.role || '').toLowerCase().trim();
+                  if (!tenantId) tenantId = profile.tenant_id;
+                }
+              } catch (profileErr) {
+                console.warn("[Auth Desktop] Lecture profiles:", profileErr);
               }
-            } catch (profileErr) {
-              console.warn("[Auth Desktop] Lecture profiles:", profileErr);
+            }
+
+            const isSuperAdmin = 
+              rawRole === 'superadmin' || 
+              rawRole === 'super_admin' || 
+              cleanEmail.toLowerCase().includes('superadmin') || 
+              (user.email && user.email.toLowerCase().includes('superadmin')) ||
+              (user.user_metadata?.name || '').toLowerCase().includes('superadmin') ||
+              (user.user_metadata?.name || '').toLowerCase().includes('super admin');
+
+            if (isSuperAdmin) {
+              await connector.logout();
+              toast.error(
+                "Accès refusé : Le rôle Superadmin est réservé exclusivement au Web Hub Cloud. Seuls l'Administrateur et l'Opérateur peuvent se connecter sur cette application Desktop.",
+                { duration: 7000 }
+              );
+              setIsSubmitting(false);
+              return;
+            }
+
+            const effectiveRole: 'admin' | 'user' = (rawRole === 'admin' || cleanEmail.startsWith('admin@')) ? 'admin' : 'user';
+
+            loggedUser = {
+              id: user.id,
+              name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
+              email: user.email || cleanEmail,
+              role: effectiveRole,
+              tenantId: tenantId || undefined,
+              force_password_change: 0,
+            };
+
+            const syncRes = await syncSupabaseSession(loggedUser);
+            if (!syncRes.success) {
+              await connector.logout();
+              toast.error(syncRes.error || "Erreur de synchronisation locale");
+              setIsSubmitting(false);
+              return;
+            }
+
+            if (syncRes.data?.role) {
+              loggedUser.role = syncRes.data.role;
+            }
+            if (syncRes.data?.force_password_change !== undefined) {
+              loggedUser.force_password_change = syncRes.data.force_password_change;
             }
           }
-
-          // VÉRIFICATION STRICTE : Le Superadmin ne doit JAMAIS se connecter sur le Desktop
-          const isSuperAdmin = 
-            rawRole === 'superadmin' || 
-            rawRole === 'super_admin' || 
-            cleanEmail.toLowerCase().includes('superadmin') || 
-            (user.email && user.email.toLowerCase().includes('superadmin')) ||
-            (user.user_metadata?.name || '').toLowerCase().includes('superadmin') ||
-            (user.user_metadata?.name || '').toLowerCase().includes('super admin');
-
-          if (isSuperAdmin) {
-            await connector.logout();
-            toast.error(
-              "Accès refusé : Le rôle Superadmin est réservé exclusivement au Web Hub Cloud. Seuls l'Administrateur et l'Opérateur peuvent se connecter sur cette application Desktop.",
-              { duration: 7000 }
-            );
-            setIsSubmitting(false);
-            return;
-          }
-
-          // Rôles autorisés sur Desktop : admin et user (opérateur)
-          const effectiveRole: 'admin' | 'user' = (rawRole === 'admin' || cleanEmail.startsWith('admin@')) ? 'admin' : 'user';
-
-          loggedUser = {
-            id: user.id,
-            name: user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'Utilisateur',
-            email: user.email || cleanEmail,
-            role: effectiveRole,
-            tenantId: tenantId || undefined,
-            force_password_change: 0,
-          };
-
-          // Synchroniser la session locale et le cookie auth
-          const syncRes = await syncSupabaseSession(loggedUser);
-          if (!syncRes.success) {
-            await connector.logout();
-            toast.error(syncRes.error || "Erreur de synchronisation locale");
-            setIsSubmitting(false);
-            return;
-          }
-
-          if (syncRes.data?.role) {
-            loggedUser.role = syncRes.data.role;
-          }
-          if (syncRes.data?.force_password_change !== undefined) {
-            loggedUser.force_password_change = syncRes.data.force_password_change;
-          }
-        }
-      } catch (cloudErr: any) {
-        console.warn("[Auth Desktop] Échec connexion Supabase:", cloudErr);
-
-        const msg = cloudErr?.message || '';
-        const isNetworkError =
-          msg.includes('Failed to fetch') ||
-          msg.includes('NetworkError') ||
-          msg.includes('network') ||
-          cloudErr?.name === 'TypeError';
-
-        // Compte absent du Cloud (ex: créé via /setup en local) ou réseau indisponible :
-        // tentative de repli sur la base SQLite locale.
-        const localRes = await loginUser({ username: cleanEmail, password });
-        if (localRes.success) {
-          const localRole = (localRes.data.user.role || '').toLowerCase().trim();
-          if (localRole === 'superadmin' || localRole === 'super_admin' || cleanEmail.toLowerCase().includes('superadmin')) {
-            toast.error("Accès refusé : Le rôle Superadmin est réservé au Web Hub Cloud.");
-            setIsSubmitting(false);
-            return;
-          }
-          loggedUser = localRes.data.user;
-          toast.info("Mode Hors-Ligne : connexion validée localement.");
-        } else {
-          if (isNetworkError) {
-            toast.error("Impossible de contacter le serveur et aucun compte local correspondant trouvé.");
-          } else {
-            toast.error(localRes.error || "Identifiants invalides (email ou mot de passe incorrect)");
-          }
+        } catch (cloudErr: any) {
+          console.warn("[Auth Desktop] Échec connexion locale et cloud:", cloudErr);
+          toast.error(localRes.error || "Identifiants invalides (email ou mot de passe incorrect)");
           setIsSubmitting(false);
           return;
         }
       }
 
       if (loggedUser) {
+        setIsRedirecting(true);
         if (rememberMe) {
           localStorage.setItem("facturier_remembered_username", cleanEmail);
         } else {
@@ -215,8 +213,17 @@ export default function LoginClient() {
           toast.success("Connexion réussie. Bienvenue dans Facturier !");
         }
         setUser(loggedUser);
-        await new Promise((resolve) => setTimeout(resolve, 250));
-        window.location.href = "/";
+
+        // Transition fluide vers le tableau de bord
+        router.push("/");
+
+        // Filet de sécurité en cas de lenteur du routeur client
+        setTimeout(() => {
+          if (typeof window !== "undefined" && window.location.pathname !== "/") {
+            window.location.href = "/";
+          }
+        }, 1200);
+        return;
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
@@ -232,7 +239,9 @@ export default function LoginClient() {
         toast.error("Impossible de finaliser la connexion");
       }
     } finally {
-      setIsSubmitting(false);
+      if (!loggedUser) {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -375,7 +384,7 @@ export default function LoginClient() {
                     placeholder="jean@facturier.ga"
                     className="bg-secondary border-border text-foreground"
                     required
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isRedirecting}
                   />
                 </div>
 
@@ -394,7 +403,7 @@ export default function LoginClient() {
                         placeholder="••••••••"
                         className="bg-secondary border-border text-foreground pr-10"
                         required
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isRedirecting}
                       />
                       <Button
                         type="button"
@@ -403,6 +412,7 @@ export default function LoginClient() {
                         className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground"
                         aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                         onClick={() => setShowPassword(!showPassword)}
+                        disabled={isSubmitting || isRedirecting}
                       >
                         {showPassword ? <EyeOff className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
                       </Button>
@@ -419,7 +429,8 @@ export default function LoginClient() {
                       type="checkbox" 
                       checked={rememberMe}
                       onChange={(e) => setRememberMe(e.target.checked)}
-                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer"
+                      disabled={isSubmitting || isRedirecting}
+                      className="w-4 h-4 rounded border-border text-primary focus:ring-primary cursor-pointer disabled:opacity-50"
                     />
                     <span className="text-[13px] text-muted-foreground font-medium select-none group-hover:text-foreground transition-colors">
                       Se souvenir de moi
@@ -428,7 +439,8 @@ export default function LoginClient() {
                   <button
                     type="button"
                     onClick={() => setIsForgotPassword(true)}
-                    className="text-[13px] font-bold text-primary hover:text-primary/80 transition-colors"
+                    disabled={isSubmitting || isRedirecting}
+                    className="text-[13px] font-bold text-primary hover:text-primary/80 transition-colors disabled:opacity-50"
                   >
                     Mot de passe oublié ?
                   </button>
@@ -440,9 +452,11 @@ export default function LoginClient() {
                 <Button
                   type="submit"
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || isRedirecting}
                 >
-                  {isSubmitting ? (
+                  {isRedirecting ? (
+                    <><Loader2 className="w-4 h-4 animate-spin mr-2" /> Chargement de votre espace...</>
+                  ) : isSubmitting ? (
                     <><Loader2 className="w-4 h-4 animate-spin mr-2" /> {isForgotPassword ? "Envoi..." : "Connexion..."}</>
                   ) : (
                     isForgotPassword ? "Réinitialiser le mot de passe" : "Se connecter"
@@ -455,6 +469,7 @@ export default function LoginClient() {
                     variant="ghost"
                     className="w-full"
                     onClick={() => setIsForgotPassword(false)}
+                    disabled={isSubmitting || isRedirecting}
                   >
                     Retour à la connexion
                   </Button>

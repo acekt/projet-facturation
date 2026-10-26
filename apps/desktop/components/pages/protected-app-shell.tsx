@@ -1,27 +1,36 @@
 "use client"
 
 import * as React from "react"
+import dynamic from "next/dynamic"
 import { motion, AnimatePresence } from "framer-motion"
-import { FileText } from "lucide-react"
+import { FileText, Loader2 } from "lucide-react"
 import { Sidebar, TopBar } from "@/components/layout/navigation"
 import { CommandMenu } from "@/components/layout/command-menu"
 import { ForcePasswordChangeDialog } from "@/components/auth/force-password-change-dialog"
 import { Dashboard } from "@/components/pages/dashboard"
-import { InvoicesPage } from "@/components/pages/invoices"
-import { QuotesPage } from "@/components/pages/quotes"
-import { QuoteEditor } from "@/components/pages/quote-editor"
-import { InvoiceEditor } from "@/components/pages/invoice-editor"
-import { ClientsPage } from "@/components/pages/clients"
-import { ServicesPage } from "@/components/pages/services"
-import { SettingsPage } from "@/components/pages/settings"
-import { CreditNotesPage } from "@/components/pages/credit-notes"
-import { AuditLogsPage } from "@/components/pages/audit-logs"
-import { UsersPage } from "@/components/pages/users"
-import { UserEditor } from "@/components/pages/user-editor"
 import { useStore } from "@/lib/store"
 import { DataSync } from "@/components/data-sync"
 import { CloudSyncRunner } from "@/components/cloud-sync-runner"
 import type { UserResponse } from "@/lib/types/api"
+
+const PageLoadingFallback = () => (
+  <div className="flex-1 flex flex-col items-center justify-center min-h-[300px]">
+    <Loader2 className="w-8 h-8 text-primary animate-spin" />
+    <span className="mt-3 text-xs text-muted-foreground font-medium">Chargement du module...</span>
+  </div>
+)
+
+const InvoicesPage = dynamic(() => import("@/components/pages/invoices").then((m) => m.InvoicesPage), { loading: () => <PageLoadingFallback />, ssr: false })
+const QuotesPage = dynamic(() => import("@/components/pages/quotes").then((m) => m.QuotesPage), { loading: () => <PageLoadingFallback />, ssr: false })
+const QuoteEditor = dynamic(() => import("@/components/pages/quote-editor").then((m) => m.QuoteEditor), { loading: () => <PageLoadingFallback />, ssr: false })
+const InvoiceEditor = dynamic(() => import("@/components/pages/invoice-editor").then((m) => m.InvoiceEditor), { loading: () => <PageLoadingFallback />, ssr: false })
+const ClientsPage = dynamic(() => import("@/components/pages/clients").then((m) => m.ClientsPage), { loading: () => <PageLoadingFallback />, ssr: false })
+const ServicesPage = dynamic(() => import("@/components/pages/services").then((m) => m.ServicesPage), { loading: () => <PageLoadingFallback />, ssr: false })
+const SettingsPage = dynamic(() => import("@/components/pages/settings").then((m) => m.SettingsPage), { loading: () => <PageLoadingFallback />, ssr: false })
+const CreditNotesPage = dynamic(() => import("@/components/pages/credit-notes").then((m) => m.CreditNotesPage), { loading: () => <PageLoadingFallback />, ssr: false })
+const AuditLogsPage = dynamic(() => import("@/components/pages/audit-logs").then((m) => m.AuditLogsPage), { loading: () => <PageLoadingFallback />, ssr: false })
+const UsersPage = dynamic(() => import("@/components/pages/users").then((m) => m.UsersPage), { loading: () => <PageLoadingFallback />, ssr: false })
+const UserEditor = dynamic(() => import("@/components/pages/user-editor").then((m) => m.UserEditor), { loading: () => <PageLoadingFallback />, ssr: false })
 
 const pageVariants = {
   initial: { opacity: 0, y: 10 },
