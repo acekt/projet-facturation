@@ -220,6 +220,13 @@ export default function LoginClient() {
       }
     } catch (err: unknown) {
       if (err instanceof Error) {
+        if (err.message.includes("not found on the server") || err.message.includes("failed-to-find-server-action")) {
+          toast.info("Mise à jour du serveur détectée. Actualisation en cours...", { duration: 2500 });
+          setTimeout(() => {
+            window.location.reload();
+          }, 500);
+          return;
+        }
         toast.error(`Erreur: ${err.message}`);
       } else {
         toast.error("Impossible de finaliser la connexion");
