@@ -62,9 +62,7 @@ export default function SetupClient() {
 
   // 2. Facturation & Fiscalité (Gabon / CEMAC)
   const [companyCode, setCompanyCode] = React.useState('FAC')
-  const [invoicePrefix, setInvoicePrefix] = React.useState('FAC-')
-  const [quotePrefix, setQuotePrefix] = React.useState('DEV-')
-  const [isPrefixCustom, setIsPrefixCustom] = React.useState(false)
+  const [isCodeCustom, setIsCodeCustom] = React.useState(false)
   const [tvaRate, setTvaRate] = React.useState<number>(18.0)
   const [cssRate, setCssRate] = React.useState<number>(1.0)
   const [tpsRate, setTpsRate] = React.useState<number>(9.5)
@@ -91,10 +89,10 @@ export default function SetupClient() {
   const setUser = useStore((state) => state.setUser)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  // Auto-génération intelligente de sigle / code court lors de la saisie
+  // Auto-génération intelligente du sigle/code d'entreprise lors de la saisie
   const handleCompanyNameChange = (val: string) => {
     setCompanyName(val)
-    if (!isPrefixCustom) {
+    if (!isCodeCustom) {
       const words = val.trim().split(/\s+/).filter(Boolean)
       let acronym = ''
       if (words.length >= 2) {
@@ -109,8 +107,6 @@ export default function SetupClient() {
 
       if (acronym.length >= 2) {
         setCompanyCode(acronym)
-        setInvoicePrefix(`${acronym}-`)
-        setQuotePrefix(`DEV-${acronym}-`)
       }
     }
   }
@@ -160,10 +156,10 @@ export default function SetupClient() {
   // 2. Facturation : 100% car pré-configuré DGI Gabon par défaut
   const billingProgress = React.useMemo(() => {
     let score = 70
-    if (companyCode.trim() && invoicePrefix.trim()) score += 15
+    if (companyCode.trim()) score += 15
     if (tvaRate > 0 && cssRate > 0) score += 15
     return Math.min(100, score)
-  }, [companyCode, invoicePrefix, tvaRate, cssRate])
+  }, [companyCode, tvaRate, cssRate])
 
   // 3. Banque : Optionnel mais mesuré (0% si vide, 100% si établissement + compte ou IBAN)
   const bankProgress = React.useMemo(() => {
@@ -216,6 +212,7 @@ export default function SetupClient() {
   }, [password])
 
   // Validation Étape 1
+  // Validation Étape 1
   const handleNextStep = (e: React.FormEvent) => {
     e.preventDefault()
     if (!companyName.trim()) {
@@ -229,16 +226,27 @@ export default function SetupClient() {
       return
     }
     if (!companyCode.trim()) {
-      toast.error("Le code entreprise est requis (ex: FAC)")
-      setCompanyTab('billing')
-      return
-    }
-    if (!invoicePrefix.trim()) {
-      toast.error("Le préfixe de facture est requis")
+      toast.error("Le code sigle de l'entreprise est requis (ex: GM)")
       setCompanyTab('billing')
       return
     }
     setStep(2)
+  }
+
+  // Code sigle propre et préfixes automatiques (FAC et DEV 100% automatiques)
+  const cleanCompanyCode = (companyCode || 'GM').trim().toUpperCase()
+  const computedInvoicePrefix = `FAC-${cleanCompanyCode}-`
+  const computedQuotePrefix = `DEV-${cleanCompanyCode}-`
+
+  // Calculs dynamiques pour le specimen d'aperçu de facture (avec TVA, CSS et TPS)
+  const sampleHT = 500000
+  const sampleTVA = Math.round(sampleHT * (tvaRate / 100))
+  const sampleCSS = Math.round(sampleHT * (cssRate / 100))
+  const sampleTPS = tpsRate > 0 ? Math.round(sampleHT * (tpsRate / 100)) : 0
+  const sampleTTC = sampleHT + sampleTVA + sampleCSS + sampleTPS
+
+  const formatMoney = (amount: number) => {
+    return new Intl.NumberFormat('fr-FR').format(amount) + ' XAF'
   }
 
   // Validation finale et soumission
@@ -276,10 +284,10 @@ export default function SetupClient() {
         companyEmail: companyEmail.trim() || null,
         logo: logo || null,
 
-        // Facturation
-        companyCode: companyCode.trim().toUpperCase(),
-        invoicePrefix: invoicePrefix.trim(),
-        quotePrefix: quotePrefix.trim(),
+        // Facturation (Préfixes FAC et DEV automatiques avec code sigle de l'entreprise)
+        companyCode: cleanCompanyCode,
+        invoicePrefix: computedInvoicePrefix,
+        quotePrefix: computedQuotePrefix,
         tvaRate,
         cssRate,
         tpsRate,
@@ -312,16 +320,6 @@ export default function SetupClient() {
     } finally {
       setLoading(false)
     }
-  }
-
-  // Calculs dynamiques pour le specimen d'aperçu de facture (Endowment Effect)
-  const sampleHT = 500000
-  const sampleTVA = Math.round(sampleHT * (tvaRate / 100))
-  const sampleCSS = Math.round(sampleHT * (cssRate / 100))
-  const sampleTTC = sampleHT + sampleTVA + sampleCSS
-
-  const formatMoney = (amount: number) => {
-    return new Intl.NumberFormat('fr-FR').format(amount) + ' XAF'
   }
 
 
@@ -551,7 +549,7 @@ export default function SetupClient() {
                         Original
                       </span>
                       <div className="text-xs font-mono font-bold text-slate-900 mt-1">
-                        {invoicePrefix || 'FAC-'}2026-0001
+                        {computedInvoicePrefix}2026-0001
                       </div>
                       <div className="text-[9px] text-slate-400">Date: 26/10/2026</div>
                     </div>
@@ -571,6 +569,12 @@ export default function SetupClient() {
                       <span>CSS Solidarité ({cssRate}%)</span>
                       <span className="font-mono">{formatMoney(sampleCSS)}</span>
                     </div>
+                    {tpsRate > 0 && (
+                      <div className="flex justify-between text-slate-500 text-[9px]">
+                        <span>TPS Prestations ({tpsRate}%)</span>
+                        <span className="font-mono">{formatMoney(sampleTPS)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between font-extrabold text-slate-900 pt-1 border-t border-slate-200/60 text-[11px]">
                       <span className="text-primary font-bold">Total Net à Payer</span>
                       <span className="font-mono text-emerald-600">{formatMoney(sampleTTC)}</span>
@@ -994,53 +998,69 @@ export default function SetupClient() {
                         </span>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="company-code" className="text-xs font-semibold">Code Sigle *</Label>
-                          <Input
-                            id="company-code"
-                            type="text"
-                            value={companyCode}
-                            onChange={(e) => {
-                              setIsPrefixCustom(true)
-                              setCompanyCode(e.target.value.toUpperCase())
-                            }}
-                            placeholder="ex: GM"
-                            className="bg-secondary/50 border-border font-mono uppercase text-xs"
-                            required
-                          />
-                          <span className="text-[10px] text-muted-foreground">Numérotation courte</span>
+                      {/* Numérotation : Code Sigle modifiable et visible, FAC et DEV 100% automatiques */}
+                      <div className="p-4 bg-secondary/40 rounded-xl border border-border space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="company-code" className="text-xs font-bold flex items-center gap-1.5 text-foreground">
+                            <span>Code Sigle de l'entreprise</span>
+                            <span className="text-destructive">*</span>
+                            <span className="text-[10px] text-muted-foreground font-normal">(Initiales intégrées aux pièces)</span>
+                          </Label>
+                          <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-semibold bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                            Modifiable & Visible
+                          </span>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="invoice-prefix" className="text-xs font-semibold">Préfixe Factures *</Label>
-                          <Input
-                            id="invoice-prefix"
-                            type="text"
-                            value={invoicePrefix}
-                            onChange={(e) => {
-                              setIsPrefixCustom(true)
-                              setInvoicePrefix(e.target.value)
-                            }}
-                            placeholder="ex: GM-"
-                            className="bg-secondary/50 border-border font-mono text-xs"
-                            required
-                          />
+
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                          {/* Champ unique modifiable et visible */}
+                          <div className="space-y-1 sm:col-span-1">
+                            <Input
+                              id="company-code"
+                              type="text"
+                              value={companyCode}
+                              onChange={(e) => {
+                                setIsCodeCustom(true)
+                                setCompanyCode(e.target.value.toUpperCase())
+                              }}
+                              placeholder="ex: GM"
+                              className="bg-card border-border font-mono uppercase font-bold text-sm tracking-wider text-primary text-center h-10"
+                              maxLength={6}
+                              required
+                            />
+                            <span className="text-[10px] text-muted-foreground block text-center">
+                              ex: GM pour Global Maintenance
+                            </span>
+                          </div>
+
+                          {/* Aperçus automatiques des formats de pièces avec FAC et DEV automatiques */}
+                          <div className="sm:col-span-2 grid grid-cols-2 gap-2">
+                            {/* Format Facture Auto */}
+                            <div className="p-2.5 rounded-lg bg-card/80 border border-border/70 space-y-1 shadow-2xs">
+                              <div className="flex items-center justify-between text-[10px]">
+                                <span className="font-bold text-foreground">Factures</span>
+                                <span className="text-[9px] font-semibold text-emerald-600 dark:text-emerald-400 font-mono bg-emerald-500/10 px-1 rounded">FAC Auto</span>
+                              </div>
+                              <div className="text-xs font-mono font-bold text-primary truncate">
+                                {computedInvoicePrefix}2026-0001
+                              </div>
+                            </div>
+
+                            {/* Format Devis Auto */}
+                            <div className="p-2.5 rounded-lg bg-card/80 border border-border/70 space-y-1 shadow-2xs">
+                              <div className="flex items-center justify-between text-[10px]">
+                                <span className="font-bold text-foreground">Devis</span>
+                                <span className="text-[9px] font-semibold text-teal-600 dark:text-teal-400 font-mono bg-teal-500/10 px-1 rounded">DEV Auto</span>
+                              </div>
+                              <div className="text-xs font-mono font-bold text-teal-700 dark:text-teal-300 truncate">
+                                {computedQuotePrefix}2026-0001
+                              </div>
+                            </div>
+                          </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="quote-prefix" className="text-xs font-semibold">Préfixe Devis *</Label>
-                          <Input
-                            id="quote-prefix"
-                            type="text"
-                            value={quotePrefix}
-                            onChange={(e) => {
-                              setIsPrefixCustom(true)
-                              setQuotePrefix(e.target.value)
-                            }}
-                            placeholder="ex: DEV-GM-"
-                            className="bg-secondary/50 border-border font-mono text-xs"
-                            required
-                          />
-                        </div>
+
+                        <p className="text-[10px] text-muted-foreground leading-normal">
+                          ℹ️ Les préfixes <strong className="text-foreground">FAC</strong> et <strong className="text-foreground">DEV</strong> sont attribués automatiquement par le système selon la nature du document. Seul votre code d'entreprise (<span className="font-mono font-bold text-primary">{cleanCompanyCode}</span>) y est adjoint.
+                        </p>
                       </div>
 
                       <div className="p-3.5 bg-secondary/40 rounded-xl border border-border space-y-2.5">
