@@ -57,7 +57,14 @@ export function DataSync() {
     const { signal } = controller
 
     const fetchAllData = async () => {
-      if (refreshTick === 0) setIsDataLoaded(false)
+      // Optimisation Context7 : ne jamais masquer l'interface avec un écran blanc
+      // si des données existent déjà dans le store (cache instantané)
+      const state = useStore.getState();
+      const hasExistingData = state.clients.length > 0 || state.invoices.length > 0 || state.isDataLoaded;
+      if (!hasExistingData && refreshTick === 0) {
+        setIsDataLoaded(false);
+      }
+
       try {
         const endpoints = [
           { action: getClients,       setter: setClients },
@@ -80,9 +87,8 @@ export function DataSync() {
           }
         })
 
-        setTimeout(() => {
-          setIsDataLoaded(true)
-        }, 600)
+        // Zéro délai artificiel : déverrouillage immédiat
+        setIsDataLoaded(true)
 
       } catch (error) {
         if (error instanceof Error && error.name !== 'AbortError') {
@@ -92,9 +98,7 @@ export function DataSync() {
             { id: 'datasync-error', duration: 6000 }
           )
         }
-        setTimeout(() => {
-          setIsDataLoaded(true)
-        }, 600)
+        setIsDataLoaded(true)
       }
     }
 

@@ -647,17 +647,16 @@ async function createWindow(port) {
     }
   };
 
-  // Dès que le DOM est complètement chargé, fermer le splash et afficher la fenêtre
-  mainWindow.webContents.once('did-finish-load', () => {
-    logToFile('INFO', '[UI] did-finish-load reçu — affichage fluide de la fenêtre principale.');
+  // Recommandation Context7 / Electron officielle : affichage direct sur 'ready-to-show'
+  // Dès que Chromium a rendu la première image, la fenêtre principale apparaît et le splash se ferme sans latence.
+  mainWindow.once('ready-to-show', () => {
+    logToFile('INFO', '[UI] ready-to-show reçu — permutation immédiate du splash vers la fenêtre principale.');
     showMainWindow();
   });
 
-  // Garde-fou ready-to-show au cas où did-finish-load prendrait plus de 2.5 secondes
-  mainWindow.once('ready-to-show', () => {
-    setTimeout(() => {
-      showMainWindow();
-    }, 2500);
+  // Sécurité au cas où did-finish-load déclencherait plus vite
+  mainWindow.webContents.once('did-finish-load', () => {
+    showMainWindow();
   });
 
   // [AUDIT-4] Retry inconditionnel (dev ET prod) avec délai de 2s.
