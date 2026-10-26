@@ -24,6 +24,11 @@
 const { app, BrowserWindow, ipcMain, shell, Menu, dialog, utilityProcess, nativeImage } = require('electron');
 const { autoUpdater } = require('electron-updater');
 Menu.setApplicationMenu(null);
+
+// Unification stricte du nom d'application pour partager le même dossier AppData/Roaming/Facturier
+// en développement (`electron .`) comme en production packagée (`Facturier.exe`).
+app.setName('Facturier');
+
 const { spawn, execSync }                     = require('child_process');
 const path                                    = require('path');
 const http                                    = require('http');
