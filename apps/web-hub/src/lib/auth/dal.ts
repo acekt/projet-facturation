@@ -52,10 +52,14 @@ export async function requireSuperadmin(): Promise<SuperadminSession> {
     ""
   ).toLowerCase();
 
+  const allowedSuperadminEmails = (process.env.SUPERADMIN_EMAILS || "admin@facturier.cloud")
+    .split(",")
+    .map((e) => e.trim().toLowerCase());
+
   const isSuperadmin =
     rawRole === "superadmin" || 
     rawRole === "super_admin" ||
-    (user.email && (user.email === "admin@facturier.cloud" || user.email === "superadmin@hub.com"));
+    Boolean(user.email && allowedSuperadminEmails.includes(user.email.toLowerCase()));
 
   if (profileError || !isSuperadmin || profile?.is_active === false) {
     // Interruption stricte 403

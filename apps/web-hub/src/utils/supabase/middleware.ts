@@ -82,8 +82,14 @@ export async function updateSession(request: NextRequest) {
     userRole = profile.role?.toLowerCase();
   }
 
+  const allowedSuperadminEmails = (process.env.SUPERADMIN_EMAILS || "admin@facturier.cloud")
+    .split(",")
+    .map((e) => e.trim().toLowerCase());
+
   const isSuperadmin =
-    userRole === "superadmin" || userRole === "super_admin";
+    userRole === "superadmin" || 
+    userRole === "super_admin" ||
+    Boolean(user.email && allowedSuperadminEmails.includes(user.email.toLowerCase()));
 
   if (!isSuperadmin) {
     const url = request.nextUrl.clone();

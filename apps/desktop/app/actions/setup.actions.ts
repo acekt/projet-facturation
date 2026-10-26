@@ -11,8 +11,15 @@ import { provisionCloudAccount } from '@/lib/sync/CloudSyncService';
 import type { SessionResponse } from '@/lib/types/api';
 import type { ActionResponse } from './client.actions';
 
+const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 jours
+const SESSION_EXPIRATION_MS = SESSION_MAX_AGE_SECONDS * 1000;
+
 export async function setupApp(data: any): Promise<ActionResponse<SessionResponse>> {
   try {
+    if (SetupService.isInitialized()) {
+      return { success: false, error: "L'application est déjà initialisée. Configuration interdite." };
+    }
+
     const validation = setupSchema.safeParse(data);
     if (!validation.success) {
       return { success: false, error: 'Données de configuration invalides', details: validation.error.flatten().fieldErrors };
@@ -44,7 +51,7 @@ export async function setupApp(data: any): Promise<ActionResponse<SessionRespons
       name: cleanName,
       role: 'admin',
       tenantId: effectiveTenantId,
-      exp: Date.now() + (24 * 60 * 60 * 1000),
+      exp: Date.now() + SESSION_EXPIRATION_MS,
     });
 
     const base64Data = Buffer.from(sessionData).toString('base64');
@@ -68,7 +75,7 @@ export async function setupApp(data: any): Promise<ActionResponse<SessionRespons
     (await cookies()).set('auth_session', signedSession, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24,
+      maxAge: SESSION_MAX_AGE_SECONDS,
       path: '/',
     });
 
@@ -91,7 +98,7 @@ export async function enrollExistingTenant(input: IEnrollmentInput): Promise<Act
       name: result.cleanName,
       role: result.role,
       tenantId: result.tenantId,
-      exp: Date.now() + (24 * 60 * 60 * 1000),
+      exp: Date.now() + SESSION_EXPIRATION_MS,
     });
 
     const base64Data = Buffer.from(sessionData).toString('base64');
@@ -115,7 +122,7 @@ export async function enrollExistingTenant(input: IEnrollmentInput): Promise<Act
     (await cookies()).set('auth_session', signedSession, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      maxAge: 60 * 60 * 24,
+      maxAge: SESSION_MAX_AGE_SECONDS,
       path: '/',
     });
 

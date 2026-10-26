@@ -14,6 +14,60 @@ import { encryptSecret } from "@/lib/crypto/secretStore";
 import type { ActionResponse } from './client.actions';
 
 const SALT_ROUNDS = 10;
+const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 jours unifiés
+const SESSION_EXPIRATION_MS = SESSION_MAX_AGE_SECONDS * 1000;
+
+// Rate limiting en mémoire contre les attaques par force brute / DoS
+interface LoginAttempt {
+  count: number;
+  firstAttempt: number;
+  lockedUntil?: number;
+}
+
+const loginAttempts = new Map<string, LoginAttempt>();
+const MAX_FAILED_ATTEMPTS = 5;
+const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
+const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
+
+function checkRateLimit(identifier: string): { allowed: boolean; remainingMinutes?: number } {
+  const now = Date.now();
+  const attempt = loginAttempts.get(identifier);
+
+  if (!attempt) return { allowed: true };
+
+  // Vérifier si le compte est actuellement verrouillé
+  if (attempt.lockedUntil && attempt.lockedUntil > now) {
+    const remainingMinutes = Math.ceil((attempt.lockedUntil - now) / 60000);
+    return { allowed: false, remainingMinutes };
+  }
+
+  // Si la fenêtre de 15 minutes est expirée, on réinitialise
+  if (now - attempt.firstAttempt > WINDOW_MS) {
+    loginAttempts.delete(identifier);
+    return { allowed: true };
+  }
+
+  return { allowed: true };
+}
+
+function recordFailedLogin(identifier: string): boolean {
+  const now = Date.now();
+  const attempt = loginAttempts.get(identifier) || { count: 0, firstAttempt: now };
+
+  attempt.count += 1;
+  if (attempt.count >= MAX_FAILED_ATTEMPTS) {
+    attempt.lockedUntil = now + LOCKOUT_MS;
+    loginAttempts.set(identifier, attempt);
+    return true; // Verrouillé
+  }
+
+  loginAttempts.set(identifier, attempt);
+  return false;
+}
+
+function recordSuccessfulLogin(identifier: string) {
+  loginAttempts.delete(identifier);
+}
 
 function getRequiredEnv(varName: string, minLength: number = 16): string {
   const value = process.env[varName];
@@ -92,6 +146,16 @@ export async function loginUser(data: any): Promise<ActionResponse<SessionRespon
     const { username, password }: LoginRequest = validation.data;
     const cleanUsername = username.toLowerCase().trim();
 
+    // 1. Protection Brute-Force & DoS
+    const rateCheck = checkRateLimit(cleanUsername);
+    if (!rateCheck.allowed) {
+      logAuditAsync("LOGIN_LOCKED", "user", null, `Compte temporairement verrouillé pour tentatives répétées (${cleanUsername})`, null, cleanUsername);
+      return {
+        success: false,
+        error: `Trop de tentatives de connexion échouées. Compte temporairement verrouillé pour ${rateCheck.remainingMinutes || 15} minute(s).`
+      };
+    }
+
     const user = db.prepare(`
       SELECT id, name, email, username, password, role, is_active, force_password_change, created_at, last_login_at, phone, tenant_id
       FROM users WHERE (LOWER(username) = ? OR LOWER(email) = ?) AND deletedAt IS NULL
@@ -100,9 +164,27 @@ export async function loginUser(data: any): Promise<ActionResponse<SessionRespon
     const isPasswordValid = await verifyUserPassword(user, password);
 
     if (!user || !isPasswordValid) {
-      logAuditAsync("LOGIN_FAILED", "user", user?.id || null, "Tentative de connexion échouée", user?.id || null, user?.name || null, user?.tenant_id || null);
+      const isLocked = recordFailedLogin(cleanUsername);
+      logAuditAsync(
+        "LOGIN_FAILED",
+        "user",
+        user?.id || null,
+        isLocked ? "Tentative de connexion échouée (Compte verrouillé)" : "Tentative de connexion échouée",
+        user?.id || null,
+        user?.name || null,
+        user?.tenant_id || null
+      );
+      if (isLocked) {
+        return {
+          success: false,
+          error: "Trop de tentatives de connexion échouées. Compte temporairement verrouillé pour 15 minutes."
+        };
+      }
       return { success: false, error: "Identifiants invalides" };
     }
+
+    // Réinitialisation du limiteur en cas de succès
+    recordSuccessfulLogin(cleanUsername);
 
     if (user.is_active === 0) {
       return { success: false, error: "Compte inactif. Veuillez contacter votre administrateur." };
@@ -136,7 +218,7 @@ export async function loginUser(data: any): Promise<ActionResponse<SessionRespon
       role: user.role,
       tenantId: tenantId || undefined,
       force_password_change: forcePasswordChange,
-      exp: Date.now() + 24 * 60 * 60 * 1000
+      exp: Date.now() + SESSION_EXPIRATION_MS
     });
     const base64Data = Buffer.from(sessionData).toString("base64");
     const signedSession = await signSession(base64Data);
@@ -161,7 +243,7 @@ export async function loginUser(data: any): Promise<ActionResponse<SessionRespon
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production" && process.env.VITEST !== "true",
-      maxAge: 60 * 60 * 24,
+      maxAge: SESSION_MAX_AGE_SECONDS,
       path: "/"
     };
 
@@ -265,7 +347,7 @@ export async function changeOwnPassword(data: { currentPassword?: string; newPas
     }
 
     // Si un mot de passe actuel est fourni (changement volontaire ou vérification), on le valide
-    if (currentPassword && currentPassword.trim() !== '' && user.password !== 'supabase_session') {
+    if (currentPassword && currentPassword.trim() !== '') {
       const isCurrentValid = await verifyUserPassword(user, currentPassword);
       if (!isCurrentValid) {
         return { success: false, error: "Le mot de passe actuel est incorrect" };
@@ -273,7 +355,7 @@ export async function changeOwnPassword(data: { currentPassword?: string; newPas
     }
 
     // Empêcher de réutiliser le même mot de passe temporaire
-    if (user.password && user.password !== 'supabase_session') {
+    if (user.password) {
       const isSameAsCurrent = await verifyUserPassword(user, newPassword);
       if (isSameAsCurrent) {
         return { success: false, error: "Le nouveau mot de passe doit être différent de l'ancien mot de passe temporaire" };
@@ -303,7 +385,7 @@ export async function changeOwnPassword(data: { currentPassword?: string; newPas
       role: user.role,
       tenantId: tenantId || undefined,
       force_password_change: 0,
-      exp: Date.now() + 24 * 60 * 60 * 1000
+      exp: Date.now() + SESSION_EXPIRATION_MS
     });
     const base64Data = Buffer.from(sessionData).toString("base64");
     const signedSession = await signSession(base64Data);
@@ -311,7 +393,7 @@ export async function changeOwnPassword(data: { currentPassword?: string; newPas
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production" && process.env.VITEST !== "true",
-      maxAge: 60 * 60 * 24,
+      maxAge: SESSION_MAX_AGE_SECONDS,
       path: "/"
     };
 
@@ -394,7 +476,7 @@ export async function syncSupabaseSession(supabaseUser: { id: string; email: str
       role: resolvedRole,
       tenantId: effectiveTenantId || undefined,
       force_password_change: forcePasswordChange,
-      exp: Date.now() + 30 * 24 * 60 * 60 * 1000
+      exp: Date.now() + SESSION_EXPIRATION_MS
     });
     const base64Data = Buffer.from(sessionData).toString("base64");
     const signedSession = await signSession(base64Data);
@@ -402,7 +484,7 @@ export async function syncSupabaseSession(supabaseUser: { id: string; email: str
     const cookieOptions = {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production" && process.env.VITEST !== "true",
-      maxAge: 60 * 60 * 24 * 30,
+      maxAge: SESSION_MAX_AGE_SECONDS,
       path: "/"
     };
 

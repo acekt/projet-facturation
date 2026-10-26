@@ -5,7 +5,7 @@ import { SettingsRepository } from '@/lib/repositories/SettingsRepository';
 
 export const SetupService = {
   isInitialized(): boolean {
-    const countResult = db.prepare('SELECT COUNT(*) as c FROM users').get() as { c: number } | undefined;
+    const countResult = db.prepare('SELECT COUNT(*) as c FROM users WHERE deletedAt IS NULL AND is_active = 1').get() as { c: number } | undefined;
     return (countResult?.c || 0) > 0;
   },
 

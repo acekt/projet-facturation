@@ -99,7 +99,10 @@ export async function getSession(cookieValue?: string, secret?: string): Promise
     const isValid = await verifySignature(data, signature, secret);
     if (!isValid) return null;
 
-    const session = JSON.parse(atob(data));
+    const jsonStr = typeof Buffer !== "undefined"
+      ? Buffer.from(data, "base64").toString("utf-8")
+      : decodeURIComponent(escape(atob(data)));
+    const session = JSON.parse(jsonStr);
     if (!session || typeof session.exp !== 'number' || session.exp < Date.now()) {
       return null;
     }
