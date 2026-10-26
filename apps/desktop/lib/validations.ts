@@ -371,15 +371,60 @@ export const quoteDuplicateSchema = z.object({
 // SETUP / ONBOARDING SCHEMA
 // ============================================================================
 
-export const setupSchema = z.object({
-  name: z.string().min(1, "Le nom complet est requis").max(255),
-  email: z.string().email("Adresse email invalide").max(255),
-  password: z.string().min(6, "Le mot de passe doit contenir au moins 6 caractères").max(255),
-  phone: z.string().max(255).optional(),
-  companyName: z.string().min(1, "Le nom de l'entreprise est requis").max(255),
-  nif: z.string().max(255).optional(),
-  rccm: z.string().max(255).optional(),
-  address: z.string().max(1000).optional(),
-  companyPhone: z.string().max(255).optional(),
-  companyEmail: z.string().email("Email d'entreprise invalide").optional().or(z.literal('')),
+export const companySetupSchema = z.object({
+  // Identité de l'entreprise
+  companyName: z.string({ required_error: "Le nom de l'entreprise est requis" })
+    .min(1, "Le nom de l'entreprise est requis")
+    .max(255, "Le nom ne peut pas dépasser 255 caractères"),
+  legalForm: z.string({ required_error: "La forme juridique est requise" })
+    .min(1, "La forme juridique est requise (ex: SARL, SA, SAS...)")
+    .max(255)
+    .default("SARL"),
+  nif: z.string().max(255).nullable().optional(),
+  rccm: z.string().max(255).nullable().optional(),
+  address: z.string().max(1000).nullable().optional(),
+  companyPhone: z.string().max(255).nullable().optional(),
+  companyEmail: z.union([
+    z.literal(""),
+    z.string().email("Email d'entreprise invalide").max(255)
+  ]).optional().nullable(),
+  logo: z.string().max(2 * 1024 * 1024, "Le logo est trop volumineux (max 2 Mo)").nullable().optional(),
+
+  // Facturation & Fiscalité (Gabon CEMAC)
+  companyCode: z.string().min(1, "Le code entreprise est requis").max(255).default("FAC"),
+  invoicePrefix: z.string().min(1, "Le préfixe facture est requis").max(255).default("FAC-"),
+  quotePrefix: z.string().min(1, "Le préfixe devis est requis").max(255).default("DEV-"),
+  tvaRate: z.number().min(0).default(18.0),
+  cssRate: z.number().min(0).default(1.0),
+  tpsRate: z.number().min(0).default(9.5),
+  mentionsLegales: z.string().max(5000).nullable().optional(),
+
+  // Coordonnées bancaires
+  bankName: z.string().max(255).nullable().optional(),
+  bankAgency: z.string().max(255).nullable().optional(),
+  accountNumber: z.string().max(255).nullable().optional(),
+  swiftCode: z.string().max(255).nullable().optional(),
+  iban: z.string().max(255).nullable().optional(),
+
+  // Sécurité & session
+  sessionTimeout: z.number().min(1).default(60),
 });
+
+export const adminSetupSchema = z.object({
+  name: z.string({ required_error: "Le nom complet est requis" })
+    .min(2, "Le nom doit contenir au moins 2 caractères")
+    .max(255),
+  email: z.string({ required_error: "L'adresse email est requise" })
+    .email("Adresse email administrateur invalide")
+    .max(255),
+  password: z.string({ required_error: "Le mot de passe est requis" })
+    .min(6, "Le mot de passe doit comporter au moins 6 caractères")
+    .max(255),
+  phone: z.string().max(255).nullable().optional(),
+});
+
+export const setupSchema = z.object({
+  ...companySetupSchema.shape,
+  ...adminSetupSchema.shape,
+});
+

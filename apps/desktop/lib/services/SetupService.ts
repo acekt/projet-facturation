@@ -42,14 +42,30 @@ export const SetupService = {
         });
       }
 
-      SettingsRepository.upsertInitialSettings(
-        data.companyName || '',
-        data.nif || '',
-        data.rccm || '',
-        data.address || '',
-        data.companyPhone || '',
-        data.companyEmail || ''
-      );
+      SettingsRepository.upsertInitialSettings({
+        companyName: data.companyName || '',
+        legalForm: data.legalForm || 'SARL',
+        nif: data.nif || null,
+        rccm: data.rccm || null,
+        address: data.address || null,
+        phone: data.companyPhone || null,
+        email: data.companyEmail || null,
+        logo: data.logo || null,
+        companyCode: data.companyCode || 'FAC',
+        invoicePrefix: data.invoicePrefix || 'FAC-',
+        quotePrefix: data.quotePrefix || 'DEV-',
+        tvaRate: data.tvaRate ?? 18.0,
+        cssRate: data.cssRate ?? 1.0,
+        tpsRate: data.tpsRate ?? 9.5,
+        mentionsLegales: data.mentionsLegales || null,
+        bankName: data.bankName || null,
+        bankAgency: data.bankAgency || null,
+        accountNumber: data.accountNumber || null,
+        swiftCode: data.swiftCode || null,
+        iban: data.iban || null,
+        sessionTimeout: data.sessionTimeout ?? 60,
+        tenant_id: finalTenantId,
+      });
     });
 
     setupTransaction();
