@@ -52,6 +52,7 @@ export default function SetupClient() {
   // 1. Identité
   const [companyName, setCompanyName] = React.useState('')
   const [legalForm, setLegalForm] = React.useState('SARL')
+  const [isCustomLegalForm, setIsCustomLegalForm] = React.useState(false)
   const [nif, setNif] = React.useState('')
   const [rccm, setRccm] = React.useState('')
   const [address, setAddress] = React.useState('')
@@ -63,6 +64,7 @@ export default function SetupClient() {
   const [companyCode, setCompanyCode] = React.useState('FAC')
   const [invoicePrefix, setInvoicePrefix] = React.useState('FAC-')
   const [quotePrefix, setQuotePrefix] = React.useState('DEV-')
+  const [isPrefixCustom, setIsPrefixCustom] = React.useState(false)
   const [tvaRate, setTvaRate] = React.useState<number>(18.0)
   const [cssRate, setCssRate] = React.useState<number>(1.0)
   const [tpsRate, setTpsRate] = React.useState<number>(9.5)
@@ -89,16 +91,38 @@ export default function SetupClient() {
   const setUser = useStore((state) => state.setUser)
   const fileInputRef = React.useRef<HTMLInputElement>(null)
 
-  // Auto-génération intelligente du code court d'entreprise lors de la saisie
+  // Auto-génération intelligente de sigle / code court lors de la saisie
   const handleCompanyNameChange = (val: string) => {
     setCompanyName(val)
-    if (!companyCode || companyCode === 'FAC') {
-      const clean = val.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, 3)
-      if (clean.length >= 2) {
-        setCompanyCode(clean)
-        setInvoicePrefix(`${clean}-`)
-        setQuotePrefix(`DEV-${clean}-`)
+    if (!isPrefixCustom) {
+      const words = val.trim().split(/\s+/).filter(Boolean)
+      let acronym = ''
+      if (words.length >= 2) {
+        // Ex: "Global Maintenance" -> "GM"
+        acronym = words.map(w => w[0]).join('').slice(0, 4).toUpperCase()
+      } else if (words.length === 1 && words[0].length >= 2) {
+        // Ex: "Global" -> "GLO"
+        acronym = words[0].replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase()
+      } else {
+        acronym = 'FAC'
       }
+
+      if (acronym.length >= 2) {
+        setCompanyCode(acronym)
+        setInvoicePrefix(`${acronym}-`)
+        setQuotePrefix(`DEV-${acronym}-`)
+      }
+    }
+  }
+
+  // Sélection rapide de forme juridique avec toggle propre
+  const handleSelectLegalForm = (form: string) => {
+    if (form === 'Autre') {
+      setIsCustomLegalForm(true)
+      setLegalForm('')
+    } else {
+      setIsCustomLegalForm(false)
+      setLegalForm(form)
     }
   }
 
@@ -117,6 +141,64 @@ export default function SetupClient() {
     }
     reader.readAsDataURL(file)
   }
+
+  // ══════════════════════════════════════════════════════════════════════
+  // CALCULS DYNAMIQUES DES SOUS-BARRES DE PROGRESSION ACTIVES (ÉTAPE 1)
+  // ══════════════════════════════════════════════════════════════════════
+  // 1. Identité : Obligatoire (nom + forme) = 60%, compléments (adresse, NIF, contact, logo) = 40%
+  const identityProgress = React.useMemo(() => {
+    let score = 0
+    if (companyName.trim().length >= 2) score += 35
+    if (legalForm.trim()) score += 25
+    if (nif.trim()) score += 15
+    if (address.trim()) score += 10
+    if (companyPhone.trim() || companyEmail.trim()) score += 10
+    if (logo) score += 5
+    return Math.min(100, score)
+  }, [companyName, legalForm, nif, address, companyPhone, companyEmail, logo])
+
+  // 2. Facturation : 100% car pré-configuré DGI Gabon par défaut
+  const billingProgress = React.useMemo(() => {
+    let score = 70
+    if (companyCode.trim() && invoicePrefix.trim()) score += 15
+    if (tvaRate > 0 && cssRate > 0) score += 15
+    return Math.min(100, score)
+  }, [companyCode, invoicePrefix, tvaRate, cssRate])
+
+  // 3. Banque : Optionnel mais mesuré (0% si vide, 100% si établissement + compte ou IBAN)
+  const bankProgress = React.useMemo(() => {
+    if (!bankName.trim() && !accountNumber.trim() && !iban.trim()) return 0
+    let score = 0
+    if (bankName.trim()) score += 40
+    if (accountNumber.trim()) score += 40
+    if (swiftCode.trim() || iban.trim() || bankAgency.trim()) score += 20
+    return Math.min(100, score)
+  }, [bankName, accountNumber, swiftCode, iban, bankAgency])
+
+  // 4. Sécurité : 100% configuré par défaut
+  const securityProgress = 100
+
+  // Complétude globale de l'Étape 1 (Entreprise)
+  const companyOverallProgress = React.useMemo(() => {
+    const weighted = Math.round(
+      (identityProgress * 0.45) + 
+      (billingProgress * 0.35) + 
+      (bankProgress * 0.10) + 
+      (securityProgress * 0.10)
+    )
+    return Math.min(100, Math.max(20, weighted))
+  }, [identityProgress, billingProgress, bankProgress])
+
+  // Progression globale de l'assistant (Étape 1 = 50%, Étape 2 = 75% -> 100%)
+  const globalProgress = React.useMemo(() => {
+    if (step === 1) return 50
+    // En étape 2
+    let s2 = 75
+    if (name.trim().length >= 2) s2 += 10
+    if (email.trim().includes('@')) s2 += 5
+    if (password.length >= 6) s2 += 10
+    return Math.min(100, s2)
+  }, [step, name, email, password])
 
   // Calcul dynamique de la force du mot de passe
   const passwordStrength = React.useMemo(() => {
@@ -242,60 +324,61 @@ export default function SetupClient() {
     return new Intl.NumberFormat('fr-FR').format(amount) + ' XAF'
   }
 
+
+
   return (
     <div className="h-screen w-screen overflow-hidden flex bg-background text-foreground transition-colors duration-300">
       <div className="w-full h-full flex flex-col md:flex-row">
         
         {/* ========================================================================= */}
-        {/* COLONNE GAUCHE (PSYCHOLOGIE DU DESIGN : DOTATION, GRADIENT & RÉASSURANCE) */}
+        {/* COLONNE GAUCHE (PSYCHOLOGIE DU DESIGN : DOTATION, PROGRESSION & CONFIANCE) */}
         {/* ========================================================================= */}
-        <div className="hidden md:flex flex-col relative w-[44%] lg:w-[40%] xl:w-[38%] h-full bg-gradient-to-br from-primary via-primary/95 to-primary/85 overflow-y-auto p-6 lg:p-8 justify-between select-none border-r border-primary-foreground/10 text-primary-foreground">
+        <div className="hidden md:flex flex-col relative w-[44%] lg:w-[40%] xl:w-[38%] h-full bg-gradient-to-br from-primary via-primary/95 to-primary/85 overflow-y-auto p-6 lg:p-7 justify-between select-none border-r border-primary-foreground/10 text-primary-foreground">
           
-          <div className="relative z-10 space-y-5">
+          <div className="relative z-10 space-y-4">
             {/* Header Brand */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="relative w-10 h-10 bg-white rounded-xl shadow-md overflow-hidden flex items-center justify-center p-1.5 ring-2 ring-white/20">
+                <div className="relative w-9 h-9 bg-white rounded-xl shadow-md overflow-hidden flex items-center justify-center p-1.5 ring-2 ring-white/20">
                   <Image src="/logo.png" alt="Logo Facturier" fill className="object-contain p-1" />
                 </div>
                 <div>
-                  <span className="font-extrabold text-xl tracking-tight text-white block leading-none">Facturier</span>
+                  <span className="font-extrabold text-lg tracking-tight text-white block leading-none">Facturier</span>
                   <span className="text-[10px] text-white/70 font-semibold uppercase tracking-wider">Gestion & Facturation CEMAC</span>
                 </div>
               </div>
-              <span className="text-[11px] font-bold text-emerald-300 bg-emerald-400/20 border border-emerald-400/30 px-3 py-1 rounded-full shadow-xs flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+              <span className="text-[11px] font-bold text-emerald-300 bg-emerald-400/20 border border-emerald-400/30 px-2.5 py-0.5 rounded-full shadow-xs flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
                 Configuration Rapide
               </span>
             </div>
 
-            {/* Titre dynamique valorisant */}
-            <div className="space-y-1.5 pt-1">
-              <h2 className="text-2xl lg:text-3xl font-extrabold text-white leading-tight tracking-tight">
+            {/* Titre dynamique */}
+            <div className="space-y-1 pt-0.5">
+              <h2 className="text-xl lg:text-2xl font-extrabold text-white leading-tight tracking-tight">
                 {step === 1 ? "Créez votre identité de facturation." : "Activez vos accès administrateur."}
               </h2>
-              <p className="text-white/80 text-xs lg:text-sm leading-relaxed font-medium">
+              <p className="text-white/80 text-xs leading-relaxed font-medium">
                 {step === 1 
-                  ? "Donnez un visage professionnel à vos devis et factures. Les mentions DGI Gabon sont déjà prêtes." 
-                  : "Votre entreprise est prête ! Sécurisez le compte maître qui gérera vos clients et finances."}
+                  ? "Personnalisez votre entreprise. Vos factures s'actualisent en direct à chaque frappe." 
+                  : "Votre entreprise est configurée ! Créez le compte maître qui gérera vos opérations."}
               </p>
             </div>
 
-            {/* Jauge psychologique de progression (Goal-Gradient Effect) */}
-            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3.5 space-y-2 shadow-inner">
+            {/* JAUGE PRINCIPALE D'INSTALLATION (Goal-Gradient Effect) */}
+            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3 space-y-1.5 shadow-inner">
               <div className="flex items-center justify-between text-xs font-bold text-white">
                 <span className="flex items-center gap-1.5">
                   <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-                  Progression de l'installation
+                  Progression globale
                 </span>
-                <span className="text-emerald-300 font-mono text-sm">{step === 1 ? "50%" : "100%"}</span>
+                <span className="text-emerald-300 font-mono text-sm">{globalProgress}%</span>
               </div>
-              <div className="w-full h-2.5 bg-black/20 rounded-full overflow-hidden p-0.5">
+              <div className="w-full h-2 bg-black/20 rounded-full overflow-hidden p-0.5">
                 <motion.div 
                   className="h-full bg-gradient-to-r from-emerald-400 to-teal-300 rounded-full shadow-sm"
-                  initial={{ width: "50%" }}
-                  animate={{ width: step === 1 ? "50%" : "100%" }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
+                  animate={{ width: `${globalProgress}%` }}
+                  transition={{ duration: 0.4, ease: "easeOut" }}
                 />
               </div>
               <div className="flex items-center justify-between text-[11px] text-white/75 font-medium">
@@ -303,6 +386,108 @@ export default function SetupClient() {
                 <span className="text-emerald-300 font-semibold">{step === 1 ? "Moins d'1 min" : "Presque terminé !"}</span>
               </div>
             </div>
+
+            {/* ═══════════════════════════════════════════════════════════════════ */}
+            {/* SOUS-BARRES DE PROGRESSION ACTIVES DE L'ÉTAPE 1 (EXIGENCE CLIENT)   */}
+            {/* ═══════════════════════════════════════════════════════════════════ */}
+            {step === 1 && (
+              <motion.div 
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-3 space-y-2.5 shadow-sm"
+              >
+                <div className="flex items-center justify-between text-xs font-bold text-white">
+                  <span className="flex items-center gap-1.5">
+                    <Building2 className="w-3.5 h-3.5 text-teal-300" />
+                    Complétude du Profil Entreprise
+                  </span>
+                  <span className="text-emerald-300 font-mono font-bold text-xs bg-emerald-500/20 px-2 py-0.5 rounded-full border border-emerald-400/30">
+                    {companyOverallProgress}%
+                  </span>
+                </div>
+
+                {/* 4 sous-barres de progression actives */}
+                <div className="space-y-2 pt-0.5">
+                  {/* 1. Identité */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px] font-medium text-white/85">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                        Identité légale
+                      </span>
+                      <span className="font-mono text-[10px] text-emerald-300">
+                        {companyName.trim() ? `${identityProgress}%` : 'Requis *'}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
+                      <motion.div 
+                        className={cn(
+                          "h-full rounded-full transition-all duration-300",
+                          identityProgress >= 60 ? "bg-emerald-400" : "bg-amber-400"
+                        )}
+                        animate={{ width: `${identityProgress}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 2. Facturation */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px] font-medium text-white/85">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                        Fiscalité DGI Gabon
+                      </span>
+                      <span className="font-mono text-[10px] text-emerald-300 font-semibold">100% Conforme</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-400 rounded-full w-full" />
+                    </div>
+                  </div>
+
+                  {/* 3. Banque */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px] font-medium text-white/85">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                        Coordonnées bancaires
+                      </span>
+                      <span className="font-mono text-[10px] text-white/70">
+                        {bankProgress > 0 ? `${bankProgress}%` : 'Optionnel'}
+                      </span>
+                    </div>
+                    <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
+                      <motion.div 
+                        className={cn("h-full rounded-full transition-all duration-300", bankProgress > 0 ? "bg-emerald-400" : "bg-white/20")}
+                        animate={{ width: `${bankProgress}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* 4. Sécurité */}
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-[11px] font-medium text-white/85">
+                      <span className="flex items-center gap-1.5">
+                        <span className="w-1.5 h-1.5 rounded-full bg-white/60" />
+                        Sécurité SQLite locale
+                      </span>
+                      <span className="font-mono text-[10px] text-emerald-300 font-semibold">100% Actif</span>
+                    </div>
+                    <div className="w-full h-1.5 bg-black/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-emerald-400 rounded-full w-full" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-1.5 border-t border-white/10 flex items-center justify-between text-[10px] text-white/75 font-medium">
+                  <span>
+                    {companyName.trim() ? "✅ Prêt pour l'accès administrateur" : "⚠️ Saisissez le nom pour avancer"}
+                  </span>
+                  <span className="text-emerald-300 font-semibold">
+                    {companyOverallProgress >= 80 ? "Niveau Fiduciaire" : "Niveau Standard"}
+                  </span>
+                </div>
+              </motion.div>
+            )}
 
             {/* ═══════════════════════════════════════════════════════════════════ */}
             {/* APERÇU EN DIRECT DU DOCUMENT (PSYCHOLOGIE DE DOTATION / ENDOWMENT)  */}
@@ -325,21 +510,16 @@ export default function SetupClient() {
                 </div>
 
                 {/* Spécimen officiel d'en-tête de facture */}
-                <div className="bg-white text-slate-900 rounded-2xl p-4 shadow-xl border border-white/40 space-y-3 relative overflow-hidden">
-                  {/* Filigrane discret de sécurité */}
-                  <div className="absolute -right-6 -bottom-6 text-[90px] font-black text-slate-100 select-none pointer-events-none">
-                    FAC
-                  </div>
-
+                <div className="bg-white text-slate-900 rounded-2xl p-4 shadow-xl border border-white/40 space-y-2.5 relative overflow-hidden">
                   {/* Header de la facture */}
-                  <div className="flex items-start justify-between border-b border-slate-100 pb-3 relative z-10">
+                  <div className="flex items-start justify-between border-b border-slate-100 pb-2.5 relative z-10">
                     <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center font-bold text-primary text-sm shrink-0 overflow-hidden shadow-xs">
+                      <div className="w-12 h-12 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-center font-bold text-primary text-sm shrink-0 overflow-hidden shadow-xs">
                         {logo ? (
-                          <img src={logo} alt="Logo Entreprise" className="w-full h-full object-contain" />
+                          <img src={logo} alt="Logo Entreprise" className="w-full h-full object-contain p-1" />
                         ) : (
-                          <span className="font-extrabold tracking-wider">
-                            {(companyName || 'FAC').slice(0, 2).toUpperCase()}
+                          <span className="font-extrabold tracking-wider text-primary text-base">
+                            {(companyCode || (companyName || 'FAC').slice(0, 2)).toUpperCase()}
                           </span>
                         )}
                       </div>
@@ -349,19 +529,25 @@ export default function SetupClient() {
                         </div>
                         <div className="text-[10px] font-bold text-primary flex items-center gap-1.5 mt-0.5">
                           <span className="bg-primary/10 px-1.5 py-0.2 rounded font-mono text-[9px]">{legalForm}</span>
-                          <span>•</span>
-                          <span className="text-slate-500 font-mono font-normal">
-                            {nif.trim() ? `NIF: ${nif}` : 'NIF: 123456 A'}
-                          </span>
+                          {nif.trim() && (
+                            <>
+                              <span>•</span>
+                              <span className="text-slate-500 font-mono font-normal truncate max-w-[100px]">
+                                NIF: {nif.trim()}
+                              </span>
+                            </>
+                          )}
                         </div>
-                        <div className="text-[9px] text-slate-400 font-medium truncate max-w-[170px] mt-0.5">
-                          {address.trim() || 'Libreville, Gabon'}
-                        </div>
+                        {address.trim() && (
+                          <div className="text-[9px] text-slate-400 font-medium truncate max-w-[170px] mt-0.5">
+                            📍 {address.trim()}
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div className="text-right">
-                      <span className="text-[9px] uppercase tracking-wider font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+                      <span className="text-[8px] uppercase tracking-wider font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
                         Original
                       </span>
                       <div className="text-xs font-mono font-bold text-slate-900 mt-1">
@@ -372,7 +558,7 @@ export default function SetupClient() {
                   </div>
 
                   {/* Ligne d'article simulée */}
-                  <div className="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100 space-y-1.5 relative z-10 text-[10px]">
+                  <div className="bg-slate-50/80 rounded-xl p-2.5 border border-slate-100 space-y-1 relative z-10 text-[10px]">
                     <div className="flex justify-between font-bold text-slate-700 border-b border-slate-200/60 pb-1">
                       <span>Prestation / Article d'exemple</span>
                       <span className="font-mono">{formatMoney(sampleHT)}</span>
@@ -394,7 +580,7 @@ export default function SetupClient() {
                   {/* Mention bancaire ou légale */}
                   <div className="text-[9px] text-slate-500 flex items-center justify-between pt-0.5 relative z-10 border-t border-slate-100">
                     <span className="truncate max-w-[200px]">
-                      {bankName ? `Paiement : ${bankName}` : 'Paiement à réception ou virement'}
+                      {bankName.trim() ? `Paiement : ${bankName}` : 'Paiement à réception'}
                     </span>
                     <span className="font-mono text-[8px] text-slate-400">Page 1/1</span>
                   </div>
@@ -433,7 +619,7 @@ export default function SetupClient() {
                         {email.trim() || 'admin@votre-entreprise.ga'}
                       </div>
                       <div className="text-[10px] font-semibold text-emerald-300 mt-0.5 flex items-center gap-1">
-                        <Lock className="w-3 h-3" /> Super-Administrateur Local
+                        <Lock className="w-3 h-3" /> Gérant / Super-Administrateur
                       </div>
                     </div>
                   </div>
@@ -444,8 +630,8 @@ export default function SetupClient() {
                       <span className="font-bold text-white truncate max-w-[150px]">{companyName || 'Facturier'}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-white/60">Droits :</span>
-                      <span className="font-mono text-emerald-300">Contrôle Total (Root)</span>
+                      <span className="text-white/60">Rôle système :</span>
+                      <span className="font-mono text-emerald-300 font-semibold">Propriétaire (Local)</span>
                     </div>
                   </div>
                 </div>
@@ -455,13 +641,13 @@ export default function SetupClient() {
           </div>
 
           {/* Footer Gauche : Réassurance & Confiance Locale */}
-          <div className="pt-4 border-t border-white/15 relative z-10 space-y-2">
+          <div className="pt-3 border-t border-white/15 relative z-10 space-y-1">
             <div className="flex items-center gap-2 text-xs text-white/90 font-semibold">
               <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-300" />
               <span>Base SQLite locale sécurisée • Zéro dépendance cloud obligatoire</span>
             </div>
             <p className="text-[10px] text-white/60 font-medium leading-relaxed">
-              Vos factures, clients et données comptables restent 100% sur votre ordinateur, même sans connexion Internet.
+              Vos factures et données comptables restent 100% sur votre ordinateur, même sans connexion Internet.
             </p>
           </div>
 
@@ -527,37 +713,30 @@ export default function SetupClient() {
                     </div>
                   </div>
 
-                  {/* Bannière de soulagement cognitif (Hick's Law) */}
-                  <div className="bg-primary/5 border border-primary/15 rounded-xl p-3 flex items-start gap-2.5">
-                    <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                    <p className="text-xs text-foreground/80 leading-relaxed font-medium">
-                      <strong>Rapide & Flexible :</strong> Seul le <em>nom commercial</em> est requis pour démarrer. Les taux fiscaux (TVA 18%, CSS 1%) et préfixes sont déjà configurés pour vous.
-                    </p>
-                  </div>
-
-                  {/* Onglets ergonomiques */}
+                  {/* Onglets ergonomiques avec indicateurs d'état professionnels */}
                   <Tabs value={companyTab} onValueChange={(v) => setCompanyTab(v as any)} className="w-full">
                     <TabsList className="grid grid-cols-4 bg-secondary/80 p-1 rounded-xl mb-4 text-xs font-semibold">
                       <TabsTrigger value="identity" className="rounded-lg gap-1.5 text-xs relative cursor-pointer">
                         <Building2 className="w-3.5 h-3.5" />
                         <span>Identité</span>
-                        {companyName.trim() ? (
-                          <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0" />
-                        ) : (
-                          <span className="text-[10px] text-destructive font-bold">*</span>
-                        )}
+                        <span className={cn(
+                          "w-2 h-2 rounded-full shrink-0 transition-colors",
+                          identityProgress >= 60 ? "bg-emerald-500" : "bg-amber-500"
+                        )} />
                       </TabsTrigger>
 
                       <TabsTrigger value="billing" className="rounded-lg gap-1.5 text-xs relative cursor-pointer">
                         <Percent className="w-3.5 h-3.5" />
                         <span>Facturation</span>
-                        <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">DGI 18%</span>
+                        <span className="text-[9px] font-semibold px-1.5 py-0.2 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">100%</span>
                       </TabsTrigger>
 
                       <TabsTrigger value="bank" className="rounded-lg gap-1.5 text-xs relative cursor-pointer">
                         <Landmark className="w-3.5 h-3.5" />
                         <span>Banque</span>
-                        <span className="text-[9px] font-normal text-muted-foreground">Opt.</span>
+                        <span className="text-[9px] font-normal text-muted-foreground">
+                          {bankProgress > 0 ? "Prêt" : "Opt."}
+                        </span>
                       </TabsTrigger>
 
                       <TabsTrigger value="security" className="rounded-lg gap-1.5 text-xs relative cursor-pointer">
@@ -570,8 +749,16 @@ export default function SetupClient() {
                     {/* ──────────────── Sous-Onglet 1 : Identité Légale ──────────────── */}
                     <TabsContent value="identity" className="space-y-4 mt-0">
                       
+                      {/* Bannière d'allègement cognitif (uniquement dans Identité) */}
+                      <div className="bg-primary/5 border border-primary/15 rounded-xl p-3 flex items-start gap-2.5">
+                        <Sparkles className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <p className="text-xs text-foreground/85 leading-relaxed font-medium">
+                          <strong>Démarrage express :</strong> Seul le <em>nom commercial</em> est requis pour commencer. Les taux fiscaux (TVA 18%, CSS 1%) et préfixes sont déjà configurés selon les règles CEMAC.
+                        </p>
+                      </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-start">
-                        {/* Upload Logo */}
+                        {/* Zone Logo élégante et non déformée */}
                         <div className="space-y-1.5">
                           <Label className="text-xs font-semibold flex items-center justify-between">
                             <span>Logo officiel</span>
@@ -579,7 +766,7 @@ export default function SetupClient() {
                           </Label>
                           <div 
                             onClick={() => fileInputRef.current?.click()}
-                            className="relative aspect-square w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-all flex flex-col items-center justify-center p-3 text-center cursor-pointer bg-secondary/30 hover:bg-secondary/50 overflow-hidden group shadow-xs"
+                            className="relative min-h-[120px] sm:min-h-[140px] w-full rounded-xl border-2 border-dashed border-border hover:border-primary/50 transition-all flex flex-col items-center justify-center p-3 text-center cursor-pointer bg-secondary/30 hover:bg-secondary/50 overflow-hidden group shadow-xs"
                           >
                             <input 
                               type="file" 
@@ -589,16 +776,21 @@ export default function SetupClient() {
                               className="hidden" 
                             />
                             {logo ? (
-                              <div className="relative w-full h-full flex items-center justify-center">
-                                <img src={logo} alt="Logo preview" className="max-w-full max-h-full object-contain" />
-                                <button
-                                  type="button"
-                                  onClick={(e) => { e.stopPropagation(); setLogo(null); }}
-                                  className="absolute top-1 right-1 bg-destructive text-white p-1 rounded-full shadow-md hover:scale-110 transition-transform cursor-pointer"
-                                  title="Supprimer le logo"
-                                >
-                                  <X className="w-3 h-3" />
-                                </button>
+                              <div className="flex flex-col items-center gap-2 w-full">
+                                <div className="h-16 max-w-full flex items-center justify-center">
+                                  <img src={logo} alt="Logo preview" className="max-h-16 max-w-full object-contain" />
+                                </div>
+                                <div className="flex items-center gap-2 pt-1">
+                                  <span className="text-[10px] text-primary font-semibold hover:underline">Changer</span>
+                                  <span className="text-muted-foreground text-[10px]">•</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => { e.stopPropagation(); setLogo(null); }}
+                                    className="text-[10px] text-destructive font-semibold hover:underline cursor-pointer"
+                                  >
+                                    Supprimer
+                                  </button>
+                                </div>
                               </div>
                             ) : (
                               <div className="flex flex-col items-center gap-1.5 text-muted-foreground group-hover:text-foreground transition-colors">
@@ -628,24 +820,24 @@ export default function SetupClient() {
                                 type="text"
                                 value={companyName}
                                 onChange={(e) => handleCompanyNameChange(e.target.value)}
-                                placeholder="ex: Kori Tech Gabon, Buroplus SARL..."
+                                placeholder="ex: Global Maintenance, Kori Tech..."
                                 className="pl-10 bg-secondary/60 border-border text-foreground font-semibold text-sm h-11"
                                 required
                                 autoFocus
                               />
                             </div>
                             <span className="text-[10px] text-muted-foreground">
-                              💡 C'est le nom qui apparaîtra en tête de toutes vos factures.
+                              💡 Nom qui apparaîtra en en-tête de vos pièces officielles.
                             </span>
                           </div>
 
-                          {/* Forme Juridique avec Sélection Rapide en 1 Clic */}
+                          {/* Forme Juridique : Choix par boutons pills sans doublon */}
                           <div className="space-y-1.5">
                             <div className="flex items-center justify-between">
-                              <Label htmlFor="legal-form" className="text-xs font-bold">
+                              <Label className="text-xs font-bold">
                                 Forme Juridique *
                               </Label>
-                              <span className="text-[10px] text-muted-foreground">Cliquez pour choisir</span>
+                              <span className="text-[10px] text-muted-foreground">Sélectionnez votre structure</span>
                             </div>
                             
                             {/* Boutons Pills 1-clic */}
@@ -654,125 +846,140 @@ export default function SetupClient() {
                                 <button
                                   key={form}
                                   type="button"
-                                  onClick={() => setLegalForm(form)}
+                                  onClick={() => handleSelectLegalForm(form)}
                                   className={cn(
                                     "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border flex items-center gap-1",
-                                    legalForm === form 
+                                    legalForm === form && !isCustomLegalForm
                                       ? "bg-primary text-primary-foreground border-primary shadow-xs scale-102" 
                                       : "bg-secondary/50 text-muted-foreground border-border hover:text-foreground hover:bg-secondary"
                                   )}
                                 >
-                                  {legalForm === form && <CheckCircle2 className="w-3 h-3 text-primary-foreground shrink-0" />}
+                                  {legalForm === form && !isCustomLegalForm && (
+                                    <CheckCircle2 className="w-3 h-3 text-primary-foreground shrink-0" />
+                                  )}
                                   <span>{form}</span>
                                 </button>
                               ))}
+
+                              <button
+                                type="button"
+                                onClick={() => handleSelectLegalForm('Autre')}
+                                className={cn(
+                                  "px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border",
+                                  isCustomLegalForm
+                                    ? "bg-primary text-primary-foreground border-primary shadow-xs" 
+                                    : "bg-secondary/50 text-muted-foreground border-border hover:text-foreground"
+                                )}
+                              >
+                                Autre...
+                              </button>
                             </div>
 
-                            <Input
-                              id="legal-form"
-                              type="text"
-                              value={legalForm}
-                              onChange={(e) => setLegalForm(e.target.value)}
-                              placeholder="SARL, SA, SAS, SUARL, EI..."
-                              className="bg-secondary/50 border-border text-foreground text-xs mt-1"
-                              required
-                            />
+                            {/* Input uniquement si 'Autre' est sélectionné */}
+                            {isCustomLegalForm && (
+                              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
+                                <Input
+                                  type="text"
+                                  value={legalForm}
+                                  onChange={(e) => setLegalForm(e.target.value)}
+                                  placeholder="Précisez votre forme juridique (ex: GIE, Association, SASU...)"
+                                  className="bg-secondary/50 border-border text-foreground text-xs mt-2"
+                                  required
+                                  autoFocus
+                                />
+                              </motion.div>
+                            )}
                           </div>
                         </div>
                       </div>
 
-                      {/* Fiscalité & Registre (Optionnels mais encouragés) */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="company-nif" className="text-xs font-medium flex items-center justify-between">
-                            <span>NIF (Identifiant Fiscal)</span>
-                            <span className="text-[10px] text-muted-foreground">Optionnel</span>
-                          </Label>
-                          <div className="relative">
-                            <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                              id="company-nif"
-                              type="text"
-                              value={nif}
-                              onChange={(e) => setNif(e.target.value)}
-                              placeholder="ex: 123456 A"
-                              className="pl-10 bg-secondary/50 border-border text-foreground font-mono text-xs"
-                            />
+                      {/* Identifiants fiscaux groupés */}
+                      <div className="pt-2 border-t border-border/40 space-y-2">
+                        <span className="text-xs font-bold text-foreground block">
+                          Identifiants administratifs <span className="font-normal text-muted-foreground text-[10px]">(Optionnels pour démarrer)</span>
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <div className="space-y-1">
+                            <Label htmlFor="company-nif" className="text-xs font-medium">NIF (Identifiant Fiscal)</Label>
+                            <div className="relative">
+                              <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <Input
+                                id="company-nif"
+                                type="text"
+                                value={nif}
+                                onChange={(e) => setNif(e.target.value)}
+                                placeholder="ex: 123456 A"
+                                className="pl-10 bg-secondary/50 border-border text-foreground font-mono text-xs"
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-1">
+                            <Label htmlFor="company-rccm" className="text-xs font-medium">RCCM (Registre du commerce)</Label>
+                            <div className="relative">
+                              <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <Input
+                                id="company-rccm"
+                                type="text"
+                                value={rccm}
+                                onChange={(e) => setRccm(e.target.value)}
+                                placeholder="ex: GA-LBV-2026-B12"
+                                className="pl-10 bg-secondary/50 border-border text-foreground font-mono text-xs"
+                              />
+                            </div>
                           </div>
                         </div>
+                      </div>
+
+                      {/* Coordonnées & Siège groupés */}
+                      <div className="pt-2 border-t border-border/40 space-y-2">
+                        <span className="text-xs font-bold text-foreground block">
+                          Coordonnées & Siège <span className="font-normal text-muted-foreground text-[10px]">(Optionnels)</span>
+                        </span>
                         
-                        <div className="space-y-1.5">
-                          <Label htmlFor="company-rccm" className="text-xs font-medium flex items-center justify-between">
-                            <span>RCCM (Registre du commerce)</span>
-                            <span className="text-[10px] text-muted-foreground">Optionnel</span>
-                          </Label>
+                        <div className="space-y-1">
+                          <Label htmlFor="company-address" className="text-xs font-medium">Adresse physique & Siège social</Label>
                           <div className="relative">
-                            <FileText className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                            <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                             <Input
-                              id="company-rccm"
+                              id="company-address"
                               type="text"
-                              value={rccm}
-                              onChange={(e) => setRccm(e.target.value)}
-                              placeholder="ex: GA-LBV-2026-B12"
-                              className="pl-10 bg-secondary/50 border-border text-foreground font-mono text-xs"
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Adresse */}
-                      <div className="space-y-1.5">
-                        <Label htmlFor="company-address" className="text-xs font-medium flex items-center justify-between">
-                          <span>Adresse physique / Siège social</span>
-                          <span className="text-[10px] text-muted-foreground">Optionnel</span>
-                        </Label>
-                        <div className="relative">
-                          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                          <Input
-                            id="company-address"
-                            type="text"
-                            value={address}
-                            onChange={(e) => setAddress(e.target.value)}
-                            placeholder="Boulevard Triomphal, Libreville, Gabon"
-                            className="pl-10 bg-secondary/50 border-border text-foreground text-xs"
-                          />
-                        </div>
-                      </div>
-
-                      {/* Coordonnées de contact */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-1.5">
-                          <Label htmlFor="company-phone" className="text-xs font-medium flex items-center justify-between">
-                            <span>Téléphone professionnel</span>
-                            <span className="text-[10px] text-muted-foreground">Optionnel</span>
-                          </Label>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                              id="company-phone"
-                              type="tel"
-                              value={companyPhone}
-                              onChange={(e) => setCompanyPhone(e.target.value)}
-                              placeholder="+241 01 70 00 00"
+                              value={address}
+                              onChange={(e) => setAddress(e.target.value)}
+                              placeholder="ex: Boulevard Triomphal, Libreville, Gabon"
                               className="pl-10 bg-secondary/50 border-border text-foreground text-xs"
                             />
                           </div>
                         </div>
-                        <div className="space-y-1.5">
-                          <Label htmlFor="company-email" className="text-xs font-medium flex items-center justify-between">
-                            <span>Email professionnel</span>
-                            <span className="text-[10px] text-muted-foreground">Optionnel</span>
-                          </Label>
-                          <div className="relative">
-                            <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                            <Input
-                              id="company-email"
-                              type="email"
-                              value={companyEmail}
-                              onChange={(e) => setCompanyEmail(e.target.value)}
-                              placeholder="contact@entreprise.ga"
-                              className="pl-10 bg-secondary/50 border-border text-foreground text-xs"
-                            />
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                          <div className="space-y-1">
+                            <Label htmlFor="company-phone" className="text-xs font-medium">Téléphone professionnel</Label>
+                            <div className="relative">
+                              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <Input
+                                id="company-phone"
+                                type="tel"
+                                value={companyPhone}
+                                onChange={(e) => setCompanyPhone(e.target.value)}
+                                placeholder="+241 01 70 00 00"
+                                className="pl-10 bg-secondary/50 border-border text-foreground text-xs"
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-1">
+                            <Label htmlFor="company-email" className="text-xs font-medium">Email professionnel</Label>
+                            <div className="relative">
+                              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                              <Input
+                                id="company-email"
+                                type="email"
+                                value={companyEmail}
+                                onChange={(e) => setCompanyEmail(e.target.value)}
+                                placeholder="contact@entreprise.ga"
+                                className="pl-10 bg-secondary/50 border-border text-foreground text-xs"
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -782,24 +989,27 @@ export default function SetupClient() {
                     <TabsContent value="billing" className="space-y-4 mt-0">
                       <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-3 flex items-start gap-2.5">
                         <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-                        <span className="text-xs text-foreground/80 leading-relaxed">
-                          Ces valeurs sont <strong>préréglées et conformes</strong> à la législation fiscale du Gabon (TVA à 18% et CSS à 1%). Vous pouvez les conserver telles quelles ou les adapter.
+                        <span className="text-xs text-foreground/85 leading-relaxed">
+                          Ces valeurs sont <strong>préréglées et conformes</strong> à la fiscalité CEMAC / DGI Gabon (TVA à 18%, CSS à 1% et TPS à 9.5%). Vous pouvez les adapter à vos régimes spécifiques.
                         </span>
                       </div>
 
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                         <div className="space-y-1.5">
-                          <Label htmlFor="company-code" className="text-xs font-semibold">Code Entreprise *</Label>
+                          <Label htmlFor="company-code" className="text-xs font-semibold">Code Sigle *</Label>
                           <Input
                             id="company-code"
                             type="text"
                             value={companyCode}
-                            onChange={(e) => setCompanyCode(e.target.value.toUpperCase())}
-                            placeholder="ex: FAC"
+                            onChange={(e) => {
+                              setIsPrefixCustom(true)
+                              setCompanyCode(e.target.value.toUpperCase())
+                            }}
+                            placeholder="ex: GM"
                             className="bg-secondary/50 border-border font-mono uppercase text-xs"
                             required
                           />
-                          <span className="text-[10px] text-muted-foreground">Sert à numéroter vos pièces</span>
+                          <span className="text-[10px] text-muted-foreground">Numérotation courte</span>
                         </div>
                         <div className="space-y-1.5">
                           <Label htmlFor="invoice-prefix" className="text-xs font-semibold">Préfixe Factures *</Label>
@@ -807,8 +1017,11 @@ export default function SetupClient() {
                             id="invoice-prefix"
                             type="text"
                             value={invoicePrefix}
-                            onChange={(e) => setInvoicePrefix(e.target.value)}
-                            placeholder="ex: FAC-"
+                            onChange={(e) => {
+                              setIsPrefixCustom(true)
+                              setInvoicePrefix(e.target.value)
+                            }}
+                            placeholder="ex: GM-"
                             className="bg-secondary/50 border-border font-mono text-xs"
                             required
                           />
@@ -819,8 +1032,11 @@ export default function SetupClient() {
                             id="quote-prefix"
                             type="text"
                             value={quotePrefix}
-                            onChange={(e) => setQuotePrefix(e.target.value)}
-                            placeholder="ex: DEV-"
+                            onChange={(e) => {
+                              setIsPrefixCustom(true)
+                              setQuotePrefix(e.target.value)
+                            }}
+                            placeholder="ex: DEV-GM-"
                             className="bg-secondary/50 border-border font-mono text-xs"
                             required
                           />
@@ -944,24 +1160,61 @@ export default function SetupClient() {
                       </div>
                     </TabsContent>
 
-                    {/* ──────────────── Sous-Onglet 4 : Sécurité ──────────────── */}
+                    {/* ──────────────── Sous-Onglet 4 : Sécurité & Souveraineté ──────────────── */}
                     <TabsContent value="security" className="space-y-4 mt-0">
-                      <div className="p-4 bg-secondary/40 rounded-xl border border-border space-y-2">
-                        <Label htmlFor="session-timeout" className="text-xs font-semibold">
-                          Délai de verrouillage automatique (en minutes)
-                        </Label>
-                        <Input
-                          id="session-timeout"
-                          type="number"
-                          min={5}
-                          max={1440}
-                          value={sessionTimeout}
-                          onChange={(e) => setSessionTimeout(parseInt(e.target.value) || 60)}
-                          className="bg-card border-border text-xs font-mono max-w-xs"
-                        />
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">
-                          Pour protéger vos données financières en cas d'absence, l'application se verrouillera automatiquement après ce temps d'inactivité.
+                      <div className="p-4 bg-secondary/40 rounded-xl border border-border space-y-3">
+                        <div className="flex items-center justify-between">
+                          <Label htmlFor="session-timeout" className="text-xs font-bold">
+                            Délai de verrouillage automatique
+                          </Label>
+                          <span className="text-[11px] font-mono font-bold text-primary">{sessionTimeout} minutes</span>
+                        </div>
+
+                        {/* Boutons rapides de durée de session */}
+                        <div className="flex flex-wrap gap-2">
+                          {[15, 30, 60, 240].map((t) => (
+                            <button
+                              key={t}
+                              type="button"
+                              onClick={() => setSessionTimeout(t)}
+                              className={cn(
+                                "px-3 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer border",
+                                sessionTimeout === t
+                                  ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                                  : "bg-secondary/60 text-muted-foreground border-border hover:text-foreground"
+                              )}
+                            >
+                              {t === 60 ? "60 min (Recommandé)" : t === 240 ? "4 heures" : `${t} min`}
+                            </button>
+                          ))}
+                        </div>
+
+                        <p className="text-[11px] text-muted-foreground leading-relaxed pt-1">
+                          L'application se verrouille automatiquement après ce temps d'inactivité pour sécuriser votre trésorerie en cas d'absence.
                         </p>
+                      </div>
+
+                      {/* Cartes de garanties de confiance & souveraineté locale */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+                        <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1">
+                          <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                            <ShieldCheck className="w-4 h-4 text-emerald-500" />
+                            <span>Stockage Souverain</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground leading-relaxed">
+                            Base SQLite autonome chiffrée sur votre disque dur. Zéro dépendance cloud obligatoire.
+                          </p>
+                        </div>
+
+                        <div className="p-3 rounded-xl bg-secondary/30 border border-border space-y-1">
+                          <div className="flex items-center gap-2 text-xs font-bold text-foreground">
+                            <Lock className="w-4 h-4 text-teal-500" />
+                            <span>Protection Locale</span>
+                          </div>
+                          <p className="text-[10px] text-muted-foreground leading-relaxed">
+                            Mots de passe hachés avec bcrypt (10 passes). Sessions protégées par signatures HMAC.
+                          </p>
+                        </div>
                       </div>
                     </TabsContent>
                   </Tabs>
@@ -976,7 +1229,7 @@ export default function SetupClient() {
                       <ChevronRight className="w-4 h-4" />
                     </Button>
                     <p className="text-center text-[11px] text-muted-foreground mt-2 font-medium">
-                      Étape 1/2 • Vos données restent enregistrées localement
+                      Étape 1/2 • Vos données restent enregistrées localement sur votre ordinateur
                     </p>
                   </div>
                 </motion.form>
@@ -1014,7 +1267,9 @@ export default function SetupClient() {
                   {/* Carte d'affiliation entreprise (Endowment effect) */}
                   <div className="bg-secondary/40 border border-border rounded-xl p-3 flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
-                      <Building2 className="w-4 h-4 text-primary" />
+                      <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-600 flex items-center justify-center">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
                       <span className="text-xs font-bold text-foreground">
                         {companyName} <span className="text-muted-foreground font-normal">({legalForm})</span>
                       </span>
