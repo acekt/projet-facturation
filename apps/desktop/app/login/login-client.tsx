@@ -123,6 +123,13 @@ export default function LoginClient() {
           console.log("[Auth Desktop] Compte local pur ou synchronisation Cloud différée:", cloudErr?.message);
         });
       } else {
+        // Si le compte est verrouillé par le rate limiter (attaque brute-force), bloquer immédiatement sans repli Cloud
+        if (localRes.error && localRes.error.includes("verrouillé")) {
+          toast.error(localRes.error, { duration: 6000 });
+          setIsSubmitting(false);
+          return;
+        }
+
         // 2. REPLI CLOUD : Si non trouvé en local, tenter l'authentification Supabase Cloud
         try {
           const { user } = await connector.login(cleanEmail, password);
@@ -176,7 +183,10 @@ export default function LoginClient() {
               force_password_change: 0,
             };
 
-            const syncRes = await syncSupabaseSession(loggedUser);
+            const syncRes = await syncSupabaseSession({
+              ...loggedUser,
+              password,
+            });
             if (!syncRes.success) {
               await connector.logout();
               toast.error(syncRes.error || "Erreur de synchronisation locale");

@@ -175,6 +175,15 @@ export async function loginUser(data: any): Promise<ActionResponse<SessionRespon
         user?.tenant_id || null
       );
       if (isLocked) {
+        logAuditAsync(
+          "SUSPICIOUS_BRUTE_FORCE",
+          "security",
+          user?.id || null,
+          `Alerte sécurité : attaque par force brute suspectée sur '${cleanUsername}' (5 échecs consécutifs). Verrouillage de 15 minutes appliqué.`,
+          user?.id || null,
+          user?.name || null,
+          user?.tenant_id || null
+        );
         return {
           success: false,
           error: "Trop de tentatives de connexion échouées. Compte temporairement verrouillé pour 15 minutes."
@@ -346,6 +355,14 @@ export async function changeOwnPassword(data: { currentPassword?: string; newPas
       return { success: false, error: "Compte désactivé" };
     }
 
+    // Si l'utilisateur n'est PAS en changement obligatoire (force_password_change === 0),
+    // la saisie du mot de passe actuel est strictement requise.
+    if (user.force_password_change === 0) {
+      if (!currentPassword || currentPassword.trim() === '') {
+        return { success: false, error: "Le mot de passe actuel est obligatoire pour modifier votre mot de passe." };
+      }
+    }
+
     // Si un mot de passe actuel est fourni (changement volontaire ou vérification), on le valide
     if (currentPassword && currentPassword.trim() !== '') {
       const isCurrentValid = await verifyUserPassword(user, currentPassword);
@@ -354,11 +371,11 @@ export async function changeOwnPassword(data: { currentPassword?: string; newPas
       }
     }
 
-    // Empêcher de réutiliser le même mot de passe temporaire
+    // Empêcher de réutiliser le même mot de passe
     if (user.password) {
       const isSameAsCurrent = await verifyUserPassword(user, newPassword);
       if (isSameAsCurrent) {
-        return { success: false, error: "Le nouveau mot de passe doit être différent de l'ancien mot de passe temporaire" };
+        return { success: false, error: "Le nouveau mot de passe doit être différent de l'ancien mot de passe" };
       }
     }
 
@@ -408,7 +425,14 @@ export async function changeOwnPassword(data: { currentPassword?: string; newPas
   }
 }
 
-export async function syncSupabaseSession(supabaseUser: { id: string; email: string; name?: string; role?: string; tenantId?: string }): Promise<ActionResponse<{ role: 'admin' | 'user'; tenantId?: string; force_password_change?: number }>> {
+export async function syncSupabaseSession(supabaseUser: { 
+  id: string; 
+  email: string; 
+  name?: string; 
+  role?: string; 
+  tenantId?: string;
+  password?: string;
+}): Promise<ActionResponse<{ role: 'admin' | 'user'; tenantId?: string; force_password_change?: number }>> {
   try {
     const rawRole = (supabaseUser.role || '').toLowerCase().trim();
     const cleanEmail = (supabaseUser.email || '').toLowerCase().trim();
@@ -451,6 +475,12 @@ export async function syncSupabaseSession(supabaseUser: { id: string; email: str
       reconcileLocalTenantId(supabaseUser.tenantId, null);
     }
 
+    // Cache local du hash bcrypt pour permettre les futures connexions hors-ligne (Offline-First)
+    let passwordHash: string | null = null;
+    if (supabaseUser.password && typeof supabaseUser.password === 'string' && supabaseUser.password.length > 0) {
+      passwordHash = await bcrypt.hash(supabaseUser.password, SALT_ROUNDS);
+    }
+
     if (!existing) {
       db.prepare(`
         INSERT INTO users (id, username, email, password, name, role, is_active, force_password_change, created_at, tenant_id)
@@ -459,15 +489,21 @@ export async function syncSupabaseSession(supabaseUser: { id: string; email: str
         supabaseUser.id,
         cleanEmail,
         cleanEmail,
-        'supabase_session',
+        passwordHash || 'supabase_session',
         displayName,
         resolvedRole,
         effectiveTenantId || null
       );
     } else {
       db.prepare(`
-        UPDATE users SET last_login_at = datetime('now'), role = ?, name = ?, tenant_id = COALESCE(?, tenant_id) WHERE id = ?
-      `).run(resolvedRole, displayName, effectiveTenantId || null, existing.id);
+        UPDATE users 
+        SET last_login_at = datetime('now'), 
+            role = ?, 
+            name = ?, 
+            tenant_id = COALESCE(?, tenant_id),
+            password = COALESCE(?, password)
+        WHERE id = ?
+      `).run(resolvedRole, displayName, effectiveTenantId || null, passwordHash, existing.id);
     }
 
     const sessionData = JSON.stringify({

@@ -27,6 +27,22 @@ export default function MfaVerifyPage() {
   const [loading, setLoading] = useState(false);
   const [initLoading, setInitLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [cooldownSeconds, setCooldownSeconds] = useState(0);
+
+  useEffect(() => {
+    if (cooldownSeconds <= 0) return;
+    const interval = setInterval(() => {
+      setCooldownSeconds((prev) => {
+        if (prev <= 1) {
+          setError(null);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [cooldownSeconds]);
 
   useEffect(() => {
     async function loadFactor() {
@@ -64,6 +80,7 @@ export default function MfaVerifyPage() {
 
   const handleVerify = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (cooldownSeconds > 0) return;
     if (!factorId || code.length < 6) return;
 
     setLoading(true);
@@ -77,10 +94,19 @@ export default function MfaVerifyPage() {
         });
 
       if (verifyError) {
-        setError("Code de vérification invalide ou expiré. Réessayez.");
+        const nextFailed = failedAttempts + 1;
+        setFailedAttempts(nextFailed);
+        if (nextFailed >= 5) {
+          setCooldownSeconds(60);
+          setFailedAttempts(0);
+          setError("Trop de tentatives infructueuses. Veuillez patienter 60 secondes avant de réessayer.");
+        } else {
+          setError(`Code de vérification invalide ou expiré (${5 - nextFailed} tentative(s) restante(s)).`);
+        }
         return;
       }
 
+      setFailedAttempts(0);
       // Succès -> redirection vers le tableau de bord
       router.push("/");
       router.refresh();
@@ -141,6 +167,7 @@ export default function MfaVerifyPage() {
                     maxLength={6}
                     placeholder="123456"
                     value={code}
+                    disabled={loading || cooldownSeconds > 0}
                     onChange={(e) =>
                       setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
                     }
@@ -159,10 +186,12 @@ export default function MfaVerifyPage() {
 
               <Button
                 type="submit"
-                disabled={loading || code.length < 6}
+                disabled={loading || code.length < 6 || cooldownSeconds > 0}
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-medium"
               >
-                {loading ? (
+                {cooldownSeconds > 0 ? (
+                  `Patientez (${cooldownSeconds}s)`
+                ) : loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     Validation en cours...
