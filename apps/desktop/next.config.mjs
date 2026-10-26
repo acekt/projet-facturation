@@ -43,6 +43,7 @@ const nextConfig = {
   productionBrowserSourceMaps: false,
   experimental: {
     optimizeCss: false,
+    agentUpgrade: 'security',
   },
   cacheComponents: true,
   partialPrefetching: true,
