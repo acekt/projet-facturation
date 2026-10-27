@@ -222,9 +222,9 @@ export interface InvoiceCreateRequest {
   quoteId?: string;
   clientId: string;
   clientName: string;
-  clientEmail: string;
+  clientEmail?: string | null;
   date: string;
-  dueDate: string;
+  dueDate?: string | null;
   discount: number;
   notes?: string;
   subject?: string;
@@ -243,7 +243,7 @@ export interface DbInvoice {
   quoteId?: string;
   clientId: string;
   clientName: string;
-  clientEmail: string;
+  clientEmail?: string | null;
   date: string;
   dueDate: string;
   subtotal: number;

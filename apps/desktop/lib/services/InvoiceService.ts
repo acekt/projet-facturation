@@ -76,7 +76,7 @@ export const InvoiceService = {
         data.quoteId ?? null,
         data.clientId,
         data.clientName,
-        data.clientEmail,
+        data.clientEmail && typeof data.clientEmail === 'string' && data.clientEmail.trim() !== '' ? data.clientEmail.trim() : null,
         data.date,
         dueDate,
         computed.subtotal,

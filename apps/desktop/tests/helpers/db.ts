@@ -40,7 +40,7 @@ interface DbInvoice {
   quoteId: string | null;
   clientId: string;
   clientName: string;
-  clientEmail: string;
+  clientEmail?: string | null;
   date: string;
   dueDate: string;
   subtotal: number;
@@ -354,6 +354,12 @@ export function createTestDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_quotes_tenant_status ON quotes(tenant_id, status) WHERE deletedAt IS NULL;
     CREATE INDEX IF NOT EXISTS idx_quotes_tenant_number ON quotes(tenant_id, number) WHERE deletedAt IS NULL;
     CREATE INDEX IF NOT EXISTS idx_quote_items_quote_tenant ON quote_items(quoteId, tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_invoices_tenant_date ON invoices(tenant_id, date DESC) WHERE deletedAt IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_invoices_tenant_number ON invoices(tenant_id, number) WHERE deletedAt IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_tenant ON invoice_items(invoiceId, tenant_id);
+    CREATE INDEX IF NOT EXISTS idx_credit_notes_tenant_date ON credit_notes(tenant_id, date DESC) WHERE deletedAt IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_credit_notes_tenant_invoice ON credit_notes(tenant_id, invoiceId) WHERE deletedAt IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_credit_note_items_cn_tenant ON credit_note_items(creditNoteId, tenant_id);
   `);
 
   return testDb;

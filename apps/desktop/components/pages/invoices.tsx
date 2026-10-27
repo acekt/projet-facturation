@@ -116,13 +116,15 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   const filteredInvoices = React.useMemo(() => {
     return invoices.filter(
       (invoice) => {
-        const matchesSearch = invoice.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              invoice.clientName.toLowerCase().includes(searchQuery.toLowerCase())
-        if (statusFilter === "all") return matchesSearch
-        return matchesSearch && invoice.status === statusFilter
+        const q = searchQuery.toLowerCase();
+        const matchesSearch = invoice.number.toLowerCase().includes(q) ||
+                              invoice.clientName.toLowerCase().includes(q) ||
+                              (invoice.clientEmail || '').toLowerCase().includes(q);
+        if (statusFilter === "all") return matchesSearch;
+        return matchesSearch && invoice.status === statusFilter;
       }
-    )
-  }, [invoices, searchQuery, statusFilter])
+    );
+  }, [invoices, searchQuery, statusFilter]);
 
   const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage)
   const paginatedInvoices = filteredInvoices.slice(
@@ -353,39 +355,20 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
             viewFormatKey="invoices"
           />
         </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <Button
-            variant={statusFilter === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("all")}
-            className="rounded-full"
-          >
-            Toutes
-          </Button>
-          <Button
-            variant={statusFilter === "PAID" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("PAID")}
-            className="rounded-full"
-          >
-            Payées
-          </Button>
-          <Button
-            variant={statusFilter === "UNPAID" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("UNPAID")}
-            className="rounded-full"
-          >
-            Non payées
-          </Button>
-          <Button
-            variant={statusFilter === "OVERDUE" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("OVERDUE")}
-            className="rounded-full"
-          >
-            En retard
-          </Button>
+        <div className="w-full sm:w-[220px]">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="bg-card border-border text-foreground h-10">
+              <SelectValue placeholder="Filtrer par statut" />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="UNPAID">Non payées</SelectItem>
+              <SelectItem value="PARTIALLY_PAID">Partiellement payées</SelectItem>
+              <SelectItem value="PAID">Payées</SelectItem>
+              <SelectItem value="OVERDUE">En retard</SelectItem>
+              <SelectItem value="cancelled">Annulées</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 

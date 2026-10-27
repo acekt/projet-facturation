@@ -167,7 +167,7 @@ export interface IInvoice {
   quoteId?: string;
   clientId: string;
   clientName: string;
-  clientEmail: string;
+  clientEmail?: string | null;
   date: string;
   dueDate: string;
   subtotal: number;

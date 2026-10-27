@@ -89,26 +89,37 @@ export const quoteItemSchema = z.object({
 // ============================================================================
 
 export const invoiceSchema = z.object({
-  clientId: z.string()
+  clientId: z.string({ required_error: "Client requis" })
     .min(1, "Client requis")
     .max(255),
-  clientName: z.string()
+  clientName: z.string({ required_error: "Le nom du client est requis" })
+    .min(1, "Le nom du client est requis")
     .max(255, "Le nom du client ne peut pas dépasser 255 caractères"),
-  clientEmail: z.string()
-    .max(255, "L'email du client ne peut pas dépasser 255 caractères"),
+  clientEmail: z.union([
+    z.string().email("Adresse email invalide").max(255, "L'email ne peut pas dépasser 255 caractères"),
+    z.literal(""),
+  ]).optional().nullable(),
   // XAF RULE: discount must be a non-negative integer (absolute amount, no decimals).
-  discount: z.number().int("La remise doit être un entier en XAF").min(0).default(0),
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide"),
+  discount: z.number().int("La remise doit être un entier en XAF").min(0, "La remise ne peut pas être négative").default(0),
+  date: z.string({ required_error: "La date d'émission est requise" }).regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)"),
+  dueDate: z.union([
+    z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date d'échéance invalide (YYYY-MM-DD)"),
+    z.literal(""),
+    z.null(),
+  ]).optional().nullable(),
   items: z.array(invoiceItemSchema).min(1, "Au moins un article est requis"),
   notes: z.string()
     .max(5000, "Les notes ne peuvent pas dépasser 5000 caractères")
-    .optional(),
+    .optional()
+    .nullable(),
   subject: z.string()
     .max(255, "L'objet ne peut pas dépasser 255 caractères")
-    .optional(),
+    .optional()
+    .nullable(),
   quoteId: z.string()
     .max(255)
-    .optional(),
+    .optional()
+    .nullable(),
 });
 
 export const quoteSchema = z.object({
@@ -368,7 +379,8 @@ export const creditNoteItemSchema = z.object({
     .min(1, "La description est requise")
     .max(1000, "La description ne peut pas dépasser 1000 caractères"),
   quantity: z.number().min(0.01, "La quantité doit être supérieure à 0"),
-  unitPrice: z.number().min(0, "Le prix unitaire ne peut pas être négatif"),
+  // XAF RULE: unit prices in credit notes must be non-negative integers.
+  unitPrice: z.number().int("Le prix unitaire doit être un entier (XAF, pas de décimales)").min(0, "Le prix unitaire ne peut pas être négatif"),
 });
 
 export const creditNoteCreateSchema = z.object({

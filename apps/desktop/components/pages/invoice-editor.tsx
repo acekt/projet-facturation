@@ -62,6 +62,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       selectedClient: null as (typeof clients)[0] | null,
       items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }] as DraftItem[],
       invoiceDate: today.toISOString().split("T")[0],
+      dueDate: "",
       discount: 0,
       notes: "",
       subject: "",
@@ -71,6 +72,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   const selectedClient = localDraft.selectedClient;
   const items = localDraft.items;
   const invoiceDate = localDraft.invoiceDate;
+  const dueDate = localDraft.dueDate;
   const discount = localDraft.discount;
   const notes = localDraft.notes;
   const subject = localDraft.subject;
@@ -85,6 +87,8 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     setLocalDraft((prev) => ({ ...prev, subject: val }));
   const setInvoiceDate = (val: string) =>
     setLocalDraft((prev) => ({ ...prev, invoiceDate: val }));
+  const setDueDate = (val: string) =>
+    setLocalDraft((prev) => ({ ...prev, dueDate: val }));
   const setItems = (
     newItems: DraftItem[] | ((prev: DraftItem[]) => DraftItem[]),
   ) => {
@@ -106,6 +110,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       selectedClient: null,
       items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }],
       invoiceDate: new Date().toISOString().split("T")[0],
+      dueDate: "",
       discount: 0,
       notes: settings.mentionsLegales || "",
       subject: "",
@@ -158,6 +163,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         );
         setItems(data.items);
         setInvoiceDate(data.date);
+        setDueDate(data.dueDate || "");
         setSubject(data.subject || "");
         setDiscount(data.discount);
         setNotes(data.notes || "");
@@ -191,6 +197,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         if (item.id === itemId) {
           const updated = { ...item, [field]: value };
           if (field === "quantity" || field === "unitPrice") {
+            if (field === "unitPrice") updated.unitPrice = Math.round(Number(updated.unitPrice) || 0);
             if (Number(updated.unitPrice) < 0) updated.unitPrice = 0;
             updated.total = computeItemTotal(Number(updated.quantity), Number(updated.unitPrice));
           }
@@ -264,8 +271,9 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       const payload = {
         clientId: selectedClient.id,
         clientName: selectedClient.name,
-        clientEmail: selectedClient.email,
+        clientEmail: selectedClient.email && selectedClient.email.trim() !== "" ? selectedClient.email.trim() : null,
         date: invoiceDate,
+        dueDate: dueDate && dueDate.trim() !== "" ? dueDate.trim() : undefined,
         items,
         notes,
         subject: subject || undefined,
@@ -346,6 +354,15 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                     onChange={setInvoiceDate}
                   />
                 </div>
+                <div className="space-y-2">
+                  <Label className="text-muted-foreground text-sm">
+                    Date d'échéance (optionnelle)
+                  </Label>
+                  <DatePicker
+                    value={dueDate || ""}
+                    onChange={setDueDate}
+                  />
+                </div>
               </div>
               <div className="space-y-2 pt-2">
                 <Label className="text-muted-foreground text-sm">
@@ -365,7 +382,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
           <Card className="bg-card border-border">
             <CardHeader className="pb-4">
               <CardTitle className="text-foreground font-semibold text-base">
-                Client
+                Client <span className="text-destructive">*</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -382,7 +399,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                         {selectedClient.name}
                       </p>
                       <p className="text-muted-foreground text-sm">
-                        {selectedClient.email}
+                        {selectedClient.email || selectedClient.phone || '—'}
                       </p>
                     </div>
                   </div>
@@ -407,7 +424,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                         </div>
                         <div>
                           <p className="text-muted-foreground font-medium group-hover:text-foreground">
-                            Sélectionner un client
+                            Sélectionner un client <span className="text-destructive">*</span>
                           </p>
                           <p className="text-muted-foreground/60 text-sm">
                             Cliquez pour rechercher dans votre base
@@ -492,9 +509,9 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             <CardContent>
               <div className="space-y-3">
                 <div className="grid grid-cols-12 gap-2 md:gap-4 px-4 py-3 bg-secondary/20 rounded-t-lg text-sm font-semibold text-muted-foreground border-b border-border hidden md:grid">
-                  <div className="col-span-6">Description</div>
-                  <div className="col-span-2 text-right">Qté</div>
-                  <div className="col-span-2 text-right">Prix U. (XAF)</div>
+                  <div className="col-span-6">Description <span className="text-destructive">*</span></div>
+                  <div className="col-span-2 text-right">Qté <span className="text-destructive">*</span></div>
+                  <div className="col-span-2 text-right">Prix U. (XAF) <span className="text-destructive">*</span></div>
                   <div className="col-span-2 text-right pr-2">Total HT</div>
                 </div>
 
@@ -530,6 +547,8 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                     <div className="col-span-4 md:col-span-2">
                       <Input
                         type="number"
+                        min="0.01"
+                        step="any"
                         value={item.quantity ?? 1}
                         onChange={(e) =>
                           updateItem(
@@ -545,12 +564,14 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                     <div className="col-span-4 md:col-span-2">
                       <Input
                         type="number"
+                        min="0"
+                        step="1"
                         value={item.unitPrice ?? 0}
                         onChange={(e) =>
                           updateItem(
                             item.id,
                             "unitPrice",
-                            parseFloat(e.target.value) || 0,
+                            Math.round(parseFloat(e.target.value) || 0),
                           )
                         }
                         className="text-right tabular-nums"
