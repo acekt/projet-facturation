@@ -260,8 +260,8 @@ export default function SetupClient() {
       toast.error("Veuillez saisir une adresse email valide")
       return
     }
-    if (password.length < 6) {
-      toast.error("Le mot de passe doit comporter au moins 6 caractères")
+    if (password.length < 8 || !/[a-z]/.test(password) || !/[A-Z]/.test(password) || !/\d/.test(password)) {
+      toast.error("Le mot de passe doit comporter au moins 8 caractères, une majuscule, une minuscule et un chiffre")
       return
     }
 

@@ -51,7 +51,8 @@ export function ForcePasswordChangeDialog({
   const hasUppercase = /[A-Z]/.test(newPassword)
   const hasDigit = /\d/.test(newPassword)
   const passwordsMatch = newPassword.length > 0 && newPassword === confirmPassword
-  const isPasswordValid = hasMinLength && hasLowercase && hasUppercase && hasDigit && passwordsMatch
+  const hasCurrentPassword = isMandatory || currentPassword.trim().length > 0
+  const isPasswordValid = hasMinLength && hasLowercase && hasUppercase && hasDigit && passwordsMatch && hasCurrentPassword
 
   const resetForm = React.useCallback(() => {
     setCurrentPassword("")

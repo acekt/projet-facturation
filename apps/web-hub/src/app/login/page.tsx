@@ -1,8 +1,5 @@
 import Image from "next/image";
-import { login } from "./actions";
-import { Button } from "@workspace/ui/components/button";
-import { Input } from "@workspace/ui/components/input";
-import { Label } from "@workspace/ui/components/label";
+import { LoginForm } from "./login-form";
 import {
   Card,
   CardContent,
@@ -10,7 +7,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@workspace/ui/components/card";
-import { ShieldCheck, Lock, Sparkles } from "lucide-react";
+import { ShieldCheck, Sparkles } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 export const instant = false;
@@ -71,53 +68,7 @@ export default async function LoginPage({
           </CardHeader>
 
           <CardContent>
-            <form className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="email" className="text-xs font-medium text-foreground">
-                  Adresse Email Superadmin
-                </Label>
-                <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="admin@facturier.cloud"
-                  className="bg-secondary/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary h-10 text-xs"
-                  required
-                />
-              </div>
-
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-xs font-medium text-foreground">
-                    Mot de passe
-                  </Label>
-                </div>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    name="password"
-                    type="password"
-                    placeholder="••••••••••••"
-                    className="bg-secondary/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary h-10 text-xs"
-                    required
-                  />
-                </div>
-              </div>
-
-              {message && (
-                <div className="p-3 rounded-xl text-xs font-medium text-destructive bg-destructive/10 border border-destructive/20 flex items-center gap-2">
-                  <Lock className="h-4 w-4 shrink-0" />
-                  <span>{message}</span>
-                </div>
-              )}
-
-              <Button
-                formAction={login}
-                className="w-full bg-primary hover:bg-primary-hover text-primary-foreground font-semibold shadow-md shadow-primary/20 h-10 text-xs cursor-pointer transition-all"
-              >
-                Accéder au Centre de Contrôle
-              </Button>
-            </form>
+            <LoginForm initialMessage={message} />
           </CardContent>
         </Card>
 

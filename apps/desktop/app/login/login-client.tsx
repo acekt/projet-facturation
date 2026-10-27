@@ -12,11 +12,14 @@ import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import {
   Lock,
+  Eye,
   EyeOff,
   Loader2,
   User,
-  Building2
+  Building2,
+  HelpCircle,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export default function LoginClient() {
   const [username, setUsername] = React.useState("");
@@ -357,6 +360,10 @@ export default function LoginClient() {
         {/* COLONNE DROITE (BLANCHE) : FORMULAIRE */}
         {/* ========================================================================= */}
         <div className="flex-1 flex flex-col justify-center items-center p-8 sm:p-12 md:p-16 relative bg-background overflow-y-auto">
+          {/* Sélecteur de thème discret */}
+          <div className="absolute top-6 right-6 z-20">
+            <ThemeToggle />
+          </div>
           
           <div className="w-full max-w-[380px] space-y-10 my-auto">
             
@@ -368,11 +375,11 @@ export default function LoginClient() {
                 </div>
               </div>
               <h1 className="text-2xl sm:text-3xl font-bold text-foreground tracking-tight">
-                {isForgotPassword ? "Mot de passe oublié" : "Bienvenue"}
+                {isForgotPassword ? "Réinitialisation du mot de passe" : "Bienvenue"}
               </h1>
               <p className="text-sm text-muted-foreground leading-relaxed font-medium">
                 {isForgotPassword 
-                  ? "Entrez votre adresse email pour réinitialiser votre accès." 
+                  ? "Saisissez votre email. Les comptes locaux sont réinitialisés par votre administrateur." 
                   : "Connectez-vous à Facturier pour gérer votre activité."}
               </p>
             </div>
@@ -381,6 +388,21 @@ export default function LoginClient() {
             <form onSubmit={isForgotPassword ? handleForgotPassword : handleLogin} className="space-y-6">
               
               <div className="space-y-4">
+                {/* Notice d'information compte local vs cloud */}
+                {isForgotPassword && (
+                  <div className="p-3 bg-secondary/60 border border-border rounded-xl text-xs text-muted-foreground space-y-1.5 leading-relaxed">
+                    <p className="font-semibold text-foreground flex items-center gap-1.5">
+                      <Building2 className="w-3.5 h-3.5 text-primary" /> Compte local d&apos;agence
+                    </p>
+                    <p>
+                      Pour les comptes opérateurs locaux, demandez directement la réinitialisation de votre accès à l&apos;administrateur de l&apos;entreprise.
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/80 pt-0.5">
+                      Pour un compte Cloud synchronisé, un lien vous sera envoyé par email.
+                    </p>
+                  </div>
+                )}
+
                 {/* Champ Email */}
                 <div className="space-y-2">
                   <label htmlFor="username" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
@@ -389,6 +411,7 @@ export default function LoginClient() {
                   <Input
                     id="username"
                     type="email"
+                    autoComplete="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="jean@facturier.ga"
@@ -408,6 +431,7 @@ export default function LoginClient() {
                       <Input
                         id="password"
                         type={showPassword ? "text" : "password"}
+                        autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
@@ -424,7 +448,7 @@ export default function LoginClient() {
                         onClick={() => setShowPassword(!showPassword)}
                         disabled={isSubmitting || isRedirecting}
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Lock className="w-4 h-4" />}
+                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </Button>
                     </div>
                   </div>
@@ -461,7 +485,7 @@ export default function LoginClient() {
               <div className="pt-2 flex flex-col gap-3">
                 <Button
                   type="submit"
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
+                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-sm h-11"
                   disabled={isSubmitting || isRedirecting}
                 >
                   {isRedirecting ? (
@@ -483,32 +507,6 @@ export default function LoginClient() {
                   >
                     Retour à la connexion
                   </Button>
-                )}
-
-                {!isForgotPassword && (
-                  <div className="pt-2 flex flex-col gap-3">
-                    <div className="relative my-1">
-                      <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t border-border" />
-                      </div>
-                      <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-background px-2 text-muted-foreground font-semibold">
-                          Première utilisation ?
-                        </span>
-                      </div>
-                    </div>
-
-                    <Button
-                      type="button"
-                      variant="outline"
-                      className="w-full border-border hover:bg-secondary text-foreground flex items-center justify-center gap-2 font-medium cursor-pointer"
-                      onClick={() => router.push('/setup')}
-                      disabled={isSubmitting}
-                    >
-                      <Building2 className="w-4 h-4 text-primary" />
-                      <span>Configurer mon entreprise (Setup)</span>
-                    </Button>
-                  </div>
                 )}
               </div>
             </form>

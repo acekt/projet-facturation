@@ -418,8 +418,12 @@ export const adminSetupSchema = z.object({
     .email("Adresse email administrateur invalide")
     .max(255),
   password: z.string({ required_error: "Le mot de passe est requis" })
-    .min(6, "Le mot de passe doit comporter au moins 6 caractères")
-    .max(255),
+    .min(8, "Le mot de passe doit comporter au moins 8 caractères")
+    .max(255)
+    .regex(
+      /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+      "Le mot de passe doit contenir au moins une majuscule, une minuscule et un chiffre"
+    ),
   phone: z.string().max(255).nullable().optional(),
 });
 

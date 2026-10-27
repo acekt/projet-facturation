@@ -131,48 +131,60 @@ export default function MfaEnrollPage() {
             </div>
           ) : (
             <>
-              {qrCode && (
-                <div className="flex justify-center p-3 bg-white rounded-2xl mx-auto w-fit shadow-md border border-border">
-                  {/* Le QR Code SVG renvoyé par Supabase */}
-                  <img
-                    src={qrCode}
-                    alt="QR Code TOTP"
-                    className="w-44 h-44 object-contain"
-                  />
+              {/* Étape 1 : Scan */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] text-primary-foreground font-mono">1</span>
+                  <span>Scannez ce QR Code avec votre application d&apos;authentification</span>
                 </div>
-              )}
 
-              {secret && (
-                <div className="space-y-1.5">
-                  <div className="flex justify-between items-center text-xs text-muted-foreground">
-                    <span>Clé secrète (saisie manuelle) :</span>
-                    <button
-                      type="button"
-                      onClick={handleCopySecret}
-                      className="text-primary hover:underline flex items-center gap-1 font-mono text-[11px]"
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="h-3 w-3" /> Copié
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="h-3 w-3" /> Copier
-                        </>
-                      )}
-                    </button>
+                {qrCode && (
+                  <div className="flex justify-center p-3.5 bg-white rounded-2xl mx-auto w-fit shadow-md border-2 border-primary/20 ring-4 ring-primary/5">
+                    {/* Le QR Code SVG renvoyé par Supabase */}
+                    <img
+                      src={qrCode}
+                      alt="QR Code TOTP"
+                      className="w-44 h-44 object-contain"
+                    />
                   </div>
-                  <div className="bg-secondary/70 border border-border rounded-xl p-2.5 text-center font-mono text-xs tracking-wider text-foreground select-all">
-                    {secret}
-                  </div>
-                </div>
-              )}
+                )}
 
-              <form onSubmit={handleConfirm} className="space-y-3 pt-2">
+                {secret && (
+                  <div className="space-y-1.5 pt-1">
+                    <div className="flex justify-between items-center text-xs text-muted-foreground">
+                      <span>Ou saisissez manuellement la clé :</span>
+                      <button
+                        type="button"
+                        onClick={handleCopySecret}
+                        className="text-primary hover:underline flex items-center gap-1 font-mono text-[11px] cursor-pointer"
+                      >
+                        {copied ? (
+                          <>
+                            <Check className="h-3 w-3" /> Copié
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="h-3 w-3" /> Copier
+                          </>
+                        )}
+                      </button>
+                    </div>
+                    <div className="bg-secondary/70 border border-border rounded-xl p-2.5 text-center font-mono text-xs tracking-wider text-foreground select-all">
+                      {secret}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Étape 2 : Validation */}
+              <form onSubmit={handleConfirm} className="space-y-3 pt-3 border-t border-border">
                 <div className="space-y-1.5">
-                  <Label htmlFor="enroll-code" className="text-xs font-medium text-foreground">
-                    Code de confirmation (6 chiffres)
-                  </Label>
+                  <div className="flex items-center gap-2 text-xs font-semibold text-foreground mb-1">
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[11px] text-primary-foreground font-mono">2</span>
+                    <Label htmlFor="enroll-code" className="text-xs font-semibold text-foreground cursor-pointer">
+                      Entrez le code à 6 chiffres affiché sur votre écran
+                    </Label>
+                  </div>
                   <Input
                     id="enroll-code"
                     type="text"
@@ -184,7 +196,7 @@ export default function MfaEnrollPage() {
                     onChange={(e) =>
                       setCode(e.target.value.replace(/\D/g, "").slice(0, 6))
                     }
-                    className="font-mono text-center text-lg tracking-widest bg-secondary/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary"
+                    className="font-mono text-center text-lg tracking-widest bg-secondary/50 border-border text-foreground placeholder:text-muted-foreground focus-visible:ring-primary h-11"
                     autoFocus
                   />
                 </div>
