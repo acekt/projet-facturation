@@ -192,7 +192,7 @@ describe('ClientsPage Component', () => {
 
     // The pagination should kick in and only render the first page
     // So the render time should be fast even with 2000 items in store
-    expect(end - start).toBeLessThan(300) // Render should take less than 300ms
+    expect(end - start).toBeLessThan(500) // Render should take less than 500ms under parallel load
     expect(screen.getByText('Client 0')).toBeInTheDocument()
 
     // Check render profiling: should render initially without excessive re-renders

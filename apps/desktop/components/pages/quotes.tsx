@@ -27,6 +27,13 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select";
 import { useStore, type Quote } from "@/lib/store";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { toast } from "sonner";
@@ -101,10 +108,21 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
 
   const filteredQuotes = React.useMemo(() => {
     return quotes.filter((quote) => {
+      const qNum = (quote.number || "").toLowerCase();
+      const qClient = (quote.clientName || "").toLowerCase();
+      const qSubject = (quote.subject || "").toLowerCase();
+      const query = searchQuery.toLowerCase().trim();
+
       const matchesSearch =
-        quote.number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        quote.clientName.toLowerCase().includes(searchQuery.toLowerCase());
+        !query ||
+        qNum.includes(query) ||
+        qClient.includes(query) ||
+        qSubject.includes(query);
+
       if (statusFilter === "all") return matchesSearch;
+      if (statusFilter === "EXPIRE" || statusFilter === "EXPIRED") {
+        return matchesSearch && (quote.status === "EXPIRE" || quote.status === "EXPIRED");
+      }
       return matchesSearch && quote.status === statusFilter;
     });
   }, [quotes, searchQuery, statusFilter]);
@@ -251,45 +269,26 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
       <div className="flex flex-col sm:flex-row gap-4 mb-4">
         <div className="flex-1">
           <SearchBar
-            placeholder="Rechercher un devis (numéro, client)..."
+            placeholder="Rechercher un devis (numéro, client, objet)..."
             value={searchQuery}
             onChange={setSearchQuery}
             viewFormatKey="quotes"
           />
         </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <Button
-            variant={statusFilter === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("all")}
-            className="rounded-full"
-          >
-            Tous
-          </Button>
-          <Button
-            variant={statusFilter === "EN_ATTENTE" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("EN_ATTENTE")}
-            className="rounded-full"
-          >
-            En Attente
-          </Button>
-          <Button
-            variant={statusFilter === "CONVERTI" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("CONVERTI")}
-            className="rounded-full"
-          >
-            Converti
-          </Button>
-          <Button
-            variant={statusFilter === "EXPIRED" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setStatusFilter("EXPIRED")}
-            className="rounded-full"
-          >
-            Expiré
-          </Button>
+        <div className="w-full sm:w-60">
+          <Select value={statusFilter} onValueChange={setStatusFilter}>
+            <SelectTrigger className="w-full bg-secondary border-border text-foreground">
+              <SelectValue placeholder="Filtrer par statut..." />
+            </SelectTrigger>
+            <SelectContent className="bg-card border-border">
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              <SelectItem value="EN_ATTENTE">En attente</SelectItem>
+              <SelectItem value="ENVOYE">Envoyé</SelectItem>
+              <SelectItem value="CONVERTI">Converti en facture</SelectItem>
+              <SelectItem value="REFUSE">Refusé</SelectItem>
+              <SelectItem value="EXPIRE">Expiré</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -394,8 +393,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                               )}
                           </>
                         )}
-                      {(user?.role === "user" || user?.role === "admin") &&
-                        (quote.created_by === user?.id || user?.role === "admin") && (
+                      {quote.status !== "CONVERTI" &&
+                        (user?.role === "admin" || (user?.role === "user" && quote.created_by === user?.id)) && (
                           <>
                             <div className="h-px bg-border my-1" />
                             <DropdownMenuItem
@@ -549,8 +548,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                                     )}
                                 </>
                               )}
-                            {(user?.role === "user" || user?.role === "admin") &&
-                              (quote.created_by === user?.id || user?.role === "admin") && (
+                            {quote.status !== "CONVERTI" &&
+                              (user?.role === "admin" || (user?.role === "user" && quote.created_by === user?.id)) && (
                                 <>
                                   <div className="h-px bg-border my-1" />
                                   <DropdownMenuItem
@@ -689,8 +688,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                                   )}
                               </>
                             )}
-                          {(user?.role === "user" || user?.role === "admin") &&
-                            (quote.created_by === user?.id || user?.role === "admin") && (
+                          {quote.status !== "CONVERTI" &&
+                            (user?.role === "admin" || (user?.role === "user" && quote.created_by === user?.id)) && (
                               <>
                                 <div className="h-px bg-border my-1" />
                                 <DropdownMenuItem
