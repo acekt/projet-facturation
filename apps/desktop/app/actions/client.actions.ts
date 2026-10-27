@@ -56,7 +56,7 @@ export async function createClient(data: ClientCreateRequest): Promise<ActionRes
       return { success: false, error: 'Données invalides', details: validation.error.flatten().fieldErrors };
     }
 
-    const { name, email, phone, address, nif, rccm } = validation.data;
+    const { name, email, phone, address, nif, rccm, status } = validation.data;
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
     const tf = buildTenantFilter(activeTenantId);
 
@@ -66,8 +66,8 @@ export async function createClient(data: ClientCreateRequest): Promise<ActionRes
     }
 
     const id = crypto.randomUUID();
-    db.prepare('INSERT INTO clients (id, name, email, phone, address, nif, rccm, created_by, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(id, name.trim(), email ? email.trim() : null, phone || null, address || null, nif ? nif.trim() : null, rccm ? rccm.trim() : null, session.userId, activeTenantId);
+    db.prepare('INSERT INTO clients (id, name, email, phone, address, nif, rccm, status, created_by, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(id, name.trim(), email && email.trim() !== '' ? email.trim() : null, phone || null, address || null, nif && nif.trim() !== '' ? nif.trim() : null, rccm && rccm.trim() !== '' ? rccm.trim() : null, status || 'active', session.userId, activeTenantId);
 
     logAudit('CREATE', 'client', id, `Nouveau client créé: ${name.trim()}`, session.userId, session.name || session.username || null, activeTenantId);
 
@@ -95,15 +95,15 @@ export async function updateClient(id: string, data: ClientUpdateRequest): Promi
       return { success: false, error: 'Données invalides', details: validation.error.flatten().fieldErrors };
     }
 
-    const { name, email, phone, address, nif, rccm } = validation.data;
+    const { name, email, phone, address, nif, rccm, status } = validation.data;
 
     if (email && email.trim() !== '') {
       const duplicate = db.prepare(`SELECT id FROM clients WHERE lower(email) = lower(?) AND id != ? AND deletedAt IS NULL${tf.sql}`).get(email.trim(), id, ...tf.params);
       if (duplicate) return { success: false, error: 'Un client avec cette adresse email existe déjà' };
     }
 
-    db.prepare('UPDATE clients SET name = ?, email = ?, phone = ?, address = ?, nif = ?, rccm = ? WHERE id = ?')
-      .run(name.trim(), email ? email.trim() : null, phone || null, address || null, nif ? nif.trim() : null, rccm ? rccm.trim() : null, id);
+    db.prepare('UPDATE clients SET name = ?, email = ?, phone = ?, address = ?, nif = ?, rccm = ?, status = COALESCE(?, status) WHERE id = ?')
+      .run(name.trim(), email && email.trim() !== '' ? email.trim() : null, phone || null, address || null, nif && nif.trim() !== '' ? nif.trim() : null, rccm && rccm.trim() !== '' ? rccm.trim() : null, status || null, id);
 
     logAudit('UPDATE', 'client', id, `Client mis à jour: ${name.trim()}`, session.userId, session.name || session.username || null, activeTenantId);
 

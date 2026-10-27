@@ -22,6 +22,26 @@ import {
 } from "@workspace/ui/components/dialog"
 import { VisuallyHidden } from "@workspace/ui/components/visually-hidden"
 import { Label } from "@workspace/ui/components/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
+
+export const PREDEFINED_SERVICE_CATEGORIES = [
+  "Prestation de services",
+  "Conseil & Expertise",
+  "Développement & IT",
+  "Maintenance & Support",
+  "Formation & Coaching",
+  "Design & Communication",
+  "Logistique & Transport",
+  "BTP & Travaux",
+  "Fournitures & Équipements",
+  "Autre prestation",
+] as const;
 import { useStore, type Service } from "@/lib/store"
 import { toast } from "sonner"
 import { formatCurrency, escapeCsvCell } from "@/lib/utils"
@@ -76,7 +96,7 @@ export function ServicesPage() {
   const [formData, setFormData] = React.useState({
     name: "",
     description: "",
-    category: "",
+    category: "Prestation de services",
     unitPrice: 0,
   })
 
@@ -164,7 +184,7 @@ export function ServicesPage() {
         // Use confirmed server record — form resets only on success
         addService(created)
         setIsDialogOpen(false)
-        setFormData({ name: "", description: "", category: "", unitPrice: 0 })
+        setFormData({ name: "", description: "", category: "Prestation de services", unitPrice: 0 })
         toast.success("Service ajouté au catalogue")
       } catch (error) {
         // Form stays open — user can correct and retry
@@ -262,7 +282,7 @@ export function ServicesPage() {
               <Button
                 onClick={() => {
                   setEditingService(null)
-                  setFormData({ name: "", description: "", category: "", unitPrice: 0 })
+                  setFormData({ name: "", description: "", category: "Prestation de services", unitPrice: 0 })
                   setIsDialogOpen(true)
                 }}
                 variant="primary-shadow"
@@ -334,7 +354,7 @@ export function ServicesPage() {
                             setFormData({
                                 name: service.name,
                                 description: service.description || "",
-                                category: service.category || "",
+                                category: service.category || "Prestation de services",
                                 unitPrice: service.unitPrice
                             })
                             setIsDialogOpen(true)
@@ -403,7 +423,7 @@ export function ServicesPage() {
                               setFormData({
                                   name: service.name,
                                   description: service.description || "",
-                                  category: service.category || "",
+                                  category: service.category || "Prestation de services",
                                   unitPrice: service.unitPrice
                               })
                               setIsDialogOpen(true)
@@ -466,7 +486,7 @@ export function ServicesPage() {
                                 setFormData({
                                     name: service.name,
                                     description: service.description || "",
-                                    category: service.category || "",
+                                    category: service.category || "Prestation de services",
                                     unitPrice: service.unitPrice
                                 })
                                 setIsDialogOpen(true)
@@ -532,7 +552,7 @@ export function ServicesPage() {
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4 mt-4">
             <div className="space-y-2">
-              <Label htmlFor="service-name" className="text-muted-foreground">Nom du service <span className="text-destructive">*</span></Label>
+              <Label htmlFor="service-name" className="text-muted-foreground">Nom du service / prestation <span className="text-destructive">*</span></Label>
               <Input
                 id="service-name"
                 value={formData.name}
@@ -545,15 +565,28 @@ export function ServicesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="service-category" className="text-muted-foreground">Catégorie <span className="text-destructive">*</span></Label>
-                <Input
-                  id="service-category"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  placeholder="Ex: Conseil"
-                  className="bg-secondary border-border"
+                <Label htmlFor="service-category" className="text-muted-foreground">Catégorie <span className="text-xs text-muted-foreground/60">(optionnel)</span></Label>
+                <Select
+                  value={formData.category || "Prestation de services"}
+                  onValueChange={(val) => setFormData({ ...formData, category: val })}
                   disabled={isSubmitting}
-                />
+                >
+                  <SelectTrigger id="service-category" className="w-full bg-secondary border-border text-foreground">
+                    <SelectValue placeholder="Choisir une catégorie" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-card border-border">
+                    {PREDEFINED_SERVICE_CATEGORIES.map((cat) => (
+                      <SelectItem key={cat} value={cat}>
+                        {cat}
+                      </SelectItem>
+                    ))}
+                    {formData.category && !PREDEFINED_SERVICE_CATEGORIES.includes(formData.category as any) && (
+                      <SelectItem value={formData.category}>
+                        {formData.category}
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="service-price" className="text-muted-foreground">Prix Unitaire (XAF) <span className="text-destructive">*</span></Label>
@@ -571,7 +604,7 @@ export function ServicesPage() {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="service-description" className="text-muted-foreground">Description</Label>
+              <Label htmlFor="service-description" className="text-muted-foreground">Description <span className="text-xs text-muted-foreground/60">(optionnel)</span></Label>
               <Input
                 id="service-description"
                 value={formData.description}

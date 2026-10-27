@@ -62,15 +62,15 @@ export interface ISessionData {
 export interface IClient {
   id: string;
   name: string;
-  email: string;
-  phone?: string;
-  address?: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
   nif?: string | null;
   rccm?: string | null;
-  status?: string;
-  deletedAt?: string;
+  status?: 'active' | 'inactive' | string;
+  deletedAt?: string | null;
   createdAt?: string;
-  created_by?: string;
+  created_by?: string | null;
   tenant_id?: string | null;
 }
 

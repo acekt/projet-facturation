@@ -22,6 +22,13 @@ import {
 } from "@workspace/ui/components/dialog"
 import { VisuallyHidden } from "@workspace/ui/components/visually-hidden"
 import { Label } from "@workspace/ui/components/label"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@workspace/ui/components/select"
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
 import { useStore, type Client } from "@/lib/store"
 import { toast } from "sonner"
@@ -82,13 +89,14 @@ export function ClientsPage() {
     address: "",
     nif: "",
     rccm: "",
+    status: "active" as "active" | "inactive",
   })
 
   const filteredClients = React.useMemo(() => {
     return clients.filter(
       (client) =>
         client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.email.toLowerCase().includes(searchQuery.toLowerCase())
+        (client.email || '').toLowerCase().includes(searchQuery.toLowerCase())
     )
   }, [clients, searchQuery])
 
@@ -106,26 +114,29 @@ export function ClientsPage() {
     e.preventDefault()
     if (isSubmitting) return
 
-    if (!newClient.name || !newClient.email) {
-      toast.error("Le nom et l'email sont requis.")
+    if (!newClient.name.trim()) {
+      toast.error("Le nom complet ou la raison sociale est requis.")
       return
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(newClient.email)) {
-      toast.error("L'adresse email est invalide.")
-      return
+    if (newClient.email && newClient.email.trim() !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(newClient.email.trim())) {
+        toast.error("L'adresse email est invalide.")
+        return
+      }
     }
 
     const tempId = crypto.randomUUID()
     const clientToCreate: Client = {
       id: tempId,
-      name: newClient.name,
-      email: newClient.email,
-      phone: newClient.phone,
-      address: newClient.address,
-      nif: newClient.nif || null,
-      rccm: newClient.rccm || null,
+      name: newClient.name.trim(),
+      email: newClient.email && newClient.email.trim() !== '' ? newClient.email.trim() : null,
+      phone: newClient.phone?.trim() || null,
+      address: newClient.address?.trim() || null,
+      nif: newClient.nif?.trim() || null,
+      rccm: newClient.rccm?.trim() || null,
+      status: newClient.status || "active",
     }
 
     setIsSubmitting(true)
@@ -141,7 +152,7 @@ export function ClientsPage() {
       // SERVER-FIRST: only close dialog and reset form AFTER server confirms success.
       addClient(createdClient) // use confirmed server record, not temp
       setIsAddDialogOpen(false)
-      setNewClient({ name: "", email: "", phone: "", address: "", nif: "", rccm: "" })
+      setNewClient({ name: "", email: "", phone: "", address: "", nif: "", rccm: "", status: "active" })
       toast.success("Client ajouté avec succès")
     } catch (error) {
       // Form stays open — user can correct and retry
@@ -183,19 +194,30 @@ export function ClientsPage() {
     e.preventDefault()
     if (!editingClient || isSubmitting) return
 
-    if (!editingClient.name || !editingClient.email) {
-        toast.error("Le nom et l'email sont requis.")
-        return
+    if (!editingClient.name.trim()) {
+      toast.error("Le nom complet ou la raison sociale est requis.")
+      return
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(editingClient.email)) {
+    if (editingClient.email && editingClient.email.trim() !== '') {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+      if (!emailRegex.test(editingClient.email.trim())) {
         toast.error("L'adresse email est invalide.")
         return
+      }
     }
 
     const originalClient = clients.find(c => c.id === editingClient.id)
-    const clientToSave = editingClient
+    const clientToSave: Client = {
+      ...editingClient,
+      name: editingClient.name.trim(),
+      email: editingClient.email && editingClient.email.trim() !== '' ? editingClient.email.trim() : null,
+      phone: editingClient.phone?.trim() || null,
+      address: editingClient.address?.trim() || null,
+      nif: editingClient.nif?.trim() || null,
+      rccm: editingClient.rccm?.trim() || null,
+      status: editingClient.status || "active",
+    }
 
     setIsSubmitting(true)
     try {
@@ -304,7 +326,7 @@ export function ClientsPage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="email" className="text-muted-foreground">Email <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="email" className="text-muted-foreground">Email <span className="text-xs text-muted-foreground/60">(optionnel)</span></Label>
                   <Input
                     id="email"
                     type="email"
@@ -312,20 +334,37 @@ export function ClientsPage() {
                     onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
                     placeholder="contact@entreprise.ga"
                     className="bg-secondary border-border text-foreground"
-                    required
                     disabled={isSubmitting}
                   />
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-muted-foreground">Téléphone</Label>
-                  <Input
-                    id="phone"
-                    value={newClient.phone}
-                    onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
-                    placeholder="+241 XX XX XX XX"
-                    className="bg-secondary border-border text-foreground"
-                    disabled={isSubmitting}
-                  />
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-muted-foreground">Téléphone</Label>
+                    <Input
+                      id="phone"
+                      value={newClient.phone}
+                      onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
+                      placeholder="+241 XX XX XX XX"
+                      className="bg-secondary border-border text-foreground"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="status" className="text-muted-foreground">Statut</Label>
+                    <Select
+                      value={newClient.status}
+                      onValueChange={(val) => setNewClient({ ...newClient, status: val as 'active' | 'inactive' })}
+                      disabled={isSubmitting}
+                    >
+                      <SelectTrigger id="status" className="w-full bg-secondary border-border text-foreground">
+                        <SelectValue placeholder="Statut" />
+                      </SelectTrigger>
+                      <SelectContent className="bg-card border-border">
+                        <SelectItem value="active">Actif</SelectItem>
+                        <SelectItem value="inactive">Inactif / Suspendu</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="address" className="text-muted-foreground">Adresse</Label>
@@ -397,7 +436,7 @@ export function ClientsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="edit-email" className="text-muted-foreground">Email <span className="text-destructive">*</span></Label>
+                    <Label htmlFor="edit-email" className="text-muted-foreground">Email <span className="text-xs text-muted-foreground/60">(optionnel)</span></Label>
                     <Input
                       id="edit-email"
                       type="email"
@@ -405,20 +444,37 @@ export function ClientsPage() {
                       onChange={(e) => editingClient && setEditingClient({ ...editingClient, email: e.target.value })}
                       placeholder="contact@entreprise.ga"
                       className="bg-secondary border-border text-foreground"
-                      required
                       disabled={isSubmitting}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="edit-phone" className="text-muted-foreground">Téléphone</Label>
-                    <Input
-                      id="edit-phone"
-                      value={editingClient?.phone || ''}
-                      onChange={(e) => editingClient && setEditingClient({ ...editingClient, phone: e.target.value })}
-                      placeholder="+241 XX XX XX XX"
-                      className="bg-secondary border-border text-foreground"
-                      disabled={isSubmitting}
-                    />
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-phone" className="text-muted-foreground">Téléphone</Label>
+                      <Input
+                        id="edit-phone"
+                        value={editingClient?.phone || ''}
+                        onChange={(e) => editingClient && setEditingClient({ ...editingClient, phone: e.target.value })}
+                        placeholder="+241 XX XX XX XX"
+                        className="bg-secondary border-border text-foreground"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-status" className="text-muted-foreground">Statut</Label>
+                      <Select
+                        value={editingClient?.status || "active"}
+                        onValueChange={(val) => editingClient && setEditingClient({ ...editingClient, status: val as 'active' | 'inactive' })}
+                        disabled={isSubmitting}
+                      >
+                        <SelectTrigger id="edit-status" className="w-full bg-secondary border-border text-foreground">
+                          <SelectValue placeholder="Statut" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-card border-border">
+                          <SelectItem value="active">Actif</SelectItem>
+                          <SelectItem value="inactive">Inactif / Suspendu</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="edit-address" className="text-muted-foreground">Adresse</Label>
@@ -502,12 +558,15 @@ export function ClientsPage() {
                     <span className="font-medium text-sm text-foreground">{client.name}</span>
                   </div>
                 </DataTableCell>
-                <DataTableCell>{client.email}</DataTableCell>
+                <DataTableCell>{client.email || <span className="text-muted-foreground/30">—</span>}</DataTableCell>
                 <DataTableCell>
                   {client.phone || <span className="text-muted-foreground/30">—</span>}
                 </DataTableCell>
                 <DataTableCell>
-                  <StatusBadge variant="active" />
+                  <StatusBadge 
+                    variant={client.status === 'inactive' ? 'inactive' : 'active'} 
+                    label={client.status === 'inactive' ? 'Inactif' : 'Actif'} 
+                  />
                 </DataTableCell>
                 <ActionsCell>
                   <DropdownMenu>
@@ -566,13 +625,16 @@ export function ClientsPage() {
                     <div>
                       <h3 className="font-bold text-sm">{client.name}</h3>
                       <p className="text-xs text-muted-foreground">
-                        {client.email}
+                        {client.email || <span className="text-muted-foreground/50">Pas d'email</span>}
                         {client.phone && <span className="text-muted-foreground/50"> • {client.phone}</span>}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    <StatusBadge variant="active" />
+                    <StatusBadge 
+                      variant={client.status === 'inactive' ? 'inactive' : 'active'} 
+                      label={client.status === 'inactive' ? 'Inactif' : 'Actif'} 
+                    />
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
@@ -671,7 +733,7 @@ export function ClientsPage() {
                     <div className="space-y-1.5 mt-3">
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                         <Mail className="w-3.5 h-3.5 text-primary/40" />
-                        <span className="truncate font-medium">{client.email}</span>
+                        <span className="truncate font-medium">{client.email || <span className="text-muted-foreground/40 font-normal">Non renseigné</span>}</span>
                       </div>
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                         <Phone className="w-3.5 h-3.5 text-primary/40" />

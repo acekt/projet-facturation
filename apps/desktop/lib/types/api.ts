@@ -417,21 +417,24 @@ export interface QuoteDuplicateResponse {
 // ============================================================================
 
 export interface ClientCreateRequest {
+  id?: string;
   name: string;
-  email: string;
-  phone?: string;
-  address?: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
   nif?: string | null;
   rccm?: string | null;
+  status?: 'active' | 'inactive' | string;
 }
 
 export interface ClientUpdateRequest {
   name: string;
-  email: string;
-  phone?: string;
-  address?: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
   nif?: string | null;
   rccm?: string | null;
+  status?: 'active' | 'inactive' | string;
 }
 
 export type ClientResponse = IClient;
@@ -439,11 +442,12 @@ export type ClientResponse = IClient;
 export interface DbClient {
   id: string;
   name: string;
-  email: string;
-  phone?: string;
-  address?: string;
+  email?: string | null;
+  phone?: string | null;
+  address?: string | null;
   nif?: string | null;
   rccm?: string | null;
+  status?: 'active' | 'inactive' | string;
   deletedAt?: string;
   createdAt?: string;
   created_by?: string;

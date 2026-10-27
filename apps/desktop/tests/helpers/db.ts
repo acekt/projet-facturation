@@ -24,7 +24,7 @@ interface DbUser {
 interface DbClient {
   id: string;
   name: string;
-  email: string;
+  email?: string | null;
   phone: string | null;
   address: string | null;
   nif?: string | null;

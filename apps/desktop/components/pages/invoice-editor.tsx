@@ -178,7 +178,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   const filteredClients = clients.filter(
     (client) =>
       client.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
-      client.email.toLowerCase().includes(clientSearch.toLowerCase()),
+      (client.email || '').toLowerCase().includes(clientSearch.toLowerCase()),
   );
 
   const updateItem = (
@@ -458,7 +458,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                                 {client.name}
                               </p>
                               <p className="text-muted-foreground text-xs">
-                                {client.email}
+                                {client.email || client.phone || '—'}
                               </p>
                             </div>
                           </button>
