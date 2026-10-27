@@ -130,8 +130,8 @@ export async function deleteClient(id: string): Promise<ActionResponse<boolean>>
     const activeInvoices = db.prepare(`
       SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as totalUnpaid 
       FROM invoices 
-      WHERE clientId = ? AND status IN ('UNPAID', 'PARTIALLY_PAID') AND deletedAt IS NULL
-    `).get(id) as { count: number; totalUnpaid: number } | undefined;
+      WHERE clientId = ? AND status IN ('UNPAID', 'PARTIALLY_PAID') AND deletedAt IS NULL${tf.sql}
+    `).get(id, ...tf.params) as { count: number; totalUnpaid: number } | undefined;
 
     if (activeInvoices && activeInvoices.count > 0) {
       return {

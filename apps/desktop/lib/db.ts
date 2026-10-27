@@ -610,6 +610,12 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_credit_notes_tenant ON credit_notes(tenant_id, deletedAt);
   CREATE INDEX IF NOT EXISTS idx_users_tenant ON users(tenant_id, deletedAt);
   CREATE INDEX IF NOT EXISTS idx_audit_logs_tenant ON audit_logs(tenant_id, createdAt);
+
+  -- Module 1 Preventative Performance Indices (ADR-0031)
+  CREATE INDEX IF NOT EXISTS idx_clients_tenant_email ON clients(tenant_id, lower(email)) WHERE deletedAt IS NULL AND email IS NOT NULL;
+  CREATE INDEX IF NOT EXISTS idx_clients_tenant_name ON clients(tenant_id, lower(name)) WHERE deletedAt IS NULL;
+  CREATE INDEX IF NOT EXISTS idx_services_tenant_name ON services(tenant_id, lower(name)) WHERE deletedAt IS NULL;
+  CREATE INDEX IF NOT EXISTS idx_invoices_client_status ON invoices(tenant_id, clientId, status) WHERE deletedAt IS NULL;
 `);
 
 // Phase 1: Backfilling & Orphans Cleanup

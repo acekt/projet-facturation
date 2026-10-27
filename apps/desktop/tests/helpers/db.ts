@@ -345,6 +345,10 @@ export function createTestDatabase(): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_quote_items_quoteId ON quote_items(quoteId);
     CREATE INDEX IF NOT EXISTS idx_invoice_items_invoiceId ON invoice_items(invoiceId);
     CREATE INDEX IF NOT EXISTS idx_credit_note_items_creditNoteId ON credit_note_items(creditNoteId);
+    CREATE INDEX IF NOT EXISTS idx_clients_tenant_email ON clients(tenant_id, lower(email)) WHERE deletedAt IS NULL AND email IS NOT NULL;
+    CREATE INDEX IF NOT EXISTS idx_clients_tenant_name ON clients(tenant_id, lower(name)) WHERE deletedAt IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_services_tenant_name ON services(tenant_id, lower(name)) WHERE deletedAt IS NULL;
+    CREATE INDEX IF NOT EXISTS idx_invoices_client_status ON invoices(tenant_id, clientId, status) WHERE deletedAt IS NULL;
   `);
 
   return testDb;

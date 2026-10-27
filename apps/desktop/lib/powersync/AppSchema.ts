@@ -50,7 +50,7 @@ const clients = new Table(
     deleted_at: column.text,
     created_by: column.text,
   },
-  { indexes: { tenant: ['tenant_id'] } }
+  { indexes: { tenant: ['tenant_id'], email: ['tenant_id', 'email'], name: ['tenant_id', 'name'] } }
 );
 
 const services = new Table(
@@ -65,7 +65,7 @@ const services = new Table(
     deleted_at: column.text,
     created_by: column.text,
   },
-  { indexes: { tenant: ['tenant_id'] } }
+  { indexes: { tenant: ['tenant_id'], name: ['tenant_id', 'name'] } }
 );
 
 const quotes = new Table(
@@ -133,7 +133,7 @@ const invoices = new Table(
     deleted_at: column.text,
     created_by: column.text,
   },
-  { indexes: { tenant: ['tenant_id'], client: ['client_id'], number: ['number'] } }
+  { indexes: { tenant: ['tenant_id'], client: ['client_id'], number: ['number'], client_status: ['tenant_id', 'client_id', 'status'] } }
 );
 
 const invoice_items = new Table(
