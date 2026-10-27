@@ -54,13 +54,20 @@ export async function createService(data: ServiceCreateRequest): Promise<ActionR
     }
 
     const { name, description, category, unitPrice } = validation.data;
-    const id = crypto.randomUUID();
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
+    const tf = buildTenantFilter(activeTenantId);
+
+    if (name && name.trim() !== '') {
+      const duplicate = db.prepare(`SELECT id FROM services WHERE lower(name) = lower(?) AND deletedAt IS NULL${tf.sql}`).get(name.trim(), ...tf.params);
+      if (duplicate) return { success: false, error: 'Un service avec ce nom existe déjà' };
+    }
+
+    const id = crypto.randomUUID();
 
     db.prepare('INSERT INTO services (id, name, description, category, unitPrice, created_by, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(id, name, description, category, Math.round(unitPrice), session.userId, activeTenantId);
+      .run(id, name.trim(), description, category, Math.round(unitPrice), session.userId, activeTenantId);
 
-    logAudit('CREATE', 'service', id, `Nouveau service créé: ${name}`, session.userId, session.name || session.username || null, activeTenantId);
+    logAudit('CREATE', 'service', id, `Nouveau service créé: ${name.trim()}`, session.userId, session.name || session.username || null, activeTenantId);
 
     const service = db.prepare('SELECT * FROM services WHERE id = ?').get(id) as DbService;
     return { success: true, data: service };
@@ -88,10 +95,15 @@ export async function updateService(id: string, data: ServiceUpdateRequest): Pro
 
     const { name, description, category, unitPrice } = validation.data;
 
-    db.prepare('UPDATE services SET name = ?, description = ?, category = ?, unitPrice = ? WHERE id = ?')
-      .run(name, description, category, Math.round(unitPrice), id);
+    if (name && name.trim() !== '') {
+      const duplicate = db.prepare(`SELECT id FROM services WHERE lower(name) = lower(?) AND id != ? AND deletedAt IS NULL${tf.sql}`).get(name.trim(), id, ...tf.params);
+      if (duplicate) return { success: false, error: 'Un service avec ce nom existe déjà' };
+    }
 
-    logAudit('UPDATE', 'service', id, `Service mis à jour: ${name}`, session.userId, session.name || session.username || null, activeTenantId);
+    db.prepare('UPDATE services SET name = ?, description = ?, category = ?, unitPrice = ? WHERE id = ?')
+      .run(name.trim(), description, category, Math.round(unitPrice), id);
+
+    logAudit('UPDATE', 'service', id, `Service mis à jour: ${name.trim()}`, session.userId, session.name || session.username || null, activeTenantId);
 
     const service = db.prepare('SELECT * FROM services WHERE id = ?').get(id) as DbService;
     return { success: true, data: service };

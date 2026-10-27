@@ -25,7 +25,7 @@ import { Label } from "@workspace/ui/components/label"
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
 import { useStore, type Client } from "@/lib/store"
 import { toast } from "sonner"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, getInitials, escapeCsvCell } from "@/lib/utils"
 import { Pagination } from "@workspace/ui/components/pagination-custom"
 import { EmptyState } from "@workspace/ui/components/empty-state"
 import { createClient, updateClient as updateClientAction, deleteClient } from "@/app/actions/client.actions"
@@ -248,8 +248,14 @@ export function ClientsPage() {
               variant="outline"
               onClick={() => {
                 const headers = ["Nom", "Email", "Telephone", "Adresse"];
-                const rows = clients.map(c => [c.name, c.email, c.phone, c.address]);
-                const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+                const targetList = searchQuery.trim() ? filteredClients : clients;
+                const rows = targetList.map(c => [
+                  escapeCsvCell(c.name),
+                  escapeCsvCell(c.email),
+                  escapeCsvCell(c.phone || ''),
+                  escapeCsvCell(c.address || '')
+                ]);
+                const csvContent = [headers.map(escapeCsvCell).join(","), ...rows.map(r => r.join(","))].join("\n");
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);
@@ -436,7 +442,7 @@ export function ClientsPage() {
                   <div className="flex items-center gap-3">
                     <Avatar className="w-8 h-8 ring-1 ring-border">
                       <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                        {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                        {getInitials(client.name)}
                       </AvatarFallback>
                     </Avatar>
                     <span className="font-medium text-sm text-foreground">{client.name}</span>
@@ -500,7 +506,7 @@ export function ClientsPage() {
                   <div className="flex items-center gap-4">
                     <Avatar className="w-10 h-10 ring-1 ring-border">
                       <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
-                        {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                        {getInitials(client.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
@@ -575,7 +581,7 @@ export function ClientsPage() {
                     <div className="flex items-start justify-between mb-3">
                       <Avatar className="w-10 h-10 ring-1 ring-border">
                         <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
-                          {client.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()}
+                          {getInitials(client.name)}
                         </AvatarFallback>
                       </Avatar>
                       <DropdownMenu>

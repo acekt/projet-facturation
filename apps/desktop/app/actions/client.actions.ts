@@ -60,16 +60,16 @@ export async function createClient(data: ClientCreateRequest): Promise<ActionRes
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
     const tf = buildTenantFilter(activeTenantId);
 
-    if (email) {
-      const duplicate = db.prepare(`SELECT id FROM clients WHERE lower(email) = lower(?) AND created_by = ? AND deletedAt IS NULL${tf.sql}`).get(email, session.userId, ...tf.params);
+    if (email && email.trim() !== '') {
+      const duplicate = db.prepare(`SELECT id FROM clients WHERE lower(email) = lower(?) AND deletedAt IS NULL${tf.sql}`).get(email.trim(), ...tf.params);
       if (duplicate) return { success: false, error: 'Un client avec cette adresse email existe déjà' };
     }
 
     const id = crypto.randomUUID();
     db.prepare('INSERT INTO clients (id, name, email, phone, address, created_by, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(id, name, email, phone, address, session.userId, activeTenantId);
+      .run(id, name.trim(), email ? email.trim() : null, phone, address, session.userId, activeTenantId);
 
-    logAudit('CREATE', 'client', id, `Nouveau client créé: ${name}`, session.userId, session.name || session.username || null, activeTenantId);
+    logAudit('CREATE', 'client', id, `Nouveau client créé: ${name.trim()}`, session.userId, session.name || session.username || null, activeTenantId);
 
     const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id) as DbClient;
     return { success: true, data: client };
@@ -97,10 +97,15 @@ export async function updateClient(id: string, data: ClientUpdateRequest): Promi
 
     const { name, email, phone, address } = validation.data;
 
-    db.prepare('UPDATE clients SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?')
-      .run(name, email, phone, address, id);
+    if (email && email.trim() !== '') {
+      const duplicate = db.prepare(`SELECT id FROM clients WHERE lower(email) = lower(?) AND id != ? AND deletedAt IS NULL${tf.sql}`).get(email.trim(), id, ...tf.params);
+      if (duplicate) return { success: false, error: 'Un client avec cette adresse email existe déjà' };
+    }
 
-    logAudit('UPDATE', 'client', id, `Client mis à jour: ${name}`, session.userId, session.name || session.username || null, activeTenantId);
+    db.prepare('UPDATE clients SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?')
+      .run(name.trim(), email ? email.trim() : null, phone, address, id);
+
+    logAudit('UPDATE', 'client', id, `Client mis à jour: ${name.trim()}`, session.userId, session.name || session.username || null, activeTenantId);
 
     const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(id) as DbClient;
     return { success: true, data: client };

@@ -24,7 +24,7 @@ import { VisuallyHidden } from "@workspace/ui/components/visually-hidden"
 import { Label } from "@workspace/ui/components/label"
 import { useStore, type Service } from "@/lib/store"
 import { toast } from "sonner"
-import { formatCurrency } from "@/lib/utils"
+import { formatCurrency, escapeCsvCell } from "@/lib/utils"
 import { Pagination } from "@workspace/ui/components/pagination-custom"
 import { EmptyState } from "@workspace/ui/components/empty-state"
 import { createService, updateService as updateServiceAction, deleteService } from "@/app/actions/service.actions"
@@ -237,8 +237,14 @@ export function ServicesPage() {
               variant="outline"
               onClick={() => {
                 const headers = ["Service", "Categorie", "Description", "Prix unitaire"];
-                const rows = paginatedServices.map(s => [s.name, s.category || '', s.description || '', s.unitPrice]);
-                const csvContent = [headers, ...rows].map(e => e.join(",")).join("\n");
+                const targetList = searchQuery.trim() ? filteredServices : services;
+                const rows = targetList.map(s => [
+                  escapeCsvCell(s.name),
+                  escapeCsvCell(s.category || ''),
+                  escapeCsvCell(s.description || ''),
+                  escapeCsvCell(s.unitPrice)
+                ]);
+                const csvContent = [headers.map(escapeCsvCell).join(","), ...rows.map(r => r.join(","))].join("\n");
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
                 const link = document.createElement("a");
                 link.href = URL.createObjectURL(blob);

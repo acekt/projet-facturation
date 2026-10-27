@@ -35,3 +35,27 @@ export function formatDate(dateString: string): string {
     year: 'numeric'
   }).format(date);
 }
+
+/**
+ * Extrait les initiales d'un nom de manière sûre (évite les crashs sur espaces multiples ou nom vide).
+ */
+export function getInitials(name?: string | null, fallback: string = 'CL'): string {
+  if (!name || typeof name !== 'string') return fallback;
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return fallback;
+  if (parts.length === 1) {
+    return parts[0].slice(0, 2).toUpperCase();
+  }
+  const initials = parts.map(p => p[0]).join('').slice(0, 2).toUpperCase();
+  return initials || fallback;
+}
+
+/**
+ * Échappe une cellule pour un fichier CSV conforme à la norme RFC 4180.
+ * Empêche le décalage des colonnes lors de la présence de virgules, retours à la ligne ou guillemets.
+ */
+export function escapeCsvCell(val: string | number | null | undefined): string {
+  if (val === null || val === undefined) return '""';
+  const str = String(val);
+  return `"${str.replace(/"/g, '""')}"`;
+}

@@ -35,7 +35,7 @@ import {
   SelectValue,
 } from "@workspace/ui/components/select";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/utils";
+import { formatCurrency, getInitials } from "@/lib/utils";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
 import { computeTotals, computeItemTotal } from "@/lib/math-logic";
 
@@ -374,11 +374,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                   <div className="flex items-center gap-3">
                     <Avatar className="w-10 h-10 ring-2 ring-border">
                       <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
-                        {selectedClient.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .slice(0, 2)}
+                        {getInitials(selectedClient.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
