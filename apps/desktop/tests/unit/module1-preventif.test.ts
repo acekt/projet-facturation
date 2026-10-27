@@ -90,6 +90,7 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
       const clientA = await createClient({
         name: 'Client Entreprise A',
         email: 'contact@alpha.ga',
+        phone: '+241 01 02 03 04',
       });
       expect(clientA.success).toBe(true);
 
@@ -133,7 +134,7 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
         role: 'admin',
         tenantId: 'tenant-libreville',
       });
-      const clientA = await createClient({ name: 'Client A', email: 'a@a.ga' });
+      const clientA = await createClient({ name: 'Client A', email: 'a@a.ga', phone: '+241 01 02 03 04' });
       const serviceA = await createService({ name: 'Service A', unitPrice: 50000 });
 
       // Tentative de modification par Tenant B
@@ -169,7 +170,7 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
         role: 'admin',
         tenantId: 'tenant-a',
       });
-      const cA = await createClient({ name: 'Partenaire Gabon', email: 'direction@partenaire.ga' });
+      const cA = await createClient({ name: 'Partenaire Gabon', email: 'direction@partenaire.ga', phone: '+241 01 02 03 04' });
       const sA = await createService({ name: 'Installation Réseau', unitPrice: 200000 });
       expect(cA.success).toBe(true);
       expect(sA.success).toBe(true);
@@ -181,7 +182,7 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
         role: 'admin',
         tenantId: 'tenant-b',
       });
-      const cB = await createClient({ name: 'Partenaire Gabon', email: 'direction@partenaire.ga' });
+      const cB = await createClient({ name: 'Partenaire Gabon', email: 'direction@partenaire.ga', phone: '+241 01 02 03 04' });
       const sB = await createService({ name: 'Installation Réseau', unitPrice: 250000 });
       expect(cB.success).toBe(true);
       expect(sB.success).toBe(true);
@@ -201,7 +202,7 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
       });
 
       // Actions sur Client
-      const c = await createClient({ name: 'Client Tracé', email: 'trace@audit.ga' });
+      const c = await createClient({ name: 'Client Tracé', email: 'trace@audit.ga', phone: '+241 01 02 03 04' });
       await updateClient(c.data.id, { name: 'Client Tracé Renommé' });
       await deleteClient(c.data.id);
 
@@ -244,7 +245,7 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
       });
 
       // Opérateur peut créer
-      const c = await createClient({ name: 'Client Opérateur' });
+      const c = await createClient({ name: 'Client Opérateur', phone: '+241 01 02 03 04' });
       expect(c.success).toBe(true);
 
       // Opérateur peut mettre à jour
@@ -266,7 +267,7 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
         tenantId,
       });
 
-      const client = await createClient({ name: 'Débiteur SARL' });
+      const client = await createClient({ name: 'Débiteur SARL', phone: '+241 01 02 03 04' });
       const clientId = client.data.id;
 
       // Création d une facture impayée

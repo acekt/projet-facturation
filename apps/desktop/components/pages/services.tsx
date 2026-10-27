@@ -704,41 +704,36 @@ export function ServicesPage() {
 
           {selectedService && (
             <div className="space-y-4 py-2 text-sm">
-              <div className="p-3.5 rounded-lg bg-secondary/40 border border-border/60 flex items-center justify-between">
+              <div className="p-4 rounded-xl bg-secondary/40 border border-border/60 flex items-center justify-between">
                 <div>
                   <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                     Tarif standard appliqué
                   </div>
-                  <div className="text-2xl font-bold text-foreground mt-0.5">
+                  <div className="text-2xl font-extrabold text-foreground mt-0.5">
                     {formatCurrency(selectedService.unitPrice)}
                   </div>
                 </div>
-                <Tag className="w-5 h-5 text-primary/40" />
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                  <Tag className="w-5 h-5" />
+                </div>
               </div>
 
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
                   <Info className="w-3.5 h-3.5 text-primary" /> Description de la prestation
                 </div>
-                <div className="p-3 rounded-lg bg-secondary/30 border border-border/50 text-foreground leading-relaxed whitespace-pre-wrap text-xs min-h-[60px]">
-                  {selectedService.description?.trim() || (
-                    <span className="text-muted-foreground/60 italic">Aucune description détaillée renseignée pour ce service.</span>
-                  )}
-                </div>
+                {selectedService.description?.trim() ? (
+                  <div className="p-3.5 rounded-lg bg-secondary/20 border border-border/50 text-foreground text-xs leading-relaxed whitespace-pre-wrap">
+                    {selectedService.description.trim()}
+                  </div>
+                ) : (
+                  <div className="py-4 px-3 rounded-lg bg-secondary/10 border border-dashed border-border/60 text-xs text-muted-foreground/70 italic text-center">
+                    Aucune description complémentaire enregistrée pour ce service.
+                  </div>
+                )}
               </div>
 
-              <div className="pt-2 border-t border-border/50 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                <div>
-                  <span className="font-medium text-foreground">Identifiant :</span>
-                  <p className="font-mono text-[10px] text-muted-foreground/70 truncate mt-0.5">{selectedService.id}</p>
-                </div>
-                <div>
-                  <span className="font-medium text-foreground">Catégorie :</span>
-                  <p className="mt-0.5">{selectedService.category || "Prestation de services"}</p>
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
                 <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
                   Fermer
                 </Button>

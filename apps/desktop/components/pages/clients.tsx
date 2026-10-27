@@ -122,6 +122,17 @@ export function ClientsPage() {
       return
     }
 
+    if (!newClient.phone || !newClient.phone.trim()) {
+      toast.error("Le numéro de téléphone est requis.")
+      return
+    }
+
+    const phoneRegex = /^(\+?[0-9\s-]{6,25})$/
+    if (!phoneRegex.test(newClient.phone.trim())) {
+      toast.error("Format de téléphone invalide (ex: +241 01 02 03 04 ou 074000000).")
+      return
+    }
+
     if (newClient.email && newClient.email.trim() !== '') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(newClient.email.trim())) {
@@ -202,6 +213,17 @@ export function ClientsPage() {
       return
     }
 
+    if (!editingClient.phone || !editingClient.phone.trim()) {
+      toast.error("Le numéro de téléphone est requis.")
+      return
+    }
+
+    const phoneRegex = /^(\+?[0-9\s-]{6,25})$/
+    if (!phoneRegex.test(editingClient.phone.trim())) {
+      toast.error("Format de téléphone invalide (ex: +241 01 02 03 04 ou 074000000).")
+      return
+    }
+
     if (editingClient.email && editingClient.email.trim() !== '') {
       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
       if (!emailRegex.test(editingClient.email.trim())) {
@@ -258,14 +280,6 @@ export function ClientsPage() {
         </div>
       ) : (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
-      {user?.role !== 'admin' && (
-        <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
-          <ShieldAlert className="h-4 w-4" />
-          <AlertDescription className="font-medium">
-            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* ── En-tête de page (Design System) ───────────────────────────── */}
       <PageHeader
@@ -300,7 +314,6 @@ export function ClientsPage() {
               <DownloadCloud className="w-4 h-4" />
               Export CSV
             </Button>
-            {user?.role === 'admin' && (
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="primary-shadow" className="gap-2">
@@ -342,12 +355,13 @@ export function ClientsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="phone" className="text-muted-foreground">Téléphone</Label>
+                    <Label htmlFor="phone" className="text-muted-foreground">Téléphone <span className="text-destructive">*</span></Label>
                     <Input
                       id="phone"
+                      required
                       value={newClient.phone}
                       onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
-                      placeholder="+241 XX XX XX XX"
+                      placeholder="+241 01 02 03 04"
                       className="bg-secondary border-border text-foreground"
                       disabled={isSubmitting}
                     />
@@ -414,7 +428,6 @@ export function ClientsPage() {
               </form>
               </DialogContent>
             </Dialog>
-            )}
 
             {/* Edit Dialog */}
             <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -452,12 +465,13 @@ export function ClientsPage() {
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="edit-phone" className="text-muted-foreground">Téléphone</Label>
+                      <Label htmlFor="edit-phone" className="text-muted-foreground">Téléphone <span className="text-destructive">*</span></Label>
                       <Input
                         id="edit-phone"
+                        required
                         value={editingClient?.phone || ''}
                         onChange={(e) => editingClient && setEditingClient({ ...editingClient, phone: e.target.value })}
-                        placeholder="+241 XX XX XX XX"
+                        placeholder="+241 01 02 03 04"
                         className="bg-secondary border-border text-foreground"
                         disabled={isSubmitting}
                       />
@@ -553,7 +567,7 @@ export function ClientsPage() {
               <DataTableRow key={client.id}>
                 <DataTableCell>
                   <div className="flex items-center gap-3">
-                    <div className="relative inline-block flex-shrink-0">
+                    <div className="relative w-8 h-8 flex-shrink-0">
                       <Avatar className="w-8 h-8 ring-1 ring-border">
                         <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
                           {getInitials(client.name)}
@@ -561,7 +575,7 @@ export function ClientsPage() {
                       </Avatar>
                       <span
                         className={cn(
-                          "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-card shadow-sm transition-colors",
+                          "absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full ring-2 ring-card shadow-sm transition-colors",
                           client.status === 'inactive' ? "bg-amber-500" : "bg-emerald-500"
                         )}
                         title={client.status === 'inactive' ? "Client inactif / suspendu" : "Client actif"}
@@ -598,7 +612,7 @@ export function ClientsPage() {
                         <Eye className="w-4 h-4 text-primary" /> Voir les détails
                       </DropdownMenuItem>
 
-                      {user?.role === 'admin' && (
+                      {(user?.role === 'admin' || user?.role === 'user') && (
                         <>
                           <DropdownMenuSeparator className="bg-border/60" />
                           <DropdownMenuItem
@@ -635,8 +649,8 @@ export function ClientsPage() {
             icon={Users}
             title={searchQuery ? "Aucun résultat" : "Aucun client"}
             description={searchQuery ? "Aucun client ne correspond à votre recherche." : "Ajoutez votre premier client pour commencer à générer des devis."}
-            actionLabel={!searchQuery && user?.role === 'admin' ? "Nouveau client" : undefined}
-            onAction={!searchQuery && user?.role === 'admin' ? () => setIsAddDialogOpen(true) : undefined}
+            actionLabel={!searchQuery ? "Nouveau client" : undefined}
+            onAction={!searchQuery ? () => setIsAddDialogOpen(true) : undefined}
           />
         </div>
       )}
@@ -649,7 +663,7 @@ export function ClientsPage() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <div className="relative inline-block flex-shrink-0">
+                    <div className="relative w-10 h-10 flex-shrink-0">
                       <Avatar className="w-10 h-10 ring-1 ring-border">
                         <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
                           {getInitials(client.name)}
@@ -657,7 +671,7 @@ export function ClientsPage() {
                       </Avatar>
                       <span
                         className={cn(
-                          "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ring-2 ring-card shadow-sm transition-colors",
+                          "absolute bottom-0 right-0 w-3 h-3 rounded-full ring-2 ring-card shadow-sm transition-colors",
                           client.status === 'inactive' ? "bg-amber-500" : "bg-emerald-500"
                         )}
                         title={client.status === 'inactive' ? "Client inactif / suspendu" : "Client actif"}
@@ -692,7 +706,7 @@ export function ClientsPage() {
                         >
                           <Eye className="w-4 h-4 text-primary" /> Voir les détails
                         </DropdownMenuItem>
-                        {user?.role === 'admin' && (
+                        {(user?.role === 'admin' || user?.role === 'user') && (
                           <>
                             <DropdownMenuSeparator className="bg-border/60" />
                             <DropdownMenuItem
@@ -726,8 +740,8 @@ export function ClientsPage() {
               icon={Users}
               title={searchQuery ? "Aucun client trouvé" : "Base clients vide"}
               description={searchQuery ? "Aucun client ne correspond à votre recherche." : "Ajoutez votre premier client pour commencer à générer des devis."}
-              actionLabel={!searchQuery && user?.role === 'admin' ? "Nouveau client" : undefined}
-              onAction={!searchQuery && user?.role === 'admin' ? () => setIsAddDialogOpen(true) : undefined}
+              actionLabel={!searchQuery ? "Nouveau client" : undefined}
+              onAction={!searchQuery ? () => setIsAddDialogOpen(true) : undefined}
             />
           )}
         </div>
@@ -749,7 +763,7 @@ export function ClientsPage() {
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="relative inline-block flex-shrink-0">
+                        <div className="relative w-10 h-10 flex-shrink-0">
                           <Avatar className="w-10 h-10 ring-1 ring-border">
                             <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
                               {getInitials(client.name)}
@@ -757,7 +771,7 @@ export function ClientsPage() {
                           </Avatar>
                           <span
                             className={cn(
-                              "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ring-2 ring-card shadow-sm transition-colors",
+                              "absolute bottom-0 right-0 w-3 h-3 rounded-full ring-2 ring-card shadow-sm transition-colors",
                               client.status === 'inactive' ? "bg-amber-500" : "bg-emerald-500"
                             )}
                             title={client.status === 'inactive' ? "Client inactif / suspendu" : "Client actif"}
@@ -784,7 +798,7 @@ export function ClientsPage() {
                           >
                             <Eye className="w-4 h-4 text-primary" /> Voir les détails
                           </DropdownMenuItem>
-                          {user?.role === 'admin' && (
+                          {(user?.role === 'admin' || user?.role === 'user') && (
                             <>
                               <DropdownMenuSeparator className="bg-border/60" />
                               <DropdownMenuItem
@@ -845,8 +859,8 @@ export function ClientsPage() {
                 icon={Users}
                 title={searchQuery ? "Aucun client trouvé" : "Base clients vide"}
                 description={searchQuery ? "Aucun client ne correspond à votre recherche." : "Ajoutez votre premier client pour commencer à générer des devis."}
-                actionLabel={!searchQuery && user?.role === 'admin' ? "Nouveau client" : undefined}
-                onAction={!searchQuery && user?.role === 'admin' ? () => setIsAddDialogOpen(true) : undefined}
+                actionLabel={!searchQuery ? "Nouveau client" : undefined}
+                onAction={!searchQuery ? () => setIsAddDialogOpen(true) : undefined}
               />
             </div>
           )}
@@ -886,7 +900,7 @@ export function ClientsPage() {
         <DialogContent className="bg-card border-border sm:max-w-lg">
           <DialogHeader>
             <div className="flex items-center gap-3.5 mb-1">
-              <div className="relative inline-block flex-shrink-0">
+              <div className="relative w-12 h-12 flex-shrink-0">
                 <Avatar className="w-12 h-12 ring-2 ring-primary/20">
                   <AvatarFallback className="bg-primary text-primary-foreground font-bold text-base">
                     {selectedClient ? getInitials(selectedClient.name) : "CL"}
@@ -895,7 +909,7 @@ export function ClientsPage() {
                 {selectedClient && (
                   <span
                     className={cn(
-                      "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-card shadow-sm",
+                      "absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full ring-2 ring-card shadow-sm",
                       selectedClient.status === 'inactive' ? "bg-amber-500" : "bg-emerald-500"
                     )}
                     title={selectedClient.status === 'inactive' ? "Client inactif / suspendu" : "Client actif"}
@@ -903,14 +917,14 @@ export function ClientsPage() {
                 )}
               </div>
               <div className="min-w-0">
-                <DialogTitle className="text-foreground text-lg font-bold truncate">
+                <DialogTitle className="text-foreground text-xl font-bold truncate">
                   {selectedClient?.name}
                 </DialogTitle>
                 <div className="flex items-center gap-2 mt-1">
                   {selectedClient && (
                     <StatusBadge
                       variant={selectedClient.status === 'inactive' ? 'inactive' : 'active'}
-                      label={selectedClient.status === 'inactive' ? 'Compte Inactif / Suspendu' : 'Compte Actif'}
+                      label={selectedClient.status === 'inactive' ? 'Compte Inactif' : 'Compte Actif'}
                     />
                   )}
                   {selectedClient?.nif && (
@@ -1009,7 +1023,7 @@ export function ClientsPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2">
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
                 <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
                   Fermer
                 </Button>

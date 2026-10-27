@@ -104,6 +104,7 @@ describe('Module 1 Correctif — NIF/RCCM Fiscaux, RBAC Opérateur & Garde-Fou S
       const client = await createClient({
         name: 'Client À Protéger',
         email: 'protege@client.ga',
+        phone: '+241 01 02 03 04',
       });
       expect(client.success).toBe(true);
 
@@ -140,6 +141,7 @@ describe('Module 1 Correctif — NIF/RCCM Fiscaux, RBAC Opérateur & Garde-Fou S
       const clientRes = await createClient({
         name: 'Client Débiteur SARL',
         email: 'debiteur@dette.ga',
+        phone: '+241 01 02 03 04',
       });
       const clientId = clientRes.data!.id;
 

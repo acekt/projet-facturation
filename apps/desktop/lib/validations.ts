@@ -12,11 +12,12 @@ export const clientSchema = z.object({
     z.string().email("Adresse email invalide").max(255),
     z.literal(""),
   ]).optional().nullable(),
-  phone: z.string()
+  phone: z.string({
+    required_error: "Le numéro de téléphone est requis",
+  })
+    .min(1, "Le numéro de téléphone est requis")
     .max(255, "Le numéro de téléphone ne peut pas dépasser 255 caractères")
-    .optional()
-    .nullable()
-    .refine(val => !val || /^(\+?[0-9\s-]{6,25})$/.test(val), "Numéro de téléphone invalide"),
+    .refine(val => /^(\+?[0-9\s-]{6,25})$/.test(val.trim()), "Numéro de téléphone invalide (ex: +241 01 02 03 04 ou 074000000)"),
   address: z.string()
     .max(1000, "L'adresse ne peut pas dépasser 1000 caractères")
     .optional()
@@ -41,10 +42,10 @@ export const clientUpdateSchema = z.object({
     z.literal(""),
   ]).optional().nullable(),
   phone: z.string()
+    .min(1, "Le numéro de téléphone ne peut pas être vide")
     .max(255, "Le numéro de téléphone ne peut pas dépasser 255 caractères")
-    .optional()
-    .nullable()
-    .refine(val => !val || /^(\+?[0-9\s-]{6,25})$/.test(val), "Numéro de téléphone invalide"),
+    .refine(val => /^(\+?[0-9\s-]{6,25})$/.test(val.trim()), "Numéro de téléphone invalide")
+    .optional(),
   address: z.string()
     .max(1000, "L'adresse ne peut pas dépasser 1000 caractères")
     .optional()

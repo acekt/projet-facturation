@@ -44,6 +44,7 @@ describe('Module 1 — Validation des Champs Obligatoires/Optionnels & Listes D�
       // Cas 1: email omis
       const validWithoutEmail = clientSchema.safeParse({
         name: 'Client Comptoir Gabon',
+        phone: '+241 01 02 03 04',
       });
       expect(validWithoutEmail.success).toBe(true);
 
@@ -51,6 +52,7 @@ describe('Module 1 — Validation des Champs Obligatoires/Optionnels & Listes D�
       const validEmptyEmail = clientSchema.safeParse({
         name: 'Client Sans Email',
         email: '',
+        phone: '+241 01 02 03 04',
       });
       expect(validEmptyEmail.success).toBe(true);
 
@@ -58,20 +60,49 @@ describe('Module 1 — Validation des Champs Obligatoires/Optionnels & Listes D�
       const validNullEmail = clientSchema.safeParse({
         name: 'Client Null Email',
         email: null,
+        phone: '+241 01 02 03 04',
       });
       expect(validNullEmail.success).toBe(true);
+    });
+
+    it('exige obligatoirement le numéro de téléphone du client (champ obligatoire avec *)', () => {
+      const invalidNoPhone = clientSchema.safeParse({
+        name: 'Client Sans Phone',
+        email: 'test@client.ga',
+      });
+      expect(invalidNoPhone.success).toBe(false);
+
+      const invalidEmptyPhone = clientSchema.safeParse({
+        name: 'Client Sans Phone',
+        phone: '',
+      });
+      expect(invalidEmptyPhone.success).toBe(false);
+
+      const invalidFormatPhone = clientSchema.safeParse({
+        name: 'Client Phone Invalide',
+        phone: '123',
+      });
+      expect(invalidFormatPhone.success).toBe(false);
+
+      const validPhone = clientSchema.safeParse({
+        name: 'Client Phone Valide',
+        phone: '+241 077 12 34 56',
+      });
+      expect(validPhone.success).toBe(true);
     });
 
     it('valide le format email uniquement si un email non-vide est fourni', () => {
       const invalidEmail = clientSchema.safeParse({
         name: 'Client Invalide',
         email: 'pas-un-email',
+        phone: '+241 01 02 03 04',
       });
       expect(invalidEmail.success).toBe(false);
 
       const validEmail = clientSchema.safeParse({
         name: 'Client Valide',
         email: 'contact@entreprise.ga',
+        phone: '+241 01 02 03 04',
       });
       expect(validEmail.success).toBe(true);
     });
@@ -79,26 +110,29 @@ describe('Module 1 — Validation des Champs Obligatoires/Optionnels & Listes D�
     it('accepte les statuts de liste déroulante (active/inactive) et applique active par défaut', () => {
       const defaultStatus = clientSchema.parse({
         name: 'Client Statut Defaut',
+        phone: '+241 01 02 03 04',
       });
       expect(defaultStatus.status).toBe('active');
 
       const inactiveStatus = clientSchema.parse({
         name: 'Client Suspendu',
+        phone: '+241 01 02 03 04',
         status: 'inactive',
       });
       expect(inactiveStatus.status).toBe('inactive');
 
       const invalidStatus = clientSchema.safeParse({
         name: 'Client Statut Invalide',
+        phone: '+241 01 02 03 04',
         status: 'unknown_status',
       });
       expect(invalidStatus.success).toBe(false);
     });
 
-    it('considère téléphone, adresse, NIF et RCCM comme optionnels', () => {
+    it('considère adresse, NIF et RCCM comme optionnels mais exige un téléphone valide', () => {
       const parsed = clientSchema.safeParse({
         name: 'Societe Moderne SARL',
-        phone: '',
+        phone: '+241 01 02 03 04',
         address: '',
         nif: null,
         rccm: undefined,
@@ -204,6 +238,7 @@ describe('Module 1 — Validation des Champs Obligatoires/Optionnels & Listes D�
       const createRes = await createClient({
         name: 'Client Transition SARL',
         email: 'transition@sarl.ga',
+        phone: '+241 01 02 03 04',
         status: 'active',
       });
       expect(createRes.success).toBe(true);

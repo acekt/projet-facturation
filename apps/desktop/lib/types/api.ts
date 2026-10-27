@@ -420,7 +420,7 @@ export interface ClientCreateRequest {
   id?: string;
   name: string;
   email?: string | null;
-  phone?: string | null;
+  phone: string;
   address?: string | null;
   nif?: string | null;
   rccm?: string | null;

@@ -88,7 +88,7 @@ describe('ClientsPage Component', () => {
     const removeClientMock = vi.fn()
 
     mockStore({
-      clients: [{ id: '1', name: 'Client 1', email: 'test@example.com', phone: '', address: '', createdAt: new Date().toISOString() }],
+      clients: [{ id: '1', name: 'Client 1', email: 'test@example.com', phone: '+241 01 02 03 04', address: '', createdAt: new Date().toISOString() }],
       invoices: [],
       user: { role: 'admin' },
       viewFormat: { clients: 'table' }, // Force view format that reveals the dropdown
@@ -124,12 +124,12 @@ describe('ClientsPage Component', () => {
     })
   })
 
-  it('hides sensitive buttons for non-admin users (Visual RBAC)', async () => {
+  it('allows operators to create and edit clients while strictly forbidding deletion (Visual RBAC)', async () => {
     const user = userEvent.setup()
     mockStore({
-      clients: [{ id: '1', name: 'Client 1', email: 'test@example.com', phone: '', address: '', createdAt: new Date().toISOString() }],
+      clients: [{ id: '1', name: 'Client 1', email: 'test@example.com', phone: '+241 01 02 03 04', address: '', createdAt: new Date().toISOString() }],
       invoices: [],
-      user: { role: 'user' }, // Not admin
+      user: { role: 'user' }, // Operator
       viewFormat: { clients: 'table' },
       isDataLoaded: true,
       setClients: vi.fn(),
@@ -142,15 +142,18 @@ describe('ClientsPage Component', () => {
 
     render(<ClientsPage />)
 
-    // New Client button should not exist
-    expect(screen.queryByText('Nouveau client')).not.toBeInTheDocument()
+    // Operator CAN create client
+    expect(screen.getByText('Nouveau client')).toBeInTheDocument()
 
-    // Dropdown should not have edit/delete for non-admin
+    // Operator CAN edit and view details via dropdown
     const dropdownTrigger = screen.getAllByTestId('dropdown-trigger')[0]
     await user.click(dropdownTrigger)
 
+    expect(screen.getByText('Modifier')).toBeInTheDocument()
+    expect(screen.getByText('Voir les détails')).toBeInTheDocument()
+
+    // Operator CANNOT delete client
     expect(screen.queryByTestId('dropdown-item-delete')).not.toBeInTheDocument()
-    expect(screen.queryByText('Modifier')).not.toBeInTheDocument()
     expect(screen.queryByText('Supprimer')).not.toBeInTheDocument()
   })
 
@@ -159,7 +162,7 @@ describe('ClientsPage Component', () => {
       id: `client-${i}`,
       name: `Client ${i}`,
       email: `client${i}@example.com`,
-      phone: '',
+      phone: '+241 01 02 03 04',
       address: '',
       createdAt: new Date().toISOString()
     }))
