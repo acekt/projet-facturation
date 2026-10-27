@@ -100,9 +100,11 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false)
   const [paymentInvoice, setPaymentInvoice] = React.useState<Invoice | null>(null)
-  const [paymentMethod, setPaymentMethod] = React.useState("cash")
+  const [paymentMethod, setPaymentMethod] = React.useState("Espèces")
   const [paymentAmount, setPaymentAmount] = React.useState("")
   const [paymentType, setPaymentType] = React.useState("full")
+  const [paymentDate, setPaymentDate] = React.useState(new Date().toISOString().split('T')[0])
+  const [paymentReference, setPaymentReference] = React.useState("")
   const [invoiceToDeleteId, setInvoiceToDeleteId] = React.useState<string | null>(null)
   const [invoiceToCancel, setInvoiceToCancel] = React.useState<Invoice | null>(null)
   const [deleteAssociatedQuote, setDeleteAssociatedQuote] = React.useState(false)
@@ -117,8 +119,8 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     return invoices.filter(
       (invoice) => {
         const q = searchQuery.toLowerCase();
-        const matchesSearch = invoice.number.toLowerCase().includes(q) ||
-                              invoice.clientName.toLowerCase().includes(q) ||
+        const matchesSearch = (invoice.number || '').toLowerCase().includes(q) ||
+                              (invoice.clientName || '').toLowerCase().includes(q) ||
                               (invoice.clientEmail || '').toLowerCase().includes(q);
         if (statusFilter === "all") return matchesSearch;
         return matchesSearch && invoice.status === statusFilter;
@@ -198,6 +200,10 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       const remaining = invoice.total - totalPaid
       setPaymentInvoice(invoice);
       setPaymentAmount(remaining.toString());
+      setPaymentType("full");
+      setPaymentMethod("Espèces");
+      setPaymentDate(new Date().toISOString().split('T')[0]);
+      setPaymentReference("");
       setPaymentDialogOpen(true);
   }
 
@@ -251,9 +257,10 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           try {
             const response = await createPayment({
                   invoiceId: paymentInvoice.id,
-                  amount: amount,
+                  amount: Math.round(amount),
                   paymentMethod,
-                  date: new Date().toISOString().split('T')[0]
+                  date: paymentDate || new Date().toISOString().split('T')[0],
+                  reference: paymentReference?.trim() || undefined
             })
 
             if (!response.success) throw new Error('Failed to record payment')
@@ -308,6 +315,21 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     }
     return <StatusBadge variant="invoice-unpaid" remainingAmount={ps.remaining} />
   }
+
+  // ── Règle comptable stricte : protection des factures avec encaissements ───
+  const isInvoiceProtected = (inv: Invoice) => {
+    const totalPaid = inv.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+    return totalPaid > 0 || inv.status === 'PAID' || inv.status === 'PARTIALLY_PAID';
+  };
+
+  // ── Formatage typographique soigné du nom de client ───────────────────────
+  const formatClientName = (name: string) => {
+    if (!name) return '—';
+    if (name.length <= 6 && !name.includes(' ')) {
+      return name.toUpperCase();
+    }
+    return name.replace(/\b\w/g, (char) => char.toUpperCase());
+  };
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
@@ -399,7 +421,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                 </DataTableCell>
                 {/* Client */}
                 <DataTableCell truncate title={invoice.clientName}>
-                  {invoice.clientName}
+                  {formatClientName(invoice.clientName)}
                 </DataTableCell>
                 {/* Date */}
                 <DataTableCell>
@@ -439,7 +461,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                         </DropdownMenuItem>
                       )}
-                      {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && invoice.status !== INVOICE_STATUS.CANCELLED && (
+                      {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && invoice.status !== INVOICE_STATUS.CANCELLED && !isInvoiceProtected(invoice) && (
                         <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
                           setInvoiceToCancel(invoice)
                           setDeleteAssociatedQuote(false)
@@ -447,7 +469,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           <RefreshCcw className="w-4 h-4" /> Annuler la facture
                         </DropdownMenuItem>
                       )}
-                      {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && (
+                      {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && !isInvoiceProtected(invoice) && (
                         <>
                           <div className="h-px bg-border my-1" />
                           <DropdownMenuItem
@@ -499,7 +521,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                           {getPaymentBadge(invoice)}
                         </div>
                         <p className="text-[12px] text-muted-foreground mt-0.5">
-                          <span className="font-medium text-foreground">{invoice.clientName}</span>
+                          <span className="font-medium text-foreground">{formatClientName(invoice.clientName)}</span>
                           <span className="mx-2 opacity-30">•</span>
                           <span>{formatDate(invoice.date)}</span>
                         </p>
@@ -536,7 +558,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                               <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                             </DropdownMenuItem>
                           )}
-                          {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && invoice.status !== INVOICE_STATUS.CANCELLED && (
+                          {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && invoice.status !== INVOICE_STATUS.CANCELLED && !isInvoiceProtected(invoice) && (
                              <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
                                setInvoiceToCancel(invoice)
                                setDeleteAssociatedQuote(false)
@@ -544,7 +566,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                                <RefreshCcw className="w-4 h-4" /> Annuler la facture
                              </DropdownMenuItem>
                           )}
-                          {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && (
+                          {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && !isInvoiceProtected(invoice) && (
                             <>
                               <div className="h-px bg-border my-1" />
                               <DropdownMenuItem
@@ -595,7 +617,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                     </div>
                   </div>
                   <h3 className="font-bold text-sm mb-1">{invoice.number}</h3>
-                  <p className="text-xs text-muted-foreground mb-2">{invoice.clientName}</p>
+                  <p className="text-xs text-muted-foreground mb-2">{formatClientName(invoice.clientName)}</p>
                   <div className="space-y-1 mb-3">
                     <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                       <Calendar className="w-3 h-3" />
@@ -630,7 +652,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                             <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
                           </DropdownMenuItem>
                         )}
-                        {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && invoice.status !== INVOICE_STATUS.CANCELLED && (
+                        {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && invoice.status !== INVOICE_STATUS.CANCELLED && !isInvoiceProtected(invoice) && (
                           <DropdownMenuItem
                             className="gap-2 text-orange-600"
                             onClick={() => { setInvoiceToCancel(invoice); setDeleteAssociatedQuote(false) }}
@@ -638,7 +660,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
                             <RefreshCcw className="w-4 h-4" /> Annuler
                           </DropdownMenuItem>
                         )}
-                        {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && (
+                        {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && !isInvoiceProtected(invoice) && (
                           <>
                             <div className="h-px bg-border my-1" />
                             <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setInvoiceToDeleteId(invoice.id)}>

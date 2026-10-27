@@ -41,6 +41,7 @@ const nextConfig = {
   serverExternalPackages: ['better-sqlite3', '@react-pdf/renderer'],
   compress: false,           // Electron gère la compression nativement
   productionBrowserSourceMaps: false,
+  devIndicators: false,
   experimental: {
     optimizeCss: false,
     agentUpgrade: 'security',

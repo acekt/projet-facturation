@@ -318,8 +318,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                     </span>
                   </div>
                 </DataTableCell>
-                <DataTableCell truncate title={quote.clientName}>
-                  {quote.clientName}
+                <DataTableCell truncate title={quote.clientName || "—"}>
+                  {quote.clientName || "—"}
                 </DataTableCell>
                 <DataTableCell>
                   <span className="text-xs text-muted-foreground">
@@ -468,7 +468,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                           </div>
                           <div className="flex flex-col md:flex-row md:items-center gap-x-3 gap-y-0.5 mt-0.5 text-[11px] text-muted-foreground">
                             <span className="font-semibold text-foreground/80 uppercase tracking-tighter">
-                              {quote.clientName}
+                              {quote.clientName || "—"}
                             </span>
                             <span className="flex items-center gap-1 opacity-60">
                               <Clock className="w-3 h-3" />
@@ -615,7 +615,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
                     </div>
                     <h3 className="font-bold text-sm mb-1">{quote.number}</h3>
                     <p className="text-xs text-muted-foreground mb-2">
-                      {quote.clientName}
+                      {quote.clientName || "—"}
                     </p>
                     <div className="space-y-1 mb-3">
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">

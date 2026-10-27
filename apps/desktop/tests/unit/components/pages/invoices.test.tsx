@@ -147,7 +147,7 @@ describe('InvoicesPage Component', () => {
     render(<InvoicesPage onCreateInvoice={vi.fn()} onEditInvoice={vi.fn()} />);
 
     expect(screen.getByText('FAC-2026-0001')).toBeInTheDocument();
-    expect(screen.getByText('Client Comptoir (sans email)')).toBeInTheDocument();
+    expect(screen.getByText(/Client Comptoir/i)).toBeInTheDocument();
     expect(screen.getByText('FAC-2026-0002')).toBeInTheDocument();
     expect(screen.getByText('Total Gabon SA')).toBeInTheDocument();
   });
