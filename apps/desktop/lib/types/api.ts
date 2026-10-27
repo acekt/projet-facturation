@@ -340,12 +340,12 @@ export type QuoteItem = IQuoteItem;
 export interface QuoteCreateRequest {
   clientId: string;
   clientName: string;
-  clientEmail: string;
+  clientEmail?: string | null;
   date: string;
   discount: number;
   notes?: string;
   subject?: string;
-  validUntil?: string;
+  validUntil?: string | null;
   items: Array<{
     description: string;
     quantity: number;
@@ -360,7 +360,7 @@ export interface DbQuote {
   number: string;
   clientId: string;
   clientName: string;
-  clientEmail: string;
+  clientEmail?: string | null;
   date: string;
   subtotal: number;
   discount: number;
@@ -371,7 +371,7 @@ export interface DbQuote {
   total: number;
   notes?: string;
   subject?: string;
-  validUntil?: string;
+  validUntil?: string | null;
   status: QuoteStatus;
   deletedAt?: string | null;
   createdAt: string;

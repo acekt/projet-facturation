@@ -165,11 +165,12 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   React.useEffect(() => {
     if (!editingId) return;
 
-    const controller = new AbortController();
+    let isMounted = true;
 
     const fetchQuote = async () => {
       try {
         const response = await getQuoteById(editingId);
+        if (!isMounted) return;
         if (!response.success || !response.data) {
           toast.error(response.error || "Devis introuvable ou supprimé");
           onBack();
@@ -181,7 +182,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
           clients.find((c) => c.id === data.clientId) || {
             id: data.clientId,
             name: data.clientName,
-            email: data.clientEmail,
+            email: data.clientEmail || null,
             phone: "",
             address: "",
           },
@@ -195,14 +196,18 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         setStatus(data.status);
         setIsLoading(false);
       } catch (err: unknown) {
-        toast.error("Impossible de charger le devis — vérifiez la connexion au serveur");
-        onBack();
+        if (isMounted) {
+          toast.error("Impossible de charger le devis — vérifiez la connexion au serveur");
+          onBack();
+        }
       }
     };
 
     fetchQuote();
 
-    return () => controller.abort();
+    return () => {
+      isMounted = false;
+    };
   }, [editingId]);
 
   const filteredClients = clients.filter(
@@ -272,7 +277,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     }
   );
 
-  const handleSave = async (status: Quote["status"]) => {
+  const handleSave = async (targetStatus: Quote["status"]) => {
     if (isSubmitting) return;
 
     if (!selectedClient) {
@@ -280,12 +285,18 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
       return;
     }
 
+    if (!quoteDate || !quoteDate.trim()) {
+      toast.error("La date d'émission est requise");
+      return;
+    }
+
     if (
+      items.length === 0 ||
       items.some(
-        (item) => !item.description || item.quantity <= 0 || item.unitPrice < 0,
+        (item) => !item.description?.trim() || Number(item.quantity) <= 0 || Number(item.unitPrice) < 0,
       )
     ) {
-      toast.error("Veuillez remplir correctement tous les articles");
+      toast.error("Veuillez renseigner correctement toutes les lignes (description, quantité > 0 et prix unitaire >= 0)");
       return;
     }
 
@@ -301,14 +312,18 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
       const payload = {
         clientId: selectedClient.id,
         clientName: selectedClient.name,
-        clientEmail: selectedClient.email,
+        clientEmail: selectedClient.email || null,
         date: quoteDate,
-        items,
-        notes,
-        subject: subject || undefined,
-        validUntil: validUntil || undefined,
-        discount,
-        status,
+        items: items.map(it => ({
+          description: it.description.trim(),
+          quantity: Number(it.quantity) || 1,
+          unitPrice: Math.max(0, Math.round(Number(it.unitPrice) || 0)),
+        })),
+        notes: notes?.trim() || null,
+        subject: subject?.trim() || null,
+        validUntil: validUntil && validUntil.trim() !== '' ? validUntil.trim() : null,
+        discount: Math.max(0, Math.round(Number(discount) || 0)),
+        status: targetStatus,
       };
 
       let response;
@@ -417,7 +432,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
           <Card className="bg-card border-border">
             <CardHeader className="pb-4">
               <CardTitle className="text-foreground font-semibold text-base">
-                Client
+                Client <span className="text-destructive">*</span>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -434,7 +449,9 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                         {selectedClient.name}
                       </p>
                       <p className="text-muted-foreground text-sm">
-                        {selectedClient.email}
+                        {selectedClient.email || selectedClient.phone || (
+                          <span className="text-muted-foreground/50 italic">Pas d'email</span>
+                        )}
                       </p>
                     </div>
                   </div>
@@ -460,7 +477,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                         </div>
                         <div>
                           <p className="text-muted-foreground font-medium group-hover:text-foreground">
-                            Sélectionner un client
+                            Sélectionner un client <span className="text-destructive">*</span>
                           </p>
                           <p className="text-muted-foreground/60 text-sm">
                             Cliquez pour rechercher dans votre base
@@ -545,9 +562,9 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             <CardContent>
               <div className="space-y-3">
                 <div className="grid grid-cols-12 gap-2 md:gap-4 px-4 py-3 bg-secondary/20 rounded-t-lg text-sm font-semibold text-muted-foreground border-b border-border hidden md:grid">
-                  <div className="col-span-6">Description</div>
-                  <div className="col-span-2 text-right">Qté</div>
-                  <div className="col-span-2 text-right">Prix U. (XAF)</div>
+                  <div className="col-span-6">Description <span className="text-destructive">*</span></div>
+                  <div className="col-span-2 text-right">Qté <span className="text-destructive">*</span></div>
+                  <div className="col-span-2 text-right">Prix U. (XAF) <span className="text-destructive">*</span></div>
                   <div className="col-span-2 text-right pr-2">Total HT</div>
                 </div>
 
@@ -583,6 +600,8 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                     <div className="col-span-4 md:col-span-2">
                       <Input
                         type="number"
+                        min="0.01"
+                        step="any"
                         value={item.quantity ?? 1}
                         onChange={(e) =>
                           updateItem(
@@ -598,12 +617,14 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                     <div className="col-span-4 md:col-span-2">
                       <Input
                         type="number"
+                        min="0"
+                        step="1"
                         value={item.unitPrice ?? 0}
                         onChange={(e) =>
                           updateItem(
                             item.id,
                             "unitPrice",
-                            parseFloat(e.target.value) || 0,
+                            Math.max(0, Math.round(parseFloat(e.target.value) || 0)),
                           )
                         }
                         className="text-right tabular-nums"
@@ -667,14 +688,16 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-sm items-center">
                     <span className="text-muted-foreground">
-                      Remise Commerciale
+                      Remise Commerciale (XAF)
                     </span>
                     <Input
                       type="number"
+                      min="0"
+                      step="1"
                       className="w-24 h-7 text-right tabular-nums text-sm"
                       value={discount || 0}
                       onChange={(e) =>
-                        setDiscount(parseFloat(e.target.value) || 0)
+                        setDiscount(Math.max(0, Math.round(parseFloat(e.target.value) || 0)))
                       }
                       disabled={status === "CONVERTI" || isSubmitting}
                     />

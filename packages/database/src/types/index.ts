@@ -109,7 +109,7 @@ export interface IQuote {
   number: string;
   clientId: string;
   clientName: string;
-  clientEmail: string;
+  clientEmail?: string | null;
   date: string;
   subtotal: number;
   discount: number;
@@ -120,12 +120,12 @@ export interface IQuote {
   total: number;
   notes?: string;
   subject?: string;
-  validUntil?: string;
+  validUntil?: string | null;
   status: QuoteStatus;
   items: IQuoteItem[];
-  deletedAt?: string;
+  deletedAt?: string | null;
   createdAt: string;
-  created_by?: string;
+  created_by?: string | null;
   tenant_id?: string | null;
 }
 

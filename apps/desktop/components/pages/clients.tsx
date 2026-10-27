@@ -142,15 +142,14 @@ export function ClientsPage() {
     }
 
     const tempId = crypto.randomUUID()
-    const clientToCreate: Client = {
-      id: tempId,
+    const clientToCreate: import("@/lib/types/api").ClientCreateRequest = {
       name: newClient.name.trim(),
       email: newClient.email && newClient.email.trim() !== '' ? newClient.email.trim() : null,
-      phone: newClient.phone?.trim() || null,
+      phone: newClient.phone.trim(),
       address: newClient.address?.trim() || null,
       nif: newClient.nif?.trim() || null,
       rccm: newClient.rccm?.trim() || null,
-      status: newClient.status || "active",
+      status: (newClient.status as 'active' | 'inactive') || "active",
     }
 
     setIsSubmitting(true)

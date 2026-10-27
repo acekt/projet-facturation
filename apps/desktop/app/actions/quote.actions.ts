@@ -114,6 +114,9 @@ export async function createQuote(data: QuoteCreateRequest): Promise<ActionRespo
     const insertQuoteTx = db.transaction((quoteItems: any[]) => {
       const number = getNextNumber('quote');
 
+      const cleanClientEmail = validData.clientEmail && validData.clientEmail.trim() !== '' ? validData.clientEmail.trim() : null;
+      const cleanValidUntil = validData.validUntil && validData.validUntil.trim() !== '' ? validData.validUntil.trim() : null;
+
       db.prepare(`
         INSERT INTO quotes (
           id, number, clientId, clientName, clientEmail, date,
@@ -121,9 +124,9 @@ export async function createQuote(data: QuoteCreateRequest): Promise<ActionRespo
           total, notes, subject, validUntil, status, created_by, tenant_id
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `).run(
-        id, number, validData.clientId, validData.clientName, validData.clientEmail, validData.date,
+        id, number, validData.clientId, validData.clientName, cleanClientEmail, validData.date,
         computed.subtotal, computed.discount, computed.taxBase, computed.tvaAmount, computed.tpsAmount, computed.cssAmount,
-        computed.total, validData.notes ?? null, validData.subject ?? null, validData.validUntil ?? null, 'EN_ATTENTE', session.userId, activeTenantId
+        computed.total, validData.notes ?? null, validData.subject ?? null, cleanValidUntil, 'EN_ATTENTE', session.userId, activeTenantId
       );
 
       const insertItemStmt = db.prepare(`INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`);
@@ -170,6 +173,9 @@ export async function updateQuote(id: string, data: QuoteCreateRequest): Promise
     const computed = computeTotals(validData.items, validData.discount, rates);
 
     const updateQuoteTx = db.transaction((quoteItems: any[]) => {
+      const cleanClientEmail = validData.clientEmail && validData.clientEmail.trim() !== '' ? validData.clientEmail.trim() : null;
+      const cleanValidUntil = validData.validUntil && validData.validUntil.trim() !== '' ? validData.validUntil.trim() : null;
+
       db.prepare(`
         UPDATE quotes
         SET clientId = ?, clientName = ?, clientEmail = ?, date = ?,
@@ -177,9 +183,9 @@ export async function updateQuote(id: string, data: QuoteCreateRequest): Promise
             total = ?, notes = ?, subject = ?, validUntil = ?
         WHERE id = ?
       `).run(
-        validData.clientId, validData.clientName, validData.clientEmail, validData.date,
+        validData.clientId, validData.clientName, cleanClientEmail, validData.date,
         computed.subtotal, computed.discount, computed.taxBase, computed.tvaAmount, computed.tpsAmount, computed.cssAmount,
-        computed.total, validData.notes ?? null, validData.subject ?? null, validData.validUntil ?? null, id
+        computed.total, validData.notes ?? null, validData.subject ?? null, cleanValidUntil, id
       );
 
       db.prepare('DELETE FROM quote_items WHERE quoteId = ?').run(id);
