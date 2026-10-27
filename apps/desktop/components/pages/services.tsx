@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
-import { Plus, MoreVertical, Edit2, Trash2, Briefcase, Tag, DownloadCloud } from "lucide-react"
+import { Plus, MoreVertical, Edit2, Trash2, Briefcase, Tag, DownloadCloud, Eye, Info } from "lucide-react"
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
@@ -10,6 +10,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
 import {
@@ -92,6 +93,8 @@ export function ServicesPage() {
   const [isDialogOpen, setIsDialogOpen] = React.useState(false)
   const [editingService, setEditingService] = React.useState<Service | null>(null)
   const [serviceToDeleteId, setServiceToDeleteId] = React.useState<string | null>(null)
+  const [selectedService, setSelectedService] = React.useState<Service | null>(null)
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [formData, setFormData] = React.useState({
     name: "",
@@ -347,28 +350,38 @@ export function ServicesPage() {
                         <MoreVertical className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-40 bg-card border-border">
+                    <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg">
+                      <DropdownMenuItem
+                        className="gap-2 cursor-pointer font-medium"
+                        onClick={() => {
+                          setSelectedService(service)
+                          setIsDetailsDialogOpen(true)
+                        }}
+                      >
+                        <Eye className="w-4 h-4 text-primary" /> Voir les détails
+                      </DropdownMenuItem>
                       {user?.role === 'admin' && (
-                        <DropdownMenuItem className="gap-2" onClick={() => {
-                            setEditingService(service)
-                            setFormData({
-                                name: service.name,
-                                description: service.description || "",
-                                category: service.category || "Prestation de services",
-                                unitPrice: service.unitPrice
-                            })
-                            setIsDialogOpen(true)
-                        }}>
-                          <Edit2 className="w-4 h-4" /> Modifier
-                        </DropdownMenuItem>
-                      )}
-                      {user?.role === 'admin' && (
-                        <DropdownMenuItem
-                          className="gap-2 text-destructive focus:text-destructive"
-                          onClick={() => setServiceToDeleteId(service.id)}
-                        >
-                          <Trash2 className="w-4 h-4" /> Supprimer
-                        </DropdownMenuItem>
+                        <>
+                          <DropdownMenuSeparator className="bg-border/60" />
+                          <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
+                              setEditingService(service)
+                              setFormData({
+                                  name: service.name,
+                                  description: service.description || "",
+                                  category: service.category || "Prestation de services",
+                                  unitPrice: service.unitPrice
+                              })
+                              setIsDialogOpen(true)
+                          }}>
+                            <Edit2 className="w-4 h-4" /> Modifier
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            className="gap-2 text-destructive focus:text-destructive cursor-pointer"
+                            onClick={() => setServiceToDeleteId(service.id)}
+                          >
+                            <Trash2 className="w-4 h-4" /> Supprimer
+                          </DropdownMenuItem>
+                        </>
                       )}
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -416,25 +429,35 @@ export function ServicesPage() {
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40 bg-card border-border">
+                      <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg">
+                        <DropdownMenuItem
+                          className="gap-2 cursor-pointer font-medium"
+                          onClick={() => {
+                            setSelectedService(service)
+                            setIsDetailsDialogOpen(true)
+                          }}
+                        >
+                          <Eye className="w-4 h-4 text-primary" /> Voir les détails
+                        </DropdownMenuItem>
                         {user?.role === 'admin' && (
-                          <DropdownMenuItem className="gap-2" onClick={() => {
-                              setEditingService(service)
-                              setFormData({
-                                  name: service.name,
-                                  description: service.description || "",
-                                  category: service.category || "Prestation de services",
-                                  unitPrice: service.unitPrice
-                              })
-                              setIsDialogOpen(true)
-                          }}>
-                            <Edit2 className="w-4 h-4" /> Modifier
-                          </DropdownMenuItem>
-                        )}
-                        {user?.role === 'admin' && (
-                          <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setServiceToDeleteId(service.id)}>
-                            <Trash2 className="w-4 h-4" /> Supprimer
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuSeparator className="bg-border/60" />
+                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
+                                setEditingService(service)
+                                setFormData({
+                                    name: service.name,
+                                    description: service.description || "",
+                                    category: service.category || "Prestation de services",
+                                    unitPrice: service.unitPrice
+                                })
+                                setIsDialogOpen(true)
+                            }}>
+                              <Edit2 className="w-4 h-4" /> Modifier
+                            </DropdownMenuItem>
+                            <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive cursor-pointer" onClick={() => setServiceToDeleteId(service.id)}>
+                              <Trash2 className="w-4 h-4" /> Supprimer
+                            </DropdownMenuItem>
+                          </>
                         )}
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -479,25 +502,35 @@ export function ServicesPage() {
                             <MoreVertical className="w-5 h-5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40 bg-card border-border">
+                        <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg">
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer font-medium"
+                            onClick={() => {
+                              setSelectedService(service)
+                              setIsDetailsDialogOpen(true)
+                            }}
+                          >
+                            <Eye className="w-4 h-4 text-primary" /> Voir les détails
+                          </DropdownMenuItem>
                           {user?.role === 'admin' && (
-                            <DropdownMenuItem className="gap-2" onClick={() => {
-                                setEditingService(service)
-                                setFormData({
-                                    name: service.name,
-                                    description: service.description || "",
-                                    category: service.category || "Prestation de services",
-                                    unitPrice: service.unitPrice
-                                })
-                                setIsDialogOpen(true)
-                            }}>
-                              <Edit2 className="w-4 h-4" /> Modifier
-                            </DropdownMenuItem>
-                          )}
-                          {user?.role === 'admin' && (
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setServiceToDeleteId(service.id)}>
-                              <Trash2 className="w-4 h-4" /> Supprimer
-                            </DropdownMenuItem>
+                            <>
+                              <DropdownMenuSeparator className="bg-border/60" />
+                              <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => {
+                                  setEditingService(service)
+                                  setFormData({
+                                      name: service.name,
+                                      description: service.description || "",
+                                      category: service.category || "Prestation de services",
+                                      unitPrice: service.unitPrice
+                                  })
+                                  setIsDialogOpen(true)
+                              }}>
+                                <Edit2 className="w-4 h-4" /> Modifier
+                              </DropdownMenuItem>
+                              <DropdownMenuItem className="gap-2 text-destructive focus:text-destructive cursor-pointer" onClick={() => setServiceToDeleteId(service.id)}>
+                                <Trash2 className="w-4 h-4" /> Supprimer
+                              </DropdownMenuItem>
+                            </>
                           )}
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -644,6 +677,95 @@ export function ServicesPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      {/* ── Dialog Détails du Service (Lecture Seule & Consultation) ── */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary flex-shrink-0">
+                <Briefcase className="w-5 h-5" />
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-foreground text-base font-bold truncate">
+                  {selectedService?.name}
+                </DialogTitle>
+                <div className="mt-1">
+                  <StatusBadge
+                    variant="neutral"
+                    label={selectedService?.category || "Non classé"}
+                  />
+                </div>
+              </div>
+            </div>
+            <VisuallyHidden>
+              <DialogDescription>Détails complets de la prestation du catalogue</DialogDescription>
+            </VisuallyHidden>
+          </DialogHeader>
+
+          {selectedService && (
+            <div className="space-y-4 py-2 text-sm">
+              <div className="p-3.5 rounded-lg bg-secondary/40 border border-border/60 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Tarif standard appliqué
+                  </div>
+                  <div className="text-2xl font-bold text-foreground mt-0.5">
+                    {formatCurrency(selectedService.unitPrice)}
+                  </div>
+                </div>
+                <Tag className="w-5 h-5 text-primary/40" />
+              </div>
+
+              <div className="space-y-1.5">
+                <div className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5">
+                  <Info className="w-3.5 h-3.5 text-primary" /> Description de la prestation
+                </div>
+                <div className="p-3 rounded-lg bg-secondary/30 border border-border/50 text-foreground leading-relaxed whitespace-pre-wrap text-xs min-h-[60px]">
+                  {selectedService.description?.trim() || (
+                    <span className="text-muted-foreground/60 italic">Aucune description détaillée renseignée pour ce service.</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-border/50 grid grid-cols-2 gap-2 text-xs text-muted-foreground">
+                <div>
+                  <span className="font-medium text-foreground">Identifiant :</span>
+                  <p className="font-mono text-[10px] text-muted-foreground/70 truncate mt-0.5">{selectedService.id}</p>
+                </div>
+                <div>
+                  <span className="font-medium text-foreground">Catégorie :</span>
+                  <p className="mt-0.5">{selectedService.category || "Prestation de services"}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
+                  Fermer
+                </Button>
+                {user?.role === 'admin' && (
+                  <Button
+                    variant="default"
+                    className="gap-1.5"
+                    onClick={() => {
+                      setIsDetailsDialogOpen(false)
+                      setEditingService(selectedService)
+                      setFormData({
+                        name: selectedService.name,
+                        description: selectedService.description || "",
+                        category: selectedService.category || "Prestation de services",
+                        unitPrice: selectedService.unitPrice,
+                      })
+                      setIsDialogOpen(true)
+                    }}
+                  >
+                    <Edit2 className="w-4 h-4" /> Modifier
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
       )}
     </>

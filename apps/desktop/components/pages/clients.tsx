@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { motion } from "framer-motion"
-import { Plus, MoreVertical, Edit2, Trash2, DownloadCloud, Users, Mail, Phone, MapPin } from "lucide-react"
+import { Plus, MoreVertical, Edit2, Trash2, DownloadCloud, Users, Mail, Phone, MapPin, Eye } from "lucide-react"
 import { Card, CardContent } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
@@ -10,6 +10,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
 import {
@@ -32,7 +33,7 @@ import {
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
 import { useStore, type Client } from "@/lib/store"
 import { toast } from "sonner"
-import { formatCurrency, getInitials, escapeCsvCell } from "@/lib/utils"
+import { formatCurrency, getInitials, escapeCsvCell, cn } from "@/lib/utils"
 import { Pagination } from "@workspace/ui/components/pagination-custom"
 import { EmptyState } from "@workspace/ui/components/empty-state"
 import { createClient, updateClient as updateClientAction, deleteClient } from "@/app/actions/client.actions"
@@ -80,6 +81,8 @@ export function ClientsPage() {
   const [isAddDialogOpen, setIsAddDialogOpen] = React.useState(false)
   const [isEditDialogOpen, setIsEditDialogOpen] = React.useState(false)
   const [editingClient, setEditingClient] = React.useState<Client | null>(null)
+  const [selectedClient, setSelectedClient] = React.useState<Client | null>(null)
+  const [isDetailsDialogOpen, setIsDetailsDialogOpen] = React.useState(false)
   const [clientToDeleteId, setClientToDeleteId] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [newClient, setNewClient] = React.useState({
@@ -550,11 +553,20 @@ export function ClientsPage() {
               <DataTableRow key={client.id}>
                 <DataTableCell>
                   <div className="flex items-center gap-3">
-                    <Avatar className="w-8 h-8 ring-1 ring-border">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
-                        {getInitials(client.name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative inline-block flex-shrink-0">
+                      <Avatar className="w-8 h-8 ring-1 ring-border">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-xs font-semibold">
+                          {getInitials(client.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span
+                        className={cn(
+                          "absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-card shadow-sm transition-colors",
+                          client.status === 'inactive' ? "bg-amber-500" : "bg-emerald-500"
+                        )}
+                        title={client.status === 'inactive' ? "Client inactif / suspendu" : "Client actif"}
+                      />
+                    </div>
                     <span className="font-medium text-sm text-foreground">{client.name}</span>
                   </div>
                 </DataTableCell>
@@ -575,15 +587,35 @@ export function ClientsPage() {
                         <MoreVertical className="w-4 h-4" />
                       </Button>
                     </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 bg-card border-border">
+                    <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg">
+                      <DropdownMenuItem
+                        className="gap-2 cursor-pointer font-medium"
+                        onClick={() => {
+                          setSelectedClient(client)
+                          setIsDetailsDialogOpen(true)
+                        }}
+                      >
+                        <Eye className="w-4 h-4 text-primary" /> Voir les détails
+                      </DropdownMenuItem>
+
                       {user?.role === 'admin' && (
-                        <DropdownMenuItem className="gap-2" onClick={() => { setEditingClient(client); setIsEditDialogOpen(true) }}>
-                          <Edit2 className="w-4 h-4" /> Modifier
-                        </DropdownMenuItem>
+                        <>
+                          <DropdownMenuSeparator className="bg-border/60" />
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer"
+                            onClick={() => {
+                              setEditingClient(client)
+                              setIsEditDialogOpen(true)
+                            }}
+                          >
+                            <Edit2 className="w-4 h-4" /> Modifier
+                          </DropdownMenuItem>
+                        </>
                       )}
+
                       {user?.role === 'admin' && (
                         <DropdownMenuItem
-                          className="gap-2 text-destructive focus:text-destructive"
+                          className="gap-2 text-destructive focus:text-destructive cursor-pointer"
                           onClick={() => setClientToDeleteId(client.id)}
                         >
                           <Trash2 className="w-4 h-4" /> Supprimer
@@ -617,11 +649,20 @@ export function ClientsPage() {
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
-                    <Avatar className="w-10 h-10 ring-1 ring-border">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
-                        {getInitials(client.name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative inline-block flex-shrink-0">
+                      <Avatar className="w-10 h-10 ring-1 ring-border">
+                        <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
+                          {getInitials(client.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span
+                        className={cn(
+                          "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ring-2 ring-card shadow-sm transition-colors",
+                          client.status === 'inactive' ? "bg-amber-500" : "bg-emerald-500"
+                        )}
+                        title={client.status === 'inactive' ? "Client inactif / suspendu" : "Client actif"}
+                      />
+                    </div>
                     <div>
                       <h3 className="font-bold text-sm">{client.name}</h3>
                       <p className="text-xs text-muted-foreground">
@@ -641,21 +682,33 @@ export function ClientsPage() {
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-40 bg-card border-border">
+                      <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg">
+                        <DropdownMenuItem
+                          className="gap-2 cursor-pointer font-medium"
+                          onClick={() => {
+                            setSelectedClient(client)
+                            setIsDetailsDialogOpen(true)
+                          }}
+                        >
+                          <Eye className="w-4 h-4 text-primary" /> Voir les détails
+                        </DropdownMenuItem>
                         {user?.role === 'admin' && (
-                          <DropdownMenuItem 
-                            className="gap-2"
-                            onClick={() => {
-                              setEditingClient(client)
-                              setIsEditDialogOpen(true)
-                            }}
-                          >
-                            <Edit2 className="w-4 h-4" /> Modifier
-                          </DropdownMenuItem>
+                          <>
+                            <DropdownMenuSeparator className="bg-border/60" />
+                            <DropdownMenuItem
+                              className="gap-2 cursor-pointer"
+                              onClick={() => {
+                                setEditingClient(client)
+                                setIsEditDialogOpen(true)
+                              }}
+                            >
+                              <Edit2 className="w-4 h-4" /> Modifier
+                            </DropdownMenuItem>
+                          </>
                         )}
                         {user?.role === 'admin' && (
                           <DropdownMenuItem
-                            className="gap-2 text-destructive focus:text-destructive"
+                            className="gap-2 text-destructive focus:text-destructive cursor-pointer"
                             onClick={() => setClientToDeleteId(client.id)}
                           >
                             <Trash2 className="w-4 h-4" /> Supprimer
@@ -695,32 +748,59 @@ export function ClientsPage() {
                 <CardContent className="p-0">
                   <div className="p-4">
                     <div className="flex items-start justify-between mb-3">
-                      <Avatar className="w-10 h-10 ring-1 ring-border">
-                        <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
-                          {getInitials(client.name)}
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="flex items-center gap-3">
+                        <div className="relative inline-block flex-shrink-0">
+                          <Avatar className="w-10 h-10 ring-1 ring-border">
+                            <AvatarFallback className="bg-primary text-primary-foreground text-sm font-semibold">
+                              {getInitials(client.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span
+                            className={cn(
+                              "absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full ring-2 ring-card shadow-sm transition-colors",
+                              client.status === 'inactive' ? "bg-amber-500" : "bg-emerald-500"
+                            )}
+                            title={client.status === 'inactive' ? "Client inactif / suspendu" : "Client actif"}
+                          />
+                        </div>
+                        <StatusBadge
+                          variant={client.status === 'inactive' ? 'inactive' : 'active'}
+                          label={client.status === 'inactive' ? 'Inactif' : 'Actif'}
+                        />
+                      </div>
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
                             <MoreVertical className="w-5 h-5" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-40 bg-card border-border">
+                        <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg">
+                          <DropdownMenuItem
+                            className="gap-2 cursor-pointer font-medium"
+                            onClick={() => {
+                              setSelectedClient(client)
+                              setIsDetailsDialogOpen(true)
+                            }}
+                          >
+                            <Eye className="w-4 h-4 text-primary" /> Voir les détails
+                          </DropdownMenuItem>
                           {user?.role === 'admin' && (
-                            <DropdownMenuItem 
-                              className="gap-2"
-                              onClick={() => {
-                                setEditingClient(client)
-                                setIsEditDialogOpen(true)
-                              }}
-                            >
-                              <Edit2 className="w-4 h-4" /> Modifier
-                            </DropdownMenuItem>
+                            <>
+                              <DropdownMenuSeparator className="bg-border/60" />
+                              <DropdownMenuItem
+                                className="gap-2 cursor-pointer"
+                                onClick={() => {
+                                  setEditingClient(client)
+                                  setIsEditDialogOpen(true)
+                                }}
+                              >
+                                <Edit2 className="w-4 h-4" /> Modifier
+                              </DropdownMenuItem>
+                            </>
                           )}
                           {user?.role === 'admin' && (
                             <DropdownMenuItem
-                              className="gap-2 text-destructive focus:text-destructive"
+                              className="gap-2 text-destructive focus:text-destructive cursor-pointer"
                               onClick={() => setClientToDeleteId(client.id)}
                             >
                               <Trash2 className="w-4 h-4" /> Supprimer
@@ -800,6 +880,157 @@ export function ClientsPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Dialog Détails du Client (Lecture & Consultation) ──── */}
+      <Dialog open={isDetailsDialogOpen} onOpenChange={setIsDetailsDialogOpen}>
+        <DialogContent className="bg-card border-border sm:max-w-lg">
+          <DialogHeader>
+            <div className="flex items-center gap-3.5 mb-1">
+              <div className="relative inline-block flex-shrink-0">
+                <Avatar className="w-12 h-12 ring-2 ring-primary/20">
+                  <AvatarFallback className="bg-primary text-primary-foreground font-bold text-base">
+                    {selectedClient ? getInitials(selectedClient.name) : "CL"}
+                  </AvatarFallback>
+                </Avatar>
+                {selectedClient && (
+                  <span
+                    className={cn(
+                      "absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full ring-2 ring-card shadow-sm",
+                      selectedClient.status === 'inactive' ? "bg-amber-500" : "bg-emerald-500"
+                    )}
+                    title={selectedClient.status === 'inactive' ? "Client inactif / suspendu" : "Client actif"}
+                  />
+                )}
+              </div>
+              <div className="min-w-0">
+                <DialogTitle className="text-foreground text-lg font-bold truncate">
+                  {selectedClient?.name}
+                </DialogTitle>
+                <div className="flex items-center gap-2 mt-1">
+                  {selectedClient && (
+                    <StatusBadge
+                      variant={selectedClient.status === 'inactive' ? 'inactive' : 'active'}
+                      label={selectedClient.status === 'inactive' ? 'Compte Inactif / Suspendu' : 'Compte Actif'}
+                    />
+                  )}
+                  {selectedClient?.nif && (
+                    <span className="text-[11px] font-mono text-muted-foreground bg-secondary/50 px-2 py-0.5 rounded border border-border/50">
+                      NIF: {selectedClient.nif}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <VisuallyHidden>
+              <DialogDescription>Fiche complète et coordonnées du client</DialogDescription>
+            </VisuallyHidden>
+          </DialogHeader>
+
+          {selectedClient && (
+            <div className="space-y-4 py-2 text-sm">
+              {/* Coordonnées de contact */}
+              <div className="p-3.5 rounded-lg bg-secondary/30 border border-border/60 space-y-2.5">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Coordonnées & Contact
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                  <div className="flex items-center gap-2 text-foreground">
+                    <Mail className="w-4 h-4 text-primary shrink-0" />
+                    <span className="truncate">
+                      {selectedClient.email ? (
+                        <a href={`mailto:${selectedClient.email}`} className="text-primary hover:underline">
+                          {selectedClient.email}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground/60 italic">Pas d'adresse email</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2 text-foreground">
+                    <Phone className="w-4 h-4 text-primary shrink-0" />
+                    <span>
+                      {selectedClient.phone ? (
+                        <a href={`tel:${selectedClient.phone}`} className="hover:underline">
+                          {selectedClient.phone}
+                        </a>
+                      ) : (
+                        <span className="text-muted-foreground/60 italic">Non renseigné</span>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex items-start gap-2 text-foreground sm:col-span-2">
+                    <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                    <span>
+                      {selectedClient.address || <span className="text-muted-foreground/60 italic">Aucune adresse géographique enregistrée</span>}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mentions fiscales CEMAC */}
+              <div className="p-3.5 rounded-lg bg-secondary/20 border border-border/50 space-y-2">
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Identifiants Fiscaux & Réglementaires (OHADA / Gabon)
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-xs">
+                  <div>
+                    <span className="text-muted-foreground">NIF :</span>
+                    <p className="font-mono font-medium text-foreground mt-0.5">
+                      {selectedClient.nif || <span className="text-muted-foreground/50 font-normal italic">—</span>}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">RCCM :</span>
+                    <p className="font-mono font-medium text-foreground mt-0.5">
+                      {selectedClient.rccm || <span className="text-muted-foreground/50 font-normal italic">—</span>}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Synthèse Facturation */}
+              <div className="p-3.5 rounded-lg bg-secondary/30 border border-border/50 flex items-center justify-between">
+                <div>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Volume d'Affaires Encaissé
+                  </div>
+                  <div className="text-lg font-bold text-foreground mt-0.5">
+                    {formatCurrency(
+                      invoices
+                        ?.filter(inv => inv.clientId === selectedClient.id && inv.status === 'PAID')
+                        .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0) || 0
+                    )}
+                  </div>
+                </div>
+                <div className="text-right text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">
+                    {invoices?.filter(inv => inv.clientId === selectedClient.id).length || 0}
+                  </span> facture(s) émise(s)
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setIsDetailsDialogOpen(false)}>
+                  Fermer
+                </Button>
+                {(user?.role === 'admin' || user?.role === 'user') && (
+                  <Button
+                    variant="default"
+                    className="gap-1.5"
+                    onClick={() => {
+                      setIsDetailsDialogOpen(false)
+                      setEditingClient(selectedClient)
+                      setIsEditDialogOpen(true)
+                    }}
+                  >
+                    <Edit2 className="w-4 h-4" /> Modifier ce client
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
       )}
     </>

@@ -21,6 +21,7 @@ vi.mock('@workspace/ui/components/dropdown-menu', () => ({
   DropdownMenuTrigger: ({ children }: any) => <div data-testid="dropdown-trigger" onClick={(e) => { e.currentTarget.nextElementSibling?.classList.toggle('hidden') }}>{children}</div>,
   DropdownMenuContent: ({ children }: any) => <div data-testid="dropdown-content" className="hidden">{children}</div>,
   DropdownMenuItem: ({ children, onClick, className }: any) => <div data-testid={className?.includes('text-destructive') ? 'dropdown-item-delete' : 'dropdown-item'} onClick={onClick}>{children}</div>,
+  DropdownMenuSeparator: () => <hr data-testid="dropdown-separator" />,
 }))
 vi.mock('@workspace/ui/components/alert-dialog', () => ({
   AlertDialog: ({ children, open, onOpenChange }: any) => (open ? <div data-testid="alert-dialog">{children}</div> : null),
