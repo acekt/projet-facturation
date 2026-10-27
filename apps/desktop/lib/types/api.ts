@@ -421,6 +421,8 @@ export interface ClientCreateRequest {
   email: string;
   phone?: string;
   address?: string;
+  nif?: string | null;
+  rccm?: string | null;
 }
 
 export interface ClientUpdateRequest {
@@ -428,6 +430,8 @@ export interface ClientUpdateRequest {
   email: string;
   phone?: string;
   address?: string;
+  nif?: string | null;
+  rccm?: string | null;
 }
 
 export type ClientResponse = IClient;
@@ -438,6 +442,8 @@ export interface DbClient {
   email: string;
   phone?: string;
   address?: string;
+  nif?: string | null;
+  rccm?: string | null;
   deletedAt?: string;
   createdAt?: string;
   created_by?: string;

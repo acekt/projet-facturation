@@ -42,6 +42,8 @@ const clients = new Table(
     email: column.text,
     phone: column.text,
     address: column.text,
+    nif: column.text,
+    rccm: column.text,
     status: column.text,
     created_at: column.text,
     updated_at: column.text,

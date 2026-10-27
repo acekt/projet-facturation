@@ -49,14 +49,14 @@ export async function createClient(data: ClientCreateRequest): Promise<ActionRes
   try {
     const session = await getSession();
     if (!session || !session.userId) return { success: false, error: 'Unauthorized' };
-    if (session.role !== 'admin') return { success: false, error: 'Forbidden' };
+    if (session.role !== 'admin' && session.role !== 'user') return { success: false, error: 'Forbidden' };
 
     const validation = clientSchema.safeParse(data);
     if (!validation.success) {
       return { success: false, error: 'Données invalides', details: validation.error.flatten().fieldErrors };
     }
 
-    const { name, email, phone, address } = validation.data;
+    const { name, email, phone, address, nif, rccm } = validation.data;
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
     const tf = buildTenantFilter(activeTenantId);
 
@@ -66,8 +66,8 @@ export async function createClient(data: ClientCreateRequest): Promise<ActionRes
     }
 
     const id = crypto.randomUUID();
-    db.prepare('INSERT INTO clients (id, name, email, phone, address, created_by, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)')
-      .run(id, name.trim(), email ? email.trim() : null, phone, address, session.userId, activeTenantId);
+    db.prepare('INSERT INTO clients (id, name, email, phone, address, nif, rccm, created_by, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(id, name.trim(), email ? email.trim() : null, phone || null, address || null, nif ? nif.trim() : null, rccm ? rccm.trim() : null, session.userId, activeTenantId);
 
     logAudit('CREATE', 'client', id, `Nouveau client créé: ${name.trim()}`, session.userId, session.name || session.username || null, activeTenantId);
 
@@ -83,7 +83,7 @@ export async function updateClient(id: string, data: ClientUpdateRequest): Promi
   try {
     const session = await getSession();
     if (!session || !session.userId) return { success: false, error: 'Unauthorized' };
-    if (session.role !== 'admin') return { success: false, error: 'Forbidden' };
+    if (session.role !== 'admin' && session.role !== 'user') return { success: false, error: 'Forbidden' };
 
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
     const tf = buildTenantFilter(activeTenantId);
@@ -95,15 +95,15 @@ export async function updateClient(id: string, data: ClientUpdateRequest): Promi
       return { success: false, error: 'Données invalides', details: validation.error.flatten().fieldErrors };
     }
 
-    const { name, email, phone, address } = validation.data;
+    const { name, email, phone, address, nif, rccm } = validation.data;
 
     if (email && email.trim() !== '') {
       const duplicate = db.prepare(`SELECT id FROM clients WHERE lower(email) = lower(?) AND id != ? AND deletedAt IS NULL${tf.sql}`).get(email.trim(), id, ...tf.params);
       if (duplicate) return { success: false, error: 'Un client avec cette adresse email existe déjà' };
     }
 
-    db.prepare('UPDATE clients SET name = ?, email = ?, phone = ?, address = ? WHERE id = ?')
-      .run(name.trim(), email ? email.trim() : null, phone, address, id);
+    db.prepare('UPDATE clients SET name = ?, email = ?, phone = ?, address = ?, nif = ?, rccm = ? WHERE id = ?')
+      .run(name.trim(), email ? email.trim() : null, phone || null, address || null, nif ? nif.trim() : null, rccm ? rccm.trim() : null, id);
 
     logAudit('UPDATE', 'client', id, `Client mis à jour: ${name.trim()}`, session.userId, session.name || session.username || null, activeTenantId);
 
@@ -125,6 +125,20 @@ export async function deleteClient(id: string): Promise<ActionResponse<boolean>>
     const tf = buildTenantFilter(activeTenantId);
     const client = db.prepare(`SELECT * FROM clients WHERE id = ? AND deletedAt IS NULL${tf.sql}`).get(id, ...tf.params) as DbClient | undefined;
     if (!client) return { success: false, error: 'Client not found' };
+
+    // Vérification de sécurité comptable : interdire la suppression si des factures impayées existent
+    const activeInvoices = db.prepare(`
+      SELECT COUNT(*) as count, COALESCE(SUM(total), 0) as totalUnpaid 
+      FROM invoices 
+      WHERE clientId = ? AND status IN ('UNPAID', 'PARTIALLY_PAID') AND deletedAt IS NULL
+    `).get(id) as { count: number; totalUnpaid: number } | undefined;
+
+    if (activeInvoices && activeInvoices.count > 0) {
+      return {
+        success: false,
+        error: `Impossible de supprimer ce client : ${activeInvoices.count} facture(s) impayée(s) en cours (Total restant : ${Math.round(activeInvoices.totalUnpaid).toLocaleString('fr-FR')} FCFA). Veuillez d'abord régulariser ces factures.`
+      };
+    }
 
     db.prepare("UPDATE clients SET deletedAt = datetime('now') WHERE id = ?").run(id);
     logAudit('DELETE', 'client', id, `Client supprimé: ${client.name}`, session.userId, session.name || session.username || null, activeTenantId);

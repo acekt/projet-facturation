@@ -14,11 +14,19 @@ export const clientSchema = z.object({
   phone: z.string()
     .max(255, "Le numéro de téléphone ne peut pas dépasser 255 caractères")
     .optional()
-    .refine(val => !val || val.length >= 6, "Numéro de téléphone invalide"),
+    .refine(val => !val || /^(\+?[0-9\s-]{6,25})$/.test(val), "Numéro de téléphone invalide"),
   address: z.string()
     .max(1000, "L'adresse ne peut pas dépasser 1000 caractères")
     .optional()
     .refine(val => !val || val.length >= 5, "L'adresse doit contenir au moins 5 caractères"),
+  nif: z.string()
+    .max(255, "Le NIF ne peut pas dépasser 255 caractères")
+    .nullable()
+    .optional(),
+  rccm: z.string()
+    .max(255, "Le RCCM ne peut pas dépasser 255 caractères")
+    .nullable()
+    .optional(),
 });
 
 export const clientUpdateSchema = z.object({
@@ -31,11 +39,19 @@ export const clientUpdateSchema = z.object({
   phone: z.string()
     .max(255, "Le numéro de téléphone ne peut pas dépasser 255 caractères")
     .optional()
-    .refine(val => !val || val.length >= 6, "Numéro de téléphone invalide"),
+    .refine(val => !val || /^(\+?[0-9\s-]{6,25})$/.test(val), "Numéro de téléphone invalide"),
   address: z.string()
     .max(1000, "L'adresse ne peut pas dépasser 1000 caractères")
     .optional()
     .refine(val => !val || val.length >= 5, "L'adresse doit contenir au moins 5 caractères"),
+  nif: z.string()
+    .max(255, "Le NIF ne peut pas dépasser 255 caractères")
+    .nullable()
+    .optional(),
+  rccm: z.string()
+    .max(255, "Le RCCM ne peut pas dépasser 255 caractères")
+    .nullable()
+    .optional(),
 });
 
 // ============================================================================

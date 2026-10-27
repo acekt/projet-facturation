@@ -65,6 +65,8 @@ export interface IClient {
   email: string;
   phone?: string;
   address?: string;
+  nif?: string | null;
+  rccm?: string | null;
   status?: string;
   deletedAt?: string;
   createdAt?: string;

@@ -27,6 +27,8 @@ interface DbClient {
   email: string;
   phone: string | null;
   address: string | null;
+  nif?: string | null;
+  rccm?: string | null;
   status: string;
   createdAt: string;
   deletedAt: string | null;
@@ -138,6 +140,8 @@ export function createTestDatabase(): Database.Database {
       email TEXT,
       phone TEXT,
       address TEXT,
+      nif TEXT,
+      rccm TEXT,
       status TEXT DEFAULT 'active',
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
       deletedAt DATETIME,

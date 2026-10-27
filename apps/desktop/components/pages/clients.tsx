@@ -80,6 +80,8 @@ export function ClientsPage() {
     email: "",
     phone: "",
     address: "",
+    nif: "",
+    rccm: "",
   })
 
   const filteredClients = React.useMemo(() => {
@@ -122,6 +124,8 @@ export function ClientsPage() {
       email: newClient.email,
       phone: newClient.phone,
       address: newClient.address,
+      nif: newClient.nif || null,
+      rccm: newClient.rccm || null,
     }
 
     setIsSubmitting(true)
@@ -137,7 +141,7 @@ export function ClientsPage() {
       // SERVER-FIRST: only close dialog and reset form AFTER server confirms success.
       addClient(createdClient) // use confirmed server record, not temp
       setIsAddDialogOpen(false)
-      setNewClient({ name: "", email: "", phone: "", address: "" })
+      setNewClient({ name: "", email: "", phone: "", address: "", nif: "", rccm: "" })
       toast.success("Client ajouté avec succès")
     } catch (error) {
       // Form stays open — user can correct and retry
@@ -247,13 +251,15 @@ export function ClientsPage() {
             <Button
               variant="outline"
               onClick={() => {
-                const headers = ["Nom", "Email", "Telephone", "Adresse"];
+                const headers = ["Nom", "Email", "Telephone", "Adresse", "NIF", "RCCM"];
                 const targetList = searchQuery.trim() ? filteredClients : clients;
                 const rows = targetList.map(c => [
                   escapeCsvCell(c.name),
                   escapeCsvCell(c.email),
                   escapeCsvCell(c.phone || ''),
-                  escapeCsvCell(c.address || '')
+                  escapeCsvCell(c.address || ''),
+                  escapeCsvCell(c.nif || ''),
+                  escapeCsvCell(c.rccm || '')
                 ]);
                 const csvContent = [headers.map(escapeCsvCell).join(","), ...rows.map(r => r.join(","))].join("\n");
                 const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -332,6 +338,30 @@ export function ClientsPage() {
                     disabled={isSubmitting}
                   />
                 </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="nif" className="text-muted-foreground">NIF</Label>
+                    <Input
+                      id="nif"
+                      value={newClient.nif}
+                      onChange={(e) => setNewClient({ ...newClient, nif: e.target.value })}
+                      placeholder="Ex: 0123456A"
+                      className="bg-secondary border-border text-foreground font-mono text-sm"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="rccm" className="text-muted-foreground">RCCM</Label>
+                    <Input
+                      id="rccm"
+                      value={newClient.rccm}
+                      onChange={(e) => setNewClient({ ...newClient, rccm: e.target.value })}
+                      placeholder="Ex: RG/LBV/2026/B/1234"
+                      className="bg-secondary border-border text-foreground font-mono text-sm"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
                 <Button
                   type="submit"
                   className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4"
@@ -400,6 +430,30 @@ export function ClientsPage() {
                       className="bg-secondary border-border text-foreground"
                       disabled={isSubmitting}
                     />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-nif" className="text-muted-foreground">NIF</Label>
+                      <Input
+                        id="edit-nif"
+                        value={editingClient?.nif || ''}
+                        onChange={(e) => editingClient && setEditingClient({ ...editingClient, nif: e.target.value })}
+                        placeholder="Ex: 0123456A"
+                        className="bg-secondary border-border text-foreground font-mono text-sm"
+                        disabled={isSubmitting}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-rccm" className="text-muted-foreground">RCCM</Label>
+                      <Input
+                        id="edit-rccm"
+                        value={editingClient?.rccm || ''}
+                        onChange={(e) => editingClient && setEditingClient({ ...editingClient, rccm: e.target.value })}
+                        placeholder="Ex: RG/LBV/2026/B/1234"
+                        className="bg-secondary border-border text-foreground font-mono text-sm"
+                        disabled={isSubmitting}
+                      />
+                    </div>
                   </div>
                   <Button
                     type="submit"

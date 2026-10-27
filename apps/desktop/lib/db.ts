@@ -236,6 +236,8 @@ try {
     email TEXT,
     phone TEXT,
     address TEXT,
+    nif TEXT,
+    rccm TEXT,
     status TEXT DEFAULT 'active',
     createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
     deletedAt DATETIME,
@@ -532,13 +534,19 @@ try {
     }
   }
 
-  // Soft Delete Migrations for Phase 3
+  // Soft Delete & Fiscal Migrations for Clients
   const clientsColumns = db.prepare("PRAGMA table_info(clients)").all() as Array<{ name: string }>;
   if (!clientsColumns.some(c => c.name === 'deletedAt')) {
     db.prepare("ALTER TABLE clients ADD COLUMN deletedAt DATETIME").run();
   }
   if (!clientsColumns.some(c => c.name === 'created_by')) {
     db.prepare("ALTER TABLE clients ADD COLUMN created_by TEXT").run();
+  }
+  if (!clientsColumns.some(c => c.name === 'nif')) {
+    db.prepare("ALTER TABLE clients ADD COLUMN nif TEXT").run();
+  }
+  if (!clientsColumns.some(c => c.name === 'rccm')) {
+    db.prepare("ALTER TABLE clients ADD COLUMN rccm TEXT").run();
   }
 
   if (!servicesColumns.some(c => c.name === 'deletedAt')) {

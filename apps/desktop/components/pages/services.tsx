@@ -560,8 +560,10 @@ export function ServicesPage() {
                 <Input
                   id="service-price"
                   type="number"
+                  step="1"
+                  min="0"
                   value={formData.unitPrice}
-                  onChange={(e) => setFormData({ ...formData, unitPrice: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setFormData({ ...formData, unitPrice: parseInt(e.target.value, 10) || 0 })}
                   className="bg-secondary border-border text-right"
                   required
                   disabled={isSubmitting}
