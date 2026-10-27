@@ -129,12 +129,19 @@ describe('Module 1 — Validation des Champs Obligatoires/Optionnels & Listes D�
       expect(negativePrice.success).toBe(false);
     });
 
-    it('autorise description et categorie comme optionnelles', () => {
-      const minimalService = serviceSchema.safeParse({
+    it('exige la catégorie ou applique la catégorie par défaut, et rejette une catégorie vide', () => {
+      const minimalService = serviceSchema.parse({
         name: 'Consulting IT',
         unitPrice: 250000,
       });
-      expect(minimalService.success).toBe(true);
+      expect(minimalService.category).toBe('Prestation de services');
+
+      const invalidEmptyCategory = serviceSchema.safeParse({
+        name: 'Consulting IT',
+        unitPrice: 250000,
+        category: '',
+      });
+      expect(invalidEmptyCategory.success).toBe(false);
 
       const fullService = serviceSchema.safeParse({
         name: 'Développement Web',

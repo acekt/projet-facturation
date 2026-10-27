@@ -190,10 +190,12 @@ export const serviceSchema = z.object({
     .max(5000, "La description ne peut pas dépasser 5000 caractères")
     .optional()
     .nullable(),
-  category: z.string()
+  category: z.string({
+    required_error: "La catégorie est requise",
+  })
+    .min(1, "La catégorie est requise")
     .max(255, "La catégorie ne peut pas dépasser 255 caractères")
-    .optional()
-    .nullable(),
+    .default("Prestation de services"),
   // XAF RULE: unit price in the service catalogue must be a non-negative integer.
   unitPrice: z.number().int("Le prix doit être un entier en XAF (pas de décimales)").min(0, "Le prix ne peut pas être négatif"),
 });
@@ -207,9 +209,9 @@ export const serviceUpdateSchema = z.object({
     .optional()
     .nullable(),
   category: z.string()
+    .min(1, "La catégorie ne peut pas être vide")
     .max(255, "La catégorie ne peut pas dépasser 255 caractères")
-    .optional()
-    .nullable(),
+    .optional(),
   // XAF RULE: unit price in the service catalogue must be a non-negative integer.
   unitPrice: z.number().int("Le prix doit être un entier en XAF (pas de décimales)").min(0, "Le prix ne peut pas être négatif"),
 });

@@ -350,7 +350,7 @@ export function ClientsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="status" className="text-muted-foreground">Statut</Label>
+                    <Label htmlFor="status" className="text-muted-foreground">Statut <span className="text-destructive">*</span></Label>
                     <Select
                       value={newClient.status}
                       onValueChange={(val) => setNewClient({ ...newClient, status: val as 'active' | 'inactive' })}
@@ -460,7 +460,7 @@ export function ClientsPage() {
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="edit-status" className="text-muted-foreground">Statut</Label>
+                      <Label htmlFor="edit-status" className="text-muted-foreground">Statut <span className="text-destructive">*</span></Label>
                       <Select
                         value={editingClient?.status || "active"}
                         onValueChange={(val) => editingClient && setEditingClient({ ...editingClient, status: val as 'active' | 'inactive' })}

@@ -565,7 +565,7 @@ export function ServicesPage() {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="service-category" className="text-muted-foreground">Catégorie <span className="text-xs text-muted-foreground/60">(optionnel)</span></Label>
+                <Label htmlFor="service-category" className="text-muted-foreground">Catégorie <span className="text-destructive">*</span></Label>
                 <Select
                   value={formData.category || "Prestation de services"}
                   onValueChange={(val) => setFormData({ ...formData, category: val })}
