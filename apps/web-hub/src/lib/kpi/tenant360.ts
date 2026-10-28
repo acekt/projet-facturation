@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/utils/supabase/server";
 import { requireSuperadmin } from "@/lib/auth/dal";
 
@@ -83,12 +84,13 @@ export interface Tenant360Data {
 
 /**
  * Récupère la liste filtrable et triable des entreprises clientes.
+ * Mémoïsé par requête via React.cache().
  */
-export async function getTenantsList(filters?: {
+export const getTenantsList = cache(async (filters?: {
   search?: string;
   status?: string;
   planId?: string;
-}): Promise<TenantListItem[]> {
+}): Promise<TenantListItem[]> => {
   await requireSuperadmin();
   const supabase = await createClient();
 
@@ -139,7 +141,7 @@ export async function getTenantsList(filters?: {
     devicesCount: t.sync_devices?.[0]?.count || 0,
     createdAt: t.created_at,
   }));
-}
+});
 
 /**
  * Récupère la vue 360° exhaustive d'un tenant pour le Super Admin.

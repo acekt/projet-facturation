@@ -6,13 +6,25 @@ import { Building2 } from "lucide-react";
 
 export const instant = false;
 
-export default async function AdminTenantsPage() {
+async function TenantsLoader() {
   await connection();
   const tenants = await getTenantsList();
+  return <TenantsTable initialTenants={tenants} />;
+}
 
+function TenantsSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse">
+      <div className="h-14 rounded-xl bg-card border border-border" />
+      <div className="h-96 rounded-2xl bg-card border border-border" />
+    </div>
+  );
+}
+
+export default function AdminTenantsPage() {
   return (
     <div className="space-y-6">
-      {/* En-tête harmonisé */}
+      {/* En-tête harmonisé - Rendu immédiat à 0 ms */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 p-6 rounded-2xl bg-card border border-border shadow-xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
@@ -30,12 +42,9 @@ export default async function AdminTenantsPage() {
         </div>
       </div>
 
-      <Suspense
-        fallback={
-          <div className="h-64 bg-card rounded-2xl border border-border animate-pulse" />
-        }
-      >
-        <TenantsTable initialTenants={tenants} />
+      {/* Streaming Suspense non-bloquant */}
+      <Suspense fallback={<TenantsSkeleton />}>
+        <TenantsLoader />
       </Suspense>
     </div>
   );

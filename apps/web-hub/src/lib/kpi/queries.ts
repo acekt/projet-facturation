@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/utils/supabase/server";
 import { requireSuperadmin } from "@/lib/auth/dal";
 
@@ -44,16 +45,36 @@ export interface FleetDeviceItem {
 
 /**
  * Récupère les métriques de synthèse du Hub Super Admin.
- * Exécutable uniquement côté serveur avec droits Superadmin.
+ * Optimisé avec React.cache() et parallélisation Promise.all des 4 requêtes.
  */
-export async function getHubOverview(): Promise<HubOverviewData> {
+export const getHubOverview = cache(async (): Promise<HubOverviewData> => {
   await requireSuperadmin();
   const supabase = await createClient();
 
-  // 1. Synthèse des Tenants et Plans
-  const { data: tenantsData } = await supabase
-    .from("tenants")
-    .select("id, status, plan_id, plans(price_xaf)");
+  const todayIso = new Date().toISOString().slice(0, 10);
+
+  // Exécution parallèle sans waterfall des 4 requêtes Supabase Cloud
+  const [
+    { data: tenantsData },
+    { data: devicesData },
+    { data: todayKpis },
+    { data: alertsData },
+  ] = await Promise.all([
+    supabase
+      .from("tenants")
+      .select("id, status, plan_id, plans(price_xaf)"),
+    supabase
+      .from("sync_devices")
+      .select("device_id, last_seen_at, last_status"),
+    supabase
+      .from("kpi_tenant_daily")
+      .select("documents_created, total_revenue_xaf, sync_count, sync_errors_count")
+      .eq("metric_date", todayIso),
+    supabase
+      .from("alerts")
+      .select("id, severity, status")
+      .eq("status", "open"),
+  ]);
 
   const tenants = {
     total: tenantsData?.length || 0,
@@ -77,11 +98,6 @@ export async function getHubOverview(): Promise<HubOverviewData> {
     }
   });
 
-  // 2. Synthèse de la Flotte de Postes
-  const { data: devicesData } = await supabase
-    .from("sync_devices")
-    .select("device_id, last_seen_at, last_status");
-
   const now = Date.now();
   const h24Ago = now - 24 * 60 * 60 * 1000;
   const d7Ago = now - 7 * 24 * 60 * 60 * 1000;
@@ -100,13 +116,6 @@ export async function getHubOverview(): Promise<HubOverviewData> {
     if (d.last_status === "error") fleet.errorStatus++;
   });
 
-  // 3. Activité du jour (depuis kpi_tenant_daily ou sync_runs)
-  const todayIso = new Date().toISOString().slice(0, 10);
-  const { data: todayKpis } = await supabase
-    .from("kpi_tenant_daily")
-    .select("documents_created, total_revenue_xaf, sync_count, sync_errors_count")
-    .eq("metric_date", todayIso);
-
   const todayMetrics = {
     documentsCreated: 0,
     revenueXaf: 0,
@@ -120,12 +129,6 @@ export async function getHubOverview(): Promise<HubOverviewData> {
     todayMetrics.syncRuns += k.sync_count || 0;
     todayMetrics.syncErrors += k.sync_errors_count || 0;
   });
-
-  // 4. Alertes ouvertes
-  const { data: alertsData } = await supabase
-    .from("alerts")
-    .select("id, severity, status")
-    .eq("status", "open");
 
   const alerts = {
     totalOpen: alertsData?.length || 0,
@@ -145,12 +148,13 @@ export async function getHubOverview(): Promise<HubOverviewData> {
     todayMetrics,
     alerts,
   };
-}
+});
 
 /**
  * Récupère l'inventaire complet de la flotte de postes synchronisés.
+ * Mémoïsé par requête via React.cache().
  */
-export async function getFleetDevices(): Promise<FleetDeviceItem[]> {
+export const getFleetDevices = cache(async (): Promise<FleetDeviceItem[]> => {
   await requireSuperadmin();
   const supabase = await createClient();
 
@@ -184,4 +188,4 @@ export async function getFleetDevices(): Promise<FleetDeviceItem[]> {
     lastSyncAt: d.last_sync_at,
     lastStatus: d.last_status,
   }));
-}
+});

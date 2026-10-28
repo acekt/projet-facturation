@@ -20,6 +20,15 @@ export function NavigationProgressBar() {
     setIsNavigating(false);
   }, [pathname, searchParams]);
 
+  // Sécurité anti-blocage : réinitialisation automatique après 3,5s si aucune navigation n'aboutit
+  useEffect(() => {
+    if (!isNavigating) return;
+    const safetyTimer = setTimeout(() => {
+      setIsNavigating(false);
+    }, 3500);
+    return () => clearTimeout(safetyTimer);
+  }, [isNavigating]);
+
   // Capture ultra-réactive des clics sur les liens internes
   useEffect(() => {
     const handleLinkClick = (e: MouseEvent) => {

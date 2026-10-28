@@ -1,3 +1,4 @@
+import { cache } from "react";
 import { createClient } from "@/utils/supabase/server";
 import { forbidden, redirect } from "next/navigation";
 
@@ -23,11 +24,12 @@ export interface SuperadminSession {
 
 /**
  * Data Access Layer (DAL) : Exige formellement une session Super Admin valide.
+ * Mémoïsé par requête via React.cache() pour éliminer les requêtes d'authentification dupliquées.
  * Si l'utilisateur n'est pas connecté -> redirection /login.
  * Si le rôle n'est pas superadmin -> déclenche forbidden() (403 HTTP).
  * Si un second facteur TOTP est enrôlé mais non vérifié (aal1 -> aal2) -> redirection /mfa/verify.
  */
-export async function requireSuperadmin(): Promise<SuperadminSession> {
+export const requireSuperadmin = cache(async (): Promise<SuperadminSession> => {
   const supabase = await createClient();
 
   const {
@@ -93,7 +95,7 @@ export async function requireSuperadmin(): Promise<SuperadminSession> {
     },
     aal: aalData,
   };
-}
+});
 
 /**
  * Vérification non-bloquante du statut Super Admin (pour affichage conditionnel).
