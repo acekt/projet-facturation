@@ -13,7 +13,7 @@
 --   5. Requête de Vérification d'Intégrité Globale
 -- =============================================================================
 
-\echo '>>> Début du déploiement des migrations de production Facturier...'
+DO $$ BEGIN RAISE NOTICE '>>> Début du déploiement des migrations de production Facturier...'; END $$;
 
 -- =============================================================================
 -- SECTION 1 : Tables fondamentales Multi-Tenant & Profils
@@ -527,4 +527,4 @@ WHERE schemaname = 'public'
     'sync_runs', 'hub_audit_logs', 'kpi_tenant_daily'
   );
 
-\echo '>>> Déploiement consolidé de production terminé avec succès.'
+DO $$ BEGIN RAISE NOTICE '>>> Déploiement consolidé de production terminé avec succès.'; END $$;
