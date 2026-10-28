@@ -5,6 +5,10 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   experimental: {
     authInterrupts: true,
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
   },
   transpilePackages: ["@workspace/ui", "@workspace/database"],
   turbopack: {

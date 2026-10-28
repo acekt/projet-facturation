@@ -19,10 +19,11 @@ Accepted
   - `apps/web-hub/src/components/admin/command-palette.tsx`
   - `apps/web-hub/src/components/admin/admin-shell.tsx`
   - `apps/web-hub/src/app/globals.css`
+  - `apps/web-hub/next.config.ts`
 
 ## Documentation Source
 
-- Context7 source: `/vercel/next.js` (App Router `template.tsx`, `<Link prefetch>`, Partial Prefetching, navigation transitions)
+- Context7 source: `/vercel/next.js` (App Router `template.tsx`, `<Link prefetch>`, Partial Prefetching, `staleTimes` Client Cache, navigation transitions)
 - Official fallback source: `node_modules/next/dist/docs/01-app/03-api-reference/02-components/link.md`
 - Date checked: 2026-10-28
 
@@ -38,27 +39,32 @@ L'application Desktop (`apps/desktop`) offre une expérience utilisateur ultra-f
 - L'indicateur d'onglet actif dépendait strictement de `pathname`, provoquant une latence perçue de 200 à 500 ms avant que le menu ne réagisse visuellement.
 - L'absence d'enveloppe de transition `template.tsx` causait des ruptures visuelles sèches lors du remplacement des vues.
 - L'utilisateur ne recevait aucun indicateur tactile de progression pendant le trajet réseau.
+- Les segments de route n'étaient pas réutilisés en mémoire client lors des allers-retours.
 
 ## Decision
 
-Pour conférer au Hub Cloud le même niveau de fluidité et de réactivité instantanée que l'application Desktop, nous mettons en œuvre les cinq piliers techniques suivants :
+Pour conférer au Hub Cloud le même niveau de fluidité et de réactivité instantanée que l'application Desktop, nous mettons en œuvre les six piliers techniques validés par la documentation officielle Next.js via Context7 :
 
 1. **Enveloppe de Transition de Route (`apps/web-hub/src/app/admin/template.tsx`)** :
    - Contrairement à `layout.tsx` qui persiste, `template.tsx` remonte à chaque changement d'URL.
    - Application d'une animation accélérée par GPU (`.animate-page-enter` : `translateY(8px)` -> `translateY(0)` et `opacity: 0 -> 1` en 220 ms avec courbe de Bézier ergonomique `cubic-bezier(0.16, 1, 0.3, 1)`).
 
-2. **État de Navigation Optimiste (0 ms)** :
+2. **Activation du Client Router Cache (`next.config.ts: experimental.staleTimes`)** :
+   - Configuration de `staleTimes: { dynamic: 30, static: 180 }` selon les recommandations Next.js 15/16.
+   - Les segments de page et le cache de route sont conservés 30s à 3 minutes dans le cache mémoire client du navigateur, permettant un retour arrière ou un réaffichage immédiat (0 ms) sans re-solliciter le serveur Vercel/Supabase.
+
+3. **État de Navigation Optimiste (0 ms)** :
    - Dans `CollapsibleSidebar` et `MobileNav`, introduction d'un état `optimisticPath` capturé dès l'événement `onMouseDown` ou `onClick`.
    - L'onglet cliqué s'illumine instantanément (< 1 ms), synchronisé et réinitialisé automatiquement dès que `pathname` confirme l'arrivée.
 
-3. **Préchargement Proactif (`prefetch={true}`)** :
+4. **Préchargement Proactif (`prefetch={true}`)** :
    - Activation explicite de `prefetch={true}` sur l'ensemble des liens de la barre latérale rétractable, du tiroir mobile et du menu général.
    - En synergie avec `partialPrefetching: true` de Next.js 16, le shell statique et les caches de route sont pré-téléchargés en tâche de fond dès l'apparition du menu.
 
-4. **Barre de Progression Tactile Instantanée (`NavigationProgressBar`)** :
+5. **Barre de Progression Tactile Instantanée (`NavigationProgressBar`)** :
    - Intégration d'un indicateur de 2,5 px au sommet de l'écran (`bg-gradient-to-r from-primary via-accent to-primary`) s'animant immédiatement lors d'un clic sur un lien interne, confirmant instantanément la prise en compte de l'action utilisateur.
 
-5. **Préchargement dans la Palette de Commande (`CommandPalette`)** :
+6. **Préchargement dans la Palette de Commande (`CommandPalette`)** :
    - Déclenchement de `router.prefetch(target.href)` dès que l'utilisateur sélectionne un module au clavier (flèches haut/bas), garantissant un affichage instantané lors de l'appui sur Entrée.
 
 ## Alternatives Considered
