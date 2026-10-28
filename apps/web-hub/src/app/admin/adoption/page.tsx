@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { getAdoptionFunnelData } from "@/lib/kpi/adoptionQueries";
 import { AdoptionFunnelView } from "@/components/admin/adoption-funnel-view";
 
@@ -12,7 +11,6 @@ export const metadata: Metadata = {
 export const instant = false;
 
 async function AdoptionLoader() {
-  await connection();
   const data = await getAdoptionFunnelData();
   return <AdoptionFunnelView initialData={data} />;
 }

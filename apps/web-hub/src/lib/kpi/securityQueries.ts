@@ -1,4 +1,6 @@
-import { createClient } from "@/utils/supabase/server";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { requireSuperadmin } from "@/lib/auth/dal";
 
 export interface HubAuditItem {
@@ -30,15 +32,10 @@ export interface SecurityAuditOverviewData {
 }
 
 /**
- * Récupère le journal d'audit immuable du Hub Web Super Admin.
+ * Récupération brute du journal d'audit avec Service Role sans accès aux cookies.
  */
-export async function getSecurityAuditLogs(filters?: {
-  action?: string;
-  actorEmail?: string;
-  limit?: number;
-}): Promise<SecurityAuditOverviewData> {
-  await requireSuperadmin();
-  const supabase = await createClient();
+async function fetchSecurityAuditLogsRaw(limit: number = 200): Promise<SecurityAuditOverviewData> {
+  const supabase = createAdminClient();
 
   let query = supabase
     .from("hub_audit_logs")
@@ -60,15 +57,7 @@ export async function getSecurityAuditLogs(filters?: {
       )
     `)
     .order("created_at", { ascending: false })
-    .limit(filters?.limit || 200);
-
-  if (filters?.action && filters.action !== "all") {
-    query = query.eq("action", filters.action);
-  }
-
-  if (filters?.actorEmail && filters.actorEmail.trim().length > 0) {
-    query = query.ilike("actor_email", `%${filters.actorEmail.trim()}%`);
-  }
+    .limit(limit);
 
   const { data: logsData, error } = await query;
   if (error) {
@@ -121,3 +110,39 @@ export async function getSecurityAuditLogs(filters?: {
     logs,
   };
 }
+
+const getCachedSecurityAuditLogs = unstable_cache(
+  fetchSecurityAuditLogsRaw,
+  ["hub-security-audit-logs"],
+  {
+    revalidate: 15,
+    tags: ["hub-audit", "hub-security"],
+  }
+);
+
+/**
+ * Récupère le journal d'audit immuable du Hub Web Super Admin.
+ * Mémoïsé par requête via React.cache() et servi depuis le Data Cache en 0ms.
+ */
+export const getSecurityAuditLogs = cache(async (filters?: {
+  action?: string;
+  actorEmail?: string;
+  limit?: number;
+}): Promise<SecurityAuditOverviewData> => {
+  await requireSuperadmin();
+  const base = await getCachedSecurityAuditLogs(filters?.limit || 200);
+  if (!filters) return base;
+
+  let filteredLogs = base.logs;
+  if (filters.action && filters.action !== "all") {
+    filteredLogs = filteredLogs.filter((l) => l.action === filters.action);
+  }
+  if (filters.actorEmail && filters.actorEmail.trim().length > 0) {
+    const em = filters.actorEmail.trim().toLowerCase();
+    filteredLogs = filteredLogs.filter((l) => l.actorEmail.toLowerCase().includes(em));
+  }
+  return {
+    summary: base.summary,
+    logs: filteredLogs,
+  };
+});

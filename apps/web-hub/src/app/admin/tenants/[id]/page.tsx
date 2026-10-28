@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { connection } from "next/server";
 import { getTenant360 } from "@/lib/kpi/tenant360";
 import { Tenant360View } from "@/components/admin/tenant-360-view";
 import { ArrowLeft, Building2 } from "lucide-react";
@@ -13,7 +12,6 @@ export default async function TenantDetailsPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await connection();
   const { id } = await params;
   const data = await getTenant360(id);
 

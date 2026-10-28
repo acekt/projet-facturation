@@ -1,4 +1,6 @@
-import { createClient } from "@/utils/supabase/server";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { requireSuperadmin } from "@/lib/auth/dal";
 
 export type HealthCategory = "champion" | "stable" | "watch" | "churn_risk";
@@ -179,37 +181,59 @@ export function computeHealthScore(params: {
 }
 
 /**
- * Récupère l'ensemble des métriques d'Adoption, du Funnel et du Health Score.
+ * Récupération brute des données d'Adoption et Health Score avec Service Role.
+ * Exécution parallèle Promise.all des 6 requêtes sans accès aux cookies.
  */
-export async function getAdoptionFunnelData(): Promise<AdoptionFunnelData> {
-  await requireSuperadmin();
-  const supabase = await createClient();
+async function fetchAdoptionFunnelDataRaw(): Promise<AdoptionFunnelData> {
+  const supabase = createAdminClient();
 
   const now = Date.now();
   const d30Ago = new Date(now - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-  // 1. Récupération de tous les tenants et plans
-  const { data: tenantsData } = await supabase
-    .from("tenants")
-    .select(`
-      id,
-      name,
-      status,
-      created_at,
-      plans (
+  // Exécution parallèle des 6 tables d'analyse sans aucun waterfall
+  const [
+    { data: tenantsData },
+    { data: devicesData },
+    { data: invoicesData },
+    { data: quotesData },
+    { data: paymentsData },
+    { data: syncRunsData },
+  ] = await Promise.all([
+    supabase
+      .from("tenants")
+      .select(`
+        id,
         name,
-        price_xaf
-      )
-    `)
-    .order("created_at", { ascending: false });
+        status,
+        created_at,
+        plans (
+          name,
+          price_xaf
+        )
+      `)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("sync_devices")
+      .select("device_id, tenant_id, last_seen_at"),
+    supabase
+      .from("invoices")
+      .select("id, tenant_id, total, created_at")
+      .is("deleted_at", null),
+    supabase
+      .from("quotes")
+      .select("id, tenant_id")
+      .is("deleted_at", null),
+    supabase
+      .from("payments")
+      .select("id, tenant_id, amount")
+      .is("deleted_at", null),
+    supabase
+      .from("sync_runs")
+      .select("tenant_id, error_count"),
+  ]);
 
   const tenants = tenantsData || [];
   const totalTenants = tenants.length;
-
-  // 2. Récupération des devices par tenant
-  const { data: devicesData } = await supabase
-    .from("sync_devices")
-    .select("device_id, tenant_id, last_seen_at");
 
   const devicesByTenant = new Map<
     string,
@@ -224,12 +248,6 @@ export async function getAdoptionFunnelData(): Promise<AdoptionFunnelData> {
     }
     devicesByTenant.set(d.tenant_id, cur);
   });
-
-  // 3. Récupération des factures
-  const { data: invoicesData } = await supabase
-    .from("invoices")
-    .select("id, tenant_id, total, created_at")
-    .is("deleted_at", null);
 
   const invoicesByTenant = new Map<
     string,
@@ -247,20 +265,8 @@ export async function getAdoptionFunnelData(): Promise<AdoptionFunnelData> {
     invoicesByTenant.set(tId, cur);
   });
 
-  // 4. Récupération des devis
-  const { data: quotesData } = await supabase
-    .from("quotes")
-    .select("id, tenant_id")
-    .is("deleted_at", null);
-
   const quotesByTenant = new Set<string>();
   (quotesData || []).forEach((q: any) => quotesByTenant.add(q.tenant_id));
-
-  // 5. Récupération des paiements
-  const { data: paymentsData } = await supabase
-    .from("payments")
-    .select("id, tenant_id, amount")
-    .is("deleted_at", null);
 
   const paymentsByTenant = new Map<string, { count: number; totalXaf: number }>();
   (paymentsData || []).forEach((p: any) => {
@@ -270,11 +276,6 @@ export async function getAdoptionFunnelData(): Promise<AdoptionFunnelData> {
     cur.totalXaf += Number(p.amount) || 0;
     paymentsByTenant.set(tId, cur);
   });
-
-  // 6. Récupération des cycles de synchronisation (runs)
-  const { data: syncRunsData } = await supabase
-    .from("sync_runs")
-    .select("tenant_id, error_count");
 
   const syncRunsByTenant = new Map<string, { runs: number; errors: number }>();
   (syncRunsData || []).forEach((r: any) => {
@@ -474,3 +475,25 @@ export async function getAdoptionFunnelData(): Promise<AdoptionFunnelData> {
     allTenantsHealth,
   };
 }
+
+/**
+ * Cache intermédiaire sur le Data Cache Next.js (Vercel Edge / Node).
+ * Revalidation toutes les 30s avec tag d'invalidation 'hub-adoption'.
+ */
+const getCachedAdoptionFunnelData = unstable_cache(
+  fetchAdoptionFunnelDataRaw,
+  ["hub-adoption-funnel"],
+  {
+    revalidate: 30,
+    tags: ["hub-adoption", "hub-kpis"],
+  }
+);
+
+/**
+ * Point d'entrée sécurisé pour les composants serveur du Hub.
+ * Valide l'authentification Superadmin puis sert les données d'adoption depuis le Data Cache en 0ms.
+ */
+export const getAdoptionFunnelData = cache(async (): Promise<AdoptionFunnelData> => {
+  await requireSuperadmin();
+  return getCachedAdoptionFunnelData();
+});

@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { getAnnouncementsAndAlerts } from "@/lib/kpi/announcementActions";
 import { AnnouncementsAlertsView } from "@/components/admin/announcements-alerts-view";
 
@@ -12,7 +11,6 @@ export const metadata: Metadata = {
 export const instant = false;
 
 async function AnnouncementsAlertsLoader() {
-  await connection();
   const data = await getAnnouncementsAndAlerts();
   return <AnnouncementsAlertsView initialData={data} />;
 }

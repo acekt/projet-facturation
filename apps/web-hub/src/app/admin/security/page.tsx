@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { getSecurityAuditLogs } from "@/lib/kpi/securityQueries";
 import { SecurityAuditView } from "@/components/admin/security-audit-view";
 
@@ -12,7 +11,6 @@ export const metadata: Metadata = {
 export const instant = false;
 
 async function SecurityAuditLoader() {
-  await connection();
   const data = await getSecurityAuditLogs();
   return <SecurityAuditView initialData={data} />;
 }

@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { getFinancialOverview } from "@/lib/kpi/financeQueries";
 import { FinanceOverviewView } from "@/components/admin/finance-overview-view";
 
@@ -12,7 +11,6 @@ export const metadata: Metadata = {
 export const instant = false;
 
 async function FinanceLoader() {
-  await connection();
   const data = await getFinancialOverview();
   return <FinanceOverviewView initialData={data} />;
 }

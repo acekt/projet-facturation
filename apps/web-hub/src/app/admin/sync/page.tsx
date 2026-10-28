@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { getDetailedSyncFleet } from "@/lib/kpi/fleetQueries";
 import { SyncFleetView } from "@/components/admin/sync-fleet-view";
 import { Laptop } from "lucide-react";
@@ -13,7 +12,6 @@ export const metadata: Metadata = {
 export const instant = false;
 
 async function SyncFleetLoader() {
-  await connection();
   const data = await getDetailedSyncFleet();
   return <SyncFleetView initialData={data} />;
 }

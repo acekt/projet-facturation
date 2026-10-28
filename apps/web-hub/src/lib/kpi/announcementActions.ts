@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { requireSuperadmin } from "@/lib/auth/dal";
 import { logHubAudit } from "@/lib/audit";
 
@@ -48,47 +49,55 @@ export interface AnnouncementsAndAlertsData {
  */
 export async function getAnnouncementsAndAlerts(): Promise<AnnouncementsAndAlertsData> {
   await requireSuperadmin();
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
-  // 1. Récupération des annonces
-  const { data: rawAnnouncements } = await supabase
-    .from("announcements")
-    .select(`
-      id,
-      title,
-      body,
-      level,
-      target_tenant_id,
-      is_active,
-      starts_at,
-      ends_at,
-      created_at,
-      tenants (
-        name
-      )
-    `)
-    .order("created_at", { ascending: false });
-
-  // 2. Récupération des alertes
-  const { data: rawAlerts } = await supabase
-    .from("alerts")
-    .select(`
-      id,
-      title,
-      message,
-      severity,
-      status,
-      tenant_id,
-      created_at,
-      resolved_at,
-      tenants (
-        name
-      ),
-      alert_rules (
-        name
-      )
-    `)
-    .order("created_at", { ascending: false });
+  // 1, 2 & 3. Récupération simultanée des annonces, des alertes et des tenants
+  const [
+    { data: rawAnnouncements },
+    { data: rawAlerts },
+    { data: rawTenants },
+  ] = await Promise.all([
+    supabase
+      .from("announcements")
+      .select(`
+        id,
+        title,
+        body,
+        level,
+        target_tenant_id,
+        is_active,
+        starts_at,
+        ends_at,
+        created_at,
+        tenants (
+          name
+        )
+      `)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("alerts")
+      .select(`
+        id,
+        title,
+        message,
+        severity,
+        status,
+        tenant_id,
+        created_at,
+        resolved_at,
+        tenants (
+          name
+        ),
+        alert_rules (
+          name
+        )
+      `)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("tenants")
+      .select("id, name")
+      .order("name", { ascending: true }),
+  ]);
 
   let activeAnnouncements = 0;
   const announcements: AnnouncementItem[] = (rawAnnouncements || []).map((a: any) => {
@@ -128,12 +137,6 @@ export async function getAnnouncementsAndAlerts(): Promise<AnnouncementsAndAlert
       resolvedAt: alt.resolved_at,
     };
   });
-
-  // 3. Récupération des tenants pour la liste déroulante de ciblage
-  const { data: rawTenants } = await supabase
-    .from("tenants")
-    .select("id, name")
-    .order("name", { ascending: true });
 
   const tenants = (rawTenants || []).map((t: any) => ({
     id: t.id,

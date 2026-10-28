@@ -168,33 +168,47 @@ const fixtureAnnouncements = [
   },
 ];
 
+vi.mock("next/cache", () => ({
+  unstable_cache: (fn: any) => fn,
+  revalidatePath: vi.fn(),
+  revalidateTag: vi.fn(),
+}));
+
+const mockSupabaseQueryChain = () => ({
+  from: (table: string) => {
+    let chain: any = {
+      select: vi.fn(() => chain),
+      order: vi.fn(() => chain),
+      limit: vi.fn(() => chain),
+      is: vi.fn(() => chain),
+      eq: vi.fn(() => chain),
+      or: vi.fn(() => chain),
+      ilike: vi.fn(() => chain),
+      single: vi.fn(() => chain),
+      then: (resolve: any) => {
+        if (table === "tenants") return resolve({ data: fixtureTenants, error: null });
+        if (table === "sync_devices") return resolve({ data: fixtureDevices, error: null });
+        if (table === "sync_runs") return resolve({ data: fixtureSyncRuns, error: null });
+        if (table === "invoices") return resolve({ data: fixtureInvoices, error: null });
+        if (table === "payments") return resolve({ data: fixturePayments, error: null });
+        if (table === "quotes") return resolve({ data: fixtureQuotes, error: null });
+        if (table === "alerts") return resolve({ data: fixtureAlerts, error: null });
+        if (table === "plans") return resolve({ data: [{ id: "plan-pro-id", code: "pro", name: "Pro", price_xaf: 35000, billing_period: "monthly", max_users: 10, max_devices: 5, features: {}, is_active: true }], error: null });
+        if (table === "hub_audit_logs") return resolve({ data: fixtureAuditLogs, error: null });
+        if (table === "announcements") return resolve({ data: fixtureAnnouncements, error: null });
+        return resolve({ data: [], error: null });
+      },
+    };
+    return chain;
+  },
+});
+
 vi.mock("@/utils/supabase/server", () => ({
-  createClient: vi.fn(async () => ({
-    from: (table: string) => {
-      let chain: any = {
-        select: vi.fn(() => chain),
-        order: vi.fn(() => chain),
-        limit: vi.fn(() => chain),
-        is: vi.fn(() => chain),
-        eq: vi.fn(() => chain),
-        single: vi.fn(() => chain),
-        then: (resolve: any) => {
-          if (table === "tenants") return resolve({ data: fixtureTenants, error: null });
-          if (table === "sync_devices") return resolve({ data: fixtureDevices, error: null });
-          if (table === "sync_runs") return resolve({ data: fixtureSyncRuns, error: null });
-          if (table === "invoices") return resolve({ data: fixtureInvoices, error: null });
-          if (table === "payments") return resolve({ data: fixturePayments, error: null });
-          if (table === "quotes") return resolve({ data: fixtureQuotes, error: null });
-          if (table === "alerts") return resolve({ data: fixtureAlerts, error: null });
-          if (table === "plans") return resolve({ data: [{ id: "plan-pro-id", code: "pro", name: "Pro", price_xaf: 35000, billing_period: "monthly", max_users: 10, max_devices: 5, features: {}, is_active: true }], error: null });
-          if (table === "hub_audit_logs") return resolve({ data: fixtureAuditLogs, error: null });
-          if (table === "announcements") return resolve({ data: fixtureAnnouncements, error: null });
-          return resolve({ data: [], error: null });
-        },
-      };
-      return chain;
-    },
-  })),
+  createClient: vi.fn(async () => mockSupabaseQueryChain()),
+}));
+
+vi.mock("@/utils/supabase/admin", () => ({
+  createAdminClient: vi.fn(() => mockSupabaseQueryChain()),
 }));
 
 describe("Test d'Intégration Global de Tous les Modules du Hub Super Admin", () => {

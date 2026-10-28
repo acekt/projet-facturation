@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import {
   Card,
   CardContent,
@@ -28,8 +27,6 @@ export const metadata: Metadata = {
 export const instant = false;
 
 export default async function AdminSettingsPage() {
-  await connection();
-
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://nsthgydbjfbutinyvbey.supabase.co";
   const hasServiceKey = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY);
   const powersyncUrl = process.env.POWERSYNC_URL || "https://6aca2e832f27853eb0add951.powersync.journeyapps.com";

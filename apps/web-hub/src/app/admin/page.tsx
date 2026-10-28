@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import Link from "next/link";
-import { connection } from "next/server";
 import { getHubOverview, getFleetDevices } from "@/lib/kpi/queries";
 import { KpiCard } from "@workspace/ui/components/kpi-card";
 import {
@@ -42,7 +41,6 @@ function formatMoney(amount: number) {
 }
 
 async function OverviewContent() {
-  await connection();
   const [overview, fleetDevices] = await Promise.all([
     getHubOverview(),
     getFleetDevices(),

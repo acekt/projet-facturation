@@ -1,5 +1,6 @@
 import { cache } from "react";
-import { createClient } from "@/utils/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { requireSuperadmin } from "@/lib/auth/dal";
 
 export interface HubOverviewData {
@@ -44,12 +45,10 @@ export interface FleetDeviceItem {
 }
 
 /**
- * Récupère les métriques de synthèse du Hub Super Admin.
- * Optimisé avec React.cache() et parallélisation Promise.all des 4 requêtes.
+ * Récupère les métriques de synthèse du Hub Super Admin sans accès aux cookies.
  */
-export const getHubOverview = cache(async (): Promise<HubOverviewData> => {
-  await requireSuperadmin();
-  const supabase = await createClient();
+async function fetchHubOverviewRaw(): Promise<HubOverviewData> {
+  const supabase = createAdminClient();
 
   const todayIso = new Date().toISOString().slice(0, 10);
 
@@ -148,15 +147,27 @@ export const getHubOverview = cache(async (): Promise<HubOverviewData> => {
     todayMetrics,
     alerts,
   };
-});
+}
+
+const getCachedHubOverview = unstable_cache(
+  fetchHubOverviewRaw,
+  ["hub-overview-summary"],
+  {
+    revalidate: 30,
+    tags: ["hub-overview", "hub-kpis"],
+  }
+);
 
 /**
- * Récupère l'inventaire complet de la flotte de postes synchronisés.
- * Mémoïsé par requête via React.cache().
+ * Récupère les métriques de synthèse du Hub Super Admin avec cache et 0ms latence.
  */
-export const getFleetDevices = cache(async (): Promise<FleetDeviceItem[]> => {
+export const getHubOverview = cache(async (): Promise<HubOverviewData> => {
   await requireSuperadmin();
-  const supabase = await createClient();
+  return getCachedHubOverview();
+});
+
+async function fetchFleetDevicesRaw(): Promise<FleetDeviceItem[]> {
+  const supabase = createAdminClient();
 
   const { data, error } = await supabase
     .from("sync_devices")
@@ -188,4 +199,22 @@ export const getFleetDevices = cache(async (): Promise<FleetDeviceItem[]> => {
     lastSyncAt: d.last_sync_at,
     lastStatus: d.last_status,
   }));
+}
+
+const getCachedFleetDevices = unstable_cache(
+  fetchFleetDevicesRaw,
+  ["hub-fleet-devices-list"],
+  {
+    revalidate: 15,
+    tags: ["hub-fleet", "hub-sync"],
+  }
+);
+
+/**
+ * Récupère l'inventaire complet de la flotte de postes synchronisés.
+ * Mémoïsé par requête via React.cache() et préchargé via unstable_cache.
+ */
+export const getFleetDevices = cache(async (): Promise<FleetDeviceItem[]> => {
+  await requireSuperadmin();
+  return getCachedFleetDevices();
 });

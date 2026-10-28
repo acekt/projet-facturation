@@ -1,4 +1,6 @@
-import { createClient } from "@/utils/supabase/server";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { requireSuperadmin } from "@/lib/auth/dal";
 
 export interface TopTenantRevenue {
@@ -58,24 +60,43 @@ function normalizePaymentMethod(method: string | null): string {
 }
 
 /**
- * Récupère l'ensemble des données financières consolidées du Hub Super Admin.
+ * Récupération brute des données financières avec Service Role et exécution parallèle Promise.all.
+ * Fonction pure sans accès aux cookies pour permettre la mise en cache multi-requêtes via unstable_cache.
  */
-export async function getFinancialOverview(): Promise<FinancialOverviewData> {
-  await requireSuperadmin();
-  const supabase = await createClient();
+async function fetchFinancialOverviewRaw(): Promise<FinancialOverviewData> {
+  const supabase = createAdminClient();
 
-  // 1. Récupération des tenants & plans pour le MRR et les noms
-  const { data: tenantsData } = await supabase
-    .from("tenants")
-    .select(`
-      id,
-      name,
-      status,
-      plans (
+  // Exécution parallèle sans waterfall des 4 requêtes Supabase Cloud
+  const [
+    { data: tenantsData },
+    { data: invoicesData },
+    { data: paymentsData },
+    { data: quotesData },
+  ] = await Promise.all([
+    supabase
+      .from("tenants")
+      .select(`
+        id,
         name,
-        price_xaf
-      )
-    `);
+        status,
+        plans (
+          name,
+          price_xaf
+        )
+      `),
+    supabase
+      .from("invoices")
+      .select("id, tenant_id, number, client_name, total, status, date, created_at, deleted_at")
+      .is("deleted_at", null),
+    supabase
+      .from("payments")
+      .select("id, tenant_id, invoice_id, amount, payment_method, date, created_at, deleted_at")
+      .is("deleted_at", null),
+    supabase
+      .from("quotes")
+      .select("id, tenant_id, total, status, deleted_at")
+      .is("deleted_at", null),
+  ]);
 
   const tenantMap = new Map<string, { name: string; planName: string; priceXaf: number }>();
   let mrrEstimateXaf = 0;
@@ -88,24 +109,6 @@ export async function getFinancialOverview(): Promise<FinancialOverviewData> {
       mrrEstimateXaf += priceXaf;
     }
   });
-
-  // 2. Récupération des factures non supprimées
-  const { data: invoicesData } = await supabase
-    .from("invoices")
-    .select("id, tenant_id, number, client_name, total, status, date, created_at, deleted_at")
-    .is("deleted_at", null);
-
-  // 3. Récupération des paiements non supprimés
-  const { data: paymentsData } = await supabase
-    .from("payments")
-    .select("id, tenant_id, invoice_id, amount, payment_method, date, created_at, deleted_at")
-    .is("deleted_at", null);
-
-  // 4. Récupération des devis non supprimés
-  const { data: quotesData } = await supabase
-    .from("quotes")
-    .select("id, tenant_id, total, status, deleted_at")
-    .is("deleted_at", null);
 
   // Calculs globaux des factures
   let totalInvoicedXaf = 0;
@@ -254,3 +257,25 @@ export async function getFinancialOverview(): Promise<FinancialOverviewData> {
     timeSeries,
   };
 }
+
+/**
+ * Cache intermédiaire sur le Data Cache Next.js (Vercel Edge / Node).
+ * Revalidation toutes les 30s avec tag d'invalidation 'hub-finance'.
+ */
+const getCachedFinancialOverview = unstable_cache(
+  fetchFinancialOverviewRaw,
+  ["hub-financial-overview"],
+  {
+    revalidate: 30,
+    tags: ["hub-finance", "hub-kpis"],
+  }
+);
+
+/**
+ * Point d'entrée sécurisé pour les composants serveur du Hub.
+ * Valide l'authentification Superadmin puis sert les données depuis le Data Cache en 0ms.
+ */
+export const getFinancialOverview = cache(async (): Promise<FinancialOverviewData> => {
+  await requireSuperadmin();
+  return getCachedFinancialOverview();
+});

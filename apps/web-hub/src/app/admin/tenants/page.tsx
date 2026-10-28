@@ -1,5 +1,4 @@
 import { Suspense } from "react";
-import { connection } from "next/server";
 import { getTenantsList } from "@/lib/kpi/tenant360";
 import { TenantsTable } from "@/components/admin/tenants-table";
 import { Building2 } from "lucide-react";
@@ -7,7 +6,6 @@ import { Building2 } from "lucide-react";
 export const instant = false;
 
 async function TenantsLoader() {
-  await connection();
   const tenants = await getTenantsList();
   return <TenantsTable initialTenants={tenants} />;
 }

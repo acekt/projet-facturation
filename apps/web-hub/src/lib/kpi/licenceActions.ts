@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { requireSuperadmin } from "@/lib/auth/dal";
 import { logHubAudit } from "@/lib/audit";
 
@@ -45,33 +46,33 @@ export interface PlansAndLicencesData {
  */
 export async function getPlansAndLicences(): Promise<PlansAndLicencesData> {
   await requireSuperadmin();
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   const now = Date.now();
   const d30Ahead = now + 30 * 24 * 60 * 60 * 1000;
 
-  // 1. Récupération de tous les plans
-  const { data: plansData } = await supabase
-    .from("plans")
-    .select("*")
-    .order("price_xaf", { ascending: true });
-
-  // 2. Récupération des tenants avec leur plan et expiration
-  const { data: tenantsData } = await supabase
-    .from("tenants")
-    .select(`
-      id,
-      name,
-      status,
-      plan_id,
-      license_expires_at,
-      trial_ends_at,
-      plans (
+  // 1 & 2. Récupération simultanée des plans et des tenants avec Service Role
+  const [{ data: plansData }, { data: tenantsData }] = await Promise.all([
+    supabase
+      .from("plans")
+      .select("*")
+      .order("price_xaf", { ascending: true }),
+    supabase
+      .from("tenants")
+      .select(`
         id,
         name,
-        price_xaf
-      )
-    `);
+        status,
+        plan_id,
+        license_expires_at,
+        trial_ends_at,
+        plans (
+          id,
+          name,
+          price_xaf
+        )
+      `),
+  ]);
 
   const rawPlans = plansData || [];
   const rawTenants = tenantsData || [];

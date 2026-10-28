@@ -1,5 +1,6 @@
 import { cache } from "react";
-import { createClient } from "@/utils/supabase/server";
+import { unstable_cache } from "next/cache";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { requireSuperadmin } from "@/lib/auth/dal";
 
 export interface TenantListItem {
@@ -83,18 +84,12 @@ export interface Tenant360Data {
 }
 
 /**
- * Récupère la liste filtrable et triable des entreprises clientes.
- * Mémoïsé par requête via React.cache().
+ * Récupération brute des entreprises clientes avec Service Role sans accès aux cookies.
  */
-export const getTenantsList = cache(async (filters?: {
-  search?: string;
-  status?: string;
-  planId?: string;
-}): Promise<TenantListItem[]> => {
-  await requireSuperadmin();
-  const supabase = await createClient();
+async function fetchTenantsListRaw(): Promise<TenantListItem[]> {
+  const supabase = createAdminClient();
 
-  let query = supabase
+  const { data, error } = await supabase
     .from("tenants")
     .select(`
       id,
@@ -110,19 +105,6 @@ export const getTenantsList = cache(async (filters?: {
     `)
     .order("created_at", { ascending: false });
 
-  if (filters?.status && filters.status !== "all") {
-    query = query.eq("status", filters.status);
-  }
-
-  if (filters?.planId && filters.planId !== "all") {
-    query = query.eq("plan_id", filters.planId);
-  }
-
-  if (filters?.search && filters.search.trim().length > 0) {
-    query = query.ilike("name", `%${filters.search.trim()}%`);
-  }
-
-  const { data, error } = await query;
   if (error || !data) {
     console.error("[getTenantsList] Erreur de récupération :", error?.message);
     return [];
@@ -141,14 +123,50 @@ export const getTenantsList = cache(async (filters?: {
     devicesCount: t.sync_devices?.[0]?.count || 0,
     createdAt: t.created_at,
   }));
+}
+
+const getCachedTenantsList = unstable_cache(
+  fetchTenantsListRaw,
+  ["hub-tenants-list-all"],
+  {
+    revalidate: 30,
+    tags: ["hub-tenants", "hub-kpis"],
+  }
+);
+
+/**
+ * Récupère la liste filtrable et triable des entreprises clientes.
+ * Mémoïsé par requête via React.cache() et préchargé dans le Data Cache en 0ms.
+ */
+export const getTenantsList = cache(async (filters?: {
+  search?: string;
+  status?: string;
+  planId?: string;
+}): Promise<TenantListItem[]> => {
+  await requireSuperadmin();
+  const allTenants = await getCachedTenantsList();
+  if (!filters) return allTenants;
+
+  let filtered = allTenants;
+  if (filters.status && filters.status !== "all") {
+    filtered = filtered.filter((t) => t.status === filters.status);
+  }
+  if (filters.planId && filters.planId !== "all") {
+    filtered = filtered.filter((t) => t.planCode === filters.planId);
+  }
+  if (filters.search && filters.search.trim().length > 0) {
+    const s = filters.search.trim().toLowerCase();
+    filtered = filtered.filter((t) => t.name.toLowerCase().includes(s));
+  }
+  return filtered;
 });
 
 /**
  * Récupère la vue 360° exhaustive d'un tenant pour le Super Admin.
  */
-export async function getTenant360(tenantId: string): Promise<Tenant360Data | null> {
+export const getTenant360 = cache(async (tenantId: string): Promise<Tenant360Data | null> => {
   await requireSuperadmin();
-  const supabase = await createClient();
+  const supabase = createAdminClient();
 
   // 1. Informations du tenant
   const { data: tenant, error: tenantErr } = await supabase
@@ -164,66 +182,66 @@ export async function getTenant360(tenantId: string): Promise<Tenant360Data | nu
     return null;
   }
 
-  // 2. Utilisateurs du tenant
-  const { data: usersData } = await supabase
-    .from("profiles")
-    .select("id, email, full_name, role, is_active, created_at")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false });
-
-  // 3. Postes Desktop de la flotte
-  const { data: devicesData } = await supabase
-    .from("sync_devices")
-    .select("device_id, device_name, os, app_version, last_seen_at, last_sync_at, last_status")
-    .eq("tenant_id", tenantId)
-    .order("last_seen_at", { ascending: false });
-
-  // 4. Derniers cycles de synchronisation
-  const { data: syncRunsData } = await supabase
-    .from("sync_runs")
-    .select("id, device_id, duration_ms, pushed, pulled, error_count, created_at")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false })
-    .limit(10);
-
-  // 5. Synthèse financière (depuis factures et paiements de ce tenant)
-  const { data: invoicesData } = await supabase
-    .from("invoices")
-    .select("total, status")
-    .eq("tenant_id", tenantId)
-    .is("deleted_at", null);
-
-  const { data: paymentsData } = await supabase
-    .from("payments")
-    .select("amount")
-    .eq("tenant_id", tenantId)
-    .is("deleted_at", null);
-
-  const { data: quotesData } = await supabase
-    .from("quotes")
-    .select("id")
-    .eq("tenant_id", tenantId)
-    .is("deleted_at", null);
+  // 2 à 6. Exécution simultanée de tous les sous-enregistrements sans aucun waterfall
+  const [
+    { data: usersData },
+    { data: devicesData },
+    { data: syncRunsData },
+    { data: invoicesData },
+    { data: paymentsData },
+    { data: quotesData },
+    { data: auditData },
+  ] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, email, full_name, role, is_active, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false }),
+    supabase
+      .from("sync_devices")
+      .select("device_id, device_name, os, app_version, last_seen_at, last_sync_at, last_status")
+      .eq("tenant_id", tenantId)
+      .order("last_seen_at", { ascending: false }),
+    supabase
+      .from("sync_runs")
+      .select("id, device_id, duration_ms, pushed, pulled, error_count, created_at")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(10),
+    supabase
+      .from("invoices")
+      .select("total, status")
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null),
+    supabase
+      .from("payments")
+      .select("amount")
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null),
+    supabase
+      .from("quotes")
+      .select("id")
+      .eq("tenant_id", tenantId)
+      .is("deleted_at", null),
+    supabase
+      .from("hub_audit_logs")
+      .select("id, actor_email, action, reason, created_at, metadata")
+      .or(`tenant_id.eq.${tenantId},target_id.eq.${tenantId}`)
+      .order("created_at", { ascending: false })
+      .limit(20),
+  ]);
 
   let totalRevenueXaf = 0;
-  invoicesData?.forEach((inv) => {
+  invoicesData?.forEach((inv: any) => {
     totalRevenueXaf += Number(inv.total) || 0;
   });
 
   let totalPaidXaf = 0;
-  paymentsData?.forEach((p) => {
+  paymentsData?.forEach((p: any) => {
     totalPaidXaf += Number(p.amount) || 0;
   });
 
   const pendingXaf = Math.max(0, totalRevenueXaf - totalPaidXaf);
-
-  // 6. Historique des audits spécifiques à ce tenant
-  const { data: auditData } = await supabase
-    .from("hub_audit_logs")
-    .select("id, actor_email, action, reason, created_at, metadata")
-    .or(`tenant_id.eq.${tenantId},target_id.eq.${tenantId}`)
-    .order("created_at", { ascending: false })
-    .limit(20);
 
   return {
     tenant: {
@@ -292,4 +310,4 @@ export async function getTenant360(tenantId: string): Promise<Tenant360Data | nu
       metadata: (a.metadata || {}) as Record<string, unknown>,
     })),
   };
-}
+});

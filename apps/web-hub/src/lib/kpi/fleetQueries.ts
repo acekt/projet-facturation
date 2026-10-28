@@ -1,4 +1,6 @@
-import { createClient } from "@/utils/supabase/server";
+import { cache } from "react";
+import { unstable_cache } from "next/cache";
+import { createAdminClient } from "@/utils/supabase/admin";
 import { requireSuperadmin } from "@/lib/auth/dal";
 
 export interface SyncDeviceDetail {
@@ -70,35 +72,61 @@ export function calculateP95(durations: number[]): number {
 }
 
 /**
- * Récupère l'état complet du parc de réplication Desktop et les métriques SLA.
+ * Récupération brute de l'état du parc sans accès aux cookies.
+ * Exécution parallèle simultanée des tables sync_devices et sync_runs via Service Role.
  */
-export async function getDetailedSyncFleet(): Promise<DetailedSyncFleetData> {
-  await requireSuperadmin();
-  const supabase = await createClient();
+async function fetchDetailedSyncFleetRaw(): Promise<DetailedSyncFleetData> {
+  const supabase = createAdminClient();
 
   const now = Date.now();
   const h24Ago = now - 24 * 60 * 60 * 1000;
   const d7Ago = now - 7 * 24 * 60 * 60 * 1000;
 
-  // 1. Récupération de tous les postes synchronisés avec jointure du nom de tenant
-  const { data: devicesData } = await supabase
-    .from("sync_devices")
-    .select(`
-      device_id,
-      tenant_id,
-      device_name,
-      os,
-      app_version,
-      first_seen_at,
-      last_seen_at,
-      last_sync_at,
-      last_status,
-      metadata,
-      tenants (
-        name
-      )
-    `)
-    .order("last_seen_at", { ascending: false });
+  // 1 & 2. Récupération simultanée des postes et exécutions récentes
+  const [{ data: devicesData }, { data: runsData }] = await Promise.all([
+    supabase
+      .from("sync_devices")
+      .select(`
+        device_id,
+        tenant_id,
+        device_name,
+        os,
+        app_version,
+        first_seen_at,
+        last_seen_at,
+        last_sync_at,
+        last_status,
+        metadata,
+        tenants (
+          name
+        )
+      `)
+      .order("last_seen_at", { ascending: false }),
+    supabase
+      .from("sync_runs")
+      .select(`
+        id,
+        tenant_id,
+        device_id,
+        started_at,
+        completed_at,
+        duration_ms,
+        pushed,
+        pulled,
+        deleted,
+        skipped,
+        error_count,
+        errors,
+        app_version,
+        os,
+        created_at,
+        tenants (
+          name
+        )
+      `)
+      .order("created_at", { ascending: false })
+      .limit(100),
+  ]);
 
   const devices: SyncDeviceDetail[] = (devicesData || []).map((d: any) => {
     const seenMs = new Date(d.last_seen_at).getTime();
@@ -127,32 +155,6 @@ export async function getDetailedSyncFleet(): Promise<DetailedSyncFleetData> {
       daysSinceLastSeen: daysSince,
     };
   });
-
-  // 2. Récupération des exécutions récentes (100 dernières)
-  const { data: runsData } = await supabase
-    .from("sync_runs")
-    .select(`
-      id,
-      tenant_id,
-      device_id,
-      started_at,
-      completed_at,
-      duration_ms,
-      pushed,
-      pulled,
-      deleted,
-      skipped,
-      error_count,
-      errors,
-      app_version,
-      os,
-      created_at,
-      tenants (
-        name
-      )
-    `)
-    .order("created_at", { ascending: false })
-    .limit(100);
 
   const recentRuns: SyncRunDetail[] = (runsData || []).map((r: any) => ({
     id: r.id,
@@ -238,3 +240,25 @@ export async function getDetailedSyncFleet(): Promise<DetailedSyncFleetData> {
     recentErrors,
   };
 }
+
+/**
+ * Cache intermédiaire sur le Data Cache Next.js (Vercel Edge / Node).
+ * Revalidation toutes les 15s avec tag d'invalidation 'hub-sync'.
+ */
+const getCachedDetailedSyncFleet = unstable_cache(
+  fetchDetailedSyncFleetRaw,
+  ["hub-detailed-sync-fleet"],
+  {
+    revalidate: 15,
+    tags: ["hub-fleet", "hub-sync"],
+  }
+);
+
+/**
+ * Point d'entrée sécurisé pour les composants serveur du Hub.
+ * Valide l'authentification Superadmin puis sert les métriques de la flotte depuis le Data Cache en 0ms.
+ */
+export const getDetailedSyncFleet = cache(async (): Promise<DetailedSyncFleetData> => {
+  await requireSuperadmin();
+  return getCachedDetailedSyncFleet();
+});

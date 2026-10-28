@@ -1,6 +1,5 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
-import { connection } from "next/server";
 import { getPlansAndLicences } from "@/lib/kpi/licenceActions";
 import { LicencesManagementView } from "@/components/admin/licences-management-view";
 
@@ -12,7 +11,6 @@ export const metadata: Metadata = {
 export const instant = false;
 
 async function LicencesLoader() {
-  await connection();
   const data = await getPlansAndLicences();
   return <LicencesManagementView initialData={data} />;
 }
