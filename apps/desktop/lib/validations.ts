@@ -76,6 +76,7 @@ export const invoiceItemSchema = z.object({
 });
 
 export const quoteItemSchema = z.object({
+  id: z.string().max(255).optional(), // Optionnel : présent lors de la modification de devis existant
   description: z.string()
     .min(1, "La description est requise")
     .max(1000, "La description ne peut pas dépasser 1000 caractères"),

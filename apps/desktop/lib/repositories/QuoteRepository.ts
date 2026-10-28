@@ -16,7 +16,7 @@ export const QuoteRepository = {
                'quantity', quantity,
                'unitPrice', unitPrice,
                'total', total
-             )) FROM quote_items WHERE quoteId = q.id) as items
+             )) FROM quote_items WHERE quoteId = q.id AND (deletedAt IS NULL OR deletedAt = '')) as items
       FROM quotes q
       WHERE q.deletedAt IS NULL${tf.sql}
     `;

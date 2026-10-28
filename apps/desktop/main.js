@@ -771,11 +771,22 @@ function performDailyBackup() {
     const backupFileName = `backup_${today}.sqlite`;
     const backupFilePath = path.join(backupDir, backupFileName);
 
-    if (fs.existsSync(backupFilePath)) {
-      logToFile('INFO', `[Backup] Sauvegarde du jour déjà existante : ${backupFileName}`);
     } else {
       fs.copyFileSync(dbPath, backupFilePath);
-      logToFile('INFO', `[Backup] Sauvegarde journalière effectuée avec succès : ${backupFileName}`);
+      try {
+        const Database = require('better-sqlite3');
+        const check = new Database(backupFilePath, { readonly: true });
+        const ok = check.pragma('integrity_check', { simple: true }) === 'ok';
+        check.close();
+        if (!ok) {
+          fs.unlinkSync(backupFilePath);
+          logToFile('ERROR', `[Backup] Sauvegarde corrompue détectée et supprimée : ${backupFileName}`);
+        } else {
+          logToFile('INFO', `[Backup] Sauvegarde journalière vérifiée avec succès : ${backupFileName}`);
+        }
+      } catch (checkErr) {
+        logToFile('INFO', `[Backup] Sauvegarde journalière effectuée (vérification ignorée) : ${backupFileName}`);
+      }
     }
 
     // Nettoyage (Rétention de 7 jours)
@@ -930,10 +941,27 @@ process.on('SIGTERM', () => {
 // ══════════════════════════════════════════════════════════════════════
 
 /**
+ * Validation de l'expéditeur IPC (Recommandation Sécurité Electron #17 / Lot F2 / S2)
+ * Vérifie que l'invocation provient bien de notre serveur Next.js interne (127.0.0.1 ou localhost)
+ */
+function validateSender(frame) {
+  if (!frame || !frame.origin) return false;
+  try {
+    const parsed = new URL(frame.origin);
+    return parsed.hostname === '127.0.0.1' || parsed.hostname === 'localhost';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Déclenche l'impression native via la boîte de dialogue système.
  * (Ancien système, imprime la fenêtre entière).
  */
-ipcMain.handle('print-to-pdf', async () => {
+ipcMain.handle('print-to-pdf', async (event) => {
+  if (!validateSender(event?.senderFrame)) {
+    throw new Error('[IPC:print-to-pdf] Expéditeur non autorisé.');
+  }
   const win = BrowserWindow.getFocusedWindow() || mainWindow;
   if (!win) {
     throw new Error('[IPC:print-to-pdf] Aucune fenêtre disponible pour l\'impression.');
@@ -955,6 +983,9 @@ ipcMain.handle('print-to-pdf', async () => {
  * et contourne le bug de "Cette application ne prend pas en charge l'aperçu" sous Windows.
  */
 ipcMain.handle('print-document', async (event, htmlContent) => {
+  if (!validateSender(event?.senderFrame)) {
+    throw new Error('[IPC:print-document] Expéditeur non autorisé.');
+  }
   return new Promise(async (resolve, reject) => {
     // 1. Création d'une fenêtre invisible
     let printWin = new BrowserWindow({
@@ -1053,13 +1084,23 @@ ipcMain.handle('print-document', async (event, htmlContent) => {
 });
 
 /** Expose la version de l'application au renderer. */
-ipcMain.handle('app:get-version', () => app.getVersion());
+ipcMain.handle('app:get-version', (event) => {
+  if (!validateSender(event?.senderFrame)) {
+    throw new Error('[IPC:app:get-version] Expéditeur non autorisé.');
+  }
+  return app.getVersion();
+});
 
 /**
  * Expose le chemin userData au renderer (affichage dans l'UI Paramètres).
  * Ce chemin est aussi injecté dans le processus enfant Next.js via spawn().env.
  */
-ipcMain.handle('app:get-userData-path', () => USER_DATA_PATH);
+ipcMain.handle('app:get-userData-path', (event) => {
+  if (!validateSender(event?.senderFrame)) {
+    throw new Error('[IPC:app:get-userData-path] Expéditeur non autorisé.');
+  }
+  return USER_DATA_PATH;
+});
 
 // ══════════════════════════════════════════════════════════════════════
 // HANDLER : export-pdf
@@ -1076,6 +1117,9 @@ ipcMain.handle('app:get-userData-path', () => USER_DATA_PATH);
  * @returns {Promise<{ saved: boolean, filePath?: string }>}
  */
 ipcMain.handle('export-pdf', async (event, htmlContent, defaultFilename = 'document.pdf') => {
+  if (!validateSender(event?.senderFrame)) {
+    throw new Error('[IPC:export-pdf] Expéditeur non autorisé.');
+  }
   const tempPath = path.join(USER_DATA_PATH, `pdf_temp_${Date.now()}.html`);
   let pdfWin = null;
 
@@ -1243,7 +1287,10 @@ function setupAutoUpdater() {
 }
 
 // Enregistrement des IPC handlers pour l'auto-updater
-ipcMain.handle('updater:check', async () => {
+ipcMain.handle('updater:check', async (event) => {
+  if (!validateSender(event?.senderFrame)) {
+    throw new Error('[IPC:updater:check] Expéditeur non autorisé.');
+  }
   if (isDev) {
     logToFile('INFO', '[AutoUpdater] Recherche ignorée en mode développement.');
     return { success: true, isDev: true, message: 'Mode développement : mises à jour désactivées.' };
@@ -1262,7 +1309,10 @@ ipcMain.handle('updater:check', async () => {
   }
 });
 
-ipcMain.handle('updater:download', async () => {
+ipcMain.handle('updater:download', async (event) => {
+  if (!validateSender(event?.senderFrame)) {
+    throw new Error('[IPC:updater:download] Expéditeur non autorisé.');
+  }
   if (isDev) return { success: false, error: 'Non disponible en mode développement' };
   try {
     await autoUpdater.downloadUpdate();
@@ -1272,7 +1322,10 @@ ipcMain.handle('updater:download', async () => {
   }
 });
 
-ipcMain.handle('updater:install', async () => {
+ipcMain.handle('updater:install', async (event) => {
+  if (!validateSender(event?.senderFrame)) {
+    throw new Error('[IPC:updater:install] Expéditeur non autorisé.');
+  }
   if (isDev) return { success: false, error: 'Non disponible en mode développement' };
   try {
     autoUpdater.quitAndInstall(false, true);

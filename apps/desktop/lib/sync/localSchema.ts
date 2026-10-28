@@ -1,4 +1,4 @@
-import type Database from 'better-sqlite3';
+import Database from 'better-sqlite3';
 
 /**
  * Configuration des tables synchronisées avec Supabase.
@@ -62,7 +62,24 @@ export function ensureSyncSchema(db: Database.Database): void {
       last_error TEXT,
       created_at TEXT NOT NULL DEFAULT (${NOW_ISO})
     );
+    CREATE TABLE IF NOT EXISTS sync_failures (
+      table_name TEXT NOT NULL,
+      record_id TEXT NOT NULL,
+      error TEXT NOT NULL,
+      attempts INTEGER NOT NULL DEFAULT 1,
+      last_attempt_at TEXT NOT NULL DEFAULT (${NOW_ISO}),
+      PRIMARY KEY (table_name, record_id)
+    );
   `);
+
+  // Support du soft delete sur les lignes d'articles (D2)
+  const itemTables = ['quote_items', 'invoice_items', 'credit_note_items'];
+  for (const it of itemTables) {
+    const itCols = db.prepare(`PRAGMA table_info(${it})`).all() as Array<{ name: string }>;
+    if (itCols.length > 0 && !itCols.some((c) => c.name === 'deletedAt')) {
+      db.exec(`ALTER TABLE ${it} ADD COLUMN deletedAt TEXT`);
+    }
+  }
 
   for (const { local, singleton } of SYNC_TABLES) {
     const cols = db.prepare(`PRAGMA table_info(${local})`).all() as Array<{ name: string }>;

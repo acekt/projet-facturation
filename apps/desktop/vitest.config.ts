@@ -37,6 +37,9 @@ export default defineConfig({
     globals: true,
     fileParallelism: false,
     pool: 'forks',
+    forks: {
+      singleFork: true,
+    },
     setupFiles: ['./tests/setup.ts'],
     exclude: [
       '**/node_modules/**',

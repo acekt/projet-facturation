@@ -1,6 +1,7 @@
 "use server";
 
 import { InvoiceService, InvoiceServiceError } from '@/lib/services/InvoiceService';
+import { CreditNoteService } from '@/lib/services/CreditNoteService';
 import { getSession } from '@/lib/api/auth';
 import { logAudit } from '@/lib/api/audit';
 import { resolveActiveTenantId } from '@/lib/api/tenant';
@@ -137,6 +138,26 @@ export async function deleteInvoice(id: string, deleteQuote: boolean = false): P
       return { success: false, error: 'Invoice not found' };
     }
 
+    const existingCN = db.prepare("SELECT id FROM credit_notes WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')").get(id);
+    if (!existingCN) {
+      const items = db.prepare("SELECT * FROM invoice_items WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')").all(id) as DbInvoiceItem[];
+      if (items.length > 0) {
+        CreditNoteService.createCreditNote(
+          {
+            invoiceId: invoice.id,
+            reason: `Annulation de facture ${invoice.number}`,
+            items: items.map((it) => ({
+              description: it.description,
+              quantity: it.quantity,
+              unitPrice: it.unitPrice,
+            })),
+          },
+          session.userId,
+          activeTenantId
+        );
+      }
+    }
+
     const result = InvoiceRepository.softDelete(id, session.userId, session.role, activeTenantId);
 
     if (result.changes === 0) {
@@ -149,39 +170,6 @@ export async function deleteInvoice(id: string, deleteQuote: boolean = false): P
       if (deleteQuote) {
         db.prepare("UPDATE quotes SET deletedAt = datetime('now') WHERE id = ?").run(invoice.quoteId);
       }
-    }
-
-    const existingCN = db.prepare('SELECT id FROM credit_notes WHERE invoiceId = ? AND deletedAt IS NULL').get(id);
-    if (!existingCN) {
-      db.exec("INSERT OR IGNORE INTO sequences (name, current_value) VALUES ('credit_note', 0)");
-      const cnId = crypto.randomUUID();
-      const cnNumber = getNextNumber('credit_note');
-      const items = db.prepare('SELECT * FROM invoice_items WHERE invoiceId = ?').all(id) as DbInvoiceItem[];
-
-      db.transaction(() => {
-        db.prepare(`
-          INSERT INTO credit_notes (
-            id, number, invoiceId, clientId, clientName, date, reason,
-            subtotal, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by, tenant_id
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-          cnId, cnNumber, invoice.id, invoice.clientId, invoice.clientName,
-          new Date().toISOString().split('T')[0],
-          `Annulation de facture ${invoice.number}`,
-          invoice.subtotal, invoice.taxBase, invoice.tvaAmount,
-          invoice.tpsAmount ?? 0, invoice.cssAmount ?? 0,
-          invoice.total, 'open', session.userId, activeTenantId
-        );
-
-        const insertCNItem = db.prepare(`
-          INSERT INTO credit_note_items (id, creditNoteId, description, quantity, unitPrice, total, tenant_id)
-          VALUES (?, ?, ?, ?, ?, ?, ?)
-        `);
-
-        for (const item of items) {
-          insertCNItem.run(crypto.randomUUID(), cnId, item.description, item.quantity, item.unitPrice, item.total, activeTenantId);
-        }
-      })();
     }
 
     logAudit('DELETE', 'invoice', id, `Facture supprimée: ${invoice.number || id}`, session.userId, session.name || session.username || null, activeTenantId);

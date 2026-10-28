@@ -16,7 +16,7 @@ export const InvoiceRepository = {
                'quantity', quantity,
                'unitPrice', unitPrice,
                'total', total
-             )) FROM invoice_items WHERE invoiceId = i.id) as items,
+             )) FROM invoice_items WHERE invoiceId = i.id AND (deletedAt IS NULL OR deletedAt = '')) as items,
              (SELECT json_group_array(json_object(
                'id', id,
                'amount', amount,

@@ -50,7 +50,7 @@ export async function getQuoteById(id: string): Promise<ActionResponse<QuoteResp
       return { success: false, error: 'Quote not found' };
     }
 
-    const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(id) as DbQuoteItem[];
+    const items = db.prepare("SELECT * FROM quote_items WHERE quoteId = ? AND (deletedAt IS NULL OR deletedAt = '')").all(id) as DbQuoteItem[];
 
     const response: QuoteResponse = {
       ...quote,
@@ -188,11 +188,55 @@ export async function updateQuote(id: string, data: QuoteCreateRequest): Promise
         computed.total, validData.notes ?? null, validData.subject ?? null, cleanValidUntil, id
       );
 
-      db.prepare('DELETE FROM quote_items WHERE quoteId = ?').run(id);
+      // Diff par ID avec soft delete (Plan Correctif A2 / D2)
+      const quoteItemsCols = db.prepare("PRAGMA table_info(quote_items)").all() as Array<{ name: string }>;
+      const hasDeletedAt = quoteItemsCols.some((c) => c.name === 'deletedAt');
+      const existingItems = hasDeletedAt
+        ? (db.prepare("SELECT id FROM quote_items WHERE quoteId = ? AND (deletedAt IS NULL OR deletedAt = '')").all(id) as Array<{ id: string }>)
+        : (db.prepare("SELECT id FROM quote_items WHERE quoteId = ?").all(id) as Array<{ id: string }>);
+      const existingIds = new Set(existingItems.map((it) => it.id));
+      const updatedIds = new Set<string>();
 
-      const insertItemStmt = db.prepare(`INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+      const updateItemStmt = db.prepare(`
+        UPDATE quote_items
+        SET description = ?, quantity = ?, unitPrice = ?, total = ?
+        WHERE id = ? AND quoteId = ?
+      `);
+      const insertItemStmt = db.prepare(`
+        INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total, tenant_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+      `);
+
       for (const item of quoteItems) {
-        insertItemStmt.run(crypto.randomUUID(), id, item.description, item.quantity, Math.round(item.unitPrice), Math.round(item.quantity * item.unitPrice), activeTenantId);
+        const itemId = item.id && existingIds.has(item.id) ? item.id : null;
+        if (itemId) {
+          updateItemStmt.run(item.description, item.quantity, Math.round(item.unitPrice), Math.round(item.quantity * item.unitPrice), itemId, id);
+          updatedIds.add(itemId);
+        } else {
+          const newId = item.id || crypto.randomUUID();
+          insertItemStmt.run(newId, id, item.description, item.quantity, Math.round(item.unitPrice), Math.round(item.quantity * item.unitPrice), activeTenantId);
+          updatedIds.add(newId);
+        }
+      }
+
+      // Soft delete des lignes retirées (ou fallback physique si table legacy sans deletedAt)
+      const toDeleteIds = existingItems.map((it) => it.id).filter((itId) => !updatedIds.has(itId));
+      if (toDeleteIds.length > 0) {
+        if (hasDeletedAt) {
+          const softDeleteItemStmt = db.prepare(`
+            UPDATE quote_items
+            SET deletedAt = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+            WHERE id = ? AND quoteId = ?
+          `);
+          for (const delId of toDeleteIds) {
+            softDeleteItemStmt.run(delId, id);
+          }
+        } else {
+          const hardDeleteStmt = db.prepare(`DELETE FROM quote_items WHERE id = ? AND quoteId = ?`);
+          for (const delId of toDeleteIds) {
+            hardDeleteStmt.run(delId, id);
+          }
+        }
       }
 
       logAudit('UPDATE', 'quote', id, `Devis modifié: ${id}`, session.userId, session.name || session.username || null, activeTenantId);

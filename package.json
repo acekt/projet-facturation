@@ -25,5 +25,8 @@
   "dependencies": {
     "@next/env": "16.4.3",
     "next": "16.4.3"
+  },
+  "overrides": {
+    "zod": "^3.24.2"
   }
 }

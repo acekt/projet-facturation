@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import type Database from 'better-sqlite3';
+import Database from 'better-sqlite3';
 
 export interface ILegacyMigrationReport {
   needed: boolean;
@@ -56,12 +56,25 @@ function createTimestampedBackup(dbPath: string): string | null {
 
     fs.copyFileSync(dbPath, backupPath);
 
+    // Vérification d'intégrité de la sauvegarde (D5)
+    try {
+      const check = new Database(backupPath, { readonly: true });
+      const ok = check.pragma('integrity_check', { simple: true }) === 'ok';
+      check.close();
+      if (!ok) {
+        fs.unlinkSync(backupPath);
+        throw new Error('Sauvegarde V1 corrompue : annulée.');
+      }
+    } catch (e: any) {
+      console.warn('[migrateLegacy] Avertissement intégrité sauvegarde :', e.message);
+    }
+
     // Nettoyage : conserver au maximum 5 sauvegardes récentes
     try {
       const files = fs.readdirSync(backupsDir)
-        .filter((f) => f.startsWith(`${basename}.v1-backup-`) && f.endsWith(ext))
-        .map((f) => path.join(backupsDir, f))
-        .sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
+        .filter((f: string) => f.startsWith(`${basename}.v1-backup-`) && f.endsWith(ext))
+        .map((f: string) => path.join(backupsDir, f))
+        .sort((a: string, b: string) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
 
       if (files.length > 5) {
         for (const oldFile of files.slice(5)) {
@@ -115,7 +128,7 @@ export function migrateLegacyDatabase(
 
   // 2. Vérifier si la migration est nécessaire
   let needsMigration = false;
-  let targetTenantId: string | null = null;
+  let targetTenantId = '';
 
   // Détection du tenant existant
   try {

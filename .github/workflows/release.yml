@@ -7,43 +7,57 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
+  verify:
     runs-on: windows-latest
-
-    permissions:
-      contents: write
-
-    env:
-      NEXT_TELEMETRY_DISABLED: '1'
-      NEXT_BUILD: '1'
-
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js (v24)
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
           cache: 'npm'
 
       - name: Install Dependencies
         run: npm ci
 
-      - name: Rebuild better-sqlite3 for Node
-        run: npm rebuild better-sqlite3
+      - name: Typecheck Workspaces
+        run: npm run typecheck
 
-      - name: Build Next.js
-        run: npx next build --webpack
+      - name: Run Test Suites (Desktop & Hub)
+        run: npm test
 
-      - name: Rebuild better-sqlite3 for Electron
-        shell: cmd
-        run: |
-          node -e "const fs=require('fs'),p=require('path'),d=p.resolve('node_modules/better-sqlite3/build');if(fs.existsSync(d)){fs.rmSync(d,{recursive:true,force:true});console.log('[purge] done');}else{console.log('[purge] nothing');}"
-          npx electron-builder install-app-deps
+      - name: Verify Architecture Decisions Records
+        run: npm run quality:decisions
 
-      - name: Sync SQLite binary
-        run: node -e "const fs=require('fs'),p=require('path'),s=p.resolve('node_modules/better-sqlite3/build/Release/better_sqlite3.node'),d=p.resolve('.next/standalone/node_modules/better-sqlite3/build/Release/better_sqlite3.node');fs.mkdirSync(p.dirname(d),{recursive:true});fs.copyFileSync(s,d);console.log('[sync] OK');"
+  release:
+    needs: verify
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    defaults:
+      run:
+        working-directory: apps/desktop
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      NEXT_BUILD: '1'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js (v24)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: 'npm'
+
+      - name: Install Monorepo Dependencies
+        run: npm ci
+        working-directory: .
+
+      - name: Build Electron Standalone Package
+        run: npm run build:electron
 
       - name: Package and Publish Electron App
         env:

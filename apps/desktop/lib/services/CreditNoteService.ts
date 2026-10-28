@@ -60,6 +60,17 @@ export const CreditNoteService = {
       };
       const computed = computeTotals(items, 0, rates);
 
+      const existingCNs = db.prepare(`SELECT COALESCE(SUM(total), 0) as totalCredited FROM credit_notes WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')${tf.sql}`).get(invoice.id, ...tf.params) as { totalCredited: number } | undefined;
+      const totalAlreadyCredited = Math.round(existingCNs?.totalCredited || 0);
+      const invoiceTotal = Math.round(invoice.total);
+
+      if (totalAlreadyCredited + computed.total > invoiceTotal) {
+        throw new CreditNoteServiceError(
+          `Le montant cumulé des avoirs (${totalAlreadyCredited + computed.total} XAF) dépasse le montant total de la facture (${invoiceTotal} XAF).`,
+          400
+        );
+      }
+
       insertCreditNoteStmt.run(
         id,
         number,
@@ -91,8 +102,7 @@ export const CreditNoteService = {
         );
       }
 
-      const invoiceTotal = Math.round(invoice.total);
-      if (computed.total >= invoiceTotal) {
+      if (totalAlreadyCredited + computed.total >= invoiceTotal) {
         db.prepare(`UPDATE invoices SET status = '${INVOICE_STATUS.CANCELLED}' WHERE id = ?${tf.sql}`).run(invoice.id, ...tf.params);
       }
 

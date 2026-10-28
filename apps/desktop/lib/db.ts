@@ -278,6 +278,7 @@ try {
     unitPrice REAL NOT NULL,
     total REAL NOT NULL,
     tenant_id TEXT,
+    deletedAt DATETIME,
     FOREIGN KEY (quoteId) REFERENCES quotes(id) ON DELETE CASCADE
   );
 
@@ -316,6 +317,7 @@ try {
     unitPrice REAL NOT NULL,
     total REAL NOT NULL,
     tenant_id TEXT,
+    deletedAt DATETIME,
     FOREIGN KEY (invoiceId) REFERENCES invoices(id) ON DELETE CASCADE
   );
 
@@ -402,6 +404,7 @@ try {
     unitPrice REAL NOT NULL,
     total REAL NOT NULL,
     tenant_id TEXT,
+    deletedAt DATETIME,
     FOREIGN KEY (creditNoteId) REFERENCES credit_notes(id) ON DELETE CASCADE
   );
 
@@ -563,6 +566,21 @@ try {
   }
   if (!paymentsColumns.some(c => c.name === 'created_by')) {
     db.prepare("ALTER TABLE payments ADD COLUMN created_by TEXT").run();
+  }
+
+  const quoteItemsCols = db.prepare("PRAGMA table_info(quote_items)").all() as Array<{ name: string }>;
+  if (!quoteItemsCols.some(c => c.name === 'deletedAt')) {
+    db.prepare("ALTER TABLE quote_items ADD COLUMN deletedAt DATETIME").run();
+  }
+
+  const invoiceItemsCols = db.prepare("PRAGMA table_info(invoice_items)").all() as Array<{ name: string }>;
+  if (!invoiceItemsCols.some(c => c.name === 'deletedAt')) {
+    db.prepare("ALTER TABLE invoice_items ADD COLUMN deletedAt DATETIME").run();
+  }
+
+  const cnItemsCols = db.prepare("PRAGMA table_info(credit_note_items)").all() as Array<{ name: string }>;
+  if (!cnItemsCols.some(c => c.name === 'deletedAt')) {
+    db.prepare("ALTER TABLE credit_note_items ADD COLUMN deletedAt DATETIME").run();
   }
 } catch (e) {
   console.error("Migration error:", e);

@@ -179,8 +179,8 @@ describe('Module 2 Curatif — Stabilité, Verrouillage & Machine à États des 
       });
       expect(updateRes.success).toBe(true);
 
-      // Vérification finale : exactement 3 items et les anciens ont disparu sans orphelins
-      const updatedItems = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(quoteId) as any[];
+      // Vérification finale : exactement 3 items actifs et les anciens sont marqués supprimés (D2 soft-delete)
+      const updatedItems = db.prepare("SELECT * FROM quote_items WHERE quoteId = ? AND (deletedAt IS NULL OR deletedAt = '')").all(quoteId) as any[];
       expect(updatedItems.length).toBe(3);
       expect(updatedItems.some(it => it.description === 'Ancienne Ligne 1')).toBe(false);
       expect(updatedItems.some(it => it.description === 'Nouvelle Ligne A')).toBe(true);

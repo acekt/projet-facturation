@@ -183,6 +183,7 @@ export function createTestDatabase(): Database.Database {
       unitPrice REAL DEFAULT 0,
       total REAL DEFAULT 0,
       createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
+      deletedAt DATETIME,
       tenant_id TEXT,
     FOREIGN KEY (quoteId) REFERENCES quotes(id) ON DELETE CASCADE
     );
@@ -223,6 +224,7 @@ export function createTestDatabase(): Database.Database {
       unitPrice REAL NOT NULL,
       total REAL NOT NULL,
       tenant_id TEXT,
+      deletedAt DATETIME,
     FOREIGN KEY (invoiceId) REFERENCES invoices(id) ON DELETE CASCADE
     );
 
@@ -289,6 +291,7 @@ export function createTestDatabase(): Database.Database {
       unitPrice REAL NOT NULL,
       total REAL NOT NULL,
       tenant_id TEXT,
+      deletedAt DATETIME,
     FOREIGN KEY (creditNoteId) REFERENCES credit_notes(id) ON DELETE CASCADE
     );
 

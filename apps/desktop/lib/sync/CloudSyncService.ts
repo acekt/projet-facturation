@@ -75,6 +75,102 @@ function setMeta(key: string, value: string) {
   db.prepare('INSERT INTO sync_meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
 }
 
+export interface CompositeCursor {
+  ts: string;
+  id: string;
+}
+
+export function parseCursor(raw: string | null): CompositeCursor | null {
+  if (!raw) return null;
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === 'object' && typeof parsed.ts === 'string') {
+      return { ts: parsed.ts, id: String(parsed.id || '') };
+    }
+  } catch {
+    // Format legacy (string ISO simple)
+  }
+  return { ts: raw, id: '' };
+}
+
+function recordSyncFailure(table: string, recordId: string, error: string) {
+  try {
+    db.prepare(`
+      INSERT INTO sync_failures (table_name, record_id, error, attempts, last_attempt_at)
+      VALUES (?, ?, ?, 1, strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+      ON CONFLICT(table_name, record_id) DO UPDATE SET
+        attempts = sync_failures.attempts + 1,
+        error = excluded.error,
+        last_attempt_at = strftime('%Y-%m-%dT%H:%M:%fZ','now')
+    `).run(table, recordId, String(error).slice(0, 500));
+  } catch {
+    // sync_failures table may not exist yet in test harness without ensureSyncSchema
+  }
+}
+
+function clearSyncFailure(table: string, recordId: string) {
+  try {
+    db.prepare('DELETE FROM sync_failures WHERE table_name = ? AND record_id = ?').run(table, recordId);
+  } catch {
+    // Non bloquant
+  }
+}
+
+function getQuarantinedIds(table: string): Set<string> {
+  try {
+    const rows = db.prepare('SELECT record_id FROM sync_failures WHERE table_name = ? AND attempts >= 5').all(table) as Array<{ record_id: string }>;
+    return new Set(rows.map((r) => r.record_id));
+  } catch {
+    return new Set();
+  }
+}
+
+/** Mesure la dérive de l'horloge locale par rapport au serveur Supabase via l'en-tête HTTP Date */
+async function measureClockDrift(): Promise<number | null> {
+  try {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url) return null;
+    const res = await fetch(`${url}/rest/v1/`, {
+      method: 'HEAD',
+      headers: { apikey: anon || '' },
+    });
+    const serverDate = res.headers.get('date');
+    if (serverDate) {
+      const serverTime = new Date(serverDate).getTime();
+      const localTime = Date.now();
+      const offsetMs = localTime - serverTime;
+      setMeta('clock_offset_ms', String(offsetMs));
+      return offsetMs;
+    }
+  } catch {
+    // Non bloquant si hors ligne
+  }
+  return null;
+}
+
+/** Diagnostic tenant strict (Lot E2 / D11) */
+function checkTenantIsolation(): { nullCount: number; affectedTables: string[] } {
+  let nullCount = 0;
+  const affectedTables: string[] = [];
+  try {
+    for (const cfg of SYNC_TABLES) {
+      if (cfg.singleton) continue;
+      const count = (db.prepare(`SELECT COUNT(*) as c FROM ${cfg.local} WHERE tenant_id IS NULL OR tenant_id = ''`).get() as { c: number })?.c || 0;
+      if (count > 0) {
+        nullCount += count;
+        affectedTables.push(cfg.local);
+      }
+    }
+    if (nullCount === 0) {
+      setMeta('tenant_strict', '1');
+    }
+  } catch {
+    // Tolérance
+  }
+  return { nullCount, affectedTables };
+}
+
 // ---------------------------------------------------------------------------
 // Contexte : utilisateur, profil, tenant (avec provisioning si nécessaire)
 // ---------------------------------------------------------------------------
@@ -162,7 +258,11 @@ async function resolveContext(sb: SupabaseClient, accessToken: string) {
  * Résout une collision de numéro de document (code Postgres 23505 sur (tenant_id, number))
  * lorsque deux postes Desktop hors-ligne ont généré le même numéro séquentiel.
  */
-async function pushNumberedRowsWithConflictFallback(
+/**
+ * Résout une collision de numéro de document (23505) ou isole une ligne en échec
+ * sans bloquer le reste de la table ou de la file.
+ */
+async function pushRowFallback(
   sb: SupabaseClient,
   cfg: SyncTableConfig,
   rows: Array<Record<string, unknown>>,
@@ -173,10 +273,13 @@ async function pushNumberedRowsWithConflictFallback(
   for (let idx = 0; idx < rows.length; idx++) {
     const row = rows[idx];
     const itemPayload = { ...payloads[idx] };
+    const rowId = String(row.id ?? '1');
     const { error } = await sb.from(cfg.remote).upsert([itemPayload], { onConflict: cfg.remotePk });
 
     if (!error) {
-      markSynced.run(row.id, row.updated_at);
+      if (cfg.singleton) markSynced.run(row.updated_at);
+      else markSynced.run(row.id, row.updated_at);
+      clearSyncFailure(cfg.local, rowId);
       report.pushed++;
       continue;
     }
@@ -200,12 +303,15 @@ async function pushNumberedRowsWithConflictFallback(
           nowIso,
           row.id
         );
+        clearSyncFailure(cfg.local, rowId);
         report.pushed++;
         continue;
       }
-      report.errors.push(`push ${cfg.remote}#${String(row.id)}: ${retry.error.message}`);
+      recordSyncFailure(cfg.local, rowId, retry.error.message);
+      report.errors.push(`push ${cfg.remote}#${rowId}: ${retry.error.message}`);
     } else {
-      report.errors.push(`push ${cfg.remote}#${String(row.id)}: ${error.message}`);
+      recordSyncFailure(cfg.local, rowId, error.message);
+      report.errors.push(`push ${cfg.remote}#${rowId}: ${error.message}`);
     }
   }
 }
@@ -225,12 +331,20 @@ async function pushTable(sb: SupabaseClient, cfg: SyncTableConfig, tenantId: str
   const dataCols = cols.filter((c) => c !== 'synced_at' && !(cfg.singleton && c === 'id'));
   const markSynced = db.prepare(`UPDATE ${cfg.local} SET synced_at = updated_at WHERE ${cfg.singleton ? 'id = 1' : 'id = ?'} AND updated_at = ?`);
 
+  const quarantined = getQuarantinedIds(cfg.local);
+
   for (let guard = 0; guard < 500; guard++) {
     const where = hasTenant ? `tenant_id = ? AND ` : '';
-    const rows = db
+    let rows = db
       .prepare(`SELECT * FROM ${cfg.local} WHERE ${where}(synced_at IS NULL OR updated_at > synced_at) LIMIT ${BATCH}`)
       .all(...(hasTenant ? [tenantId] : [])) as Array<Record<string, unknown>>;
     if (rows.length === 0) break;
+
+    // Filtrer les lignes placées en quarantaine après trop d'échecs
+    if (quarantined.size > 0) {
+      rows = rows.filter((r) => !quarantined.has(String(r.id)));
+      if (rows.length === 0) break;
+    }
 
     const payload = rows.map((r) => {
       const o: Record<string, unknown> = {};
@@ -241,18 +355,17 @@ async function pushTable(sb: SupabaseClient, cfg: SyncTableConfig, tenantId: str
 
     const { error } = await sb.from(cfg.remote).upsert(payload, { onConflict: cfg.remotePk });
     if (error) {
-      if (!cfg.singleton && NUMBERED_TABLES.has(cfg.local)) {
-        await pushNumberedRowsWithConflictFallback(sb, cfg, rows, payload, markSynced, report);
-        if (rows.length < BATCH) break;
-        continue;
-      }
-      throw new Error(`push ${cfg.remote}: ${error.message}`);
+      // Re-tentative unitaire pour ne pas bloquer les autres lignes
+      await pushRowFallback(sb, cfg, rows, payload, markSynced, report);
+      if (rows.length < BATCH) break;
+      continue;
     }
 
     const tx = db.transaction(() => {
       for (const r of rows) {
         if (cfg.singleton) markSynced.run(r.updated_at);
         else markSynced.run(r.id, r.updated_at);
+        clearSyncFailure(cfg.local, String(r.id ?? '1'));
       }
     });
     tx();
@@ -295,7 +408,7 @@ async function pullTable(sb: SupabaseClient, cfg: SyncTableConfig, tenantId: str
   for (const c of cols) snakeToLocal.set(toSnake(c), c);
 
   const cursorKey = `pull:${cfg.local}:${tenantId}`;
-  let cursor = getMeta(cursorKey);
+  let cursor = parseCursor(getMeta(cursorKey));
 
   for (let guard = 0; guard < 1000; guard++) {
     let q = sb
@@ -303,8 +416,16 @@ async function pullTable(sb: SupabaseClient, cfg: SyncTableConfig, tenantId: str
       .select('*')
       .eq('tenant_id', tenantId)
       .order('server_updated_at', { ascending: true })
+      .order(cfg.remotePk, { ascending: true })
       .limit(PULL_PAGE);
-    if (cursor) q = q.gt('server_updated_at', cursor);
+
+    if (cursor) {
+      if (cursor.id) {
+        q = q.or(`server_updated_at.gt.${cursor.ts},and(server_updated_at.eq.${cursor.ts},${cfg.remotePk}.gt.${cursor.id})`);
+      } else {
+        q = q.gt('server_updated_at', cursor.ts);
+      }
+    }
 
     const { data, error } = await q;
     if (error) throw new Error(`pull ${cfg.remote}: ${error.message}`);
@@ -338,18 +459,24 @@ async function pullTable(sb: SupabaseClient, cfg: SyncTableConfig, tenantId: str
           const sql = `INSERT INTO ${cfg.local} (${names.join(', ')}) VALUES (${names.map(() => '?').join(', ')})
             ON CONFLICT(id) DO UPDATE SET ${names.filter((n) => n !== 'id').map((n) => `${n} = excluded.${n}`).join(', ')}`;
           db.prepare(sql).run(...names.map((n) => values[n] ?? null));
+          clearSyncFailure(cfg.local, String(r.id ?? '1'));
           report.pulled++;
         } catch (e: any) {
-          // Contrainte (numéro en doublon, FK manquante…) : on ignore la ligne sans bloquer la sync
+          // Contrainte : on isole la ligne en erreur dans sync_failures sans bloquer le reste de la table
           report.skipped++;
-          report.errors.push(`pull ${cfg.local}#${String(r.id ?? r.tenant_id)}: ${e?.message || e}`);
+          const errMsg = e?.message || String(e);
+          recordSyncFailure(cfg.local, String(r.id ?? '1'), errMsg);
+          report.errors.push(`pull ${cfg.local}#${String(r.id ?? r.tenant_id)}: ${errMsg}`);
         }
       }
     });
     tx();
 
-    cursor = String(rows[rows.length - 1].server_updated_at);
-    setMeta(cursorKey, cursor);
+    const last = rows[rows.length - 1];
+    const lastTs = toIso(last.server_updated_at) ?? toIso(last.updated_at) ?? new Date().toISOString();
+    const lastId = String(last[cfg.remotePk] ?? last.id ?? '');
+    cursor = { ts: lastTs, id: lastId };
+    setMeta(cursorKey, JSON.stringify(cursor));
     if (rows.length < PULL_PAGE) break;
   }
 }
@@ -367,6 +494,13 @@ export async function syncWithCloud(accessToken: string): Promise<SyncReport> {
     const sb = clientWithToken(accessToken);
     const ctx = await withTimeout(resolveContext(sb, accessToken), 15000, 'contexte');
     const report: SyncReport = { tenantId: ctx.tenantId, pushed: 0, pulled: 0, deleted: 0, skipped: 0, errors: [] };
+
+    // Dérive d'horloge et diagnostic d'isolation tenant
+    const drift = await measureClockDrift();
+    if (drift !== null && Math.abs(drift) > 120_000) {
+      report.errors.push(`Avertissement : Dérive d'horloge de ${Math.round(drift / 1000)}s détectée avec le serveur cloud.`);
+    }
+    checkTenantIsolation();
 
     // 0) Comptes Cloud en attente (membres créés hors-ligne sur le Desktop)
     if (ctx.role === 'admin') {

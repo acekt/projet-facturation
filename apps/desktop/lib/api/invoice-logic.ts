@@ -22,37 +22,42 @@ export function getTaxRates(): TaxRates {
   return rates;
 }
 
-const getInvoiceTotalStmt = db.prepare('SELECT total FROM invoices WHERE id = ? AND deletedAt IS NULL');
-const getPaymentsTotalStmt = db.prepare('SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoiceId = ? AND deletedAt IS NULL');
+const getInvoiceTotalStmt = db.prepare("SELECT total FROM invoices WHERE id = ? AND (deletedAt IS NULL OR deletedAt = '')");
+const getPaymentsTotalStmt = db.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')");
+const getCreditNotesTotalStmt = db.prepare("SELECT COALESCE(SUM(total), 0) as total FROM credit_notes WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')");
 const updateInvoiceStatusStmt = db.prepare('UPDATE invoices SET status = ? WHERE id = ?');
 
 /**
- * Recalculates and updates invoice status based on the actual sum of payments.
- * This is the canonical function for all invoice status transitions.
- * Must be called inside a SQLite transaction for atomicity.
+ * Recalculates and updates invoice status based on the actual sum of payments and credit notes.
+ * Formula: reste = totalTTC - totalAvoirs - totalPaid.
  *
  * Transitions:
- *   UNPAID          → totalPaid === 0
- *   PARTIALLY_PAID  → 0 < totalPaid < invoice.total
- *   PAID            → totalPaid >= invoice.total
+ *   CANCELLED       → totalAvoirs >= invoice.total (or covered with no payments)
+ *   PAID            → (totalPaid + totalAvoirs) >= invoice.total AND totalPaid > 0
+ *   PARTIALLY_PAID  → 0 < (totalPaid + totalAvoirs) < invoice.total
+ *   UNPAID          → totalPaid === 0 AND totalAvoirs === 0
  *
  * @throws {Error} If the invoice is not found or already soft-deleted.
  */
 export function updateInvoiceStatus(
   invoiceId: string,
   tenantId?: string | null
-): 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' {
+): 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED' {
   let invoice: DbInvoice | undefined;
   let totalPaid = 0;
+  let totalAvoirs = 0;
 
   if (tenantId) {
     const tf = buildTenantFilter(tenantId);
-    invoice = db.prepare(`SELECT total FROM invoices WHERE id = ? AND deletedAt IS NULL${tf.sql}`).get(invoiceId, ...tf.params) as DbInvoice | undefined;
+    invoice = db.prepare(`SELECT total FROM invoices WHERE id = ? AND (deletedAt IS NULL OR deletedAt = '')${tf.sql}`).get(invoiceId, ...tf.params) as DbInvoice | undefined;
     if (!invoice) {
       throw new Error(`Facture introuvable ou supprimée : ${invoiceId}`);
     }
-    const paymentsResult = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoiceId = ? AND deletedAt IS NULL${tf.sql}`).get(invoiceId, ...tf.params) as DbTotal;
+    const paymentsResult = db.prepare(`SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')${tf.sql}`).get(invoiceId, ...tf.params) as DbTotal;
     totalPaid = Math.round(paymentsResult.total ?? 0);
+
+    const creditNotesResult = db.prepare(`SELECT COALESCE(SUM(total), 0) as total FROM credit_notes WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')${tf.sql}`).get(invoiceId, ...tf.params) as DbTotal;
+    totalAvoirs = Math.round(creditNotesResult.total ?? 0);
   } else {
     invoice = getInvoiceTotalStmt.get(invoiceId) as DbInvoice | undefined;
     if (!invoice) {
@@ -60,17 +65,23 @@ export function updateInvoiceStatus(
     }
     const paymentsResult = getPaymentsTotalStmt.get(invoiceId) as DbTotal;
     totalPaid = Math.round(paymentsResult.total ?? 0);
+
+    const creditNotesResult = getCreditNotesTotalStmt.get(invoiceId) as DbTotal;
+    totalAvoirs = Math.round(creditNotesResult.total ?? 0);
   }
 
   const totalTTC = Math.round(invoice.total);
+  const covered = totalPaid + totalAvoirs;
 
-  let newStatus: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID';
-  if (totalPaid === 0) {
-    newStatus = 'UNPAID';
-  } else if (totalPaid < totalTTC) {
+  let newStatus: 'UNPAID' | 'PARTIALLY_PAID' | 'PAID' | 'CANCELLED';
+  if (totalAvoirs >= totalTTC) {
+    newStatus = 'CANCELLED';
+  } else if (covered >= totalTTC) {
+    newStatus = totalPaid > 0 ? 'PAID' : 'CANCELLED';
+  } else if (covered > 0) {
     newStatus = 'PARTIALLY_PAID';
   } else {
-    newStatus = 'PAID';
+    newStatus = 'UNPAID';
   }
 
   if (tenantId) {
