@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CollapsibleSidebar } from "./collapsible-sidebar";
 import { MobileNav } from "./mobile-nav";
 import { AdminHeader } from "./header";
+import { NavigationProgressBar } from "./navigation-progress";
 
 interface AdminShellProps {
   children: React.ReactNode;
@@ -24,6 +25,9 @@ export function AdminShell({
 
   return (
     <div className="h-screen w-screen overflow-hidden bg-background text-foreground flex flex-col md:flex-row antialiased transition-colors">
+      {/* Barre de chargement/progression instantanée (0ms feedback) */}
+      <NavigationProgressBar />
+
       {/* Navigation mobile réactive pour smartphones et tablettes */}
       <MobileNav
         userEmail={user.email}

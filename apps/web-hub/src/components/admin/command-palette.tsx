@@ -224,6 +224,14 @@ export function CommandPalette({ isOpen: propIsOpen, onClose: propOnClose }: Com
     );
   });
 
+  // Préchargement proactif de la route sélectionnée
+  useEffect(() => {
+    const target = filteredItems[selectedIndex];
+    if (isOpen && target?.href) {
+      router.prefetch(target.href);
+    }
+  }, [isOpen, selectedIndex, filteredItems, router]);
+
   // Navigation au clavier dans les résultats
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (filteredItems.length === 0) return;

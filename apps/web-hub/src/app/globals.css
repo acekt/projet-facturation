@@ -1,3 +1,41 @@
 @import "../../../../packages/ui/src/styles/theme.css";
 
-/* Ajoutez ici d'éventuelles surcharges spécifiques au Web Hub */
+/* Animations de navigation fluide desktop-grade pour le Web Hub */
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-page-enter {
+  animation: pageEnter 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: opacity, transform;
+}
+
+@keyframes navProgressGlow {
+  0% {
+    width: 0%;
+    opacity: 1;
+  }
+  40% {
+    width: 65%;
+    opacity: 1;
+  }
+  80% {
+    width: 90%;
+    opacity: 1;
+  }
+  100% {
+    width: 100%;
+    opacity: 0;
+  }
+}
+
+.animate-nav-progress {
+  animation: navProgressGlow 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}

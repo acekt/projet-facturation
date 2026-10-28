@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -23,6 +23,13 @@ export function MobileNav({
 }: MobileNavProps) {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
+  const [optimisticPath, setOptimisticPath] = useState<string | null>(null);
+
+  useEffect(() => {
+    setOptimisticPath(null);
+  }, [pathname]);
+
+  const currentPath = optimisticPath || pathname;
 
   return (
     <div className="md:hidden">
@@ -104,14 +111,18 @@ export function MobileNav({
               {ADMIN_NAV_ITEMS.map((item) => {
                 const isActive =
                   item.href === "/admin"
-                    ? pathname === "/admin"
-                    : pathname.startsWith(item.href);
+                    ? currentPath === "/admin"
+                    : currentPath.startsWith(item.href);
 
                 return (
                   <Link
                     key={item.href}
                     href={item.href}
-                    onClick={() => setIsOpen(false)}
+                    prefetch={true}
+                    onClick={() => {
+                      setOptimisticPath(item.href);
+                      setIsOpen(false);
+                    }}
                     className={cn(
                       "flex items-center justify-between gap-3 px-3 py-2 rounded-lg text-xs font-medium transition-colors",
                       isActive

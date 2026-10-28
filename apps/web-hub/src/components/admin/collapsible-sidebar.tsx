@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
@@ -33,6 +34,14 @@ export function CollapsibleSidebar({
   logoutAction,
 }: CollapsibleSidebarProps) {
   const pathname = usePathname();
+  const [optimisticPath, setOptimisticPath] = useState<string | null>(null);
+
+  // Réinitialisation de l'état optimiste dès la complétion du routage
+  useEffect(() => {
+    setOptimisticPath(null);
+  }, [pathname]);
+
+  const currentPath = optimisticPath || pathname;
 
   return (
     <aside
@@ -96,13 +105,16 @@ export function CollapsibleSidebar({
         {ADMIN_NAV_ITEMS.map((item) => {
           const isActive =
             item.href === "/admin"
-              ? pathname === "/admin"
-              : pathname.startsWith(item.href);
+              ? currentPath === "/admin"
+              : currentPath.startsWith(item.href);
 
           return (
             <Link
               key={item.href}
               href={item.href}
+              prefetch={true}
+              onClick={() => setOptimisticPath(item.href)}
+              onMouseDown={() => setOptimisticPath(item.href)}
               title={collapsed ? item.title : undefined}
               className={cn(
                 "flex items-center rounded-xl text-xs font-medium transition-all group relative",
