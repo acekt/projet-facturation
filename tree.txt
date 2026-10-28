@@ -10,7 +10,16 @@ C:\Users\LENOVO\Downloads\fintech-invoicing-app
 |  |  |  ├── login
 |  |  |  ├── page.tsx
 |  |  |  └── setup
+|  |  ├── build
+|  |  |  ├── appstore.png
+|  |  |  ├── appstore1.png
+|  |  |  ├── icon.ico
+|  |  |  ├── icon.png
+|  |  |  ├── playstore1.png
+|  |  |  └── standalone.zip
 |  |  ├── components
+|  |  |  ├── auth
+|  |  |  ├── cloud-sync-runner.tsx
 |  |  |  ├── dashboard
 |  |  |  ├── data-sync.tsx
 |  |  |  ├── document-a4.tsx
@@ -25,6 +34,9 @@ C:\Users\LENOVO\Downloads\fintech-invoicing-app
 |  |  |  ├── theme-toggle.tsx
 |  |  |  └── ui
 |  |  ├── components.json
+|  |  ├── data
+|  |  |  ├── backups
+|  |  |  └── database.sqlite
 |  |  ├── electron-builder.yml
 |  |  ├── hooks
 |  |  |  ├── use-invoices.ts
@@ -33,17 +45,23 @@ C:\Users\LENOVO\Downloads\fintech-invoicing-app
 |  |  ├── lib
 |  |  |  ├── api
 |  |  |  ├── constants.ts
+|  |  |  ├── crypto
+|  |  |  ├── db
 |  |  |  ├── db.ts
+|  |  |  ├── device
 |  |  |  ├── electron-print.ts
 |  |  |  ├── fiscal
 |  |  |  ├── math-logic.ts
+|  |  |  ├── powersync
 |  |  |  ├── repositories
 |  |  |  ├── services
 |  |  |  ├── store.ts
+|  |  |  ├── sync
 |  |  |  ├── types
 |  |  |  ├── utils.ts
 |  |  |  └── validations.ts
 |  |  ├── main.js
+|  |  ├── middleware.ts
 |  |  ├── next-env.d.ts
 |  |  ├── next.config.mjs
 |  |  ├── package.json
@@ -54,6 +72,7 @@ C:\Users\LENOVO\Downloads\fintech-invoicing-app
 |  |  |  ├── erreur-404-img.svg
 |  |  |  ├── icon-dark-32x32.png
 |  |  |  ├── icon-light-32x32.png
+|  |  |  ├── icon.png
 |  |  |  ├── icon.svg
 |  |  |  ├── login-img-1.jpg
 |  |  |  ├── login-img-2.jpg
@@ -65,8 +84,10 @@ C:\Users\LENOVO\Downloads\fintech-invoicing-app
 |  |  |  ├── logo.png
 |  |  |  └── splash.html
 |  |  ├── scripts
+|  |  |  ├── generate-icons.js
 |  |  |  ├── prepare-standalone.js
-|  |  |  └── seed.ts
+|  |  |  ├── seed.ts
+|  |  |  └── test-full-sync-flow.ts
 |  |  ├── tests
 |  |  |  ├── artifacts
 |  |  |  ├── e2e
@@ -78,6 +99,9 @@ C:\Users\LENOVO\Downloads\fintech-invoicing-app
 |  |  |  ├── setup.ts
 |  |  |  └── unit
 |  |  ├── tsconfig.json
+|  |  ├── tsconfig.tsbuildinfo
+|  |  ├── types
+|  |  |  └── electron.d.ts
 |  |  └── vitest.config.ts
 |  └── web-hub
 |     ├── AGENTS.md
@@ -88,35 +112,120 @@ C:\Users\LENOVO\Downloads\fintech-invoicing-app
 |     ├── public
 |     |  ├── file.svg
 |     |  ├── globe.svg
+|     |  ├── icon-dark-32x32.png
+|     |  ├── icon-light-32x32.png
+|     |  ├── icon.svg
+|     |  ├── logo.png
 |     |  ├── next.svg
 |     |  ├── vercel.svg
 |     |  └── window.svg
 |     ├── README.md
+|     ├── scripts
 |     ├── src
 |     |  ├── app
-|     |  ├── middleware.ts
+|     |  ├── components
+|     |  ├── lib
+|     |  ├── proxy.ts
 |     |  └── utils
-|     └── tsconfig.json
+|     ├── tests
+|     |  ├── adoption-health.test.ts
+|     |  ├── auth-security.test.ts
+|     |  ├── hub-pages-render.test.ts
+|     |  ├── phase4-production-deployment-audit.test.ts
+|     |  ├── security-licences.test.ts
+|     |  ├── sync-finance.test.ts
+|     |  ├── tenant-management.test.ts
+|     |  └── ux-navigation-resilience.test.ts
+|     ├── tsconfig.json
+|     ├── tsconfig.tsbuildinfo
+|     └── vitest.config.mts
 ├── CLAUDE.md
 ├── data
 |  ├── database.sqlite
-|  ├── database.sqlite-shm
-|  ├── database.sqlite-wal
 |  └── test.sqlite
+├── docs
+|  ├── AUDIT_AND_MASTER_PLAN.md
+|  ├── decisions
+|  |  ├── 0001-context7-governance.md
+|  |  ├── 0002-shared-database-and-multitenant-sync.md
+|  |  ├── 0003-encrypted-pending-cloud-members.md
+|  |  ├── 0004-local-sqlite-multitenant-isolation.md
+|  |  ├── 0005-strict-typecheck-turborepo-tasks.md
+|  |  ├── 0006-quarantine-legacy-api-route-tests.md
+|  |  ├── 0007-hub-security-mfa-authorization.md
+|  |  ├── 0008-hub-telemetry-kpi-data-models.md
+|  |  ├── 0009-hub-ui-foundation-recharts-streaming.md
+|  |  ├── 0010-hub-tenant-management-360-view.md
+|  |  ├── 0011-hub-sync-fleet-and-financial-supervision.md
+|  |  ├── 0012-hub-client-health-score-and-adoption-funnel.md
+|  |  ├── 0013-hub-security-audit-licences-announcements.md
+|  |  ├── 0014-hub-ux-navigation-command-palette-resilience.md
+|  |  ├── 0015-hub-fintech-color-system-and-theme-harmony.md
+|  |  ├── 0016-hub-unified-layout-and-dynamic-rendering-alignment.md
+|  |  ├── 0017-hub-side-drawer-popup-forms-and-native-logo.md
+|  |  ├── 0018-powersync-full-schema-sync-rules-and-numbering.md
+|  |  ├── 0019-desktop-enrollment-license-guard-and-migration.md
+|  |  ├── 0020-desktop-packaging-distribution-and-auto-updater.md
+|  |  ├── 0021-cloud-production-deployment-and-supabase-consolidation.md
+|  |  ├── 0022-desktop-extraresources-standalone-runtime-resilience.md
+|  |  ├── 0023-desktop-window-icon-and-splash-screen-packaging.md
+|  |  ├── 0024-desktop-company-first-setup-architecture.md
+|  |  ├── 0025-desktop-login-performance-and-code-splitting.md
+|  |  ├── 0026-auth-security-hardening-and-rate-limiting.md
+|  |  ├── 0027-auth-ui-ux-streamlining-and-parasite-removal.md
+|  |  ├── 0028-module-1-curative-sanitization-and-integrity.md
+|  |  ├── 0029-module-1-correctif-fiscal-fields-and-rbac.md
+|  |  ├── 0030-module-1-field-requirements-and-dropdowns.md
+|  |  ├── 0031-module-1-preventive-indexing-and-multitenant-hardening.md
+|  |  ├── 0032-module-2-quotes-lifecycle-and-integrity.md
+|  |  ├── 0033-module-3-invoicing-credit-notes-and-integrity.md
+|  |  └── TEMPLATE.md
+|  ├── PLAN_CONTINUATION_ET_FINALISATION.md
+|  ├── quality
+|  |  └── context7-governance.md
+|  └── rapport
+|     ├── 01_AUDIT_GLOBAL.md
+|     ├── 02_CONCEPTION_2TUP_UML.md
+|     ├── 03_GUIDE_REDACTION_RAPPORT_INPTIC.md
+|     ├── FICHIER_1_MODELISATION_DONNEES_MCD_MLD.md
+|     ├── FICHIER_2_FONCTIONNEMENT_METIER_ET_SYSTEME.md
+|     └── FICHIER_3_ECOSYSTEME_TECHNIQUE_ET_JUSTIFICATIONS.md
+├── infos_entreprise_stage.md
 ├── package-lock.json
 ├── package.json
 ├── packages
+|  ├── database
+|  |  ├── package.json
+|  |  ├── src
+|  |  |  ├── fiscal
+|  |  |  ├── index.ts
+|  |  |  └── types
+|  |  └── tsconfig.json
 |  └── ui
 |     ├── package.json
 |     ├── src
 |     |  ├── components
-|     |  └── lib
+|     |  ├── lib
+|     |  └── styles
 |     └── tsconfig.json
+├── powersync
+|  └── sync_rules.yaml
 ├── project_structure.txt
+├── rapport_projet_stage.md
 ├── release
 |  └── win-unpacked
 |     └── resources
 |        └── app.asar.unpacked
+├── scripts
+|  └── check-decision-records.js
+├── supabase
+|  ├── deploy_all_migrations.sql
+|  ├── migrations
+|  |  ├── 20261013_attach_member.sql
+|  |  ├── 20261013_desktop_sync.sql
+|  |  ├── 20261020_hub_security.sql
+|  |  └── 20261021_hub_telemetry_kpis.sql
+|  └── sync_rules.yaml
 ├── test-results
 ├── tree.txt
 ├── tsconfig.tsbuildinfo
@@ -125,6 +234,6 @@ C:\Users\LENOVO\Downloads\fintech-invoicing-app
    ├── css.d.ts
    └── electron.d.ts
 
-directory: 2527 file: 18136 symboliclink: 3
+directory: 2615 file: 18292 symboliclink: 4
 
-ignored: directory (339)
+ignored: directory (330)
