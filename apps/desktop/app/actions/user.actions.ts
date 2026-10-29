@@ -11,6 +11,7 @@ import { encryptSecret } from '@/lib/crypto/secretStore';
 import { userCreateSchema, userUpdateSchema } from '@/lib/validations';
 import type { UserResponse } from '@/lib/types/api';
 import type { ActionResponse } from './client.actions';
+import { getErrorMessage } from '@/lib/utils/action-error';
 
 const SALT_ROUNDS = 10;
 
@@ -79,7 +80,7 @@ export async function createUser(data: any): Promise<ActionResponse<UserResponse
         phone: phone || undefined,
         tenant_id: activeTenantId,
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
         return { success: false, error: 'Un utilisateur avec cet email ou identifiant existe déjà.' };
       }
@@ -109,12 +110,12 @@ export async function createUser(data: any): Promise<ActionResponse<UserResponse
     };
 
     return { success: true, data: userResponse };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Action createUser] Error:', error);
     if (error?.code === 'SQLITE_CONSTRAINT_UNIQUE' || error?.message?.includes('UNIQUE constraint failed')) {
       return { success: false, error: 'Un utilisateur avec cet email ou identifiant existe déjà.' };
     }
-    return { success: false, error: 'Failed to create user' };
+    return { success: false, error: getErrorMessage(error, 'Failed to create user') };
   }
 }
 

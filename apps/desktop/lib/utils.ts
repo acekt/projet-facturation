@@ -52,10 +52,38 @@ export function getInitials(name?: string | null, fallback: string = 'CL'): stri
 
 /**
  * Échappe une cellule pour un fichier CSV conforme à la norme RFC 4180.
- * Empêche le décalage des colonnes lors de la présence de virgules, retours à la ligne ou guillemets.
+ * Empêche le décalage des colonnes lors de la présence de virgules, retours à la ligne ou guillemets,
+ * et neutralise l'injection de formules tableur (=, @, +CMD, -CMD).
  */
 export function escapeCsvCell(val: string | number | null | undefined): string {
   if (val === null || val === undefined) return '""';
-  const str = String(val);
+  const raw = String(val);
+  const needsFormulaEscape = /^[=@]|^[+-][A-Za-z]/.test(raw.trimStart());
+  const str = needsFormulaEscape ? `'${raw}` : raw;
   return `"${str.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Génère et télécharge un fichier CSV RFC 4180 sécurisé en libérant systématiquement l'URL Blob.
+ */
+export function downloadSafeCsv(
+  filename: string,
+  headers: string[],
+  rows: Array<Array<string | number | null | undefined>>
+): void {
+  const csvContent = [headers, ...rows]
+    .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
+    .join('\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  try {
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', filename);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  } finally {
+    URL.revokeObjectURL(url);
+  }
 }

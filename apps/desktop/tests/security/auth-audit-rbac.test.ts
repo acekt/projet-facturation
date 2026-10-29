@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
-import { middleware } from '@/middleware';
+import { middleware } from '@/proxy';
 import { loginUser } from '@/app/actions/auth.actions';
 import { signSession } from '@/lib/api/auth';
 import * as auditApi from '@/lib/api/audit';

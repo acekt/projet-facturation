@@ -15,9 +15,10 @@ import { Label } from "@workspace/ui/components/label"
 import { Button } from "@workspace/ui/components/button"
 import { Alert, AlertDescription } from "@workspace/ui/components/alert"
 import { changeOwnPassword, logoutUser } from "@/app/actions/auth.actions"
-import { connector } from "@/lib/powersync"
+import { supabaseSession } from "@/lib/auth/supabaseSession"
 import { useStore } from "@/lib/store"
 import { toast } from "sonner"
+import { getErrorMessage } from "@/lib/utils/action-error"
 
 interface ForcePasswordChangeDialogProps {
   open: boolean
@@ -64,7 +65,7 @@ export function ForcePasswordChangeDialog({
   const handleLogout = async () => {
     setIsLoggingOut(true)
     try {
-      await connector.logout()
+      await supabaseSession.logout()
       await logoutUser()
     } catch (e) {
       console.warn("[ForcePasswordChangeDialog] Logout error:", e)
@@ -103,8 +104,8 @@ export function ForcePasswordChangeDialog({
 
       // Synchronisation best-effort avec Supabase Auth si une session Cloud est active
       try {
-        if (connector.isAuthenticated) {
-          await connector.client.auth.updateUser({ password: newPassword })
+        if (supabaseSession.isAuthenticated) {
+          await supabaseSession.client.auth.updateUser({ password: newPassword })
         }
       } catch (cloudErr) {
         console.warn("[ForcePasswordChangeDialog] Mise à jour Cloud différée:", cloudErr)
@@ -124,8 +125,8 @@ export function ForcePasswordChangeDialog({
       if (!isMandatory) {
         onOpenChange?.(false)
       }
-    } catch (err: any) {
-      setError(err?.message || "Erreur inattendue lors de la mise à jour du mot de passe.")
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Erreur inattendue lors de la mise à jour du mot de passe."))
     } finally {
       setIsSubmitting(false)
     }

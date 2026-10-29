@@ -1,236 +1,614 @@
-C:\Users\LENOVO\Downloads\fintech-invoicing-app
-├── AGENTS.md
+fintech-invoicing-app
+├── .agents
+│   └── skills
+├── .ai
+│   └── mcp
+│       └── mcp.json
+├── .github
+│   ├── workflows
+│   │   └── release.yml
+│   └── pull_request_template.md
 ├── apps
-|  ├── desktop
-|  |  ├── app
-|  |  |  ├── actions
-|  |  |  ├── api
-|  |  |  ├── globals.css
-|  |  |  ├── layout.tsx
-|  |  |  ├── login
-|  |  |  ├── page.tsx
-|  |  |  └── setup
-|  |  ├── build
-|  |  |  ├── appstore.png
-|  |  |  ├── appstore1.png
-|  |  |  ├── icon.ico
-|  |  |  ├── icon.png
-|  |  |  ├── playstore1.png
-|  |  |  └── standalone.zip
-|  |  ├── components
-|  |  |  ├── auth
-|  |  |  ├── cloud-sync-runner.tsx
-|  |  |  ├── dashboard
-|  |  |  ├── data-sync.tsx
-|  |  |  ├── document-a4.tsx
-|  |  |  ├── error-boundary.tsx
-|  |  |  ├── features
-|  |  |  ├── fullscreen-document-viewer.tsx
-|  |  |  ├── layout
-|  |  |  ├── pages
-|  |  |  ├── pdf-document.tsx
-|  |  |  ├── printable-document.tsx
-|  |  |  ├── providers.tsx
-|  |  |  ├── theme-toggle.tsx
-|  |  |  └── ui
-|  |  ├── components.json
-|  |  ├── data
-|  |  |  ├── backups
-|  |  |  └── database.sqlite
-|  |  ├── electron-builder.yml
-|  |  ├── hooks
-|  |  |  ├── use-invoices.ts
-|  |  |  ├── use-mobile.ts
-|  |  |  └── use-quotes.ts
-|  |  ├── lib
-|  |  |  ├── api
-|  |  |  ├── constants.ts
-|  |  |  ├── crypto
-|  |  |  ├── db
-|  |  |  ├── db.ts
-|  |  |  ├── device
-|  |  |  ├── electron-print.ts
-|  |  |  ├── fiscal
-|  |  |  ├── math-logic.ts
-|  |  |  ├── powersync
-|  |  |  ├── repositories
-|  |  |  ├── services
-|  |  |  ├── store.ts
-|  |  |  ├── sync
-|  |  |  ├── types
-|  |  |  ├── utils.ts
-|  |  |  └── validations.ts
-|  |  ├── main.js
-|  |  ├── middleware.ts
-|  |  ├── next-env.d.ts
-|  |  ├── next.config.mjs
-|  |  ├── package.json
-|  |  ├── playwright.config.ts
-|  |  ├── postcss.config.mjs
-|  |  ├── preload.js
-|  |  ├── public
-|  |  |  ├── erreur-404-img.svg
-|  |  |  ├── icon-dark-32x32.png
-|  |  |  ├── icon-light-32x32.png
-|  |  |  ├── icon.png
-|  |  |  ├── icon.svg
-|  |  |  ├── login-img-1.jpg
-|  |  |  ├── login-img-2.jpg
-|  |  |  ├── login-img-2.svg
-|  |  |  ├── login-img-3.jpg
-|  |  |  ├── login-img-3.svg
-|  |  |  ├── login-img-4.jpg
-|  |  |  ├── login-img-4.svg
-|  |  |  ├── logo.png
-|  |  |  └── splash.html
-|  |  ├── scripts
-|  |  |  ├── generate-icons.js
-|  |  |  ├── prepare-standalone.js
-|  |  |  ├── seed.ts
-|  |  |  └── test-full-sync-flow.ts
-|  |  ├── tests
-|  |  |  ├── artifacts
-|  |  |  ├── e2e
-|  |  |  ├── e2e_runner.js
-|  |  |  ├── helpers
-|  |  |  ├── integration
-|  |  |  ├── performance
-|  |  |  ├── security
-|  |  |  ├── setup.ts
-|  |  |  └── unit
-|  |  ├── tsconfig.json
-|  |  ├── tsconfig.tsbuildinfo
-|  |  ├── types
-|  |  |  └── electron.d.ts
-|  |  └── vitest.config.ts
-|  └── web-hub
-|     ├── AGENTS.md
-|     ├── eslint.config.mjs
-|     ├── next-env.d.ts
-|     ├── next.config.ts
-|     ├── package.json
-|     ├── public
-|     |  ├── file.svg
-|     |  ├── globe.svg
-|     |  ├── icon-dark-32x32.png
-|     |  ├── icon-light-32x32.png
-|     |  ├── icon.svg
-|     |  ├── logo.png
-|     |  ├── next.svg
-|     |  ├── vercel.svg
-|     |  └── window.svg
-|     ├── README.md
-|     ├── scripts
-|     ├── src
-|     |  ├── app
-|     |  ├── components
-|     |  ├── lib
-|     |  ├── proxy.ts
-|     |  └── utils
-|     ├── tests
-|     |  ├── adoption-health.test.ts
-|     |  ├── auth-security.test.ts
-|     |  ├── hub-pages-render.test.ts
-|     |  ├── phase4-production-deployment-audit.test.ts
-|     |  ├── security-licences.test.ts
-|     |  ├── sync-finance.test.ts
-|     |  ├── tenant-management.test.ts
-|     |  └── ux-navigation-resilience.test.ts
-|     ├── tsconfig.json
-|     ├── tsconfig.tsbuildinfo
-|     └── vitest.config.mts
-├── CLAUDE.md
+│   ├── desktop
+│   │   ├── app
+│   │   │   ├── actions
+│   │   │   │   ├── audit.actions.ts
+│   │   │   │   ├── auth.actions.ts
+│   │   │   │   ├── client.actions.ts
+│   │   │   │   ├── credit-note.actions.ts
+│   │   │   │   ├── dashboard.actions.ts
+│   │   │   │   ├── hub.actions.ts
+│   │   │   │   ├── invoice.actions.ts
+│   │   │   │   ├── payment.actions.ts
+│   │   │   │   ├── quote.actions.ts
+│   │   │   │   ├── service.actions.ts
+│   │   │   │   ├── settings.actions.ts
+│   │   │   │   ├── setup.actions.ts
+│   │   │   │   ├── sync.actions.ts
+│   │   │   │   └── user.actions.ts
+│   │   │   ├── api
+│   │   │   │   └── health
+│   │   │   │       └── route.ts
+│   │   │   ├── login
+│   │   │   │   ├── login-client.tsx
+│   │   │   │   └── page.tsx
+│   │   │   ├── setup
+│   │   │   │   ├── components
+│   │   │   │   │   ├── SetupLeftPanel.tsx
+│   │   │   │   │   ├── StepAdmin.tsx
+│   │   │   │   │   ├── StepBank.tsx
+│   │   │   │   │   ├── StepBilling.tsx
+│   │   │   │   │   ├── StepCompany.tsx
+│   │   │   │   │   ├── StepIdentity.tsx
+│   │   │   │   │   └── StepSecurity.tsx
+│   │   │   │   ├── hooks
+│   │   │   │   │   └── useSetupWizard.ts
+│   │   │   │   ├── page.tsx
+│   │   │   │   └── setup-client.tsx
+│   │   │   ├── globals.css
+│   │   │   ├── layout.tsx
+│   │   │   └── page.tsx
+│   │   ├── build
+│   │   │   ├── appstore.png
+│   │   │   ├── appstore1.png
+│   │   │   ├── icon.ico
+│   │   │   ├── icon.png
+│   │   │   ├── playstore1.png
+│   │   │   └── standalone.zip
+│   │   ├── components
+│   │   │   ├── auth
+│   │   │   │   └── force-password-change-dialog.tsx
+│   │   │   ├── dashboard
+│   │   │   │   ├── admin.tsx
+│   │   │   │   ├── skeleton.tsx
+│   │   │   │   └── user.tsx
+│   │   │   ├── editor
+│   │   │   │   ├── ClientSelectCard.tsx
+│   │   │   │   ├── EditorItemsTable.tsx
+│   │   │   │   └── FiscalSummaryCard.tsx
+│   │   │   ├── features
+│   │   │   │   ├── invoices
+│   │   │   │   │   ├── InvoiceDeleteDialog.tsx
+│   │   │   │   │   └── InvoiceFilters.tsx
+│   │   │   │   ├── quotes
+│   │   │   │   │   ├── QuoteDeleteDialog.tsx
+│   │   │   │   │   └── QuoteFilters.tsx
+│   │   │   │   └── settings
+│   │   │   │       └── UpdateManager.tsx
+│   │   │   ├── layout
+│   │   │   │   ├── announcement-banner.tsx
+│   │   │   │   ├── command-menu.tsx
+│   │   │   │   └── navigation.tsx
+│   │   │   ├── pages
+│   │   │   │   ├── clients
+│   │   │   │   │   ├── ClientDeleteDialog.tsx
+│   │   │   │   │   ├── ClientDetailsDialog.tsx
+│   │   │   │   │   ├── ClientFormDialog.tsx
+│   │   │   │   │   └── ClientViews.tsx
+│   │   │   │   ├── invoices
+│   │   │   │   │   ├── InvoiceCancelDialog.tsx
+│   │   │   │   │   ├── InvoiceDeleteDialog.tsx
+│   │   │   │   │   ├── InvoiceViews.tsx
+│   │   │   │   │   └── PaymentDialog.tsx
+│   │   │   │   ├── quotes
+│   │   │   │   │   ├── QuoteDeleteDialog.tsx
+│   │   │   │   │   └── QuoteViews.tsx
+│   │   │   │   ├── services
+│   │   │   │   │   ├── ServiceDeleteDialog.tsx
+│   │   │   │   │   ├── ServiceDetailsDialog.tsx
+│   │   │   │   │   ├── ServiceFormDialog.tsx
+│   │   │   │   │   └── ServiceViews.tsx
+│   │   │   │   ├── audit-logs.tsx
+│   │   │   │   ├── clients.tsx
+│   │   │   │   ├── credit-notes.tsx
+│   │   │   │   ├── dashboard.tsx
+│   │   │   │   ├── invoice-editor.tsx
+│   │   │   │   ├── invoices.tsx
+│   │   │   │   ├── protected-app-shell.tsx
+│   │   │   │   ├── quote-editor.tsx
+│   │   │   │   ├── quotes.tsx
+│   │   │   │   ├── services.tsx
+│   │   │   │   ├── settings.tsx
+│   │   │   │   ├── user-editor.tsx
+│   │   │   │   └── users.tsx
+│   │   │   ├── cloud-sync-runner.tsx
+│   │   │   ├── data-sync.tsx
+│   │   │   ├── document-a4.tsx
+│   │   │   ├── error-boundary.tsx
+│   │   │   ├── fullscreen-document-viewer.tsx
+│   │   │   ├── pdf-document.tsx
+│   │   │   ├── printable-document.tsx
+│   │   │   ├── providers.tsx
+│   │   │   └── theme-toggle.tsx
+│   │   ├── data
+│   │   │   ├── backups
+│   │   │   │   └── database.v1-backup-2026-10-26T19-23-53-700Z.sqlite
+│   │   │   └── database.sqlite
+│   │   ├── hooks
+│   │   ├── lib
+│   │   │   ├── api
+│   │   │   │   ├── audit.ts
+│   │   │   │   ├── auth.ts
+│   │   │   │   ├── hub-cache.ts
+│   │   │   │   ├── invoice-logic.ts
+│   │   │   │   ├── license.ts
+│   │   │   │   ├── logo-storage.ts
+│   │   │   │   ├── numbering.ts
+│   │   │   │   ├── permissions.ts
+│   │   │   │   ├── quote-logic.ts
+│   │   │   │   └── tenant.ts
+│   │   │   ├── auth
+│   │   │   │   └── supabaseSession.ts
+│   │   │   ├── crypto
+│   │   │   │   └── secretStore.ts
+│   │   │   ├── db
+│   │   │   │   ├── migrations
+│   │   │   │   │   ├── 0001_initial_schema.ts
+│   │   │   │   │   ├── 0002_schema_hardening.ts
+│   │   │   │   │   ├── index.ts
+│   │   │   │   │   └── types.ts
+│   │   │   │   └── migrateLegacy.ts
+│   │   │   ├── device
+│   │   │   │   └── deviceId.ts
+│   │   │   ├── fiscal
+│   │   │   │   └── index.ts
+│   │   │   ├── repositories
+│   │   │   │   ├── InvoiceRepository.ts
+│   │   │   │   ├── MetricsRepository.ts
+│   │   │   │   ├── QuoteRepository.ts
+│   │   │   │   ├── SettingsRepository.ts
+│   │   │   │   └── UserRepository.ts
+│   │   │   ├── services
+│   │   │   │   ├── CreditNoteService.ts
+│   │   │   │   ├── EnrollmentService.ts
+│   │   │   │   ├── ExportService.ts
+│   │   │   │   ├── InvoiceService.ts
+│   │   │   │   ├── QuoteService.ts
+│   │   │   │   └── SetupService.ts
+│   │   │   ├── store
+│   │   │   │   ├── slices
+│   │   │   │   │   ├── authSlice.ts
+│   │   │   │   │   ├── clientsSlice.ts
+│   │   │   │   │   ├── invoicesSlice.ts
+│   │   │   │   │   ├── quotesSlice.ts
+│   │   │   │   │   └── settingsSlice.ts
+│   │   │   │   └── types.ts
+│   │   │   ├── sync
+│   │   │   │   ├── cloudMembers.ts
+│   │   │   │   ├── CloudSyncService.ts
+│   │   │   │   ├── localSchema.ts
+│   │   │   │   └── TelemetryReporter.ts
+│   │   │   ├── types
+│   │   │   │   └── api.ts
+│   │   │   ├── backup.ts
+│   │   │   ├── constants.ts
+│   │   │   ├── db.ts
+│   │   │   ├── electron-print.ts
+│   │   │   ├── logger.ts
+│   │   │   ├── math-logic.ts
+│   │   │   ├── store.ts
+│   │   │   ├── utils.ts
+│   │   │   └── validations.ts
+│   │   ├── main
+│   │   │   ├── backup.js
+│   │   │   ├── ipc.js
+│   │   │   ├── logging.js
+│   │   │   ├── secrets.js
+│   │   │   ├── server.js
+│   │   │   ├── updater.js
+│   │   │   └── window.js
+│   │   ├── public
+│   │   │   ├── erreur-404-img.svg
+│   │   │   ├── icon-dark-32x32.png
+│   │   │   ├── icon-light-32x32.png
+│   │   │   ├── icon.png
+│   │   │   ├── icon.svg
+│   │   │   ├── login-img-1.jpg
+│   │   │   ├── login-img-2.jpg
+│   │   │   ├── login-img-2.svg
+│   │   │   ├── login-img-3.jpg
+│   │   │   ├── login-img-3.svg
+│   │   │   ├── login-img-4.jpg
+│   │   │   ├── login-img-4.svg
+│   │   │   ├── logo.png
+│   │   │   └── splash.html
+│   │   ├── scripts
+│   │   │   ├── generate-icons.js
+│   │   │   ├── prepare-standalone.js
+│   │   │   ├── seed.ts
+│   │   │   └── test-full-sync-flow.ts
+│   │   ├── tests
+│   │   │   ├── artifacts
+│   │   │   │   ├── report
+│   │   │   │   │   └── index.html
+│   │   │   │   └── screenshots
+│   │   │   │       ├── dashboard-metrics.png
+│   │   │   │       ├── invoices-form-filled.png
+│   │   │   │       ├── invoices-list-created.png
+│   │   │   │       ├── quote-converted.png
+│   │   │   │       └── quote-created.png
+│   │   │   ├── e2e
+│   │   │   │   ├── .auth
+│   │   │   │   │   ├── adminState.json
+│   │   │   │   │   └── operatorState.json
+│   │   │   │   ├── navigation
+│   │   │   │   ├── performance
+│   │   │   │   │   └── dashboard.spec.ts
+│   │   │   │   ├── user-journey
+│   │   │   │   │   └── 3-transactions.spec.ts
+│   │   │   │   ├── admin.spec.ts
+│   │   │   │   ├── auth.setup.ts
+│   │   │   │   ├── critical-path.spec.ts
+│   │   │   │   ├── dashboard-qa.spec.ts
+│   │   │   │   ├── debug.spec.ts
+│   │   │   │   ├── invoices-qa.spec.ts
+│   │   │   │   ├── operator.spec.ts
+│   │   │   │   └── quotes-qa.spec.ts
+│   │   │   ├── helpers
+│   │   │   │   └── db.ts
+│   │   │   ├── integration
+│   │   │   │   ├── an6-credit-notes.test.ts
+│   │   │   │   ├── auth_logic.test.ts
+│   │   │   │   ├── batch-inserts.test.ts
+│   │   │   │   ├── contract-invoices.test.ts
+│   │   │   │   ├── financial-flow.test.ts
+│   │   │   │   ├── health.test.ts
+│   │   │   │   ├── payments-rbac.test.ts
+│   │   │   │   ├── performance-brute-force.test.ts
+│   │   │   │   ├── phase10-dashboard.test.ts
+│   │   │   │   ├── phase2-services.test.ts
+│   │   │   │   ├── phase3-clients.test.ts
+│   │   │   │   ├── phase4-security.test.ts
+│   │   │   │   ├── phase5-quotes.test.ts
+│   │   │   │   ├── phase6-invoices.test.ts
+│   │   │   │   ├── phase7-payments.test.ts
+│   │   │   │   ├── phase8-users.test.ts
+│   │   │   │   ├── phase9-audit-settings.test.ts
+│   │   │   │   ├── protected-root-route.test.ts
+│   │   │   │   ├── quote-editor-mount.test.tsx
+│   │   │   │   ├── quote-service.test.ts
+│   │   │   │   ├── quotes-rbac.test.ts
+│   │   │   │   ├── QuoteService.test.ts
+│   │   │   │   ├── rbac-limits.test.ts
+│   │   │   │   ├── setup-onboarding.test.ts
+│   │   │   │   ├── sync-two-devices.test.ts
+│   │   │   │   └── validation.test.ts
+│   │   │   ├── performance
+│   │   │   │   ├── auth-brute-force.test.ts
+│   │   │   │   ├── computeTotals.bench.test.ts
+│   │   │   │   └── payments.perf.test.ts
+│   │   │   ├── security
+│   │   │   │   ├── auth-audit-rbac.test.ts
+│   │   │   │   ├── auth-bruteforce.test.ts
+│   │   │   │   ├── auth.performance.test.ts
+│   │   │   │   └── auth.security.test.ts
+│   │   │   ├── unit
+│   │   │   │   ├── components
+│   │   │   │   │   └── pages
+│   │   │   │   │       ├── clients.test.tsx
+│   │   │   │   │       ├── invoices.test.tsx
+│   │   │   │   │       ├── services.test.tsx
+│   │   │   │   │       └── users.test.tsx
+│   │   │   │   ├── backup.test.ts
+│   │   │   │   ├── cloud-members-crypto.test.ts
+│   │   │   │   ├── CreditNoteService.test.ts
+│   │   │   │   ├── fiscal-calculations.test.ts
+│   │   │   │   ├── fiscal.test.ts
+│   │   │   │   ├── hub-channel.test.ts
+│   │   │   │   ├── invoiceStatus.test.ts
+│   │   │   │   ├── math-logic.test.ts
+│   │   │   │   ├── module1-correctif.test.ts
+│   │   │   │   ├── module1-curative.test.ts
+│   │   │   │   ├── module1-fields-and-dropdowns.test.ts
+│   │   │   │   ├── module1-preventif.test.ts
+│   │   │   │   ├── module2-correctif.test.ts
+│   │   │   │   ├── module2-curative.test.ts
+│   │   │   │   ├── module2-preventif.test.ts
+│   │   │   │   ├── module3-correctif.test.ts
+│   │   │   │   ├── module3-curative.test.ts
+│   │   │   │   ├── module3-preventif.test.ts
+│   │   │   │   ├── multitenant-complete.test.ts
+│   │   │   │   ├── multitenant-isolation.test.ts
+│   │   │   │   ├── numbering.test.ts
+│   │   │   │   ├── performance.test.ts
+│   │   │   │   ├── permissions.test.ts
+│   │   │   │   ├── phase1-fiscal-math.test.ts
+│   │   │   │   ├── phase2-enrollment-license-migration.test.ts
+│   │   │   │   ├── phase3-packaging-autoupdater.test.ts
+│   │   │   │   ├── quote-editor-ghost.test.ts
+│   │   │   │   ├── rbac-and-password.test.ts
+│   │   │   │   ├── security-audit-rbac.test.ts
+│   │   │   │   ├── settings-validation.test.ts
+│   │   │   │   ├── setup-validation-anti-dummy.test.ts
+│   │   │   │   ├── sqlite-migrations-hardening.test.ts
+│   │   │   │   ├── sync-telemetry-license.test.ts
+│   │   │   │   └── updateInvoiceStatus.test.ts
+│   │   │   ├── e2e_runner.js
+│   │   │   └── setup.ts
+│   │   ├── types
+│   │   │   ├── electron.d.ts
+│   │   │   └── exceljs.d.ts
+│   │   ├── .env.example
+│   │   ├── .env.local
+│   │   ├── components.json
+│   │   ├── electron-builder.yml
+│   │   ├── main.js
+│   │   ├── middleware.ts
+│   │   ├── next-env.d.ts
+│   │   ├── next.config.mjs
+│   │   ├── package.json
+│   │   ├── playwright.config.ts
+│   │   ├── postcss.config.mjs
+│   │   ├── preload.js
+│   │   ├── proxy.ts
+│   │   ├── tsconfig.json
+│   │   ├── tsconfig.tsbuildinfo
+│   │   └── vitest.config.ts
+│   └── web-hub
+│       ├── public
+│       │   ├── favicon.ico
+│       │   └── logo.png
+│       ├── scripts
+│       ├── src
+│       │   ├── app
+│       │   │   ├── admin
+│       │   │   │   ├── adoption
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── alerts
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── announcements
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── finance
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── licences
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── security
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── settings
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── sync
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── tenants
+│       │   │   │   │   ├── [id]
+│       │   │   │   │   │   └── page.tsx
+│       │   │   │   │   ├── actions.ts
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── error.tsx
+│       │   │   │   ├── layout.tsx
+│       │   │   │   ├── loading.tsx
+│       │   │   │   ├── not-found.tsx
+│       │   │   │   ├── page.tsx
+│       │   │   │   └── template.tsx
+│       │   │   ├── login
+│       │   │   │   ├── actions.ts
+│       │   │   │   ├── login-form.tsx
+│       │   │   │   └── page.tsx
+│       │   │   ├── mfa
+│       │   │   │   ├── enroll
+│       │   │   │   │   └── page.tsx
+│       │   │   │   ├── verify
+│       │   │   │   │   └── page.tsx
+│       │   │   │   └── page.tsx
+│       │   │   ├── apple-icon.png
+│       │   │   ├── favicon.ico
+│       │   │   ├── forbidden.tsx
+│       │   │   ├── globals.css
+│       │   │   ├── icon.png
+│       │   │   ├── layout.tsx
+│       │   │   ├── page.tsx
+│       │   │   └── unauthorized.tsx
+│       │   ├── components
+│       │   │   ├── admin
+│       │   │   │   ├── admin-header.tsx
+│       │   │   │   ├── admin-shell.tsx
+│       │   │   │   ├── adoption-funnel-view.tsx
+│       │   │   │   ├── announcements-alerts-view.tsx
+│       │   │   │   ├── breadcrumb.tsx
+│       │   │   │   ├── collapsible-sidebar.tsx
+│       │   │   │   ├── command-palette.tsx
+│       │   │   │   ├── finance-overview-view.tsx
+│       │   │   │   ├── header.tsx
+│       │   │   │   ├── licences-management-view.tsx
+│       │   │   │   ├── mobile-nav.tsx
+│       │   │   │   ├── navigation-progress.tsx
+│       │   │   │   ├── overview-charts.tsx
+│       │   │   │   ├── security-audit-view.tsx
+│       │   │   │   ├── sidebar.tsx
+│       │   │   │   ├── sync-fleet-view.tsx
+│       │   │   │   ├── tenant-360-view.tsx
+│       │   │   │   ├── tenants-table.tsx
+│       │   │   │   └── toast-context.tsx
+│       │   │   ├── theme-provider.tsx
+│       │   │   └── theme-toggle.tsx
+│       │   ├── lib
+│       │   │   ├── auth
+│       │   │   │   └── dal.ts
+│       │   │   ├── kpi
+│       │   │   │   ├── adoptionQueries.ts
+│       │   │   │   ├── announcementActions.ts
+│       │   │   │   ├── financeQueries.ts
+│       │   │   │   ├── fleetQueries.ts
+│       │   │   │   ├── licenceActions.ts
+│       │   │   │   ├── queries.ts
+│       │   │   │   ├── securityQueries.ts
+│       │   │   │   └── tenant360.ts
+│       │   │   └── audit.ts
+│       │   ├── utils
+│       │   │   └── supabase
+│       │   │       ├── admin.ts
+│       │   │       ├── client.ts
+│       │   │       ├── middleware.ts
+│       │   │       └── server.ts
+│       │   └── proxy.ts
+│       ├── tests
+│       │   ├── adoption-health.test.ts
+│       │   ├── auth-security.test.ts
+│       │   ├── hub-pages-render.test.ts
+│       │   ├── phase4-production-deployment-audit.test.ts
+│       │   ├── security-licences.test.ts
+│       │   ├── sync-finance.test.ts
+│       │   ├── tenant-management.test.ts
+│       │   └── ux-navigation-resilience.test.ts
+│       ├── .env.example
+│       ├── .env.local
+│       ├── .gitignore
+│       ├── AGENTS.md
+│       ├── eslint.config.mjs
+│       ├── next-env.d.ts
+│       ├── next.config.ts
+│       ├── package.json
+│       ├── README.md
+│       ├── tsconfig.json
+│       ├── tsconfig.tsbuildinfo
+│       └── vitest.config.mts
 ├── data
-|  ├── database.sqlite
-|  └── test.sqlite
+│   ├── database.sqlite
+│   └── test.sqlite
 ├── docs
-|  ├── AUDIT_AND_MASTER_PLAN.md
-|  ├── decisions
-|  |  ├── 0001-context7-governance.md
-|  |  ├── 0002-shared-database-and-multitenant-sync.md
-|  |  ├── 0003-encrypted-pending-cloud-members.md
-|  |  ├── 0004-local-sqlite-multitenant-isolation.md
-|  |  ├── 0005-strict-typecheck-turborepo-tasks.md
-|  |  ├── 0006-quarantine-legacy-api-route-tests.md
-|  |  ├── 0007-hub-security-mfa-authorization.md
-|  |  ├── 0008-hub-telemetry-kpi-data-models.md
-|  |  ├── 0009-hub-ui-foundation-recharts-streaming.md
-|  |  ├── 0010-hub-tenant-management-360-view.md
-|  |  ├── 0011-hub-sync-fleet-and-financial-supervision.md
-|  |  ├── 0012-hub-client-health-score-and-adoption-funnel.md
-|  |  ├── 0013-hub-security-audit-licences-announcements.md
-|  |  ├── 0014-hub-ux-navigation-command-palette-resilience.md
-|  |  ├── 0015-hub-fintech-color-system-and-theme-harmony.md
-|  |  ├── 0016-hub-unified-layout-and-dynamic-rendering-alignment.md
-|  |  ├── 0017-hub-side-drawer-popup-forms-and-native-logo.md
-|  |  ├── 0018-powersync-full-schema-sync-rules-and-numbering.md
-|  |  ├── 0019-desktop-enrollment-license-guard-and-migration.md
-|  |  ├── 0020-desktop-packaging-distribution-and-auto-updater.md
-|  |  ├── 0021-cloud-production-deployment-and-supabase-consolidation.md
-|  |  ├── 0022-desktop-extraresources-standalone-runtime-resilience.md
-|  |  ├── 0023-desktop-window-icon-and-splash-screen-packaging.md
-|  |  ├── 0024-desktop-company-first-setup-architecture.md
-|  |  ├── 0025-desktop-login-performance-and-code-splitting.md
-|  |  ├── 0026-auth-security-hardening-and-rate-limiting.md
-|  |  ├── 0027-auth-ui-ux-streamlining-and-parasite-removal.md
-|  |  ├── 0028-module-1-curative-sanitization-and-integrity.md
-|  |  ├── 0029-module-1-correctif-fiscal-fields-and-rbac.md
-|  |  ├── 0030-module-1-field-requirements-and-dropdowns.md
-|  |  ├── 0031-module-1-preventive-indexing-and-multitenant-hardening.md
-|  |  ├── 0032-module-2-quotes-lifecycle-and-integrity.md
-|  |  ├── 0033-module-3-invoicing-credit-notes-and-integrity.md
-|  |  └── TEMPLATE.md
-|  ├── PLAN_CONTINUATION_ET_FINALISATION.md
-|  ├── quality
-|  |  └── context7-governance.md
-|  └── rapport
-|     ├── 01_AUDIT_GLOBAL.md
-|     ├── 02_CONCEPTION_2TUP_UML.md
-|     └── 03_GUIDE_REDACTION_RAPPORT_INPTIC.md
+│   ├── archive
+│   │   ├── AUDIT_AND_MASTER_PLAN.md
+│   │   ├── PLAN_CONTINUATION_ET_FINALISATION.md
+│   │   └── sync_rules.yaml
+│   ├── decisions
+│   │   ├── 0001-context7-governance.md
+│   │   ├── 0002-shared-database-and-multitenant-sync.md
+│   │   ├── 0003-encrypted-pending-cloud-members.md
+│   │   ├── 0004-local-sqlite-multitenant-isolation.md
+│   │   ├── 0005-strict-typecheck-turborepo-tasks.md
+│   │   ├── 0006-quarantine-legacy-api-route-tests.md
+│   │   ├── 0007-hub-security-mfa-authorization.md
+│   │   ├── 0008-hub-telemetry-kpi-data-models.md
+│   │   ├── 0009-hub-ui-foundation-recharts-streaming.md
+│   │   ├── 0010-hub-tenant-management-360-view.md
+│   │   ├── 0011-hub-sync-fleet-and-financial-supervision.md
+│   │   ├── 0012-hub-client-health-score-and-adoption-funnel.md
+│   │   ├── 0013-hub-security-audit-licences-announcements.md
+│   │   ├── 0014-hub-ux-navigation-command-palette-resilience.md
+│   │   ├── 0015-hub-fintech-color-system-and-theme-harmony.md
+│   │   ├── 0016-hub-unified-layout-and-dynamic-rendering-alignment.md
+│   │   ├── 0017-hub-side-drawer-popup-forms-and-native-logo.md
+│   │   ├── 0018-powersync-full-schema-sync-rules-and-numbering.md
+│   │   ├── 0019-desktop-enrollment-license-guard-and-migration.md
+│   │   ├── 0020-desktop-packaging-distribution-and-auto-updater.md
+│   │   ├── 0021-cloud-production-deployment-and-supabase-consolidation.md
+│   │   ├── 0022-desktop-extraresources-standalone-runtime-resilience.md
+│   │   ├── 0023-desktop-window-icon-and-splash-screen-packaging.md
+│   │   ├── 0024-desktop-company-first-setup-architecture.md
+│   │   ├── 0025-desktop-login-performance-and-code-splitting.md
+│   │   ├── 0026-auth-security-hardening-and-rate-limiting.md
+│   │   ├── 0027-auth-ui-ux-streamlining-and-parasite-removal.md
+│   │   ├── 0028-module-1-curative-sanitization-and-integrity.md
+│   │   ├── 0029-module-1-correctif-fiscal-fields-and-rbac.md
+│   │   ├── 0030-module-1-field-requirements-and-dropdowns.md
+│   │   ├── 0031-module-1-preventive-indexing-and-multitenant-hardening.md
+│   │   ├── 0032-module-2-quotes-lifecycle-and-integrity.md
+│   │   ├── 0033-module-3-invoicing-credit-notes-and-integrity.md
+│   │   ├── 0034-hub-instant-desktop-grade-navigation.md
+│   │   ├── 0035-sync-composite-cursor-soft-delete-lww.md
+│   │   ├── 0036-financial-integrity-credit-notes-and-numbering.md
+│   │   ├── 0037-verified-online-backup-better-sqlite3.md
+│   │   ├── 0038-retrait-powersync-consolidation-cloudsyncservice.md
+│   │   ├── 0039-canal-descendant-hub-desktop-et-moteur-alertes.md
+│   │   ├── 0040-durcissement-schema-sqlite-postgres-et-rls.md
+│   │   ├── 0041-refactoring-structurel-moteur-fiscal-et-modularisation.md
+│   │   ├── 0042-chaine-outils-dedoublonnage-proxy-et-minification.md
+│   │   ├── 0043-fiscalite-par-ligne-et-versionnement-du-modele-fiscal.md
+│   │   └── TEMPLATE.md
+│   ├── plans
+│   │   ├── 00_DIAGNOSTIC_DETTES_ZOMBIES_FREINS.md
+│   │   ├── 01_PLAN_CORRECTIF.md
+│   │   ├── 02_PLAN_CURATIF.md
+│   │   └── 03_PLAN_PREVENTIF.md
+│   ├── quality
+│   │   └── context7-governance.md
+│   ├── rapport
+│   │   ├── 01_AUDIT_GLOBAL.md
+│   │   ├── 02_CONCEPTION_2TUP_UML.md
+│   │   ├── 03_GUIDE_REDACTION_RAPPORT_INPTIC.md
+│   │   ├── FICHIER_1_MODELISATION_DONNEES_MCD_MLD.md
+│   │   ├── FICHIER_2_FONCTIONNEMENT_METIER_ET_SYSTEME.md
+│   │   └── FICHIER_3_ECOSYSTEME_TECHNIQUE_ET_JUSTIFICATIONS.md
+│   ├── ARCHITECTURE.md
+│   └── RUNBOOK.md
+├── packages
+│   ├── database
+│   │   ├── src
+│   │   │   ├── fiscal
+│   │   │   │   └── index.ts
+│   │   │   ├── types
+│   │   │   │   └── index.ts
+│   │   │   └── index.ts
+│   │   ├── package.json
+│   │   └── tsconfig.json
+│   └── ui
+│       ├── src
+│       │   ├── components
+│       │   │   ├── alert-dialog.tsx
+│       │   │   ├── alert.tsx
+│       │   │   ├── avatar.tsx
+│       │   │   ├── badge.tsx
+│       │   │   ├── button.tsx
+│       │   │   ├── calendar.tsx
+│       │   │   ├── card.tsx
+│       │   │   ├── chart.tsx
+│       │   │   ├── checkbox.tsx
+│       │   │   ├── command.tsx
+│       │   │   ├── data-table.tsx
+│       │   │   ├── date-picker.tsx
+│       │   │   ├── dialog.tsx
+│       │   │   ├── dropdown-menu.tsx
+│       │   │   ├── empty-state.tsx
+│       │   │   ├── form.tsx
+│       │   │   ├── input.tsx
+│       │   │   ├── kpi-card.tsx
+│       │   │   ├── label.tsx
+│       │   │   ├── page-header.tsx
+│       │   │   ├── pagination-custom.tsx
+│       │   │   ├── popover.tsx
+│       │   │   ├── search-bar.tsx
+│       │   │   ├── select.tsx
+│       │   │   ├── separator.tsx
+│       │   │   ├── sheet.tsx
+│       │   │   ├── sonner.tsx
+│       │   │   ├── status-badge.tsx
+│       │   │   ├── switch.tsx
+│       │   │   ├── table.tsx
+│       │   │   ├── tabs.tsx
+│       │   │   ├── textarea.tsx
+│       │   │   ├── tooltip.tsx
+│       │   │   ├── view-format-selector.tsx
+│       │   │   └── visually-hidden.tsx
+│       │   ├── lib
+│       │   │   └── utils.ts
+│       │   └── styles
+│       │       └── theme.css
+│       ├── package.json
+│       └── tsconfig.json
+├── scripts
+│   └── check-decision-records.js
+├── supabase
+│   ├── migrations
+│   │   ├── 20261013_attach_member.sql
+│   │   ├── 20261013_desktop_sync.sql
+│   │   ├── 20261020_hub_security.sql
+│   │   ├── 20261021_hub_telemetry_kpis.sql
+│   │   ├── 20261028_cleanup_legacy_tables.sql
+│   │   ├── 20261028_correctif_sync_lww_and_kpis.sql
+│   │   ├── 20261028_curatif_hub_alerts_and_channel.sql
+│   │   └── 20261028_schema_hardening.sql
+│   └── deploy_all_migrations.sql
+├── types
+│   ├── css.d.ts
+│   └── electron.d.ts
+├── .antigravity
+├── .gitignore
+├── AGENTS.md
+├── CLAUDE.md
 ├── infos_entreprise_stage.md
 ├── package-lock.json
 ├── package.json
-├── packages
-|  ├── database
-|  |  ├── package.json
-|  |  ├── src
-|  |  |  ├── fiscal
-|  |  |  ├── index.ts
-|  |  |  └── types
-|  |  └── tsconfig.json
-|  └── ui
-|     ├── package.json
-|     ├── src
-|     |  ├── components
-|     |  ├── lib
-|     |  └── styles
-|     └── tsconfig.json
-├── powersync
-|  └── sync_rules.yaml
 ├── project_structure.txt
 ├── rapport_projet_stage.md
-├── release
-|  └── win-unpacked
-|     └── resources
-|        └── app.asar.unpacked
-├── scripts
-|  └── check-decision-records.js
-├── supabase
-|  ├── deploy_all_migrations.sql
-|  ├── migrations
-|  |  ├── 20261013_attach_member.sql
-|  |  ├── 20261013_desktop_sync.sql
-|  |  ├── 20261020_hub_security.sql
-|  |  └── 20261021_hub_telemetry_kpis.sql
-|  └── sync_rules.yaml
-├── test-results
 ├── tree.txt
 ├── tsconfig.tsbuildinfo
-├── turbo.json
-└── types
-   ├── css.d.ts
-   └── electron.d.ts
-
-directory: 2615 file: 18289 symboliclink: 4
-
-ignored: directory (330)
+└── turbo.json

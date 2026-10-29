@@ -4,6 +4,8 @@ import { reconcileLocalTenantId, resolveActiveTenantId } from '@/lib/api/tenant'
 import { SYNC_TABLES, type SyncTableConfig } from './localSchema';
 import { processPendingMembers } from './cloudMembers';
 import { sendSyncTelemetry } from './TelemetryReporter';
+import { saveHubCache } from '@/lib/api/hub-cache';
+import { getErrorMessage } from '@/lib/utils/action-error';
 
 /**
  * CloudSyncService — pont SQLite local (better-sqlite3) <-> Supabase.
@@ -461,10 +463,10 @@ async function pullTable(sb: SupabaseClient, cfg: SyncTableConfig, tenantId: str
           db.prepare(sql).run(...names.map((n) => values[n] ?? null));
           clearSyncFailure(cfg.local, String(r.id ?? '1'));
           report.pulled++;
-        } catch (e: any) {
+        } catch (e: unknown) {
           // Contrainte : on isole la ligne en erreur dans sync_failures sans bloquer le reste de la table
           report.skipped++;
-          const errMsg = e?.message || String(e);
+          const errMsg = getErrorMessage(e);
           recordSyncFailure(cfg.local, String(r.id ?? '1'), errMsg);
           report.errors.push(`pull ${cfg.local}#${String(r.id ?? r.tenant_id)}: ${errMsg}`);
         }
@@ -478,6 +480,43 @@ async function pullTable(sb: SupabaseClient, cfg: SyncTableConfig, tenantId: str
     cursor = { ts: lastTs, id: lastId };
     setMeta(cursorKey, JSON.stringify(cursor));
     if (rows.length < PULL_PAGE) break;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// CANAL DESCENDANT HUB -> DESKTOP (Annonces & Drapeaux - Lot H / H1)
+// ---------------------------------------------------------------------------
+async function pullHubChannel(sb: SupabaseClient, tenantId: string, report: SyncReport): Promise<void> {
+  try {
+    const nowIso = new Date().toISOString();
+    // 1. Annonces visibles pour ce tenant ou globales
+    const { data: announcements, error: annError } = await sb
+      .from('announcements')
+      .select('*')
+      .or(`target_tenant_id.is.null,target_tenant_id.eq.${tenantId}`)
+      .eq('is_active', true)
+      .lte('starts_at', nowIso);
+
+    if (!annError && Array.isArray(announcements)) {
+      for (const ann of announcements) {
+        if (ann.ends_at && ann.ends_at < nowIso) continue;
+        saveHubCache('announcement', ann.id, ann);
+      }
+    }
+
+    // 2. Drapeaux de fonctionnalités (tenant_flags)
+    const { data: flags, error: flagError } = await sb
+      .from('tenant_flags')
+      .select('*')
+      .eq('tenant_id', tenantId);
+
+    if (!flagError && Array.isArray(flags)) {
+      for (const flag of flags) {
+        saveHubCache('flag', flag.flag_key, flag);
+      }
+    }
+  } catch (err: unknown) {
+    report.errors.push(`pullHubChannel: ${getErrorMessage(err)}`);
   }
 }
 
@@ -507,8 +546,8 @@ export async function syncWithCloud(accessToken: string): Promise<SyncReport> {
       try {
         const pm = await withTimeout(processPendingMembers(accessToken), 30000, 'membres');
         report.errors.push(...pm.errors);
-      } catch (e: any) {
-        report.errors.push(e?.message || String(e));
+      } catch (e: unknown) {
+        report.errors.push(getErrorMessage(e));
       }
     }
 
@@ -516,23 +555,30 @@ export async function syncWithCloud(accessToken: string): Promise<SyncReport> {
     for (const cfg of SYNC_TABLES) {
       try {
         await pushTable(sb, cfg, ctx.tenantId, report);
-      } catch (e: any) {
-        report.errors.push(e?.message || String(e));
+      } catch (e: unknown) {
+        report.errors.push(getErrorMessage(e));
       }
     }
     try {
       await pushTombstones(sb, ctx.tenantId, report);
-    } catch (e: any) {
-      report.errors.push(e?.message || String(e));
+    } catch (e: unknown) {
+      report.errors.push(getErrorMessage(e));
     }
 
     // 2) PULL (parents -> enfants)
     for (const cfg of SYNC_TABLES) {
       try {
         await pullTable(sb, cfg, ctx.tenantId, report);
-      } catch (e: any) {
-        report.errors.push(e?.message || String(e));
+      } catch (e: unknown) {
+        report.errors.push(getErrorMessage(e));
       }
+    }
+
+    // 3) Canal descendant Hub (annonces et drapeaux de fonctionnalités - H1)
+    try {
+      await pullHubChannel(sb, ctx.tenantId, report);
+    } catch (e: unknown) {
+      report.errors.push(getErrorMessage(e));
     }
 
     setMeta('last_sync_at', new Date().toISOString());

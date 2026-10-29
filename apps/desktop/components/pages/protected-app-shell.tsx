@@ -11,6 +11,7 @@ import { Dashboard } from "@/components/pages/dashboard"
 import { useStore } from "@/lib/store"
 import { DataSync } from "@/components/data-sync"
 import { CloudSyncRunner } from "@/components/cloud-sync-runner"
+import { AnnouncementBanner } from "@/components/layout/announcement-banner"
 import type { UserResponse } from "@/lib/types/api"
 
 const PageLoadingFallback = () => (
@@ -231,6 +232,7 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
         className="h-screen pt-16 flex flex-col overflow-hidden relative"
       >
+        <AnnouncementBanner />
         <AnimatePresence mode="wait">
           <motion.div
             key={currentPage}

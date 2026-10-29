@@ -30,17 +30,17 @@ describe('Invoice Status Logic Unit Tests (Specific Requirements)', () => {
     const clientId = 'client-1';
     const invoiceId = 'inv-1000-full';
 
-    testDb.prepare(`INSERT OR IGNORE INTO clients (id, name, email, created_by) VALUES (?, 'Test Client', 'client@test.com', ?)`).run(clientId, adminUserId);
+    testDb.prepare(`INSERT OR IGNORE INTO clients (id, name, email, created_by, tenant_id) VALUES (?, 'Test Client', 'client@test.com', ?, '00000000-0000-4000-a000-000000000001')`).run(clientId, adminUserId);
 
     testDb.prepare(`
-      INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by)
-      VALUES (?, 'FAC-1000-FULL', ?, 'Test Client', 'client@test.com', '2026-07-08', 840, 0, 840, 151, 0, 9, 1000, ?, ?)
+      INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by, tenant_id)
+      VALUES (?, 'FAC-1000-FULL', ?, 'Test Client', 'client@test.com', '2026-07-08', 840, 0, 840, 151, 0, 9, 1000, ?, ?, '00000000-0000-4000-a000-000000000001')
     `).run(invoiceId, clientId, INVOICE_STATUS.UNPAID, adminUserId);
 
     // 1000 XAF payment
     testDb.prepare(`
-      INSERT INTO payments (id, invoiceId, amount, paymentMethod, date, reference, created_by)
-      VALUES ('pay-1000', ?, 1000, 'cash', '2026-07-08', 'REF', ?)
+      INSERT INTO payments (id, invoiceId, amount, paymentMethod, date, reference, created_by, tenant_id)
+      VALUES ('pay-1000', ?, 1000, 'cash', '2026-07-08', 'REF', ?, '00000000-0000-4000-a000-000000000001')
     `).run(invoiceId, adminUserId);
 
     const newStatus = updateInvoiceStatus(invoiceId);
@@ -52,17 +52,17 @@ describe('Invoice Status Logic Unit Tests (Specific Requirements)', () => {
     const clientId = 'client-1';
     const invoiceId = 'inv-1000-partial';
 
-    testDb.prepare(`INSERT OR IGNORE INTO clients (id, name, email, created_by) VALUES (?, 'Test Client', 'client@test.com', ?)`).run(clientId, adminUserId);
+    testDb.prepare(`INSERT OR IGNORE INTO clients (id, name, email, created_by, tenant_id) VALUES (?, 'Test Client', 'client@test.com', ?, '00000000-0000-4000-a000-000000000001')`).run(clientId, adminUserId);
 
     testDb.prepare(`
-      INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by)
-      VALUES (?, 'FAC-1000-PART', ?, 'Test Client', 'client@test.com', '2026-07-08', 840, 0, 840, 151, 0, 9, 1000, ?, ?)
+      INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by, tenant_id)
+      VALUES (?, 'FAC-1000-PART', ?, 'Test Client', 'client@test.com', '2026-07-08', 840, 0, 840, 151, 0, 9, 1000, ?, ?, '00000000-0000-4000-a000-000000000001')
     `).run(invoiceId, clientId, INVOICE_STATUS.UNPAID, adminUserId);
 
     // 500 XAF payment
     testDb.prepare(`
-      INSERT INTO payments (id, invoiceId, amount, paymentMethod, date, reference, created_by)
-      VALUES ('pay-500', ?, 500, 'cash', '2026-07-08', 'REF', ?)
+      INSERT INTO payments (id, invoiceId, amount, paymentMethod, date, reference, created_by, tenant_id)
+      VALUES ('pay-500', ?, 500, 'cash', '2026-07-08', 'REF', ?, '00000000-0000-4000-a000-000000000001')
     `).run(invoiceId, adminUserId);
 
     const newStatus = updateInvoiceStatus(invoiceId);

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { computeTotals } from '@/lib/math-logic';
+import { computeTotals, computeTotalsByRegime } from '@/lib/math-logic';
 
 describe('computeTotals', () => {
   it('should correctly calculate totals for basic inputs without taxes or discounts', () => {
@@ -223,3 +223,95 @@ describe('computeTotals', () => {
     expect(result.total).toBe(462);
   });
 });
+
+describe('computeTotalsByRegime (Tax Model v2 - Readiness)', () => {
+  const dgiRates = { tvaRate: 18, tpsRate: 9.5, cssRate: 1 };
+
+  it('calculates totals correctly for GOODS only (TVA + CSS, exempt from TPS)', () => {
+    const items = [
+      { quantity: 2, unitPrice: 50000, taxRegime: 'GOODS' as const }, // 100,000 HT
+    ];
+    // HT = 100,000
+    // CSS = 1% = 1,000
+    // Tax Base = 101,000
+    // TPS = 0 (goods are exempt)
+    // TVA = 18% of 101,000 = 18,180
+    // Total = 101,000 + 18,180 = 119,180
+    const res = computeTotalsByRegime(items, 0, dgiRates);
+
+    expect(res.subtotal).toBe(100000);
+    expect(res.discount).toBe(0);
+    expect(res.goodsHT).toBe(100000);
+    expect(res.servicesHT).toBe(0);
+    expect(res.exemptHT).toBe(0);
+    expect(res.cssAmount).toBe(1000);
+    expect(res.tpsAmount).toBe(0);
+    expect(res.tvaAmount).toBe(18180);
+    expect(res.total).toBe(119180);
+  });
+
+  it('calculates totals correctly for SERVICES only (CSS + TPS + TVA)', () => {
+    const items = [
+      { quantity: 1, unitPrice: 100000, taxRegime: 'SERVICES' as const },
+    ];
+    // HT = 100,000
+    // CSS = 1% = 1,000
+    // Tax Base = 101,000
+    // TPS = 9.5% of 101,000 = 9,595
+    // TVA = 18% of 101,000 = 18,180
+    // Total = 101,000 + 9,595 + 18,180 = 128,775
+    const res = computeTotalsByRegime(items, 0, dgiRates);
+
+    expect(res.subtotal).toBe(100000);
+    expect(res.servicesHT).toBe(100000);
+    expect(res.goodsHT).toBe(0);
+    expect(res.cssAmount).toBe(1000);
+    expect(res.tpsAmount).toBe(9595);
+    expect(res.tvaAmount).toBe(18180);
+    expect(res.total).toBe(128775);
+  });
+
+  it('calculates totals correctly for EXEMPT only', () => {
+    const items = [
+      { quantity: 5, unitPrice: 20000, taxRegime: 'EXEMPT' as const },
+    ];
+    // HT = 100,000
+    // CSS = 1% = 1,000
+    // TPS = 0, TVA = 0
+    // Total = 101,000
+    const res = computeTotalsByRegime(items, 0, dgiRates);
+
+    expect(res.subtotal).toBe(100000);
+    expect(res.exemptHT).toBe(100000);
+    expect(res.cssAmount).toBe(1000);
+    expect(res.tpsAmount).toBe(0);
+    expect(res.tvaAmount).toBe(0);
+    expect(res.total).toBe(101000);
+  });
+
+  it('calculates mixed invoice (GOODS + SERVICES + EXEMPT) with global discount', () => {
+    const items = [
+      { quantity: 1, unitPrice: 100000, taxRegime: 'GOODS' as const },
+      { quantity: 1, unitPrice: 100000, taxRegime: 'SERVICES' as const },
+      { quantity: 1, unitPrice: 50000, taxRegime: 'EXEMPT' as const },
+    ];
+    // Subtotal = 250,000
+    // Discount = 25,000 (10%)
+    // Effective HT = 225,000
+    // Goods net = 90,000
+    // Services net = 90,000
+    // Exempt net = 45,000
+    // CSS = 1% of 225,000 = 2,250
+    const res = computeTotalsByRegime(items, 25000, dgiRates);
+
+    expect(res.subtotal).toBe(250000);
+    expect(res.discount).toBe(25000);
+    expect(res.netHT).toBe(225000);
+    expect(res.goodsHT).toBe(90000);
+    expect(res.servicesHT).toBe(90000);
+    expect(res.exemptHT).toBe(45000);
+    expect(res.cssAmount).toBe(2250);
+    expect(res.total).toBeGreaterThan(225000);
+  });
+});
+

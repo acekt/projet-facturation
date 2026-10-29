@@ -9,7 +9,6 @@ import {
   Shield,
   ShieldCheck,
   Mail,
-  Phone,
   Key,
   Lock,
   Check,
@@ -30,7 +29,8 @@ interface UserEditorProps {
 }
 
 export function UserEditor({ onBack, editingId }: UserEditorProps) {
-  const { user: currentUser } = useStore()
+  const currentUser = useStore((s) => s.user)
+  const setUsers = useStore((s) => s.setUsers)
   const [isLoading, setIsLoading] = React.useState(!!editingId)
   const [isSubmitting, startSubmitTransition] = React.useTransition()
   const [showPassword, setShowPassword] = React.useState(false)
@@ -47,18 +47,11 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
 
   const [errors, setErrors] = React.useState<Record<string, string>>({})
 
-  React.useEffect(() => {
-    if (editingId) {
-      fetchUser()
-    }
-  }, [editingId])
-
-  const fetchUser = async () => {
+  const fetchUser = React.useCallback(async () => {
     try {
       const res = await getUsers()
       if (res.success && res.data) {
-        const users = res.data
-        const user = users.find((u: { id: string }) => u.id === editingId)
+        const user = res.data.find((u) => u.id === editingId)
         if (user) {
           setFormData({
             name: user.name,
@@ -66,33 +59,39 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
             phone: user.phone || "",
             role: user.role,
             password: "",
-            force_password_change: (user as any).force_password_change === 1,
+            force_password_change: Boolean(user.force_password_change),
             is_active: user.is_active === 1,
           })
         }
       } else {
-          toast.error(res.error || "Erreur lors du chargement de l'utilisateur")
-          onBack()
+        toast.error(res.error || "Erreur lors du chargement de l'utilisateur")
+        onBack()
       }
-    } catch (err) {
+    } catch {
       toast.error("Erreur lors du chargement de l'utilisateur")
       onBack()
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [editingId, onBack])
+
+  React.useEffect(() => {
+    if (editingId) {
+      fetchUser()
+    }
+  }, [editingId, fetchUser])
 
   const validateForm = () => {
     const schema = editingId ? userUpdateSchema : userCreateSchema
-    const dataToValidate = editingId 
+    const dataToValidate = editingId
       ? {
           ...formData,
           email: formData.email && formData.email !== "" ? formData.email : undefined,
         }
       : { ...formData, username: formData.email }
-      
+
     const result = schema.safeParse(dataToValidate)
-    
+
     if (!result.success) {
       const newErrors: Record<string, string> = {}
       result.error.errors.forEach((err) => {
@@ -105,27 +104,29 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
       toast.error(firstError)
       return false
     }
-    
+
     setErrors({})
     return true
   }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
+
     if (!validateForm()) {
       return
     }
 
     startSubmitTransition(async () => {
       try {
-        const payload = editingId 
+        const payload = editingId
           ? {
               name: formData.name,
               ...(formData.email && formData.email !== "" ? { email: formData.email, username: formData.email } : {}),
               phone: formData.phone || null,
               role: formData.role,
-              ...(formData.password && formData.password !== "" ? { password: formData.password, force_password_change: true } : {}),
+              ...(formData.password && formData.password !== ""
+                ? { password: formData.password, force_password_change: true }
+                : {}),
               is_active: formData.is_active,
             }
           : {
@@ -142,13 +143,17 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
         const res = editingId ? await updateUserService(editingId, payload) : await createUser(payload)
 
         if (res.success) {
+          const refreshed = await getUsers()
+          if (refreshed.success && refreshed.data) {
+            setUsers(refreshed.data)
+          }
           toast.success(editingId ? "Utilisateur mis à jour" : "Utilisateur créé avec succès")
           onBack()
         } else {
           toast.error(res.error || "Erreur lors de l'opération")
         }
       } catch (err) {
-        console.error('[UserEditor] handleSubmit error:', err)
+        console.error("[UserEditor] handleSubmit error:", err)
         toast.error("Erreur réseau")
       }
     })
@@ -178,7 +183,9 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
             {editingId ? "Modifier l'utilisateur" : "Nouvel utilisateur"}
           </h1>
           <p className="text-muted-foreground mt-1">
-            {editingId ? "Mettez à jour les informations du compte" : "Créez un nouvel accès pour un membre de votre équipe"}
+            {editingId
+              ? "Mettez à jour les informations du compte"
+              : "Créez un nouvel accès pour un membre de votre équipe"}
           </p>
         </div>
       </div>
@@ -195,7 +202,9 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="name">Nom complet <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="name">
+                    Nom complet <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="name"
                     value={formData.name || ""}
@@ -207,7 +216,9 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="email">
+                    Email <span className="text-destructive">*</span>
+                  </Label>
                   <Input
                     id="email"
                     type="email"
@@ -219,7 +230,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                   />
                   {errors.email && <p className="text-destructive text-sm font-medium">{errors.email}</p>}
                   {editingId && !errors.email && (
-                    <p className="text-xs text-muted-foreground">L'email ne peut pas être modifié</p>
+                    <p className="text-xs text-muted-foreground">L&apos;email ne peut pas être modifié</p>
                   )}
                 </div>
 
@@ -247,7 +258,9 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="role">Rôle <span className="text-destructive">*</span></Label>
+                  <Label htmlFor="role">
+                    Rôle <span className="text-destructive">*</span>
+                  </Label>
                   <Select
                     value={formData.role}
                     onValueChange={(value: "admin" | "user") => setFormData({ ...formData, role: value })}
@@ -260,13 +273,17 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                       <SelectItem value="user">
                         <div className="flex flex-col">
                           <span className="font-medium">Opérateur</span>
-                          <span className="text-xs text-muted-foreground">Accès aux devis, factures, clients, services</span>
+                          <span className="text-xs text-muted-foreground">
+                            Accès aux devis, factures, clients, services
+                          </span>
                         </div>
                       </SelectItem>
                       <SelectItem value="admin">
                         <div className="flex flex-col">
                           <span className="font-medium">Administrateur</span>
-                          <span className="text-xs text-muted-foreground">Gestion utilisateurs, paramètres, audit</span>
+                          <span className="text-xs text-muted-foreground">
+                            Gestion utilisateurs, paramètres, audit
+                          </span>
                         </div>
                       </SelectItem>
                     </SelectContent>
@@ -290,9 +307,6 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                     disabled={editingId === currentUser?.id}
                   />
                 </div>
-                {editingId === currentUser?.id && (
-                  <p className="text-xs text-muted-foreground">Vous ne pouvez pas désactiver votre propre compte</p>
-                )}
               </CardContent>
             </Card>
 
@@ -305,9 +319,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="password">
-                    Mot de passe {editingId ? "(optionnel)" : "*"}
-                  </Label>
+                  <Label htmlFor="password">Mot de passe {editingId ? "(optionnel)" : "*"}</Label>
                   <div className="relative">
                     <Input
                       id="password"
@@ -329,11 +341,6 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                     </Button>
                   </div>
                   {errors.password && <p className="text-destructive text-sm font-medium">{errors.password}</p>}
-                  {editingId && !errors.password && (
-                    <p className="text-xs text-muted-foreground">
-                      Ne renseignez un nouveau mot de passe que si vous souhaitez le réinitialiser
-                    </p>
-                  )}
                 </div>
 
                 {!editingId && (
@@ -341,7 +348,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                     <div className="space-y-0.5">
                       <Label className="text-sm font-medium">Forcer le changement au premier login</Label>
                       <p className="text-[10px] text-muted-foreground">
-                        L'utilisateur devra définir son propre mot de passe à la première connexion
+                        L&apos;utilisateur devra définir son propre mot de passe à la première connexion
                       </p>
                     </div>
                     <Switch
@@ -360,25 +367,25 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                 <CardTitle className="text-foreground font-semibold text-base">Résumé</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm">
+                <div className="space-y-3 text-sm">
+                  <div className="flex items-center gap-2">
                     <User className="w-4 h-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Nom:</span>
                     <span className="font-medium text-foreground">{formData.name || "-"}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2">
                     <Mail className="w-4 h-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Email:</span>
                     <span className="font-medium text-foreground">{formData.email || "-"}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2">
                     <ShieldCheck className="w-4 h-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Rôle:</span>
                     <span className="font-medium text-foreground">
-                      {formData.role === 'admin' ? 'Administrateur' : 'Opérateur'}
+                      {formData.role === "admin" ? "Administrateur" : "Opérateur"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 text-sm">
+                  <div className="flex items-center gap-2">
                     <Check className="w-4 h-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Statut:</span>
                     <span className={`font-medium ${formData.is_active ? "text-emerald-600" : "text-gray-600"}`}>
@@ -393,17 +400,13 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                     className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12"
                     disabled={isSubmitting}
                   >
-                    {isSubmitting ? "Enregistrement..." : editingId ? "Enregistrer les modifications" : "Créer l'utilisateur"}
+                    {isSubmitting
+                      ? "Enregistrement..."
+                      : editingId
+                        ? "Enregistrer les modifications"
+                        : "Créer l'utilisateur"}
                   </Button>
                 </div>
-
-                {editingId && (
-                  <div className="pt-2">
-                    <p className="text-[10px] text-muted-foreground text-center">
-                      Dernière modification: {new Date().toLocaleDateString('fr-FR')}
-                    </p>
-                  </div>
-                )}
               </CardContent>
             </Card>
           </div>

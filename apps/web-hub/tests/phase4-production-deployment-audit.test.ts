@@ -6,7 +6,7 @@ describe("Phase 4 : Déploiement en Production du Hub Cloud & Consolidation Supa
   const rootDir = path.resolve(__dirname, "../../..");
   const webHubRoot = path.resolve(__dirname, "..");
   const supabaseDir = path.join(rootDir, "supabase");
-  const powersyncDir = path.join(rootDir, "powersync");
+  const archiveDir = path.join(rootDir, "docs", "archive");
 
   // ---------------------------------------------------------------------------
   // 1. AUDIT ET CONSOLIDATION DES MIGRATIONS SUPABASE (Tâche 4.1)
@@ -136,11 +136,11 @@ describe("Phase 4 : Déploiement en Production du Hub Cloud & Consolidation Supa
   });
 
   // ---------------------------------------------------------------------------
-  // 3. SYNCHRONISATION POWERSYNC CLOUD & CONGRUENCE DES SCHÉMAS (Tâche 4.3)
+  // 3. SYNCHRONISATION ARCHIVÉE & CONGRUENCE DES SCHÉMAS (ADR-0038)
   // ---------------------------------------------------------------------------
-  describe("Congruence PowerSync Cloud & Supabase", () => {
-    it("3.1 Le fichier sync_rules.yaml officiel doit définir les 3 buckets essentiels", () => {
-      const syncRulesPath = path.join(powersyncDir, "sync_rules.yaml");
+  describe("Congruence Règles Synchronisation & Supabase (ADR-0038)", () => {
+    it("3.1 Le fichier sync_rules.yaml archivé (ADR-0038) doit définir les 3 buckets essentiels", () => {
+      const syncRulesPath = path.join(archiveDir, "sync_rules.yaml");
       expect(fs.existsSync(syncRulesPath)).toBe(true);
 
       const content = fs.readFileSync(syncRulesPath, "utf8");
@@ -150,7 +150,7 @@ describe("Phase 4 : Déploiement en Production du Hub Cloud & Consolidation Supa
     });
 
     it("3.2 Le bucket tenant_data doit filtrer les 13 tables synchronisées par bucket.tenant_id", () => {
-      const syncRulesPath = path.join(powersyncDir, "sync_rules.yaml");
+      const syncRulesPath = path.join(archiveDir, "sync_rules.yaml");
       const content = fs.readFileSync(syncRulesPath, "utf8");
 
       const replicatedTenantTables = [

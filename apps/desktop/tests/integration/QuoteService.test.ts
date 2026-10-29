@@ -27,8 +27,8 @@ describe('QuoteService Integration', () => {
 
     // Seed client
     db.prepare(`
-      INSERT INTO clients (id, name, email, created_by)
-      VALUES (?, 'Test Client', 'test@example.com', ?)
+      INSERT INTO clients (id, name, email, created_by, tenant_id)
+      VALUES (?, 'Test Client', 'test@example.com', ?, '00000000-0000-4000-a000-000000000001')
     `).run(clientId, userId);
 
     quoteId = crypto.randomUUID();
@@ -37,15 +37,15 @@ describe('QuoteService Integration', () => {
     db.prepare(`
       INSERT INTO quotes (
         id, number, clientId, clientName, clientEmail, date,
-        subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by
+        subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by, tenant_id
       ) VALUES (?, 'D-001', ?, 'Test Client', 'test@example.com', '2025-01-01',
-        10000, 0, 10100, 1818, 960, 100, 12878, ?, ?)
+        10000, 0, 10100, 1818, 960, 100, 12878, ?, ?, '00000000-0000-4000-a000-000000000001')
     `).run(quoteId, clientId, QUOTE_STATUS.EN_ATTENTE, userId);
 
     // Seed quote items
     db.prepare(`
-      INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
-      VALUES (?, ?, 'Test Item', 1, 10000, 10000)
+      INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total, tenant_id)
+      VALUES (?, ?, 'Test Item', 1, 10000, 10000, '00000000-0000-4000-a000-000000000001')
     `).run(crypto.randomUUID(), quoteId);
   });
 
@@ -85,14 +85,14 @@ describe('QuoteService Integration', () => {
 
     // Create a dummy invoice first to satisfy foreign key constraint
     db.prepare(`
-      INSERT INTO invoices (id, number, clientId, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status)
-      VALUES (?, 'DUMMY-001', ?, '2025-01-01', 0, 0, 0, 0, 0, 0, 0, 'UNPAID')
+      INSERT INTO invoices (id, number, clientId, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, tenant_id)
+      VALUES (?, 'DUMMY-001', ?, '2025-01-01', 0, 0, 0, 0, 0, 0, 0, 'UNPAID', '00000000-0000-4000-a000-000000000001')
     `).run(dummyInvoiceId, clientId);
 
     // Insert an item with duplicateId
     db.prepare(`
-      INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total, tenant_id)
+      VALUES (?, ?, ?, ?, ?, ?, '00000000-0000-4000-a000-000000000001')
     `).run(duplicateId, dummyInvoiceId, 'dummy', 1, 1, 1);
 
     const uuidSpy = vi.spyOn(crypto, 'randomUUID').mockImplementation(() => {

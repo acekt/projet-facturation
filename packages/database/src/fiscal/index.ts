@@ -17,9 +17,13 @@ export const DEFAULT_GABON_TAX_RATES: ITaxRates = {
   cssRate: 1,
 };
 
+import type { TaxRegime } from '../types/index';
+export type { TaxRegime };
+
 export interface IInvoiceItemInput {
   readonly quantity: number;
   readonly unitPrice: number;
+  readonly taxRegime?: TaxRegime;
 }
 
 export interface IComputedTotals {
@@ -33,10 +37,20 @@ export interface IComputedTotals {
   readonly total: number;
 }
 
+export interface IRegimeTotals extends IComputedTotals {
+  readonly goodsHT: number;
+  readonly servicesHT: number;
+  readonly exemptHT: number;
+}
+
 export interface IFiscalResult {
   subtotal: number;
   discount: number;
+  /**
+   * @deprecated Préférer netHT pour l'uniformité du modèle fiscal.
+   */
   netHt: number;
+  netHT: number;
   cssAmount: number;
   taxBase: number;
   tpsAmount: number;
@@ -59,6 +73,10 @@ export function computeItemTotal(quantity: number, unitPrice: number): number {
 /**
  * Pure mathematical calculation engine for invoice and quote totals.
  * Safe to import in both Client and Server environments.
+ *
+ * Gabonese Fiscal Logic (DGI Standards 2026):
+ * Cascade: Net HT -> CSS (1%) -> Base Taxable (Net HT + CSS) -> TPS (9.5%) -> TVA (18%) -> TTC
+ * Currency: XAF (no decimals — all amounts are rounded integers >= 0).
  */
 export function computeTotals(
   items: IInvoiceItemInput[],
@@ -70,7 +88,7 @@ export function computeTotals(
     0
   );
 
-  const discount = Math.round(Math.max(0, discountInput));
+  const discount = Math.round(Math.max(0, Number(discountInput) || 0));
   const effectiveHT = Math.max(0, subtotal - discount);
   const cssAmount = Math.round(effectiveHT * (rates.cssRate / 100));
   const taxBase = effectiveHT + cssAmount;
@@ -91,7 +109,70 @@ export function computeTotals(
 }
 
 /**
- * Calculates the Gabonese tax cascade with absolute XAF precision (TPS included).
+ * Advanced multi-regime fiscal calculation (Tax Model v2).
+ * Note: Subject to final written sign-off by accountant per Plan Curatif (Lot L1).
+ * Separates bases:
+ * - GOODS: subject to CSS and TVA (exempt from TPS)
+ * - SERVICES: subject to CSS, TPS and/or TVA
+ * - EXEMPT: exempt from TVA and TPS
+ */
+export function computeTotalsByRegime(
+  items: IInvoiceItemInput[],
+  discountInput: number,
+  rates: ITaxRates
+): IRegimeTotals {
+  let goodsHT = 0;
+  let servicesHT = 0;
+  let exemptHT = 0;
+
+  for (const item of items) {
+    const lineTotal = Math.round((Number(item.quantity) || 0) * (Number(item.unitPrice) || 0));
+    const regime = item.taxRegime || 'SERVICES';
+    if (regime === 'GOODS') {
+      goodsHT += lineTotal;
+    } else if (regime === 'EXEMPT') {
+      exemptHT += lineTotal;
+    } else {
+      servicesHT += lineTotal;
+    }
+  }
+
+  const subtotal = goodsHT + servicesHT + exemptHT;
+  const discount = Math.round(Math.max(0, Number(discountInput) || 0));
+  const effectiveHT = Math.max(0, subtotal - discount);
+
+  const discountRatio = subtotal > 0 ? (subtotal - discount) / subtotal : 1;
+  const netGoodsHT = Math.round(goodsHT * discountRatio);
+  const netServicesHT = Math.round(servicesHT * discountRatio);
+  const netExemptHT = Math.max(0, effectiveHT - netGoodsHT - netServicesHT);
+
+  const cssAmount = Math.round(effectiveHT * (rates.cssRate / 100));
+  const taxableGoodsBase = netGoodsHT + Math.round(netGoodsHT * (rates.cssRate / 100));
+  const taxableServicesBase = netServicesHT + Math.round(netServicesHT * (rates.cssRate / 100));
+
+  const tpsAmount = Math.round(taxableServicesBase * ((rates.tpsRate ?? 0) / 100));
+  const tvaAmount = Math.round((taxableGoodsBase + taxableServicesBase) * (rates.tvaRate / 100));
+  const taxBase = effectiveHT + cssAmount;
+  const total = taxBase + tpsAmount + tvaAmount;
+
+  return {
+    subtotal,
+    discount,
+    netHT: effectiveHT,
+    cssAmount,
+    taxBase,
+    tpsAmount,
+    tvaAmount,
+    total,
+    goodsHT: netGoodsHT,
+    servicesHT: netServicesHT,
+    exemptHT: netExemptHT,
+  };
+}
+
+/**
+ * @deprecated Utilisez `computeTotals` directement.
+ * Wrapper de transition appelant l'unique moteur `computeTotals` (P2).
  */
 export function calculateFiscalCascade(
   subtotal: number,
@@ -100,26 +181,23 @@ export function calculateFiscalCascade(
   tvaRate: number = 18,
   tpsRate: number = 9.5
 ): IFiscalResult {
-  const safeSubtotal = Math.round(subtotal);
-  const safeDiscount = Math.round(Math.max(0, Number(discountAmount) || 0));
-
-  const discount = safeDiscount;
-  const netHt = Math.max(0, safeSubtotal - discount);
-  const cssAmount = Math.round(netHt * (cssRate / 100));
-  const taxBase = netHt + cssAmount;
-  const tpsAmount = Math.round(taxBase * (tpsRate / 100));
-  const tvaAmount = Math.round(taxBase * (tvaRate / 100));
-  const total = taxBase + tpsAmount + tvaAmount;
+  const safeSubtotal = Math.round(Number(subtotal) || 0);
+  const totals = computeTotals(
+    [{ quantity: 1, unitPrice: safeSubtotal }],
+    discountAmount,
+    { cssRate, tvaRate, tpsRate }
+  );
 
   return {
-    subtotal: safeSubtotal,
-    discount,
-    netHt,
-    cssAmount,
-    taxBase,
-    tpsAmount,
-    tvaAmount,
-    total,
+    subtotal: totals.subtotal,
+    discount: totals.discount,
+    netHt: totals.netHT,
+    netHT: totals.netHT,
+    cssAmount: totals.cssAmount,
+    taxBase: totals.taxBase,
+    tpsAmount: totals.tpsAmount,
+    tvaAmount: totals.tvaAmount,
+    total: totals.total,
   };
 }
 

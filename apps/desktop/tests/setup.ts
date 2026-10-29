@@ -39,29 +39,4 @@ vi.mock('@/lib/db', async () => {
 process.env.NEXT_PUBLIC_SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://test-tenant.supabase.co'
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'test-anon-key'
 
-// Mock @/lib/powersync to prevent browser WebWorker & SupabaseClient initialization in node test environment
-vi.mock('@/lib/powersync', () => ({
-  powerSync: {
-    init: vi.fn().mockResolvedValue(undefined),
-    connect: vi.fn().mockResolvedValue(undefined),
-    disconnect: vi.fn().mockResolvedValue(undefined),
-    get: vi.fn().mockResolvedValue(undefined),
-    getAll: vi.fn().mockResolvedValue([]),
-    execute: vi.fn().mockResolvedValue({ rows: [] }),
-  },
-  connector: {
-    init: vi.fn().mockResolvedValue(undefined),
-    registerListener: vi.fn(() => () => {}),
-    isAuthenticated: false,
-    fetchCredentials: vi.fn().mockResolvedValue(null),
-  },
-  PowerSyncProvider: ({ children }: { children: any }) => children,
-  usePowerSync: () => ({
-    get: vi.fn(),
-    getAll: vi.fn(),
-    execute: vi.fn(),
-  }),
-  useQuery: () => [],
-  useStatus: () => ({ connected: false }),
-}))
 

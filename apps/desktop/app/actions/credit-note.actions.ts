@@ -8,6 +8,7 @@ import db from '@/lib/db';
 import { updateInvoiceStatus } from '@/lib/api/invoice-logic';
 import { creditNoteCreateSchema } from '@/lib/validations';
 import { assertLicenseAllowsCreation, LicenseRestrictedError } from '@/lib/api/license';
+import { getErrorMessage } from '@/lib/utils/action-error';
 import type {
   CreditNoteCreateRequest,
   CreditNoteResponse,
@@ -110,7 +111,7 @@ export async function createCreditNote(data: CreditNoteCreateRequest): Promise<A
     // Contrôle de licence : bloquer la création si le tenant est en lecture seule
     try {
       assertLicenseAllowsCreation(activeTenantId);
-    } catch (licErr: any) {
+    } catch (licErr: unknown) {
       if (licErr instanceof LicenseRestrictedError) {
         return { success: false, error: licErr.message };
       }
@@ -121,11 +122,11 @@ export async function createCreditNote(data: CreditNoteCreateRequest): Promise<A
       const result = CreditNoteService.createCreditNote(validData, session.userId, activeTenantId);
       logAudit('CREATE', 'credit_note', result.id, `Nouvel avoir créé: ${result.number}`, session.userId, session.name || session.username || null, activeTenantId);
       return { success: true, data: result as CreditNoteResponse };
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof CreditNoteServiceError) {
         return { success: false, error: error.message };
       }
-      throw error;
+      return { success: false, error: getErrorMessage(error, "Échec de création de l'avoir") };
     }
   } catch (error) {
     console.error('[Action createCreditNote] Error:', error);

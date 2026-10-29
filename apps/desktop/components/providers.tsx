@@ -6,7 +6,6 @@ import { ErrorBoundary } from "react-error-boundary"
 import { AlertTriangle } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { Toaster } from "sonner"
-import { PowerSyncProvider } from "@/lib/powersync/Provider"
 
 function FallbackError({ error, resetErrorBoundary }: { error: any; resetErrorBoundary: (...args: any[]) => void }) {
   return (
@@ -33,9 +32,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange={false}
     >
       <ErrorBoundary FallbackComponent={FallbackError}>
-        <PowerSyncProvider>
-          {children}
-        </PowerSyncProvider>
+        {children}
       </ErrorBoundary>
       <Toaster position="top-right" richColors />
     </ThemeProvider>

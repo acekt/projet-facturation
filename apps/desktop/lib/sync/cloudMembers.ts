@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import db from '@/lib/db';
 import { encryptSecret, decryptSecret } from '@/lib/crypto/secretStore';
+import { getErrorMessage } from '@/lib/utils/action-error';
 
 /**
  * File d'attente des membres (admin/opérateur) créés sur le Desktop.
@@ -65,8 +66,8 @@ export async function processPendingMembers(adminAccessToken: string): Promise<{
 
       db.prepare('DELETE FROM pending_cloud_members WHERE email = ?').run(m.email);
       result.done++;
-    } catch (e: any) {
-      const msg = e?.message || String(e);
+    } catch (e: unknown) {
+      const msg = getErrorMessage(e);
       result.errors.push(`${m.email}: ${msg}`);
       db.prepare('UPDATE pending_cloud_members SET attempts = attempts + 1, last_error = ? WHERE email = ?').run(msg, m.email);
     }

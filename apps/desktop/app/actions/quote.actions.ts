@@ -13,6 +13,7 @@ import { getNextNumber } from '@/lib/api/numbering';
 import { validateQuoteStatusTransition } from '@/lib/api/quote-logic';
 import { QuoteService, QuoteServiceError } from '@/lib/services/QuoteService';
 import { assertLicenseAllowsCreation, LicenseRestrictedError } from '@/lib/api/license';
+import { getErrorMessage } from '@/lib/utils/action-error';
 import type { QuoteCreateRequest, QuoteResponse, QuoteItem, DbClient, DbQuoteItem } from '@/lib/types/api';
 import type { ActionResponse } from './client.actions';
 
@@ -93,7 +94,7 @@ export async function createQuote(data: QuoteCreateRequest): Promise<ActionRespo
     // Contrôle de licence : bloquer la création si le tenant est en lecture seule
     try {
       assertLicenseAllowsCreation(activeTenantId);
-    } catch (licErr: any) {
+    } catch (licErr: unknown) {
       if (licErr instanceof LicenseRestrictedError) {
         return { success: false, error: licErr.message };
       }
@@ -328,11 +329,11 @@ export async function convertQuoteToInvoice(quoteId: string): Promise<ActionResp
     try {
       const response = QuoteService.convertToInvoice(quoteId, session.userId, session.role, activeTenantId);
       return { success: true, data: response };
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof QuoteServiceError) {
         return { success: false, error: error.message };
       }
-      throw error;
+      return { success: false, error: getErrorMessage(error, 'Échec de conversion du devis en facture') };
     }
   } catch (error) {
     console.error('[Action convertQuoteToInvoice] Error:', error);

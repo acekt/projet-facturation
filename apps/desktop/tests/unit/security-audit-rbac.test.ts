@@ -1,6 +1,6 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { middleware } from '@/middleware';
+import { middleware } from '@/proxy';
 import { NextRequest } from 'next/server';
 import crypto from 'crypto';
 import { loginUser } from '@/app/actions/auth.actions';

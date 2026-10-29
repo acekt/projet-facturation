@@ -65,8 +65,8 @@ function createTimestampedBackup(dbPath: string): string | null {
         fs.unlinkSync(backupPath);
         throw new Error('Sauvegarde V1 corrompue : annulée.');
       }
-    } catch (e: any) {
-      console.warn('[migrateLegacy] Avertissement intégrité sauvegarde :', e.message);
+    } catch (e: unknown) {
+      console.warn('[migrateLegacy] Avertissement intégrité sauvegarde :', e instanceof Error ? e.message : String(e));
     }
 
     // Nettoyage : conserver au maximum 5 sauvegardes récentes

@@ -80,10 +80,6 @@ const nextConfig = {
     ];
   },
   webpack: (config, { dev, isServer }) => {
-    if (!dev && !isServer) {
-      // Désactive totalement la minification (contournement du crash mémoire OOM Rust SWC sur Next 15)
-      config.optimization.minimize = false;
-    }
 
     if (!isServer) {
       config.resolve.alias = {

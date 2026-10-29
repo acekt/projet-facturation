@@ -1,8 +1,9 @@
-﻿"use server";
+"use server";
 
 import { getSession } from '@/lib/api/auth';
 import { syncWithCloud, type SyncReport } from '@/lib/sync/CloudSyncService';
 import type { ActionResponse } from './client.actions';
+import { getErrorMessage } from '@/lib/utils/action-error';
 
 /**
  * Lance un cycle de synchronisation (push + pull) avec Supabase.
@@ -17,7 +18,7 @@ export async function runCloudSync(accessToken: string): Promise<ActionResponse<
 
     const report = await syncWithCloud(accessToken);
     return { success: true, data: report };
-  } catch (error: any) {
-    return { success: false, error: error?.message || 'Échec de la synchronisation' };
+  } catch (error: unknown) {
+    return { success: false, error: getErrorMessage(error, 'Échec de la synchronisation') };
   }
 }

@@ -11,6 +11,7 @@ import { invoiceSchema } from '@/lib/validations';
 import crypto from 'crypto';
 import { getNextNumber } from '@/lib/api/numbering';
 import { assertLicenseAllowsCreation, LicenseRestrictedError } from '@/lib/api/license';
+import { getErrorMessage } from '@/lib/utils/action-error';
 import type {
   InvoiceResponse,
   InvoiceItem,
@@ -102,7 +103,7 @@ export async function createInvoice(data: InvoiceCreateRequest): Promise<ActionR
     // Contrôle de licence : bloquer la création si le tenant est en lecture seule
     try {
       assertLicenseAllowsCreation(activeTenantId);
-    } catch (licErr: any) {
+    } catch (licErr: unknown) {
       if (licErr instanceof LicenseRestrictedError) {
         return { success: false, error: licErr.message };
       }
@@ -113,11 +114,11 @@ export async function createInvoice(data: InvoiceCreateRequest): Promise<ActionR
       const result = InvoiceService.createInvoice(validData, session.userId, session.role, activeTenantId);
       logAudit('CREATE', 'invoice', result.id, `Nouvelle facture créée: ${result.number}`, session.userId, session.name || session.username || null, activeTenantId);
       return { success: true, data: result as unknown as InvoiceResponse };
-    } catch (error: any) {
+    } catch (error: unknown) {
       if (error instanceof InvoiceServiceError) {
         return { success: false, error: error.message };
       }
-      throw error;
+      return { success: false, error: getErrorMessage(error, 'Échec de création de la facture') };
     }
   } catch (error) {
     console.error('[Action createInvoice] Error:', error);

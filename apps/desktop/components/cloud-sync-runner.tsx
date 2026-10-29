@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { toast } from "sonner"
-import { connector } from "@/lib/powersync"
+import { supabaseSession } from "@/lib/auth/supabaseSession"
 import { runCloudSync } from "@/app/actions/sync.actions"
 import { useStore } from "@/lib/store"
 
@@ -22,7 +22,7 @@ export function CloudSyncRunner() {
     if (running.current || typeof navigator === "undefined" || !navigator.onLine) return
     running.current = true
     try {
-      const { data } = await connector.client.auth.getSession()
+      const { data } = await supabaseSession.client.auth.getSession()
       const token = data.session?.access_token
       if (!token) return
 

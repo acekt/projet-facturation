@@ -13,6 +13,7 @@ import {
   HardDrive 
 } from "lucide-react";
 import type { IUpdateStatusPayload, IUpdateProgressPayload } from "@/types/electron";
+import { getErrorMessage } from "@/lib/utils/action-error";
 
 export function UpdateManager() {
   const [appVersion, setAppVersion] = React.useState<string>("1.0.0");
@@ -79,9 +80,9 @@ export function UpdateManager() {
       } else if (res.isDev) {
         setStatus('not-available');
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
       setStatus('error');
-      setErrorMessage(e?.message || "Échec de connexion au serveur de mises à jour");
+      setErrorMessage(getErrorMessage(e, "Échec de connexion au serveur de mises à jour"));
     }
   };
 
@@ -91,9 +92,9 @@ export function UpdateManager() {
     setProgress(0);
     try {
       await window.electron.updater.download();
-    } catch (e: any) {
+    } catch (e: unknown) {
       setStatus('error');
-      setErrorMessage(e?.message || "Échec du téléchargement");
+      setErrorMessage(getErrorMessage(e, "Échec du téléchargement"));
     }
   };
 
@@ -101,9 +102,9 @@ export function UpdateManager() {
     if (!window.electron?.updater) return;
     try {
       await window.electron.updater.install();
-    } catch (e: any) {
+    } catch (e: unknown) {
       setStatus('error');
-      setErrorMessage(e?.message || "Impossible de relancer l'application");
+      setErrorMessage(getErrorMessage(e, "Impossible de relancer l'application"));
     }
   };
 

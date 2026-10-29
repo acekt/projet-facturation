@@ -29,3 +29,7 @@ tsconfig.tsbuildinfo
 data/
 .turbo/
 .idea/
+release/
+apps/desktop/build/*.zip
+apps/desktop/build/*.tar.gz
+

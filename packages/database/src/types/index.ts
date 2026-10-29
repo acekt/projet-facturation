@@ -74,12 +74,15 @@ export interface IClient {
   tenant_id?: string | null;
 }
 
+export type TaxRegime = 'GOODS' | 'SERVICES' | 'EXEMPT';
+
 export interface IService {
   id: string;
   name: string;
   description?: string;
   category?: string;
   unitPrice: number;
+  taxRegime?: TaxRegime;
   deletedAt?: string;
   createdAt?: string;
   created_by?: string;
@@ -93,6 +96,7 @@ export interface IQuoteItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  taxRegime?: TaxRegime;
   tenant_id?: string | null;
 }
 
@@ -118,6 +122,7 @@ export interface IQuote {
   tpsAmount?: number;
   cssAmount: number;
   total: number;
+  taxModelVersion?: number;
   notes?: string;
   subject?: string;
   validUntil?: string | null;
@@ -136,6 +141,7 @@ export interface IInvoiceItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  taxRegime?: TaxRegime;
   tenant_id?: string | null;
 }
 
@@ -177,6 +183,7 @@ export interface IInvoice {
   tpsAmount?: number;
   cssAmount: number;
   total: number;
+  taxModelVersion?: number;
   notes?: string;
   subject?: string;
   status: InvoiceStatus;
@@ -195,6 +202,7 @@ export interface ICreditNoteItem {
   quantity: number;
   unitPrice: number;
   total: number;
+  taxRegime?: TaxRegime;
   tenant_id?: string | null;
 }
 
@@ -214,6 +222,7 @@ export interface ICreditNote {
   tpsAmount?: number;
   cssAmount: number;
   total: number;
+  taxModelVersion?: number;
   status: CreditNoteStatus;
   items: ICreditNoteItem[];
   deletedAt?: string;

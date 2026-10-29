@@ -7,6 +7,7 @@ import db from '@/lib/db';
 import { settingsSchema } from '@/lib/validations';
 import type { SettingsUpdateRequest, DbSettings } from '@/lib/types/api';
 import type { ActionResponse } from './client.actions';
+import { getErrorMessage } from '@/lib/utils/action-error';
 
 export async function getSettings(): Promise<ActionResponse<DbSettings>> {
   try {
@@ -56,17 +57,17 @@ export async function updateSettings(data: SettingsUpdateRequest): Promise<Actio
       if (result.changes === 0) {
         return { success: false, error: "L'enregistrement n'a pas modifié la base de données." };
       }
-    } catch (dbError: any) {
+    } catch (dbError: unknown) {
       console.error('[Action updateSettings] Erreur SQLite:', dbError);
-      return { success: false, error: "Erreur lors de l'enregistrement des paramètres.", details: dbError?.message ?? String(dbError) };
+      return { success: false, error: "Erreur lors de l'enregistrement des paramètres.", details: getErrorMessage(dbError) };
     }
 
     logAudit('UPDATE', 'settings', '1', 'Paramètres mis à jour', session.userId, session.name || session.username || null, activeTenantId);
 
     const settings = db.prepare('SELECT * FROM settings WHERE id = 1').get() as DbSettings;
     return { success: true, data: settings };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Action updateSettings] Erreur inattendue:', error);
-    return { success: false, error: 'Erreur interne du serveur.', details: error?.message };
+    return { success: false, error: 'Erreur interne du serveur.', details: getErrorMessage(error) };
   }
 }

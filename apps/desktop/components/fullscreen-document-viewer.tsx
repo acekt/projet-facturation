@@ -23,6 +23,7 @@
  */
 
 import * as React from "react"
+import { getErrorMessage } from "@/lib/utils/action-error"
 import { X, Printer, Download, FileText, Loader2, ZoomIn, ZoomOut, Maximize } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { DocumentA4 } from "@/components/document-a4"
@@ -162,9 +163,9 @@ export function FullScreenDocumentViewer({
           // L'utilisateur a annulé la boîte de dialogue → pas d'erreur
           toast.dismiss(toastId)
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         console.error('[FullScreenViewer] IPC exportPDF error:', err);
-        toast.error(`Échec critique de l'export: ${err.message || 'Erreur inconnue'}`, { id: toastId });
+        toast.error(`Échec critique de l'export: ${getErrorMessage(err, 'Erreur inconnue')}`, { id: toastId });
       }
 
     } catch (err) {

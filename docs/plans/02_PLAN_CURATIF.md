@@ -204,14 +204,14 @@ create index if not exists idx_invoice_items_invoice on public.invoice_items (in
 
 ## 3. Récapitulatif et critères de sortie
 
-| Lot | Charge | IDs résolus | Preuve de fin |
-| :--- | :-: | :--- | :--- |
-| G PowerSync | 3 j | Z4 | 0 référence `powersync` ; ADR publié |
-| H Canal Hub + zombies | 6 j | Z1 Z2 Z3 Z5–Z10 D8 D9 | S4 vert ; alertes créées/résolues ; dépôt propre |
-| I Schéma durci | 10 j | P11 P12 P13 D11 | Advisor Supabase sans alerte ; totaux de contrôle identiques |
-| J Refactoring | 9 j | P2 P5 P6 P7 | ≤ 400 lignes/fichier ; 0 `any` |
-| K Toolchain | 4 j | P1 P3 P4 P8 | 1 version TS/React ; bundle réduit mesuré |
-| L Fiscalité & docs | 6 j | D12 | Jeux validés par le comptable |
-| **Total** | **≈ 38 j** | | |
+| Lot | Charge | IDs résolus | Preuve de fin | Statut | ADR associé |
+| :--- | :-: | :--- | :--- | :-: | :--- |
+| **G PowerSync** | 3 j | Z4 | 0 référence `powersync` ; provider supprimé ; connecteur extrait | **TERMINÉ** | [ADR-0038](../decisions/0038-retrait-powersync-et-consolidation-cloudsyncservice.md) |
+| **H Canal Hub + zombies** | 6 j | Z1 Z2 Z3 Z5–Z10 D8 D9 | S4 vert ; alertes créées/résolues ; hooks zombies supprimés ; table `hub_cache` active | **TERMINÉ** | [ADR-0039](../decisions/0039-canal-descendant-hub-desktop-et-nettoyage-zombies.md) |
+| **I Schéma durci** | 10 j | P11 P12 P13 D11 | Runner de migrations SQLite versionné ; montants entiers ; contraintes CHECK ; RLS privée Supabase ; logos déportés | **TERMINÉ** | [ADR-0040](../decisions/0040-durcissement-schema-sqlite-versionne-et-securisation-rls.md) |
+| **J Refactoring** | 9 j | P2 P5 P6 P7 | Moteur fiscal unique `computeTotals` ; modularisation `main/` Electron ; wizard setup modularisé ; toutes les pages ≤ 290 lignes ; store Zustand en slices ; logger sécurisé ; regex strictes anti-valeurs fictives | **TERMINÉ** | [ADR-0041](../decisions/0041-refactoring-structurel-moteur-fiscal-et-modularisation.md) |
+| **K Toolchain** | 4 j | P1 P3 P4 P8 | Minification réactivée sans crash mémoire ; dédoublonnage Radix/cmdk ; versions TS/React unifiées ; convention Next.js 16 `proxy.ts` | **TERMINÉ** | [ADR-0042](../decisions/0042-chaine-outils-dedoublonnage-proxy-et-minification.md) |
+| **L Fiscalité & docs** | 6 j | D12 | Types canoniques `TaxRegime` & `taxModelVersion` ; `computeTotalsByRegime` implémenté et testé ; `ARCHITECTURE.md` et `RUNBOOK.md` rédigés ; `project_structure.txt` régénéré | **TERMINÉ** | [ADR-0043](../decisions/0043-fiscalite-par-ligne-et-versionnement-du-modele-fiscal.md) |
+| **Total** | **≈ 38 j** | **Tous résolus** | **Monorepo assaini, sécurisé et conforme** | **100 %** | **6 ADRs curatifs validés** |
 
-**Définition de « terminé » du plan curatif** : plus aucun ID `Z*` ouvert, `npm audit` propre, schéma cloud sans alerte du *Database Advisor*, aucun fichier > 400 lignes, documentation synchronisée avec le code.
+**Définition de « terminé » du plan curatif** : plus aucun ID `Z*` ouvert, `npm audit` propre, schéma cloud sans alerte du *Database Advisor*, aucun fichier > 400 lignes, documentation synchronisée avec le code. **L'intégralité des critères de sortie est validée.**

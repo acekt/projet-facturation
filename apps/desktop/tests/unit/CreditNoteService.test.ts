@@ -34,12 +34,12 @@ describe('CreditNoteService Unit Tests', () => {
     const invoiceId = 'inv-cancelled';
 
     // 1. Create a client
-    testDb.prepare(`INSERT OR IGNORE INTO clients (id, name, email, created_by) VALUES (?, 'Test Client', 'client@test.com', ?)`).run(clientId, adminUserId);
+    testDb.prepare(`INSERT OR IGNORE INTO clients (id, name, email, created_by, tenant_id) VALUES (?, 'Test Client', 'client@test.com', ?, '00000000-0000-4000-a000-000000000001')`).run(clientId, adminUserId);
 
     // 2. Create an already CANCELLED invoice
     testDb.prepare(`
-      INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by)
-      VALUES (?, 'FAC-CANCELLED', ?, 'Test Client', 'client@test.com', '2026-07-08', 1000, 0, 1000, 180, 0, 10, 1190, ?, ?)
+      INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by, tenant_id)
+      VALUES (?, 'FAC-CANCELLED', ?, 'Test Client', 'client@test.com', '2026-07-08', 1000, 0, 1000, 180, 0, 10, 1190, ?, ?, '00000000-0000-4000-a000-000000000001')
     `).run(invoiceId, clientId, INVOICE_STATUS.CANCELLED, adminUserId);
 
     // 3. Attempt to create a credit note
@@ -63,14 +63,14 @@ describe('CreditNoteService Unit Tests', () => {
     const clientId = 'client-cumul-1';
     const invoiceId = 'inv-cumul-1';
 
-    testDb.prepare(`INSERT OR IGNORE INTO clients (id, name, email, created_by) VALUES (?, 'Client Cumul', 'cumul@test.com', ?)`).run(clientId, adminUserId);
+    testDb.prepare(`INSERT OR IGNORE INTO clients (id, name, email, created_by, tenant_id) VALUES (?, 'Client Cumul', 'cumul@test.com', ?, '00000000-0000-4000-a000-000000000001')`).run(clientId, adminUserId);
 
     const rates = { tvaRate: 18, tpsRate: 9.5, cssRate: 1 };
     const computedInv = computeTotals([{ description: 'Service', quantity: 1, unitPrice: 10000 }], 0, rates);
 
     testDb.prepare(`
-      INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by)
-      VALUES (?, 'FAC-CUMUL-01', ?, 'Client Cumul', 'cumul@test.com', '2026-07-08', ?, ?, ?, ?, ?, ?, ?, 'UNPAID', ?)
+      INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by, tenant_id)
+      VALUES (?, 'FAC-CUMUL-01', ?, 'Client Cumul', 'cumul@test.com', '2026-07-08', ?, ?, ?, ?, ?, ?, ?, 'UNPAID', ?, '00000000-0000-4000-a000-000000000001')
     `).run(
       invoiceId, clientId,
       computedInv.subtotal, computedInv.discount, computedInv.taxBase,
@@ -101,7 +101,7 @@ describe('CreditNoteService Unit Tests', () => {
     const clientId = 'client-cumul-2';
     const invoiceId = 'inv-cumul-2';
 
-    testDb.prepare(`INSERT OR IGNORE INTO clients (id, name, email, created_by) VALUES (?, 'Client Cumul 2', 'cumul2@test.com', ?)`).run(clientId, adminUserId);
+    testDb.prepare(`INSERT OR IGNORE INTO clients (id, name, email, created_by, tenant_id) VALUES (?, 'Client Cumul 2', 'cumul2@test.com', ?, '00000000-0000-4000-a000-000000000001')`).run(clientId, adminUserId);
 
     const rates = { tvaRate: 18, tpsRate: 9.5, cssRate: 1 };
     const cn1Comp = computeTotals([{ description: 'Ligne 1', quantity: 1, unitPrice: 3000 }], 0, rates);
@@ -110,8 +110,8 @@ describe('CreditNoteService Unit Tests', () => {
     const totalTtc = cn1Comp.total + cn2Comp.total + cn3Comp.total;
 
     testDb.prepare(`
-      INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by)
-      VALUES (?, 'FAC-CUMUL-02', ?, 'Client Cumul 2', 'cumul2@test.com', '2026-07-08', 10000, 0, 10000, 1800, 950, 100, ?, 'UNPAID', ?)
+      INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by, tenant_id)
+      VALUES (?, 'FAC-CUMUL-02', ?, 'Client Cumul 2', 'cumul2@test.com', '2026-07-08', 10000, 0, 10000, 1800, 950, 100, ?, 'UNPAID', ?, '00000000-0000-4000-a000-000000000001')
     `).run(invoiceId, clientId, totalTtc, adminUserId);
 
     // Avoir 1 : 3 000 HT

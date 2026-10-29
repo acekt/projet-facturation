@@ -10,6 +10,7 @@ import { EnrollmentService, type IEnrollmentInput } from '@/lib/services/Enrollm
 import { provisionCloudAccount } from '@/lib/sync/CloudSyncService';
 import type { SessionResponse } from '@/lib/types/api';
 import type { ActionResponse } from './client.actions';
+import { getErrorMessage } from '@/lib/utils/action-error';
 
 const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 jours
 const SESSION_EXPIRATION_MS = SESSION_MAX_AGE_SECONDS * 1000;
@@ -137,11 +138,11 @@ export async function enrollExistingTenant(input: IEnrollmentInput): Promise<Act
     );
 
     return { success: true, data: sessionPayload };
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('[Action enrollExistingTenant] Error:', error);
     return {
       success: false,
-      error: error?.message || "Impossible d'enrôler ce poste dans l'organisation",
+      error: getErrorMessage(error, "Impossible d'enrôler ce poste dans l'organisation"),
     };
   }
 }

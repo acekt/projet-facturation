@@ -1,43 +1,22 @@
 "use client";
 
-import { getInvoiceById, createInvoice, getInvoices } from "@/app/actions/invoice.actions";
 import * as React from "react";
 import { motion } from "framer-motion";
-import { ArrowLeft, Send, Eye, Plus, Trash2, User, Search } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { DatePicker } from "@workspace/ui/components/date-picker";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Textarea } from "@workspace/ui/components/textarea";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogDescription,
-} from "@workspace/ui/components/dialog";
-import { VisuallyHidden } from "@workspace/ui/components/visually-hidden";
-import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
-
-import {
-  useStore,
-  type InvoiceItem,
-  type DraftItem,
-  type Invoice,
-} from "@/lib/store";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select";
+import { useStore, type DraftItem, type Invoice, type Client } from "@/lib/store";
 import { toast } from "sonner";
-import { formatCurrency, getInitials } from "@/lib/utils";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
 import { computeTotals, computeItemTotal } from "@/lib/math-logic";
+import { getInvoiceById, createInvoice, getInvoices } from "@/app/actions/invoice.actions";
+import { ClientSelectCard } from "@/components/editor/ClientSelectCard";
+import { EditorItemsTable } from "@/components/editor/EditorItemsTable";
+import { FiscalSummaryCard } from "@/components/editor/FiscalSummaryCard";
 
 interface InvoiceEditorProps {
   onBack: () => void;
@@ -52,19 +31,17 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   const setInvoiceDraft = useStore((state) => state.setInvoiceDraft);
   const clearInvoiceDraft = useStore((state) => state.clearInvoiceDraft);
 
-  // ── NEW vs EDIT: strict lifecycle ──
   const isNew = !editingId;
 
-  // Local State: always start blank, then load from API in EDIT mode
   const [localDraft, setLocalDraft] = React.useState(() => {
     const today = new Date();
     return {
-      selectedClient: null as (typeof clients)[0] | null,
+      selectedClient: null as Client | null,
       items: [{ id: "1", description: "", quantity: 1, unitPrice: 0, total: 0 }] as DraftItem[],
       invoiceDate: today.toISOString().split("T")[0],
       dueDate: "",
       discount: 0,
-      notes: "",
+      notes: settings.mentionsLegales || "",
       subject: "",
     };
   });
@@ -77,7 +54,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   const notes = localDraft.notes;
   const subject = localDraft.subject;
 
-  const setSelectedClient = (client: (typeof clients)[0] | null) =>
+  const setSelectedClient = (client: Client | null) =>
     setLocalDraft((prev) => ({ ...prev, selectedClient: client }));
   const setDiscount = (val: number) =>
     setLocalDraft((prev) => ({ ...prev, discount: val }));
@@ -89,22 +66,18 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     setLocalDraft((prev) => ({ ...prev, invoiceDate: val }));
   const setDueDate = (val: string) =>
     setLocalDraft((prev) => ({ ...prev, dueDate: val }));
-  const setItems = (
-    newItems: DraftItem[] | ((prev: DraftItem[]) => DraftItem[]),
-  ) => {
+  const setItems = (newItems: DraftItem[] | ((prev: DraftItem[]) => DraftItem[])) => {
     setLocalDraft((prev) => ({
       ...prev,
       items: typeof newItems === "function" ? newItems(prev.items) : newItems,
     }));
   };
 
-  // Sync back to global store manually when explicitly saving as draft
   const handleSaveDraft = () => {
     setInvoiceDraft(localDraft);
     toast.success("Brouillon enregistré temporairement.");
   };
 
-  // Cleanup: purge global draft on mount/unmount to prevent ghost data
   React.useEffect(() => {
     const blankDraft = {
       selectedClient: null,
@@ -129,15 +102,8 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     };
   }, [isNew, clearInvoiceDraft, settings.mentionsLegales]);
 
-  const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
-  const [clientSearch, setClientSearch] = React.useState("");
   const [previewOpen, setPreviewOpen] = React.useState(false);
-
-  // Fix React Form Submission Anti-Pattern
   const [isSubmitting, setIsSubmitting] = React.useState(false);
-  const isActionLocked = isSubmitting;
-
-  const [isLoading, setIsLoading] = React.useState(!!editingId);
 
   React.useEffect(() => {
     if (!editingId) return;
@@ -159,7 +125,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             email: data.clientEmail,
             phone: "",
             address: "",
-          },
+          }
         );
         setItems(data.items);
         setInvoiceDate(data.date);
@@ -167,45 +133,30 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         setSubject(data.subject || "");
         setDiscount(data.discount);
         setNotes(data.notes || "");
-        setIsLoading(false);
-      } catch (err: unknown) {
+      } catch {
         toast.error("Impossible de charger la facture — vérifiez la connexion au serveur");
         onBack();
       }
     };
 
     fetchInvoice();
-  }, [editingId]);
+  }, [editingId, clients, onBack]);
 
-  const TAX_RATE = (settings.tvaRate ?? 0) / 100;
-  const TPS_RATE = (settings.tpsRate ?? 9.5) / 100;
-  const CSS_RATE = (settings.cssRate ?? 0) / 100;
-
-  const filteredClients = clients.filter(
-    (client) =>
-      client.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
-      (client.email || '').toLowerCase().includes(clientSearch.toLowerCase()),
-  );
-
-  const updateItem = (
-    itemId: string,
-    field: keyof InvoiceItem,
-    value: string | number,
-  ) => {
+  const updateItem = (itemId: string, field: keyof DraftItem, value: string | number) => {
     setItems((prev) =>
       prev.map((item) => {
         if (item.id === itemId) {
           const updated = { ...item, [field]: value };
           if (field === "quantity" || field === "unitPrice") {
+            if (field === "quantity") updated.quantity = Math.max(0.01, Number(updated.quantity) || 1);
             if (field === "unitPrice") updated.unitPrice = Math.round(Number(updated.unitPrice) || 0);
             if (Number(updated.unitPrice) < 0) updated.unitPrice = 0;
             updated.total = computeItemTotal(Number(updated.quantity), Number(updated.unitPrice));
           }
 
-          // Auto-population from catalog
           if (field === "description" && typeof value === "string") {
             const matchedService = services.find(
-              (s) => s.name.toLowerCase() === value.toLowerCase(),
+              (s) => s.name.toLowerCase() === value.toLowerCase()
             );
             if (matchedService) {
               updated.unitPrice = matchedService.unitPrice;
@@ -216,7 +167,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
           return updated;
         }
         return item;
-      }),
+      })
     );
   };
 
@@ -239,17 +190,17 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     }
   };
 
-  const { subtotal, discount: computedDiscount, netHT, cssAmount, taxBase, tpsAmount, tvaAmount, total } = computeTotals(
-    items.map(item => ({ quantity: Number(item.quantity) || 0, unitPrice: Number(item.unitPrice) || 0 })),
+  const { subtotal, netHT, cssAmount, taxBase, tpsAmount, tvaAmount, total } = computeTotals(
+    items.map((item) => ({ quantity: Number(item.quantity) || 0, unitPrice: Number(item.unitPrice) || 0 })),
     discount,
     {
       tvaRate: settings.tvaRate ?? 0,
       tpsRate: settings.tpsRate ?? 9.5,
-      cssRate: settings.cssRate ?? 0
+      cssRate: settings.cssRate ?? 0,
     }
   );
 
-  const handleSave = async (status: Invoice["status"]) => {
+  const handleSave = async (status: Invoice["status"] = "UNPAID") => {
     if (isSubmitting) return;
 
     if (!selectedClient) {
@@ -257,17 +208,17 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       return;
     }
 
-    if (
-      items.some(
-        (item) => !item.description || item.quantity <= 0 || item.unitPrice < 0,
-      )
-    ) {
+    if (items.some((item) => !item.description || item.quantity <= 0 || item.unitPrice < 0)) {
       toast.error("Veuillez remplir correctement tous les articles");
       return;
     }
 
     setIsSubmitting(true);
     try {
+      if (editingId) {
+        throw new Error("Une facture générée est strictement immuable et ne peut pas être modifiée.");
+      }
+
       const payload = {
         clientId: selectedClient.id,
         clientName: selectedClient.name,
@@ -281,20 +232,10 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         status,
       };
 
-      let response;
-      if (editingId) {
-        // Invoices are immutable via PUT. However, leaving this path if needed.
-        // As per the original file `fetch(url, { method: "PUT" })` which returned 405.
-        // It's probably better to mock a failure.
-        throw new Error("Une facture générée est strictement immuable et ne peut pas être modifiée.");
-      } else {
-        response = await createInvoice(payload as any);
-      }
-
+      const response = await createInvoice(payload as any);
       if (!response?.success) throw new Error(response?.error || "Failed to save invoice");
 
       const newInvoices = await getInvoices();
-
       if (newInvoices.success && newInvoices.data) {
         setInvoices(newInvoices.data);
       }
@@ -303,19 +244,15 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       onBack();
     } catch (error) {
       console.error("[InvoiceEditor] handleSave error:", error);
-      toast.error("Erreur lors de l'enregistrement de la facture");
+      const msg = error instanceof Error ? error.message : "Erreur lors de l'enregistrement de la facture";
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6"
-    >
-      {/* Header */}
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={onBack}>
@@ -323,15 +260,9 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             Retour
           </Button>
           <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">
-              Nouvelle Facture
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Créez une facture commerciale (sans devis associé)
-            </p>
+            <h1 className="text-2xl font-bold text-foreground tracking-tight">Nouvelle Facture</h1>
+            <p className="text-muted-foreground mt-1">Créez une facture commerciale (sans devis associé)</p>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
         </div>
       </div>
 
@@ -349,25 +280,15 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
                   <Label className="text-muted-foreground text-sm">
                     Date d'émission <span className="text-destructive">*</span>
                   </Label>
-                  <DatePicker
-                    value={invoiceDate || ""}
-                    onChange={setInvoiceDate}
-                  />
+                  <DatePicker value={invoiceDate || ""} onChange={setInvoiceDate} />
                 </div>
                 <div className="space-y-2">
-                  <Label className="text-muted-foreground text-sm">
-                    Date d'échéance (optionnelle)
-                  </Label>
-                  <DatePicker
-                    value={dueDate || ""}
-                    onChange={setDueDate}
-                  />
+                  <Label className="text-muted-foreground text-sm">Date d'échéance (optionnelle)</Label>
+                  <DatePicker value={dueDate || ""} onChange={setDueDate} />
                 </div>
               </div>
               <div className="space-y-2 pt-2">
-                <Label className="text-muted-foreground text-sm">
-                  Objet de la facture
-                </Label>
+                <Label className="text-muted-foreground text-sm">Objet de la facture</Label>
                 <Input
                   value={subject || ""}
                   onChange={(e) => setSubject(e.target.value)}
@@ -378,231 +299,26 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             </CardContent>
           </Card>
 
-          {/* Client Selection */}
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-foreground font-semibold text-base">
-                Client <span className="text-destructive">*</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {selectedClient ? (
-                <div className="flex items-center justify-between p-4 rounded-xl bg-muted/50 border border-border">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="w-10 h-10 ring-2 ring-border">
-                      <AvatarFallback className="bg-primary text-primary-foreground text-sm font-medium">
-                        {getInitials(selectedClient.name)}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <p className="text-foreground font-medium">
-                        {selectedClient.name}
-                      </p>
-                      <p className="text-muted-foreground text-sm">
-                        {selectedClient.email || selectedClient.phone || '—'}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedClient(null)}
-                  >
-                    Changer
-                  </Button>
-                </div>
-              ) : (
-                <Dialog
-                  open={clientSearchOpen}
-                  onOpenChange={setClientSearchOpen}
-                >
-                  <DialogTrigger asChild>
-                    <button className="w-full p-4 rounded-xl border border-dashed border-border hover:border-primary/50 hover:bg-muted/30 transition-all text-left group focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center group-hover:bg-primary/10 transition-colors">
-                          <User className="w-5 h-5 text-muted-foreground group-hover:text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-muted-foreground font-medium group-hover:text-foreground">
-                            Sélectionner un client <span className="text-destructive">*</span>
-                          </p>
-                          <p className="text-muted-foreground/60 text-sm">
-                            Cliquez pour rechercher dans votre base
-                          </p>
-                        </div>
-                      </div>
-                    </button>
-                  </DialogTrigger>
-                  <DialogContent className="bg-card border-border" side="right">
-                    <DialogHeader>
-                      <DialogTitle className="text-foreground">
-                        Rechercher un client
-                      </DialogTitle>
-                      <VisuallyHidden>
-                        <DialogDescription>
-                          Sélectionnez un client dans votre base de données pour
-                          cette facture
-                        </DialogDescription>
-                      </VisuallyHidden>
-                    </DialogHeader>
-                    <div className="mt-4 space-y-4">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Nom ou email..."
-                          value={clientSearch}
-                          onChange={(e) => setClientSearch(e.target.value)}
-                          className="pl-10 bg-secondary border-border text-foreground"
-                        />
-                      </div>
-                      <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                        {filteredClients.map((client) => (
-                          <button
-                            key={client.id}
-                            onClick={() => {
-                              setSelectedClient(client);
-                              setClientSearchOpen(false);
-                            }}
-                            className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-muted/50 transition-colors text-left focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                          >
-                            <Avatar className="w-8 h-8">
-                              <AvatarFallback className="text-[10px]">
-                                {client.name.slice(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div className="flex-1">
-                              <p className="text-foreground font-medium text-sm">
-                                {client.name}
-                              </p>
-                              <p className="text-muted-foreground text-xs">
-                                {client.email || client.phone || '—'}
-                              </p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </DialogContent>
-                </Dialog>
-              )}
-            </CardContent>
-          </Card>
+          <ClientSelectCard
+            selectedClient={selectedClient}
+            onSelectClient={setSelectedClient}
+            clients={clients}
+            title="Client"
+            description="Sélectionnez un client dans votre base de données pour cette facture"
+          />
 
-          {/* Items */}
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-4">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-foreground font-semibold text-base">
-                  Prestations & Produits
-                </CardTitle>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={addItem}
-                  className="text-primary hover:text-primary hover:bg-primary/10"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Ajouter une ligne
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                <div className="grid grid-cols-12 gap-2 md:gap-4 px-4 py-3 bg-secondary/20 rounded-t-lg text-sm font-semibold text-muted-foreground border-b border-border hidden md:grid">
-                  <div className="col-span-6">Description <span className="text-destructive">*</span></div>
-                  <div className="col-span-2 text-right">Qté <span className="text-destructive">*</span></div>
-                  <div className="col-span-2 text-right">Prix U. (XAF) <span className="text-destructive">*</span></div>
-                  <div className="col-span-2 text-right pr-2">Total HT</div>
-                </div>
-
-                {items.map((item, index) => (
-                  <div
-                    key={item.id}
-                    className="grid grid-cols-12 gap-2 md:gap-4 items-start p-3 rounded-xl bg-muted/30"
-                  >
-                    <div className="col-span-12 md:col-span-6">
-                      <Select
-                        onValueChange={(val) =>
-                          updateItem(item.id, "description", val)
-                        }
-                        value={item.description || ""}
-                      >
-                        <SelectTrigger className="bg-transparent border-0 md:border md:bg-secondary focus:ring-1 text-foreground">
-                          <SelectValue placeholder="Sélectionner un service..." />
-                        </SelectTrigger>
-                        <SelectContent className="bg-card border-border">
-                          {services.map((s) => (
-                            <SelectItem key={s.id} value={s.name}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{s.name}</span>
-                                <span className="text-[10px] text-muted-foreground uppercase">
-                                  {s.category} • {formatCurrency(s.unitPrice)}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="col-span-4 md:col-span-2">
-                      <Input
-                        type="number"
-                        min="0.01"
-                        step="any"
-                        value={item.quantity ?? 1}
-                        onChange={(e) =>
-                          updateItem(
-                            item.id,
-                            "quantity",
-                            parseFloat(e.target.value) || 0,
-                          )
-                        }
-                        className="text-right tabular-nums"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div className="col-span-4 md:col-span-2">
-                      <Input
-                        type="number"
-                        min="0"
-                        step="1"
-                        value={item.unitPrice ?? 0}
-                        onChange={(e) =>
-                          updateItem(
-                            item.id,
-                            "unitPrice",
-                            Math.round(parseFloat(e.target.value) || 0),
-                          )
-                        }
-                        className="text-right tabular-nums"
-                        disabled={isSubmitting}
-                      />
-                    </div>
-                    <div className="col-span-3 md:col-span-1 text-right pt-2 font-medium tabular-nums">
-                      {formatCurrency(item.total)}
-                    </div>
-                    <div className="col-span-1 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => removeItem(item.id)}
-                        className="text-muted-foreground hover:text-destructive"
-                        disabled={items.length === 1}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <EditorItemsTable
+            items={items}
+            services={services}
+            onUpdateItem={updateItem}
+            onAddItem={addItem}
+            onRemoveItem={removeItem}
+            isSubmitting={isSubmitting}
+          />
 
           <Card className="bg-card border-border">
             <CardHeader className="pb-3">
-              <CardTitle className="text-foreground font-semibold text-base">
-                Notes et Conditions
-              </CardTitle>
+              <CardTitle className="text-foreground font-semibold text-base">Notes et Conditions</CardTitle>
             </CardHeader>
             <CardContent>
               <Textarea
@@ -617,116 +333,26 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         </div>
 
         <div className="space-y-6">
-          <Card className="bg-card border-border sticky top-24">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-foreground font-semibold text-base">
-                Récapitulatif Financier
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-3">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Total HT Brut</span>
-                  <span className="text-foreground font-medium text-right tabular-nums">
-                    {formatCurrency(subtotal)}
-                  </span>
-                </div>
-
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-sm items-center">
-                    <span className="text-muted-foreground">
-                      Remise Commerciale
-                    </span>
-                    <Input
-                      type="number"
-                      className="w-24 h-7 text-right tabular-nums text-sm"
-                      value={discount || 0}
-                      onChange={(e) =>
-                        setDiscount(parseFloat(e.target.value) || 0)
-                      }
-                      disabled={isSubmitting}
-                    />
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t border-border/50">
-                  <div className="flex justify-between text-sm font-semibold">
-                    <span>Net HT</span>
-                    <span className="text-right tabular-nums">{formatCurrency(netHT)}</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">
-                    CSS ({settings.cssRate}%)
-                  </span>
-                  <span className="text-foreground text-right tabular-nums">
-                    {formatCurrency(cssAmount)}
-                  </span>
-                </div>
-
-                <div className="pt-1 border-t border-dashed border-border/30">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span className="text-muted-foreground">Base TVA</span>
-                    <span className="text-right tabular-nums">{formatCurrency(taxBase)}</span>
-                  </div>
-                </div>
-
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">
-                    TPS ({settings.tpsRate || 9.5}%)
-                  </span>
-                  <span className="text-foreground text-right tabular-nums">
-                    {formatCurrency(tpsAmount)}
-                  </span>
-                </div>
-
-                <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">
-                    TVA ({settings.tvaRate}%)
-                  </span>
-                  <span className="text-foreground text-right tabular-nums">
-                    {formatCurrency(tvaAmount)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-border">
-                <div className="flex justify-between items-center">
-                  <span className="text-foreground font-bold">
-                    TOTAL TTC (XAF)
-                  </span>
-                  <span className="text-2xl font-bold text-primary text-right tabular-nums">
-                    {formatCurrency(total)}
-                  </span>
-                </div>
-              </div>
-
-              <div className="pt-4 space-y-3">
-                <Button
-                  variant="outline"
-                  className="w-full h-12 gap-2 bg-secondary"
-                  onClick={() => setPreviewOpen(true)}
-                  disabled={isSubmitting || !selectedClient}
-                >
-                  <Eye className="w-4 h-4" />
-                  Aperçu
-                </Button>
-                <Button
-                  onClick={() => handleSave("UNPAID")}
-                  className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12 transition-all"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <Send className="w-4 h-4 mr-2 animate-pulse" />
-                  ) : (
-                    <Send className="w-4 h-4 mr-2" />
-                  )}
-                  {isSubmitting ? "Enregistrement..." : "Générer la Facture"}
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+          <FiscalSummaryCard
+            subtotal={subtotal}
+            discount={discount}
+            onDiscountChange={setDiscount}
+            netHT={netHT}
+            cssAmount={cssAmount}
+            taxBase={taxBase}
+            tpsAmount={tpsAmount}
+            tvaAmount={tvaAmount}
+            total={total}
+            cssRate={settings.cssRate ?? 0}
+            tpsRate={settings.tpsRate ?? 9.5}
+            tvaRate={settings.tvaRate ?? 0}
+            isSubmitting={isSubmitting}
+            canPreview={!!selectedClient}
+            onPreview={() => setPreviewOpen(true)}
+            onSave={() => handleSave("UNPAID")}
+            saveLabel="Générer la Facture"
+            onSaveDraft={isNew ? async () => handleSaveDraft() : undefined}
+          />
         </div>
       </div>
 
@@ -744,14 +370,14 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             date: invoiceDate,
             dueDate: invoiceDate,
             items: items as DraftItem[],
-            subtotal: subtotal,
-            discount: discount,
-            taxBase: taxBase,
-            tpsAmount: tpsAmount,
-            tvaAmount: tvaAmount,
-            cssAmount: cssAmount,
-            total: total,
-            notes: notes,
+            subtotal,
+            discount,
+            taxBase,
+            tpsAmount,
+            tvaAmount,
+            cssAmount,
+            total,
+            notes,
             status: "draft",
             payments: [],
             createdAt: new Date().toISOString(),

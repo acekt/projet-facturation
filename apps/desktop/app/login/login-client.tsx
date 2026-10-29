@@ -1,7 +1,8 @@
 "use client";
 
 import { loginUser, syncSupabaseSession } from "@/app/actions/auth.actions";
-import { connector } from "@/lib/powersync";
+import { supabaseSession } from "@/lib/auth/supabaseSession";
+import { getErrorMessage } from "@/lib/utils/action-error";
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useStore } from "@/lib/store";
@@ -121,8 +122,8 @@ export default function LoginClient() {
         }
         loggedUser = localRes.data.user;
 
-        // Connexion PowerSync/Supabase asynchrone non-bloquante pour la synchronisation Cloud
-        connector.login(cleanEmail, password).catch((cloudErr) => {
+        // Connexion Supabase asynchrone non-bloquante pour la synchronisation Cloud
+        supabaseSession.login(cleanEmail, password).catch((cloudErr) => {
           console.log("[Auth Desktop] Compte local pur ou synchronisation Cloud différée:", cloudErr?.message);
         });
       } else {
@@ -135,7 +136,7 @@ export default function LoginClient() {
 
         // 2. REPLI CLOUD : Si non trouvé en local, tenter l'authentification Supabase Cloud
         try {
-          const { user } = await connector.login(cleanEmail, password);
+          const { user } = await supabaseSession.login(cleanEmail, password);
 
           if (user) {
             let rawRole = (user.user_metadata?.role || (user.app_metadata as any)?.role || '').toLowerCase().trim();
@@ -143,7 +144,7 @@ export default function LoginClient() {
 
             if (!rawRole) {
               try {
-                const { data: profile } = await connector.client
+                const { data: profile } = await supabaseSession.client
                   .from('profiles')
                   .select('role, tenant_id')
                   .eq('id', user.id)
@@ -166,7 +167,7 @@ export default function LoginClient() {
               (user.user_metadata?.name || '').toLowerCase().includes('super admin');
 
             if (isSuperAdmin) {
-              await connector.logout();
+              await supabaseSession.logout();
               toast.error(
                 "Accès refusé : Le rôle Superadmin est réservé exclusivement au Web Hub Cloud. Seuls l'Administrateur et l'Opérateur peuvent se connecter sur cette application Desktop.",
                 { duration: 7000 }
@@ -191,7 +192,7 @@ export default function LoginClient() {
               password,
             });
             if (!syncRes.success) {
-              await connector.logout();
+              await supabaseSession.logout();
               toast.error(syncRes.error || "Erreur de synchronisation locale");
               setIsSubmitting(false);
               return;
@@ -204,7 +205,7 @@ export default function LoginClient() {
               loggedUser.force_password_change = syncRes.data.force_password_change;
             }
           }
-        } catch (cloudErr: any) {
+        } catch (cloudErr: unknown) {
           console.warn("[Auth Desktop] Échec connexion locale et cloud:", cloudErr);
           toast.error(localRes.error || "Identifiants invalides (email ou mot de passe incorrect)");
           setIsSubmitting(false);
@@ -266,15 +267,15 @@ export default function LoginClient() {
     }
     setIsSubmitting(true);
     try {
-      const { error } = await connector.client.auth.resetPasswordForEmail(username.trim());
+      const { error } = await supabaseSession.client.auth.resetPasswordForEmail(username.trim());
       if (error) {
         toast.error(error.message);
       } else {
         toast.success("Si ce compte existe, un email de réinitialisation vous a été envoyé.");
         setIsForgotPassword(false);
       }
-    } catch (err: any) {
-      toast.error(err?.message || "Erreur lors de la demande de réinitialisation");
+    } catch (err: unknown) {
+      toast.error(getErrorMessage(err, "Erreur lors de la demande de réinitialisation"));
     } finally {
       setIsSubmitting(false);
     }

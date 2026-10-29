@@ -70,6 +70,13 @@ export function ensureSyncSchema(db: Database.Database): void {
       last_attempt_at TEXT NOT NULL DEFAULT (${NOW_ISO}),
       PRIMARY KEY (table_name, record_id)
     );
+    CREATE TABLE IF NOT EXISTS hub_cache (
+      kind TEXT NOT NULL,
+      key TEXT NOT NULL,
+      payload TEXT NOT NULL,
+      fetched_at TEXT NOT NULL DEFAULT (${NOW_ISO}),
+      PRIMARY KEY (kind, key)
+    );
   `);
 
   // Support du soft delete sur les lignes d'articles (D2)

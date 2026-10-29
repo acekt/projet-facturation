@@ -12,6 +12,8 @@ import { signSession, getSession } from "@/lib/api/auth";
 import { resolveActiveTenantId, reconcileLocalTenantId } from "@/lib/api/tenant";
 import { encryptSecret } from "@/lib/crypto/secretStore";
 import type { ActionResponse } from './client.actions';
+import { logger } from "@/lib/logger";
+import { getErrorMessage } from "@/lib/utils/action-error";
 
 const SALT_ROUNDS = 10;
 const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 jours unifiés
@@ -93,7 +95,7 @@ const logAuditAsync = (action: string, entityType: string, entityId: string | nu
     try {
       logAudit(action, entityType, entityId, details, userId, userName, tenantId);
     } catch (e) {
-      console.error("[Audit Log Error]", e);
+      logger.error("[Audit Log Error]", { module: "auth", action: "logAuditAsync" }, e);
     }
   }, 0);
 };
@@ -260,7 +262,7 @@ export async function loginUser(data: any): Promise<ActionResponse<SessionRespon
 
     return { success: true, data: sessionPayload };
   } catch (error) {
-    console.error("[Login Error]", error);
+    logger.error("[Login Error]", { module: "auth", action: "login" }, error);
     logAuditAsync("LOGIN_ERROR", "system", null, "Erreur serveur lors de la connexion", null);
     return { success: false, error: "Erreur serveur" };
   }
@@ -420,7 +422,7 @@ export async function changeOwnPassword(data: { currentPassword?: string; newPas
 
     return { success: true, data: true };
   } catch (error) {
-    console.error("[Action changeOwnPassword] Error:", error);
+    logger.error("[Action changeOwnPassword] Error:", { module: "auth", action: "changeOwnPassword" }, error);
     return { success: false, error: "Erreur lors de la mise à jour du mot de passe" };
   }
 }
@@ -526,8 +528,8 @@ export async function syncSupabaseSession(supabaseUser: {
 
     (await cookies()).set("auth_session", signedSession, cookieOptions);
     return { success: true, data: { role: resolvedRole, tenantId: effectiveTenantId || undefined, force_password_change: forcePasswordChange } };
-  } catch (error: any) {
-    console.error('[syncSupabaseSession error]', error);
-    return { success: false, error: error?.message || 'Erreur session' };
+  } catch (error: unknown) {
+    logger.error('[syncSupabaseSession error]', { module: "auth", action: "syncSupabaseSession" }, error);
+    return { success: false, error: getErrorMessage(error, 'Erreur session') };
   }
 }

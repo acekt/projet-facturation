@@ -13,15 +13,15 @@ describe('Batch Inserts in Repositories (N+1 Performance Test)', () => {
       DELETE FROM invoices;
       DELETE FROM clients;
       DELETE FROM users;
-      INSERT INTO clients (id, name, email) VALUES ('client-x', 'Client X', 'x@test.com');
-      INSERT INTO clients (id, name, email) VALUES ('client-y', 'Client Y', 'y@test.com');
+      INSERT INTO clients (id, name, email, tenant_id) VALUES ('client-x', 'Client X', 'x@test.com', '00000000-0000-4000-a000-000000000001');
+      INSERT INTO clients (id, name, email, tenant_id) VALUES ('client-y', 'Client Y', 'y@test.com', '00000000-0000-4000-a000-000000000001');
     `);
   });
 
   it('should handle batch inserts of 50 quote items performantly within a transaction', () => {
     const quoteId = crypto.randomUUID();
     const userId = crypto.randomUUID();
-    db.exec(`INSERT INTO users (id, name, email, username, role, password) VALUES ('${userId}', 'Test User', 'u@test.com', 'u', 'user', '123')`);
+    db.exec(`INSERT INTO users (id, name, email, username, role, password, tenant_id) VALUES ('${userId}', 'Test User', 'u@test.com', 'u', 'user', '123', '00000000-0000-4000-a000-000000000001')`);
 
     const items = Array.from({ length: 50 }, (_, i) => ({
       description: `Test item ${i}`,
@@ -34,13 +34,13 @@ describe('Batch Inserts in Repositories (N+1 Performance Test)', () => {
 
     const insertQuoteTx = db.transaction((quoteItems: any[]) => {
       db.prepare(`
-        INSERT INTO quotes (id, number, clientId, date, subtotal, total, status, created_by)
-        VALUES (?, 'Q-100', 'client-x', '2026-01-01', 50000, 50000, 'EN_ATTENTE', ?)
+        INSERT INTO quotes (id, number, clientId, date, subtotal, total, status, created_by, tenant_id)
+        VALUES (?, 'Q-100', 'client-x', '2026-01-01', 50000, 50000, 'EN_ATTENTE', ?, '00000000-0000-4000-a000-000000000001')
       `).run(quoteId, userId);
 
       const insertItem = db.prepare(`
-        INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total, tenant_id)
+        VALUES (?, ?, ?, ?, ?, ?, '00000000-0000-4000-a000-000000000001')
       `);
 
       for (const item of quoteItems) {
@@ -62,7 +62,7 @@ describe('Batch Inserts in Repositories (N+1 Performance Test)', () => {
   it('should handle batch inserts of 50 invoice items performantly within a transaction', () => {
     const invoiceId = crypto.randomUUID();
     const userId = crypto.randomUUID();
-    db.exec(`INSERT INTO users (id, name, email, username, role, password) VALUES ('${userId}', 'Test User 2', 'u2@test.com', 'u2', 'user', '123')`);
+    db.exec(`INSERT INTO users (id, name, email, username, role, password, tenant_id) VALUES ('${userId}', 'Test User 2', 'u2@test.com', 'u2', 'user', '123', '00000000-0000-4000-a000-000000000001')`);
 
     const items = Array.from({ length: 50 }, (_, i) => ({
       description: `Invoice item ${i}`,
@@ -74,13 +74,13 @@ describe('Batch Inserts in Repositories (N+1 Performance Test)', () => {
 
     const insertInvoiceTx = db.transaction((invoiceItems: any[]) => {
       db.prepare(`
-        INSERT INTO invoices (id, number, clientId, date, subtotal, total, status, created_by)
-        VALUES (?, 'F-200', 'client-y', '2026-01-02', 100000, 100000, 'UNPAID', ?)
+        INSERT INTO invoices (id, number, clientId, date, subtotal, total, status, created_by, tenant_id)
+        VALUES (?, 'F-200', 'client-y', '2026-01-02', 100000, 100000, 'UNPAID', ?, '00000000-0000-4000-a000-000000000001')
       `).run(invoiceId, userId);
 
       const insertItem = db.prepare(`
-        INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total, tenant_id)
+        VALUES (?, ?, ?, ?, ?, ?, '00000000-0000-4000-a000-000000000001')
       `);
 
       for (const item of invoiceItems) {

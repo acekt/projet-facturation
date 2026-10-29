@@ -35,7 +35,9 @@ describe('Phase 3 : Packaging & Distribution de l\'Application Desktop', () => {
 
     it('1.3 main.js must implement dynamic resolveStandaloneServer for production resilience', () => {
       expect(fs.existsSync(mainJsPath)).toBe(true);
-      const content = fs.readFileSync(mainJsPath, 'utf8');
+      const serverJsPath = path.join(desktopRoot, 'main', 'server.js');
+      const content = fs.readFileSync(mainJsPath, 'utf8') +
+        (fs.existsSync(serverJsPath) ? '\n' + fs.readFileSync(serverJsPath, 'utf8') : '');
 
       expect(content).toContain('resolveStandaloneServer');
       expect(content).toContain('server.js');
@@ -107,7 +109,9 @@ describe('Phase 3 : Packaging & Distribution de l\'Application Desktop', () => {
     });
 
     it('3.2 main.js must register updater IPC handlers and event forwards', () => {
-      const content = fs.readFileSync(mainJsPath, 'utf8');
+      const updaterJsPath = path.join(desktopRoot, 'main', 'updater.js');
+      const content = fs.readFileSync(mainJsPath, 'utf8') +
+        (fs.existsSync(updaterJsPath) ? '\n' + fs.readFileSync(updaterJsPath, 'utf8') : '');
 
       expect(content).toContain("setupAutoUpdater");
       expect(content).toContain("ipcMain.handle('updater:check'");

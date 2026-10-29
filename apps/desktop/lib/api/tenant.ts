@@ -53,10 +53,7 @@ export function resolveActiveTenantId(
 
 /**
  * Builds a SQLite WHERE fragment and parameter list that enforces strict multi-tenant
- * isolation when a tenant_id is active, while remaining compatible with legacy/seeded
- * test rows where tenant_id IS NULL.
- *
- * When a record belongs to ANOTHER non-null tenant_id, it is strictly excluded.
+ * isolation. All queries MUST filter strictly by tenant_id.
  */
 export function buildTenantFilter(
   tenantId: string | null | undefined,
@@ -67,7 +64,7 @@ export function buildTenantFilter(
   }
   const col = tableAlias ? `${tableAlias}.tenant_id` : 'tenant_id';
   return {
-    sql: ` AND (${col} = ? OR ${col} IS NULL OR ${col} = '')`,
+    sql: ` AND ${col} = ?`,
     params: [tenantId],
   };
 }

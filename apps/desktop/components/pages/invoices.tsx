@@ -1,78 +1,27 @@
 "use client"
 
+import * as React from "react"
+import { Plus, DownloadCloud } from "lucide-react"
+import { Button } from "@workspace/ui/components/button"
+import { useStore, type Invoice } from "@/lib/store"
+import { formatCurrency } from "@/lib/utils"
+import { toast } from "sonner"
+import { exportInvoicesToExcel } from "@/lib/services/ExportService"
 import { getInvoices, deleteInvoice } from "@/app/actions/invoice.actions"
 import { getQuotes } from "@/app/actions/quote.actions"
 import { getCreditNotes } from "@/app/actions/credit-note.actions"
 import { createPayment, getPayments } from "@/app/actions/payment.actions"
-import * as React from "react"
-import { motion } from "framer-motion"
-import { exportInvoicesToExcel } from "@/lib/services/ExportService"
-import {
-  Plus,
-  Search,
-  FileText,
-  MoreVertical,
-  Download,
-  Printer,
-  Trash2,
-  Copy,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  DownloadCloud,
-  Edit2,
-  Eye,
-  RefreshCcw,
-  Calendar,
-} from "lucide-react"
-import { Card, CardContent } from "@workspace/ui/components/card"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@workspace/ui/components/dropdown-menu"
-import { useStore, type Invoice, type Payment } from "@/lib/store"
-import { formatCurrency, formatDate } from "@/lib/utils"
-import { toast } from "sonner"
-import { INVOICE_STATUS } from "@/lib/constants"
-import { DocumentA4 } from "@/components/document-a4"
-import { printElement, buildPrintHtml } from "@/lib/electron-print"
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer"
-
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@workspace/ui/components/dialog"
-import { VisuallyHidden } from "@workspace/ui/components/visually-hidden"
-import { Label } from "@workspace/ui/components/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select"
 import { Pagination } from "@workspace/ui/components/pagination-custom"
-import { EmptyState } from "@workspace/ui/components/empty-state"
-import { Switch } from "@workspace/ui/components/switch"
-// ── Design System components
 import { PageHeader } from "@workspace/ui/components/page-header"
-import { SearchBar } from "@workspace/ui/components/search-bar"
-import { StatusBadge } from "@workspace/ui/components/status-badge"
-import {
-  DataTable,
-  DataTableHead,
-  DataTableBody,
-  DataTableRow,
-  DataTableHeaderCell,
-  DataTableCell,
-  AmountCell,
-  ActionsCell,
-} from "@workspace/ui/components/data-table"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@workspace/ui/components/alert-dialog"
+import { InvoiceFilterBar } from "./invoices/InvoiceFilterBar"
+import { PaymentDialog } from "./invoices/PaymentDialog"
+import { InvoiceDeleteDialog } from "./invoices/InvoiceDeleteDialog"
+import { InvoiceCancelDialog } from "./invoices/InvoiceCancelDialog"
+import { InvoiceViews } from "./invoices/InvoiceViews"
+import { CreateCreditNoteModal } from "@/components/features/credit-notes/CreateCreditNoteModal"
+import { useCommandFilter } from "@/lib/command-navigation"
+import { useShallow } from "zustand/react/shallow"
 
 interface InvoicesPageProps {
   onCreateInvoice: () => void
@@ -80,53 +29,75 @@ interface InvoicesPageProps {
 }
 
 export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPageProps) {
-  const invoices = useStore(state => state.invoices)
-  const setInvoices = useStore(state => state.setInvoices)
-  const quotes = useStore(state => state.quotes)
-  const setQuotes = useStore(state => state.setQuotes)
-  const setPayments = useStore(state => state.setPayments)
-  const settings = useStore(state => state.settings)
-  const setCreditNotes = useStore(state => state.setCreditNotes)
-  const user = useStore(state => state.user)
-  const viewFormat = useStore(state => state.viewFormat)
-  const setViewFormat = useStore(state => state.setViewFormat)
-  const isDataLoaded = useStore(state => state.isDataLoaded)
+  const {
+    invoices,
+    setInvoices,
+    setQuotes,
+    setPayments,
+    settings,
+    creditNotes,
+    setCreditNotes,
+    user,
+    viewFormat,
+    isDataLoaded,
+  } = useStore(
+    useShallow((state) => ({
+      invoices: state.invoices,
+      setInvoices: state.setInvoices,
+      setQuotes: state.setQuotes,
+      setPayments: state.setPayments,
+      settings: state.settings,
+      creditNotes: state.creditNotes,
+      setCreditNotes: state.setCreditNotes,
+      user: state.user,
+      viewFormat: state.viewFormat,
+      isDataLoaded: state.isDataLoaded,
+    }))
+  )
 
   const [searchQuery, setSearchQuery] = React.useState("")
+  useCommandFilter("invoices", setSearchQuery)
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 10
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
-
+  const [invoiceForCreditNote, setInvoiceForCreditNote] = React.useState<Invoice | null>(null)
   const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
+
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false)
   const [paymentInvoice, setPaymentInvoice] = React.useState<Invoice | null>(null)
   const [paymentMethod, setPaymentMethod] = React.useState("Espèces")
   const [paymentAmount, setPaymentAmount] = React.useState("")
   const [paymentType, setPaymentType] = React.useState("full")
-  const [paymentDate, setPaymentDate] = React.useState(new Date().toISOString().split('T')[0])
+  const [paymentDate, setPaymentDate] = React.useState(new Date().toISOString().split("T")[0])
   const [paymentReference, setPaymentReference] = React.useState("")
+  const [isRecordingPayment, setIsRecordingPayment] = React.useState(false)
+
   const [invoiceToDeleteId, setInvoiceToDeleteId] = React.useState<string | null>(null)
   const [invoiceToCancel, setInvoiceToCancel] = React.useState<Invoice | null>(null)
   const [deleteAssociatedQuote, setDeleteAssociatedQuote] = React.useState(false)
-  // [P2-A] Protège le bouton d'impression contre le double-clic accidentel
-  const [isPrinting, setIsPrinting] = React.useState(false)
-  // [QA-Phase 1] Protection contre le double-clic et les actions concurrentes
+
   const [isDeleting, setIsDeleting] = React.useState(false)
   const [isCancelling, setIsCancelling] = React.useState(false)
   const [statusFilter, setStatusFilter] = React.useState<string>("all")
 
+  const unpaidCount = React.useMemo(() => {
+    return invoices.filter((inv) => !inv.deletedAt && (inv.status === "UNPAID" || inv.status === "PARTIALLY_PAID" || inv.status === "OVERDUE")).length
+  }, [invoices])
+
   const filteredInvoices = React.useMemo(() => {
-    return invoices.filter(
-      (invoice) => {
-        const q = searchQuery.toLowerCase();
-        const matchesSearch = (invoice.number || '').toLowerCase().includes(q) ||
-                              (invoice.clientName || '').toLowerCase().includes(q) ||
-                              (invoice.clientEmail || '').toLowerCase().includes(q);
-        if (statusFilter === "all") return matchesSearch;
-        return matchesSearch && invoice.status === statusFilter;
+    return invoices.filter((invoice) => {
+      const q = searchQuery.toLowerCase()
+      const matchesSearch =
+        (invoice.number || "").toLowerCase().includes(q) ||
+        (invoice.clientName || "").toLowerCase().includes(q) ||
+        (invoice.clientEmail || "").toLowerCase().includes(q)
+      if (statusFilter === "all") return matchesSearch
+      if (statusFilter === "unpaid_any") {
+        return matchesSearch && (invoice.status === "UNPAID" || invoice.status === "PARTIALLY_PAID" || invoice.status === "OVERDUE")
       }
-    );
-  }, [invoices, searchQuery, statusFilter]);
+      return matchesSearch && invoice.status === statusFilter
+    })
+  }, [invoices, searchQuery, statusFilter])
 
   const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage)
   const paginatedInvoices = filteredInvoices.slice(
@@ -134,16 +105,20 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     currentPage * itemsPerPage
   )
 
+  React.useEffect(() => {
+    setCurrentPage(1)
+  }, [searchQuery, statusFilter])
+
   const handleDelete = async (id: string) => {
     if (isDeleting) return
     setIsDeleting(true)
     try {
       const response = await deleteInvoice(id)
       if (!response.success) {
-        if (response.error?.includes('Forbidden')) {
+        if (response.error?.includes("Forbidden")) {
           toast.error("Action refusée : Vous manquez de droits pour supprimer cette facture.")
         } else {
-          throw new Error('Delete failed')
+          throw new Error("Delete failed")
         }
         setInvoiceToDeleteId(null)
         return
@@ -154,7 +129,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
       if (updatedInvoices.success && updatedInvoices.data) {
         setInvoices(updatedInvoices.data)
       }
-    } catch (error) {
+    } catch {
       toast.error("Erreur lors de la suppression")
     } finally {
       setIsDeleting(false)
@@ -165,64 +140,60 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     if (!invoiceToCancel || isCancelling) return
     setIsCancelling(true)
     try {
-      const response = await deleteInvoice(invoiceToCancel.id, deleteAssociatedQuote);
-
+      const response = await deleteInvoice(invoiceToCancel.id, deleteAssociatedQuote)
       if (!response.success) {
-        if (response.error?.includes('Forbidden')) {
+        if (response.error?.includes("Forbidden")) {
           toast.error("Action refusée : Vous manquez de droits pour annuler/supprimer cette facture.")
         } else {
-          throw new Error('Failed to cancel invoice')
+          throw new Error("Failed to cancel invoice")
         }
         setInvoiceToCancel(null)
         return
       }
 
-      toast.success("Facture annulée avec succès");
-      setInvoiceToCancel(null);
-      setDeleteAssociatedQuote(false);
+      toast.success("Facture annulée avec succès")
+      setInvoiceToCancel(null)
+      setDeleteAssociatedQuote(false)
 
-      // Replace Promise.all with sequential fetches to prevent Zustand race conditions
-      const updatedInvoices = await getInvoices();
-      if (updatedInvoices.success && updatedInvoices.data) setInvoices(updatedInvoices.data);
-      const updatedQuotes = await getQuotes();
-      if (updatedQuotes.success && updatedQuotes.data) setQuotes(updatedQuotes.data);
-      const updatedNotes = await getCreditNotes();
-      if (updatedNotes.success && updatedNotes.data) setCreditNotes(updatedNotes.data);
-    } catch (error) {
-      toast.error("Erreur lors de l'annulation de la facture");
+      const updatedInvoices = await getInvoices()
+      if (updatedInvoices.success && updatedInvoices.data) setInvoices(updatedInvoices.data)
+      const updatedQuotes = await getQuotes()
+      if (updatedQuotes.success && updatedQuotes.data) setQuotes(updatedQuotes.data)
+      const updatedNotes = await getCreditNotes()
+      if (updatedNotes.success && updatedNotes.data) setCreditNotes(updatedNotes.data)
+    } catch {
+      toast.error("Erreur lors de l'annulation de la facture")
     } finally {
       setIsCancelling(false)
     }
   }
 
-  const markAsPaid = (invoice: Invoice) => {
-      const totalPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
-      const remaining = invoice.total - totalPaid
-      setPaymentInvoice(invoice);
-      setPaymentAmount(remaining.toString());
-      setPaymentType("full");
-      setPaymentMethod("Espèces");
-      setPaymentDate(new Date().toISOString().split('T')[0]);
-      setPaymentReference("");
-      setPaymentDialogOpen(true);
+  const handleOpenPayment = (invoice: Invoice) => {
+    const totalPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+    const remaining = invoice.total - totalPaid
+    setPaymentInvoice(invoice)
+    setPaymentAmount(remaining.toString())
+    setPaymentType("full")
+    setPaymentMethod("Espèces")
+    setPaymentDate(new Date().toISOString().split("T")[0])
+    setPaymentReference("")
+    setPaymentDialogOpen(true)
   }
 
   const handleDownloadPDF = async (invoice: Invoice) => {
-    // ── Moteur natif Electron : printToPDF via fenêtre cachée ───────────────
     if (window.electron?.exportPDF) {
       setSelectedInvoice(invoice)
       return
     }
 
-    // ── Fallback : navigateur web sans Electron (ancienne méthode) ────────
     const toastId = toast.loading("Génération du PDF...")
     try {
       setIsDownloading(invoice.id)
-      const { pdf } = await import('@react-pdf/renderer')
-      const { PDFDocument } = await import('@/components/pdf-document')
+      const { pdf } = await import("@react-pdf/renderer")
+      const { PDFDocument } = await import("@/components/pdf-document")
       const blob = await pdf(<PDFDocument document={invoice} type="facture" settings={settings} />).toBlob()
       const url = URL.createObjectURL(blob)
-      const link = document.createElement('a')
+      const link = document.createElement("a")
       link.href = url
       link.download = `FACTURE_${invoice.number}.pdf`
       document.body.appendChild(link)
@@ -239,50 +210,47 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   }
 
   const confirmPayment = async () => {
-      if (paymentInvoice) {
-          const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
-          const remaining = paymentInvoice.total - totalPaid
-          const amount = parseFloat(paymentAmount)
-          
-          if (amount <= 0) {
-              toast.error("Le montant doit être supérieur à 0")
-              return
-          }
-          
-          if (amount > remaining) {
-              toast.error(`Le montant ne peut pas dépasser le reste à payer (${formatCurrency(remaining)})`)
-              return
-          }
-          
-          try {
-            const response = await createPayment({
-                  invoiceId: paymentInvoice.id,
-                  amount: Math.round(amount),
-                  paymentMethod,
-                  date: paymentDate || new Date().toISOString().split('T')[0],
-                  reference: paymentReference?.trim() || undefined
-            })
+    if (!paymentInvoice || isRecordingPayment) return
+    const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+    const remaining = paymentInvoice.total - totalPaid
+    const amount = parseFloat(paymentAmount)
 
-            if (!response.success) throw new Error('Failed to record payment')
+    if (amount <= 0) {
+      toast.error("Le montant doit être supérieur à 0")
+      return
+    }
 
-            toast.success("Paiement enregistré")
+    if (amount > remaining) {
+      toast.error(`Le montant ne peut pas dépasser le reste à payer (${formatCurrency(remaining)})`)
+      return
+    }
 
-            // Replace Promise.all with sequential fetches to prevent Zustand race conditions
-            const updatedInvoices = await getInvoices();
-            if (updatedInvoices.success && updatedInvoices.data) setInvoices(updatedInvoices.data);
-            const updatedPayments = await getPayments();
-            if (updatedPayments.success && updatedPayments.data) setPayments(updatedPayments.data);
-            setPaymentDialogOpen(false);
-            setPaymentInvoice(null);
-          } catch (error) {
-              toast.error("Erreur lors de l'enregistrement")
-          }
-      }
+    setIsRecordingPayment(true)
+    try {
+      const response = await createPayment({
+        invoiceId: paymentInvoice.id,
+        amount: Math.round(amount),
+        paymentMethod,
+        date: paymentDate || new Date().toISOString().split("T")[0],
+        reference: paymentReference?.trim() || undefined,
+      })
+
+      if (!response.success) throw new Error("Failed to record payment")
+
+      toast.success("Paiement enregistré")
+      const updatedInvoices = await getInvoices()
+      if (updatedInvoices.success && updatedInvoices.data) setInvoices(updatedInvoices.data)
+      const updatedPayments = await getPayments()
+      if (updatedPayments.success && updatedPayments.data) setPayments(updatedPayments.data)
+
+      setPaymentDialogOpen(false)
+      setPaymentInvoice(null)
+    } catch {
+      toast.error("Erreur lors de l'enregistrement")
+    } finally {
+      setIsRecordingPayment(false)
+    }
   }
-
-  React.useEffect(() => {
-    setCurrentPage(1)
-  }, [searchQuery, statusFilter])
 
   if (!isDataLoaded) {
     return (
@@ -295,45 +263,8 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     )
   }
 
-  // ── Calcul statut de paiement ───────────────────────────────────────────────
-  const getPaymentStatus = (invoice: Invoice) => {
-    const totalPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
-    const remaining = invoice.total - totalPaid
-    if (totalPaid === 0) return { status: 'unpaid' as const, paid: 0, remaining: invoice.total }
-    if (totalPaid >= invoice.total) return { status: 'paid' as const, paid: totalPaid, remaining: 0 }
-    return { status: 'partial' as const, paid: totalPaid, remaining }
-  }
-
-  // ── Rendu du badge de paiement via StatusBadge unifié ──────────────────────
-  const getPaymentBadge = (invoice: Invoice) => {
-    const ps = getPaymentStatus(invoice)
-    if (ps.status === 'paid') {
-      return <StatusBadge variant="invoice-paid" amount={ps.paid} />
-    }
-    if (ps.status === 'partial') {
-      return <StatusBadge variant="invoice-partial" paidAmount={ps.paid} remainingAmount={ps.remaining} />
-    }
-    return <StatusBadge variant="invoice-unpaid" remainingAmount={ps.remaining} />
-  }
-
-  // ── Règle comptable stricte : protection des factures avec encaissements ───
-  const isInvoiceProtected = (inv: Invoice) => {
-    const totalPaid = inv.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-    return totalPaid > 0 || inv.status === 'PAID' || inv.status === 'PARTIALLY_PAID';
-  };
-
-  // ── Formatage typographique soigné du nom de client ───────────────────────
-  const formatClientName = (name: string) => {
-    if (!name) return '—';
-    if (name.length <= 6 && !name.includes(' ')) {
-      return name.toUpperCase();
-    }
-    return name.replace(/\b\w/g, (char) => char.toUpperCase());
-  };
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
-      {/* ── En-tête de page (Design System) ─────────────────────────────── */}
       <PageHeader
         title="Factures"
         description="Gérez vos factures et suivez vos paiements"
@@ -343,10 +274,10 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
               variant="outline"
               onClick={async () => {
                 try {
-                  await exportInvoicesToExcel(invoices);
+                  await exportInvoicesToExcel(invoices)
                 } catch (err) {
-                  console.error("Export Excel failed:", err);
-                  toast.error("Erreur lors de la génération du fichier Excel.");
+                  console.error("Export Excel failed:", err)
+                  toast.error("Erreur lors de la génération du fichier Excel.")
                 }
               }}
               className="gap-2 hidden sm:flex"
@@ -354,7 +285,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
               <DownloadCloud className="w-4 h-4" />
               Export Excel
             </Button>
-            {(user?.role === 'user' || user?.role === 'admin') && (
+            {(user?.role === "user" || user?.role === "admin") && (
               <Button
                 className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
                 onClick={() => onCreateInvoice()}
@@ -367,326 +298,33 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         }
       />
 
-      {/* ── Barre de recherche et filtres ──────── */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-4">
-        <div className="flex-1">
-          <SearchBar
-            placeholder="Rechercher une facture..."
-            value={searchQuery}
-            onChange={setSearchQuery}
-            viewFormatKey="invoices"
-          />
-        </div>
-        <div className="w-full sm:w-[220px]">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="bg-card border-border text-foreground h-10">
-              <SelectValue placeholder="Filtrer par statut" />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border">
-              <SelectItem value="all">Tous les statuts</SelectItem>
-              <SelectItem value="UNPAID">Non payées</SelectItem>
-              <SelectItem value="PARTIALLY_PAID">Partiellement payées</SelectItem>
-              <SelectItem value="PAID">Payées</SelectItem>
-              <SelectItem value="OVERDUE">En retard</SelectItem>
-              <SelectItem value="cancelled">Annulées</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
+      <InvoiceFilterBar
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        statusFilter={statusFilter}
+        onStatusFilterChange={setStatusFilter}
+        totalCount={invoices.length}
+        unpaidCount={unpaidCount}
+      />
 
-      {/* ── Vue Tableau (Design System) ─────────────────────────────────── */}
-      {(!viewFormat.invoices || viewFormat.invoices === 'table') && (
-        <DataTable>
-          <DataTableHead>
-            <DataTableRow>
-              <DataTableHeaderCell>Facture</DataTableHeaderCell>
-              <DataTableHeaderCell>Client</DataTableHeaderCell>
-              <DataTableHeaderCell>Date</DataTableHeaderCell>
-              <DataTableHeaderCell>Statut</DataTableHeaderCell>
-              <DataTableHeaderCell align="right">Total</DataTableHeaderCell>
-              <DataTableHeaderCell align="right">Actions</DataTableHeaderCell>
-            </DataTableRow>
-          </DataTableHead>
-          <DataTableBody>
-            {paginatedInvoices.map((invoice) => (
-              <DataTableRow key={invoice.id}>
-                {/* Numéro de facture */}
-                <DataTableCell>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-md bg-primary/5 flex items-center justify-center text-primary flex-shrink-0">
-                      <FileText className="w-4 h-4" />
-                    </div>
-                    <span className="font-medium text-sm text-foreground">{invoice.number}</span>
-                  </div>
-                </DataTableCell>
-                {/* Client */}
-                <DataTableCell truncate title={invoice.clientName}>
-                  {formatClientName(invoice.clientName)}
-                </DataTableCell>
-                {/* Date */}
-                <DataTableCell>
-                  <span className="text-xs text-muted-foreground">{formatDate(invoice.date)}</span>
-                </DataTableCell>
-                {/* Statut de paiement */}
-                <DataTableCell>
-                  {getPaymentBadge(invoice)}
-                </DataTableCell>
-                {/* Total (AmountCell unifié) */}
-                <AmountCell amount={invoice.total} />
-                {/* Actions */}
-                <ActionsCell>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                      <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
-                        <Eye className="w-4 h-4" /> Aperçu
-                      </DropdownMenuItem>
-                      <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
-                        <Printer className="w-4 h-4" /> Imprimer
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        className="gap-2"
-                        onClick={() => handleDownloadPDF(invoice)}
-                        disabled={isDownloading === invoice.id}
-                      >
-                        <Download className="w-4 h-4" />
-                        {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
-                      </DropdownMenuItem>
-                      {invoice.status !== 'PAID' && (user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && (
-                        <DropdownMenuItem className="gap-2 text-accent" onClick={() => markAsPaid(invoice)}>
-                          <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
-                        </DropdownMenuItem>
-                      )}
-                      {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && invoice.status !== INVOICE_STATUS.CANCELLED && !isInvoiceProtected(invoice) && (
-                        <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
-                          setInvoiceToCancel(invoice)
-                          setDeleteAssociatedQuote(false)
-                        }}>
-                          <RefreshCcw className="w-4 h-4" /> Annuler la facture
-                        </DropdownMenuItem>
-                      )}
-                      {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && !isInvoiceProtected(invoice) && (
-                        <>
-                          <div className="h-px bg-border my-1" />
-                          <DropdownMenuItem
-                            className="gap-2 text-destructive focus:text-destructive"
-                            onClick={() => setInvoiceToDeleteId(invoice.id)}
-                          >
-                            <Trash2 className="w-4 h-4" /> Supprimer
-                          </DropdownMenuItem>
-                        </>
-                      )}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </ActionsCell>
-              </DataTableRow>
-            ))}
-          </DataTableBody>
-        </DataTable>
-      )}
-      {(!viewFormat.invoices || viewFormat.invoices === 'table') && paginatedInvoices.length === 0 && (
-        <div className="p-8 text-center">
-          <EmptyState
-            icon={FileText}
-            title={searchQuery ? "Aucun résultat" : "Aucune facture"}
-            description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
-          />
-        </div>
-      )}
-
-      {viewFormat.invoices === 'horizontal' && (
-        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
-          <div className="grid grid-cols-1 gap-4">
-          {paginatedInvoices.map((invoice, index) => (
-            <motion.div
-              key={invoice.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <Card className="bg-card border-border hover:border-border/80 transition-all group shadow-sm">
-                <CardContent className="p-3 md:p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-md bg-primary/5 flex items-center justify-center text-primary">
-                        <FileText className="w-5 h-5" />
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-medium text-sm">{invoice.number}</h3>
-                          {getPaymentBadge(invoice)}
-                        </div>
-                        <p className="text-[12px] text-muted-foreground mt-0.5">
-                          <span className="font-medium text-foreground">{formatClientName(invoice.clientName)}</span>
-                          <span className="mx-2 opacity-30">•</span>
-                          <span>{formatDate(invoice.date)}</span>
-                        </p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right hidden sm:block">
-                        <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider">Total</p>
-                        <p className="text-sm font-semibold tracking-tight text-foreground text-right tabular-nums">{formatCurrency(invoice.total)}</p>
-                      </div>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="text-muted-foreground" aria-label="Plus d'options">
-                            <MoreVertical className="w-5 h-5" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
-                            <Eye className="w-4 h-4" /> Aperçu
-                          </DropdownMenuItem>
-                          <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
-                            <Printer className="w-4 h-4" /> Imprimer
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            className="gap-2"
-                            onClick={() => handleDownloadPDF(invoice)}
-                            disabled={isDownloading === invoice.id}
-                          >
-                            <Download className="w-4 h-4" />
-                            {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
-                          </DropdownMenuItem>
-                          {invoice.status !== 'PAID' && (user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && (
-                            <DropdownMenuItem className="gap-2 text-accent" onClick={() => markAsPaid(invoice)}>
-                              <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
-                            </DropdownMenuItem>
-                          )}
-                          {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && invoice.status !== INVOICE_STATUS.CANCELLED && !isInvoiceProtected(invoice) && (
-                             <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => {
-                               setInvoiceToCancel(invoice)
-                               setDeleteAssociatedQuote(false)
-                             }}>
-                               <RefreshCcw className="w-4 h-4" /> Annuler la facture
-                             </DropdownMenuItem>
-                          )}
-                          {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && !isInvoiceProtected(invoice) && (
-                            <>
-                              <div className="h-px bg-border my-1" />
-                              <DropdownMenuItem
-                                className="gap-2 text-destructive focus:text-destructive"
-                                onClick={() => setInvoiceToDeleteId(invoice.id)}
-                              >
-                                <Trash2 className="w-4 h-4" /> Supprimer
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-          {paginatedInvoices.length === 0 && (
-            <EmptyState
-              icon={FileText}
-              title={searchQuery ? "Aucun résultat" : "Aucune facture"}
-              description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
-            />
-          )}
-        </div>
-        </div>
-      )}
-
-      {viewFormat.invoices === 'block' && (
-        <div className="flex-1 overflow-y-auto min-h-0 pr-1">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {paginatedInvoices.map((invoice, index) => (
-            <motion.div
-              key={invoice.id}
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <Card className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm">
-                <CardContent className="p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                      <FileText className="w-5 h-5" />
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getPaymentBadge(invoice)}
-                    </div>
-                  </div>
-                  <h3 className="font-bold text-sm mb-1">{invoice.number}</h3>
-                  <p className="text-xs text-muted-foreground mb-2">{formatClientName(invoice.clientName)}</p>
-                  <div className="space-y-1 mb-3">
-                    <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                      <Calendar className="w-3 h-3" />
-                      <span>Émission: {formatDate(invoice.date)}</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                    <p className="text-sm font-semibold tracking-tight text-foreground text-right tabular-nums">{formatCurrency(invoice.total)}</p>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-                          <MoreVertical className="w-4 h-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-                        <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
-                          <Eye className="w-4 h-4" /> Aperçu
-                        </DropdownMenuItem>
-                        <DropdownMenuItem className="gap-2" onClick={() => setSelectedInvoice(invoice)}>
-                          <Printer className="w-4 h-4" /> Imprimer
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="gap-2"
-                          onClick={() => handleDownloadPDF(invoice)}
-                          disabled={isDownloading === invoice.id}
-                        >
-                          <Download className="w-4 h-4" />
-                          {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
-                        </DropdownMenuItem>
-                        {invoice.status !== 'PAID' && (user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && (
-                          <DropdownMenuItem className="gap-2 text-accent" onClick={() => markAsPaid(invoice)}>
-                            <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
-                          </DropdownMenuItem>
-                        )}
-                        {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && invoice.status !== INVOICE_STATUS.CANCELLED && !isInvoiceProtected(invoice) && (
-                          <DropdownMenuItem
-                            className="gap-2 text-orange-600"
-                            onClick={() => { setInvoiceToCancel(invoice); setDeleteAssociatedQuote(false) }}
-                          >
-                            <RefreshCcw className="w-4 h-4" /> Annuler
-                          </DropdownMenuItem>
-                        )}
-                        {(user?.role === 'user' || user?.role === 'admin') && (invoice.created_by === user?.id || user?.role === 'admin') && !isInvoiceProtected(invoice) && (
-                          <>
-                            <div className="h-px bg-border my-1" />
-                            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => setInvoiceToDeleteId(invoice.id)}>
-                                <Trash2 className="w-4 h-4" /> Supprimer
-                            </DropdownMenuItem>
-                          </>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-          {paginatedInvoices.length === 0 && (
-            <div className="col-span-full">
-              <EmptyState
-                icon={FileText}
-                title={searchQuery ? "Aucun résultat" : "Aucune facture"}
-                description={searchQuery ? "Aucune facture ne correspond à votre recherche." : "Les factures sont générées automatiquement après la conversion d'un devis accepté."}
-              />
-            </div>
-          )}
-        </div>
-        </div>
-      )}
+      <InvoiceViews
+        invoices={paginatedInvoices}
+        viewFormat={viewFormat.invoices || "table"}
+        user={user}
+        searchQuery={searchQuery}
+        isDownloading={isDownloading}
+        onPreview={(inv) => setSelectedInvoice(inv)}
+        onDownloadPDF={handleDownloadPDF}
+        onEdit={(id) => onEditInvoice(id)}
+        onRecordPayment={handleOpenPayment}
+        onEmitCreditNote={(inv) => setInvoiceForCreditNote(inv)}
+        onCancel={(inv) => {
+          setInvoiceToCancel(inv)
+          setDeleteAssociatedQuote(false)
+        }}
+        onDelete={(id) => setInvoiceToDeleteId(id)}
+        onCreateInvoice={onCreateInvoice}
+      />
 
       <Pagination
         currentPage={currentPage}
@@ -703,139 +341,53 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         />
       )}
 
-      <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="bg-card border-border" side="right">
-          <DialogHeader>
-            <DialogTitle className="text-foreground">Confirmer le règlement</DialogTitle>
-            <VisuallyHidden>
-              <DialogDescription>Formulaire pour enregistrer un paiement partiel ou total pour cette facture</DialogDescription>
-            </VisuallyHidden>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-                <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Type de règlement <span className="text-destructive">*</span></Label>
-                <Select value={paymentType} onValueChange={(val) => {
-                    setPaymentType(val);
-                    if (val === 'full' && paymentInvoice) {
-                        const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
-                        const remaining = paymentInvoice.total - totalPaid
-                        setPaymentAmount(remaining.toString());
-                    }
-                }}>
-                    <SelectTrigger className="bg-secondary border-border text-foreground h-11">
-                        <SelectValue placeholder="Sélectionner..." />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                        <SelectItem value="full">Solde complet (100%)</SelectItem>
-                        <SelectItem value="acompte">Acompte / Partiel</SelectItem>
-                    </SelectContent>
-                </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="payment-amount" className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Montant du paiement (XAF) <span className="text-destructive">*</span></Label>
-              <Input
-                id="payment-amount"
-                type="number"
-                value={paymentAmount}
-                onChange={(e) => {
-                    const value = parseFloat(e.target.value) || 0
-                    if (paymentInvoice) {
-                        const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
-                        const remaining = paymentInvoice.total - totalPaid
-                        if (value <= remaining) {
-                            setPaymentAmount(e.target.value)
-                        }
-                    } else {
-                        setPaymentAmount(e.target.value)
-                    }
-                }}
-                className="bg-secondary border-border h-11 font-bold text-lg"
-                disabled={paymentType === 'full'}
-              />
-              {paymentInvoice && (
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
-                      Reste à payer: {formatCurrency(paymentInvoice.total - (paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0))}
-                  </p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">Mode de règlement <span className="text-destructive">*</span></Label>
-              <Select value={paymentMethod} onValueChange={setPaymentMethod}>
-                <SelectTrigger className="bg-secondary border-border text-foreground h-11">
-                  <SelectValue placeholder="Sélectionner..." />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                    <SelectItem value="Espèces">Espèces</SelectItem>
-                    <SelectItem value="Airtel Money">Airtel Money</SelectItem>
-                    <SelectItem value="Moov Money">Moov Money</SelectItem>
-                    <SelectItem value="Virement Bancaire">Virement Bancaire</SelectItem>
-                    <SelectItem value="Chèque">Chèque</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button variant="success" onClick={confirmPayment} className="w-full font-bold h-11">
-              Valider l'encaissement
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <CreateCreditNoteModal
+        open={Boolean(invoiceForCreditNote)}
+        onOpenChange={(open) => !open && setInvoiceForCreditNote(null)}
+        initialInvoice={invoiceForCreditNote}
+        invoices={invoices}
+        creditNotes={creditNotes || []}
+      />
 
+      <PaymentDialog
+        isOpen={paymentDialogOpen}
+        onOpenChange={setPaymentDialogOpen}
+        invoice={paymentInvoice}
+        paymentType={paymentType}
+        onPaymentTypeChange={(val) => {
+          setPaymentType(val)
+          if (val === "full" && paymentInvoice) {
+            const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
+            setPaymentAmount((paymentInvoice.total - totalPaid).toString())
+          }
+        }}
+        paymentAmount={paymentAmount}
+        onPaymentAmountChange={(val) => {
+          const value = parseFloat(val) || 0
+          const remaining = paymentInvoice ? paymentInvoice.total - (paymentInvoice.payments?.reduce((s, p) => s + p.amount, 0) || 0) : Infinity
+          if (value <= remaining) setPaymentAmount(val)
+        }}
+        paymentMethod={paymentMethod}
+        onPaymentMethodChange={setPaymentMethod}
+        onConfirm={confirmPayment}
+        isSubmitting={isRecordingPayment}
+      />
 
+      <InvoiceDeleteDialog
+        invoiceId={invoiceToDeleteId}
+        onOpenChange={(open) => !open && setInvoiceToDeleteId(null)}
+        onConfirm={handleDelete}
+        isDeleting={isDeleting}
+      />
 
-      <AlertDialog open={invoiceToDeleteId !== null} onOpenChange={(open) => !open && !isDeleting && setInvoiceToDeleteId(null)}>
-        <AlertDialogContent className="bg-card border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">Confirmer la suppression</AlertDialogTitle>
-            <AlertDialogDescription>
-              Êtes-vous sûr de vouloir supprimer cette facture ? Cette action appliquera un Soft Delete pour conserver la traçabilité fiscale.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => invoiceToDeleteId && handleDelete(invoiceToDeleteId)}
-              disabled={isDeleting}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-            >
-              {isDeleting ? "Suppression..." : "Supprimer"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-
-      <AlertDialog open={invoiceToCancel !== null} onOpenChange={(open) => !open && !isCancelling && setInvoiceToCancel(null)}>
-        <AlertDialogContent className="bg-card border-border">
-          <AlertDialogHeader>
-            <AlertDialogTitle className="text-foreground">
-              Annuler la facture {invoiceToCancel?.number}
-            </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-4">
-              <span>
-                Cette action va générer un avoir pour annuler comptablement cette facture.
-              </span>
-              {invoiceToCancel?.quoteId && (
-                <div className="flex items-center justify-between p-3 rounded-lg bg-secondary/50 border border-border mt-3">
-                  <div className="space-y-0.5 text-left">
-                    <Label className="text-sm font-medium">Supprimer également le devis associé</Label>
-                    <p className="text-[10px] text-muted-foreground">Le devis lié sera également marqué comme supprimé</p>
-                  </div>
-                  <Switch checked={deleteAssociatedQuote} onCheckedChange={setDeleteAssociatedQuote} disabled={isCancelling} />
-                </div>
-              )}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={isCancelling}>Retour</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={confirmCancelInvoice}
-              disabled={isCancelling}
-              className="bg-orange-600 hover:bg-orange-700 text-white"
-            >
-              {isCancelling ? "Annulation..." : "Confirmer l'annulation"}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <InvoiceCancelDialog
+        invoice={invoiceToCancel}
+        onOpenChange={(open) => !open && setInvoiceToCancel(null)}
+        deleteAssociatedQuote={deleteAssociatedQuote}
+        onDeleteAssociatedQuoteChange={setDeleteAssociatedQuote}
+        onConfirm={confirmCancelInvoice}
+        isCancelling={isCancelling}
+      />
     </div>
   )
 }

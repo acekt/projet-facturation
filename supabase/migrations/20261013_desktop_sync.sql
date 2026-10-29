@@ -176,23 +176,9 @@ revoke all on function public.attach_member(uuid, text, text, text) from public;
 grant execute on function public.attach_member(uuid, text, text, text) to authenticated;
 
 -- ---------------------------------------------------------------------------
--- 5. Nettoyage préventif des tables héritées incomplètes (sans server_updated_at)
---    Renommées en *_legacy de manière sûre et sans collision
+-- 5. Ancien bloc de renommage *_legacy (désactivé par le plan curatif H3 / ADR-0039)
+--    Les tables métier sont créées directement en section 6.
 -- ---------------------------------------------------------------------------
-do $$
-declare t text;
-begin
-  foreach t in array array['clients','services','quotes','quote_items','invoices','invoice_items',
-                           'payments','credit_notes','credit_note_items','audit_logs','tenant_settings'] loop
-    if exists (select 1 from information_schema.tables where table_schema = 'public' and table_name = t)
-       and not exists (select 1 from information_schema.columns
-                       where table_schema = 'public' and table_name = t and column_name = 'server_updated_at') then
-      execute format('drop table if exists public.%I cascade', t || '_legacy');
-      execute format('alter table public.%I rename to %I', t, t || '_legacy');
-      raise notice 'Table héritée % renommée en %_legacy', t, t;
-    end if;
-  end loop;
-end $$;
 
 -- ---------------------------------------------------------------------------
 -- 6. Tables métier (miroir snake_case du schéma SQLite local)

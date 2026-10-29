@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3';
 import crypto from 'crypto';
+import { runMigrations } from '@/lib/db/migrations';
 
 // ============================================================================
 // DATABASE TYPES FOR TESTS
@@ -90,280 +91,8 @@ export function createTestDatabase(): Database.Database {
   testDb = new Database(':memory:');
   testDb.pragma('foreign_keys = ON');
 
-  // Initialize schema
-  testDb.exec(`
-    CREATE TABLE IF NOT EXISTS settings (
-      id INTEGER PRIMARY KEY CHECK (id = 1),
-      companyName TEXT,
-      legalForm TEXT,
-      nif TEXT,
-      rccm TEXT,
-      address TEXT,
-      email TEXT,
-      phone TEXT,
-      bankName TEXT,
-      bankAgency TEXT,
-      accountNumber TEXT,
-      swiftCode TEXT,
-      iban TEXT,
-      tvaRate REAL,
-      tpsRate REAL DEFAULT 9.5,
-      cssRate REAL,
-      sessionTimeout INTEGER,
-      invoicePrefix TEXT,
-      quotePrefix TEXT,
-      companyCode TEXT,
-      mentionsLegales TEXT,
-      logo TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      username TEXT UNIQUE NOT NULL,
-      email TEXT UNIQUE,
-      password TEXT NOT NULL,
-      name TEXT NOT NULL,
-      role TEXT CHECK(role IN ('admin', 'user')) NOT NULL DEFAULT 'user',
-      is_active INTEGER NOT NULL DEFAULT 1,
-      force_password_change INTEGER NOT NULL DEFAULT 0,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      last_login_at DATETIME,
-      created_by TEXT,
-      phone TEXT,
-      deletedAt DATETIME,
-      tenant_id TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS clients (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT,
-      phone TEXT,
-      address TEXT,
-      nif TEXT,
-      rccm TEXT,
-      status TEXT DEFAULT 'active',
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      deletedAt DATETIME,
-      created_by TEXT,
-      tenant_id TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS quotes (
-      id TEXT PRIMARY KEY,
-      number TEXT UNIQUE NOT NULL,
-      clientId TEXT NOT NULL,
-      clientName TEXT,
-      clientEmail TEXT,
-      date TEXT NOT NULL,
-      dueDate TEXT,
-      subtotal REAL DEFAULT 0,
-      discount REAL DEFAULT 0,
-      taxBase REAL DEFAULT 0,
-      tpsAmount REAL DEFAULT 0,
-      tvaAmount REAL DEFAULT 0,
-      cssAmount REAL DEFAULT 0,
-      total REAL DEFAULT 0,
-      status TEXT DEFAULT 'draft',
-      notes TEXT,
-      subject TEXT,
-      validUntil TEXT,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      deletedAt DATETIME,
-      created_by TEXT,
-      tenant_id TEXT,
-    FOREIGN KEY (clientId) REFERENCES clients(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS quote_items (
-      id TEXT PRIMARY KEY,
-      quoteId TEXT NOT NULL,
-      description TEXT NOT NULL,
-      quantity REAL DEFAULT 1,
-      unitPrice REAL DEFAULT 0,
-      total REAL DEFAULT 0,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      deletedAt DATETIME,
-      tenant_id TEXT,
-    FOREIGN KEY (quoteId) REFERENCES quotes(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS invoices (
-      id TEXT PRIMARY KEY,
-      number TEXT UNIQUE NOT NULL,
-      quoteId TEXT,
-      clientId TEXT NOT NULL,
-      clientName TEXT,
-      clientEmail TEXT,
-      date TEXT NOT NULL,
-      dueDate TEXT,
-      subtotal REAL DEFAULT 0,
-      discount REAL DEFAULT 0,
-      taxBase REAL DEFAULT 0,
-      tpsAmount REAL DEFAULT 0,
-      tvaAmount REAL DEFAULT 0,
-      cssAmount REAL DEFAULT 0,
-      total REAL DEFAULT 0,
-      status TEXT DEFAULT 'pending',
-      notes TEXT,
-      subject TEXT,
-      validUntil TEXT,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      deletedAt DATETIME,
-      created_by TEXT,
-      tenant_id TEXT,
-    FOREIGN KEY (clientId) REFERENCES clients(id),
-      FOREIGN KEY (quoteId) REFERENCES quotes(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS invoice_items (
-      id TEXT PRIMARY KEY,
-      invoiceId TEXT NOT NULL,
-      description TEXT NOT NULL,
-      quantity REAL NOT NULL,
-      unitPrice REAL NOT NULL,
-      total REAL NOT NULL,
-      tenant_id TEXT,
-      deletedAt DATETIME,
-    FOREIGN KEY (invoiceId) REFERENCES invoices(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS payments (
-      id TEXT PRIMARY KEY,
-      invoiceId TEXT NOT NULL,
-      amount REAL NOT NULL,
-      paymentMethod TEXT NOT NULL,
-      date TEXT NOT NULL,
-      reference TEXT,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      deletedAt DATETIME,
-      created_by TEXT,
-      tenant_id TEXT,
-    FOREIGN KEY (invoiceId) REFERENCES invoices(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS sequences (
-      name TEXT PRIMARY KEY,
-      current_value INTEGER DEFAULT 0,
-      last_year INTEGER
-    );
-
-    CREATE TABLE IF NOT EXISTS services (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      description TEXT,
-      category TEXT,
-      unitPrice REAL DEFAULT 0,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      deletedAt DATETIME,
-      created_by TEXT,
-      tenant_id TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS credit_notes (
-      id TEXT PRIMARY KEY,
-      number TEXT UNIQUE NOT NULL,
-      invoiceId TEXT NOT NULL,
-      clientId TEXT NOT NULL,
-      clientName TEXT,
-      date TEXT NOT NULL,
-      reason TEXT,
-      subtotal REAL DEFAULT 0,
-      taxBase REAL DEFAULT 0,
-      tpsAmount REAL DEFAULT 0,
-      tvaAmount REAL DEFAULT 0,
-      cssAmount REAL DEFAULT 0,
-      total REAL DEFAULT 0,
-      status TEXT DEFAULT 'open',
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      created_by TEXT,
-      deletedAt DATETIME,
-      tenant_id TEXT,
-    FOREIGN KEY (invoiceId) REFERENCES invoices(id),
-      FOREIGN KEY (clientId) REFERENCES clients(id)
-    );
-
-    CREATE TABLE IF NOT EXISTS credit_note_items (
-      id TEXT PRIMARY KEY,
-      creditNoteId TEXT NOT NULL,
-      description TEXT NOT NULL,
-      quantity REAL NOT NULL,
-      unitPrice REAL NOT NULL,
-      total REAL NOT NULL,
-      tenant_id TEXT,
-      deletedAt DATETIME,
-    FOREIGN KEY (creditNoteId) REFERENCES credit_notes(id) ON DELETE CASCADE
-    );
-
-    CREATE TABLE IF NOT EXISTS pending_cloud_members (
-      email TEXT PRIMARY KEY,
-      password TEXT NOT NULL,
-      name TEXT NOT NULL,
-      phone TEXT,
-      role TEXT NOT NULL,
-      attempts INTEGER NOT NULL DEFAULT 0,
-      last_error TEXT,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    );
-
-    CREATE TABLE IF NOT EXISTS _sync_tombstones (
-      table_name TEXT NOT NULL,
-      record_id TEXT NOT NULL,
-      deleted_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      PRIMARY KEY (table_name, record_id)
-    );
-
-    CREATE TABLE IF NOT EXISTS sync_meta (
-      key TEXT PRIMARY KEY,
-      value TEXT
-    );
-
-    CREATE TABLE IF NOT EXISTS audit_logs (
-      id TEXT PRIMARY KEY,
-      userId TEXT,
-      userName TEXT,
-      action TEXT NOT NULL,
-      entityType TEXT NOT NULL,
-      entityId TEXT,
-      details TEXT,
-      createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
-      tenant_id TEXT
-    );
-
-    INSERT OR IGNORE INTO sequences (name, current_value, last_year) VALUES ('quote', 0, strftime('%Y', 'now'));
-    INSERT OR IGNORE INTO sequences (name, current_value, last_year) VALUES ('invoice', 0, strftime('%Y', 'now'));
-
-    CREATE INDEX IF NOT EXISTS idx_clients_deletedAt ON clients(deletedAt);
-    CREATE INDEX IF NOT EXISTS idx_quotes_deletedAt ON quotes(deletedAt);
-    CREATE INDEX IF NOT EXISTS idx_quotes_clientId ON quotes(clientId);
-    CREATE INDEX IF NOT EXISTS idx_invoices_deletedAt ON invoices(deletedAt);
-    CREATE INDEX IF NOT EXISTS idx_invoices_clientId ON invoices(clientId);
-    CREATE INDEX IF NOT EXISTS idx_invoices_quoteId ON invoices(quoteId);
-    CREATE INDEX IF NOT EXISTS idx_payments_deletedAt ON payments(deletedAt);
-    CREATE INDEX IF NOT EXISTS idx_payments_invoiceId ON payments(invoiceId);
-    CREATE INDEX IF NOT EXISTS idx_credit_notes_deletedAt ON credit_notes(deletedAt);
-    CREATE INDEX IF NOT EXISTS idx_credit_notes_invoiceId ON credit_notes(invoiceId);
-    CREATE INDEX IF NOT EXISTS idx_credit_notes_clientId ON credit_notes(clientId);
-    CREATE INDEX IF NOT EXISTS idx_services_deletedAt ON services(deletedAt);
-    CREATE INDEX IF NOT EXISTS idx_quote_items_quoteId ON quote_items(quoteId);
-    CREATE INDEX IF NOT EXISTS idx_invoice_items_invoiceId ON invoice_items(invoiceId);
-    CREATE INDEX IF NOT EXISTS idx_credit_note_items_creditNoteId ON credit_note_items(creditNoteId);
-    CREATE INDEX IF NOT EXISTS idx_clients_tenant_email ON clients(tenant_id, lower(email)) WHERE deletedAt IS NULL AND email IS NOT NULL;
-    CREATE INDEX IF NOT EXISTS idx_clients_tenant_name ON clients(tenant_id, lower(name)) WHERE deletedAt IS NULL;
-    CREATE INDEX IF NOT EXISTS idx_services_tenant_name ON services(tenant_id, lower(name)) WHERE deletedAt IS NULL;
-    CREATE INDEX IF NOT EXISTS idx_invoices_client_status ON invoices(tenant_id, clientId, status) WHERE deletedAt IS NULL;
-    CREATE INDEX IF NOT EXISTS idx_quotes_tenant_date ON quotes(tenant_id, date DESC) WHERE deletedAt IS NULL;
-    CREATE INDEX IF NOT EXISTS idx_quotes_tenant_client ON quotes(tenant_id, clientId) WHERE deletedAt IS NULL;
-    CREATE INDEX IF NOT EXISTS idx_quotes_tenant_status ON quotes(tenant_id, status) WHERE deletedAt IS NULL;
-    CREATE INDEX IF NOT EXISTS idx_quotes_tenant_number ON quotes(tenant_id, number) WHERE deletedAt IS NULL;
-    CREATE INDEX IF NOT EXISTS idx_quote_items_quote_tenant ON quote_items(quoteId, tenant_id);
-    CREATE INDEX IF NOT EXISTS idx_invoices_tenant_date ON invoices(tenant_id, date DESC) WHERE deletedAt IS NULL;
-    CREATE INDEX IF NOT EXISTS idx_invoices_tenant_number ON invoices(tenant_id, number) WHERE deletedAt IS NULL;
-    CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_tenant ON invoice_items(invoiceId, tenant_id);
-    CREATE INDEX IF NOT EXISTS idx_credit_notes_tenant_date ON credit_notes(tenant_id, date DESC) WHERE deletedAt IS NULL;
-    CREATE INDEX IF NOT EXISTS idx_credit_notes_tenant_invoice ON credit_notes(tenant_id, invoiceId) WHERE deletedAt IS NULL;
-    CREATE INDEX IF NOT EXISTS idx_credit_note_items_cn_tenant ON credit_note_items(creditNoteId, tenant_id);
-  `);
+  // Initialize and migrate schema via versioned runner (ADR-0040)
+  runMigrations(testDb);
 
   return testDb;
 }
@@ -389,8 +118,8 @@ export function seedTestData(db?: Database.Database): void {
   // Insert admin user (using INSERT OR REPLACE to handle duplicates)
   const adminId = crypto.randomUUID();
   db.prepare(`
-    INSERT OR REPLACE INTO users (id, username, email, password, name, role, is_active, force_password_change, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO users (id, username, email, password, name, role, is_active, force_password_change, created_at, tenant_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     adminId,
     'admin',
@@ -400,14 +129,15 @@ export function seedTestData(db?: Database.Database): void {
     'admin',
     1,
     0,
-    new Date().toISOString()
+    new Date().toISOString(),
+    '00000000-0000-4000-a000-000000000001'
   );
 
   // Insert regular user (using INSERT OR REPLACE to handle duplicates)
   const userId = crypto.randomUUID();
   db.prepare(`
-    INSERT OR REPLACE INTO users (id, username, email, password, name, role, is_active, force_password_change, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO users (id, username, email, password, name, role, is_active, force_password_change, created_at, tenant_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     userId,
     'user',
@@ -417,14 +147,15 @@ export function seedTestData(db?: Database.Database): void {
     'user',
     1,
     0,
-    new Date().toISOString()
+    new Date().toISOString(),
+    '00000000-0000-4000-a000-000000000001'
   );
 
   // Insert test client (using INSERT OR REPLACE to handle duplicates)
   const clientId = 'client-1';
   db.prepare(`
-    INSERT OR REPLACE INTO clients (id, name, email, phone, address, status, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO clients (id, name, email, phone, address, status, createdAt, tenant_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     clientId,
     'Test Client',
@@ -432,14 +163,15 @@ export function seedTestData(db?: Database.Database): void {
     '+241 01 23 45 67',
     '123 Test Street, Libreville',
     'active',
-    new Date().toISOString()
+    new Date().toISOString(),
+    '00000000-0000-4000-a000-000000000001'
   );
 
   // Insert test invoice (using INSERT OR REPLACE to handle duplicates)
   const invoiceId = crypto.randomUUID();
   db.prepare(`
-    INSERT OR REPLACE INTO invoices (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tpsAmount, tvaAmount, cssAmount, total, status, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO invoices (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tpsAmount, tvaAmount, cssAmount, total, status, createdAt, tenant_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     invoiceId,
     'FAC-001/GM/2026',
@@ -456,7 +188,8 @@ export function seedTestData(db?: Database.Database): void {
     100,
     11850,
     'UNPAID',
-    new Date().toISOString()
+    new Date().toISOString(),
+    '00000000-0000-4000-a000-000000000001'
   );
 
   // Insert sequence values (using INSERT OR REPLACE to handle duplicates)
@@ -589,8 +322,8 @@ export function createTestInvoice(netHt: number, clientId?: string): string {
   const total = netHt + cssAmount + tvaAmount + tpsAmount;
   
   db.prepare(`
-    INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tpsAmount, tvaAmount, cssAmount, total, status, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, dueDate, subtotal, discount, taxBase, tpsAmount, tvaAmount, cssAmount, total, status, createdAt, tenant_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     invoiceId,
     invoiceNumber,
@@ -607,7 +340,8 @@ export function createTestInvoice(netHt: number, clientId?: string): string {
     cssAmount,
     total,
     'UNPAID',
-    new Date().toISOString()
+    new Date().toISOString(),
+    '00000000-0000-4000-a000-000000000001'
   );
 
   db.prepare("UPDATE sequences SET current_value = current_value + 1 WHERE name = 'invoice'").run();
@@ -628,8 +362,8 @@ export function createTestPayment(invoiceId: string, amount: number, paymentMeth
   const paymentId = crypto.randomUUID();
   
   db.prepare(`
-    INSERT INTO payments (id, invoiceId, amount, paymentMethod, date, reference, createdAt)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO payments (id, invoiceId, amount, paymentMethod, date, reference, createdAt, tenant_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     paymentId,
     invoiceId,
@@ -637,7 +371,8 @@ export function createTestPayment(invoiceId: string, amount: number, paymentMeth
     paymentMethod,
     '2026-01-01',
     `REF-${crypto.randomUUID().slice(0, 8).toUpperCase()}`,
-    new Date().toISOString()
+    new Date().toISOString(),
+    '00000000-0000-4000-a000-000000000001'
   );
   
   return paymentId;

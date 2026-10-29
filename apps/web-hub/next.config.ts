@@ -4,6 +4,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   experimental: {
+    cpus: 4,
     authInterrupts: true,
     staleTimes: {
       dynamic: 30,
@@ -11,14 +12,6 @@ const nextConfig: NextConfig = {
     },
   },
   transpilePackages: ["@workspace/ui", "@workspace/database"],
-  turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
-  },
   async headers() {
     return [
       {

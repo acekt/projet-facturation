@@ -8,7 +8,7 @@ vi.mock('@/lib/db', () => ({
   default: getTestDatabase(),
 }));
 
-import { middleware } from '@/middleware';
+import { middleware } from '@/proxy';
 import { POST as POSTLogin } from '@/app/api/auth/login/route';
 
 // Helper to sign a session cookie using Web Crypto API (HMAC SHA-256) matching middleware format

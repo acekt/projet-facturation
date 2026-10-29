@@ -20,7 +20,7 @@ export interface IUpdateProgressPayload {
 }
 
 export interface IElectronUpdaterBridge {
-  check: () => Promise<{ success: boolean; updateAvailable?: boolean; isDev?: boolean; info?: any; error?: string }>;
+  check: () => Promise<{ success: boolean; updateAvailable?: boolean; isDev?: boolean; info?: Record<string, unknown>; error?: string }>;
   download: () => Promise<{ success: boolean; error?: string }>;
   install: () => Promise<{ success: boolean; error?: string }>;
   onStatus: (callback: (data: IUpdateStatusPayload) => void) => () => void;
