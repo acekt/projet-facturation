@@ -19,11 +19,11 @@ import {
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu"
 import { StatusBadge, getInvoiceStatusVariant } from "@workspace/ui/components/status-badge"
-import type { CreditNote } from "@/lib/store"
+import type { CreditNote, Invoice } from "@/lib/store"
 import { formatCurrency, formatDate } from "@/lib/utils"
 
 export interface InvoiceStatusInfo {
-  status: string
+  status: Invoice["status"]
   total: number
   paidAmount: number
   remainingAmount: number

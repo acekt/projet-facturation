@@ -11,7 +11,7 @@ export interface SearchBarProps {
   placeholder?: string
   value: string
   onChange: (value: string) => void
-  viewFormatKey?: 'clients' | 'invoices' | 'quotes' | 'services'
+  viewFormatKey?: 'clients' | 'invoices' | 'quotes' | 'services' | 'creditNotes'
   className?: string
 }
 

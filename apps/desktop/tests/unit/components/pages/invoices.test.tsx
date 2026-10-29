@@ -160,7 +160,7 @@ describe('InvoicesPage Component', () => {
     expect(screen.getByTestId('select-item-UNPAID')).toBeInTheDocument();
     expect(screen.getByTestId('select-item-PAID')).toBeInTheDocument();
     expect(screen.getByTestId('select-item-PARTIALLY_PAID')).toBeInTheDocument();
-    expect(screen.getByTestId('select-item-OVERDUE')).toBeInTheDocument();
+    expect(screen.getByTestId('select-item-overdue')).toBeInTheDocument();
     expect(screen.getByTestId('select-item-cancelled')).toBeInTheDocument();
   });
 });

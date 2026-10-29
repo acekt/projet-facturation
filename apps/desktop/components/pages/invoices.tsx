@@ -81,7 +81,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
   const [statusFilter, setStatusFilter] = React.useState<string>("all")
 
   const unpaidCount = React.useMemo(() => {
-    return invoices.filter((inv) => !inv.deletedAt && (inv.status === "UNPAID" || inv.status === "PARTIALLY_PAID" || inv.status === "OVERDUE")).length
+    return invoices.filter((inv) => !inv.deletedAt && (inv.status === "UNPAID" || inv.status === "PARTIALLY_PAID" || inv.status === "overdue")).length
   }, [invoices])
 
   const filteredInvoices = React.useMemo(() => {
@@ -93,7 +93,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         (invoice.clientEmail || "").toLowerCase().includes(q)
       if (statusFilter === "all") return matchesSearch
       if (statusFilter === "unpaid_any") {
-        return matchesSearch && (invoice.status === "UNPAID" || invoice.status === "PARTIALLY_PAID" || invoice.status === "OVERDUE")
+        return matchesSearch && (invoice.status === "UNPAID" || invoice.status === "PARTIALLY_PAID" || invoice.status === "overdue")
       }
       return matchesSearch && invoice.status === statusFilter
     })

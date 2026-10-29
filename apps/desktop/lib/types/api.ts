@@ -226,8 +226,8 @@ export interface InvoiceCreateRequest {
   date: string;
   dueDate?: string | null;
   discount: number;
-  notes?: string;
-  subject?: string;
+  notes?: string | null;
+  subject?: string | null;
   items: Array<{
     description: string;
     quantity: number;
@@ -253,8 +253,8 @@ export interface DbInvoice {
   tpsAmount?: number;
   cssAmount: number;
   total: number;
-  notes?: string;
-  subject?: string;
+  notes?: string | null;
+  subject?: string | null;
   status: InvoiceStatus;
   deletedAt?: string;
   createdAt: string;
@@ -343,8 +343,8 @@ export interface QuoteCreateRequest {
   clientEmail?: string | null;
   date: string;
   discount: number;
-  notes?: string;
-  subject?: string;
+  notes?: string | null;
+  subject?: string | null;
   validUntil?: string | null;
   items: Array<{
     description: string;
@@ -369,8 +369,8 @@ export interface DbQuote {
   tpsAmount?: number;
   cssAmount: number;
   total: number;
-  notes?: string;
-  subject?: string;
+  notes?: string | null;
+  subject?: string | null;
   validUntil?: string | null;
   status: QuoteStatus;
   deletedAt?: string | null;

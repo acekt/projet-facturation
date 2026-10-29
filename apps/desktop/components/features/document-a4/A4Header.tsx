@@ -10,8 +10,8 @@ interface A4HeaderProps {
   type: DocumentType;
   docNumber: string;
   docDate: string;
-  validUntil?: string;
-  dueDate?: string;
+  validUntil?: string | null;
+  dueDate?: string | null;
 }
 
 function fmtDate(s: string): string {

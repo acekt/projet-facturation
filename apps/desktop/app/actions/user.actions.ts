@@ -81,7 +81,8 @@ export async function createUser(data: any): Promise<ActionResponse<UserResponse
         tenant_id: activeTenantId,
       });
     } catch (error: unknown) {
-      if (error.code === 'SQLITE_CONSTRAINT_UNIQUE' || error.message?.includes('UNIQUE constraint failed')) {
+      const err = error as { code?: string; message?: string };
+      if (err.code === 'SQLITE_CONSTRAINT_UNIQUE' || err.message?.includes('UNIQUE constraint failed')) {
         return { success: false, error: 'Un utilisateur avec cet email ou identifiant existe déjà.' };
       }
       throw error;
@@ -112,7 +113,8 @@ export async function createUser(data: any): Promise<ActionResponse<UserResponse
     return { success: true, data: userResponse };
   } catch (error: unknown) {
     console.error('[Action createUser] Error:', error);
-    if (error?.code === 'SQLITE_CONSTRAINT_UNIQUE' || error?.message?.includes('UNIQUE constraint failed')) {
+    const err = error as { code?: string; message?: string };
+    if (err.code === 'SQLITE_CONSTRAINT_UNIQUE' || err.message?.includes('UNIQUE constraint failed')) {
       return { success: false, error: 'Un utilisateur avec cet email ou identifiant existe déjà.' };
     }
     return { success: false, error: getErrorMessage(error, 'Failed to create user') };

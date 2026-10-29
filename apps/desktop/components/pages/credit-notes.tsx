@@ -84,40 +84,10 @@ export function CreditNotesPage() {
     setIsDownloading(note.id)
     try {
       const { pdf } = await import("@react-pdf/renderer")
-      const { DocumentA4PDF } = await import("@/components/document-a4-pdf")
-
-      const client = {
-        name: note.clientName,
-        email: "",
-        phone: "",
-        address: "",
-      }
-
-      const docItems = (note.items || []).map((it) => ({
-        description: it.description,
-        quantity: it.quantity,
-        unitPrice: it.unitPrice,
-        total: it.total,
-      }))
-
-      const docData = {
-        ...note,
-        type: "avoir",
-        items: docItems,
-        subtotal: note.subtotal,
-        taxBase: note.taxBase || note.subtotal,
-        tpsRate: settings.tpsRate,
-        tpsAmount: note.tpsAmount || 0,
-        tvaRate: settings.tvaRate,
-        tvaAmount: note.tvaAmount || 0,
-        cssRate: settings.cssRate,
-        cssAmount: note.cssAmount || 0,
-        total: note.total,
-        notes: note.reason ? `Motif de l'avoir: ${note.reason}` : "",
-      }
+      const { PDFDocument } = await import("@/components/pdf-document")
 
       const blob = await pdf(
-        <DocumentA4PDF data={docData} settings={settings} client={client} />
+        <PDFDocument document={note} type="avoir" settings={settings} />
       ).toBlob()
 
       const url = URL.createObjectURL(blob)
@@ -195,14 +165,14 @@ export function CreditNotesPage() {
               setSearchQuery(val)
               setCurrentPage(1)
             }}
-            viewFormatKey="credit-notes"
+            viewFormatKey="creditNotes"
           />
         </div>
       </div>
 
       <CreditNoteViews
         creditNotes={paginated}
-        viewFormat={viewFormat["credit-notes"] || "table"}
+        viewFormat={viewFormat.creditNotes || "table"}
         isDownloading={isDownloading}
         getInvoiceStatusInfo={getInvoiceStatusInfo}
         onPreview={(note) => setPreviewNote(note)}

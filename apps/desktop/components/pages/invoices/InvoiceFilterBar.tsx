@@ -44,7 +44,7 @@ export function InvoiceFilterBar({
               <SelectItem value="UNPAID">Non payées</SelectItem>
               <SelectItem value="PARTIALLY_PAID">Partiellement payées</SelectItem>
               <SelectItem value="PAID">Payées</SelectItem>
-              <SelectItem value="OVERDUE">En retard</SelectItem>
+              <SelectItem value="overdue">En retard</SelectItem>
               <SelectItem value="cancelled">Annulées</SelectItem>
             </SelectContent>
           </Select>

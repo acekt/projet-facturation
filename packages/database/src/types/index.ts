@@ -123,8 +123,8 @@ export interface IQuote {
   cssAmount: number;
   total: number;
   taxModelVersion?: number;
-  notes?: string;
-  subject?: string;
+  notes?: string | null;
+  subject?: string | null;
   validUntil?: string | null;
   status: QuoteStatus;
   items: IQuoteItem[];
@@ -184,8 +184,8 @@ export interface IInvoice {
   cssAmount: number;
   total: number;
   taxModelVersion?: number;
-  notes?: string;
-  subject?: string;
+  notes?: string | null;
+  subject?: string | null;
   status: InvoiceStatus;
   items: IInvoiceItem[];
   payments: IPayment[];

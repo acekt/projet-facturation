@@ -79,7 +79,7 @@ interface SidebarProps {
   onPageChange: (page: string) => void
   collapsed: boolean
   onToggle: () => void
-  user?: User | null
+  user?: any
 }
 
 export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: propUser }: SidebarProps) {
@@ -101,7 +101,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
     [invoices]
   )
   const pendingQuotesCount = React.useMemo(
-    () => quotes.filter((q) => !q.deletedAt && (q.status === 'EN_ATTENTE' || q.status === 'pending')).length,
+    () => quotes.filter((q) => !q.deletedAt && q.status === 'EN_ATTENTE').length,
     [quotes]
   )
 

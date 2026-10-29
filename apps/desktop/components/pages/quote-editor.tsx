@@ -16,6 +16,7 @@ import { EditorItemsTable } from "@/components/editor/EditorItemsTable";
 import { FiscalSummaryCard } from "@/components/editor/FiscalSummaryCard";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
+import type { QuoteCreateRequest } from "@/lib/types/api";
 
 interface QuoteEditorProps {
   onBack: () => void;
@@ -248,7 +249,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
     setIsSubmitting(true);
     try {
-      const payload = {
+      const payload: QuoteCreateRequest = {
         clientId: selectedClient.id,
         clientName: selectedClient.name,
         clientEmail: selectedClient.email || null,
@@ -258,11 +259,10 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
           quantity: Number(it.quantity) || 1,
           unitPrice: Math.max(0, Math.round(Number(it.unitPrice) || 0)),
         })),
-        notes: notes?.trim() || null,
-        subject: subject?.trim() || null,
+        notes: notes?.trim() || undefined,
+        subject: subject?.trim() || undefined,
         validUntil: validUntil && validUntil.trim() !== "" ? validUntil.trim() : null,
         discount: Math.max(0, Math.round(Number(discount) || 0)),
-        status: targetStatus,
       };
 
       const response = editingId
