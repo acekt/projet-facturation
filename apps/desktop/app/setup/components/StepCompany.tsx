@@ -110,15 +110,15 @@ export function StepCompany({ wizard }: StepCompanyProps) {
         </TabsContent>
       </Tabs>
 
-      <div className="pt-2">
+      <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm pt-3 pb-2 border-t border-border/40 z-10">
         <Button
           type="submit"
-          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-extrabold text-sm h-12 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
+          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-extrabold text-sm h-11 rounded-xl shadow-md hover:shadow-lg transition-all cursor-pointer flex items-center justify-center gap-2"
         >
           <span>Continuer vers l'accès administrateur</span>
           <ChevronRight className="w-4 h-4" />
         </Button>
-        <p className="text-center text-[11px] text-muted-foreground mt-2 font-medium">
+        <p className="text-center text-[11px] text-muted-foreground mt-1.5 font-medium">
           Étape 1/2 • Vos données restent enregistrées localement sur votre ordinateur
         </p>
       </div>

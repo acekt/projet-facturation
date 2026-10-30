@@ -2,7 +2,7 @@
 
 const path = require('path');
 const fs = require('fs');
-const { BrowserWindow, nativeImage, app } = require('electron');
+const { BrowserWindow, nativeImage, app, nativeTheme } = require('electron');
 
 let mainWindow = null;
 let splashWindow = null;
@@ -75,6 +75,7 @@ function createSplashWindow({ resourcesPath, baseDir, logToFile }) {
   if (splashWindow && !splashWindow.isDestroyed()) return;
 
   const appIcon = resolveAppIcon(resourcesPath, baseDir, logToFile);
+  const isDark = nativeTheme && nativeTheme.shouldUseDarkColors;
   const splashOpts = {
     width: 400,
     height: 300,
@@ -83,7 +84,7 @@ function createSplashWindow({ resourcesPath, baseDir, logToFile }) {
     transparent: false,
     resizable: false,
     show: false,
-    backgroundColor: '#fafafa',
+    backgroundColor: isDark ? '#09090b' : '#fafafa',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
@@ -142,6 +143,7 @@ function createMainWindow({
   scanForDevServerFn,
 }) {
   const appIcon = resolveAppIcon(resourcesPath, baseDir, logToFile);
+  const isDark = nativeTheme && nativeTheme.shouldUseDarkColors;
   const winOpts = {
     width: 1280,
     height: 820,
@@ -157,7 +159,7 @@ function createMainWindow({
       webSecurity: !isDev,
     },
     show: false,
-    backgroundColor: '#fafafa',
+    backgroundColor: isDark ? '#09090b' : '#fafafa',
   };
   if (appIcon) {
     winOpts.icon = appIcon;

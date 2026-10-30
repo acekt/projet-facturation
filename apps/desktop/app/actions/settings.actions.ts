@@ -4,6 +4,7 @@ import { getSession } from '@/lib/api/auth';
 import { logAudit } from '@/lib/api/audit';
 import { resolveActiveTenantId } from '@/lib/api/tenant';
 import db from '@/lib/db';
+import { SettingsRepository } from '@/lib/repositories/SettingsRepository';
 import { settingsSchema } from '@/lib/validations';
 import type { SettingsUpdateRequest, DbSettings } from '@/lib/types/api';
 import type { ActionResponse } from './client.actions';
@@ -45,17 +46,24 @@ export async function updateSettings(data: SettingsUpdateRequest): Promise<Actio
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
     const validData = validation.data;
     const fields = Object.keys(validData);
-    const columns = ['id', ...fields, 'tenant_id'].join(', ');
-    const placeholders = ['1', ...fields.map(() => '?'), '?'].join(', ');
-    const values = [...Object.values(validData), activeTenantId];
 
     try {
-      const result = db.prepare(
-        `INSERT OR REPLACE INTO settings (${columns}) VALUES (${placeholders})`
-      ).run(...values);
+      const exists = db.prepare('SELECT id FROM settings WHERE id = 1').get();
+      if (!exists) {
+        SettingsRepository.upsertInitialSettings({
+          ...validData,
+          tenant_id: activeTenantId,
+        });
+      } else {
+        const setClauses = fields.map((col) => `${col} = ?`).join(', ');
+        const values = [...Object.values(validData), activeTenantId];
+        const result = db.prepare(
+          `UPDATE settings SET ${setClauses}, tenant_id = ? WHERE id = 1`
+        ).run(...values);
 
-      if (result.changes === 0) {
-        return { success: false, error: "L'enregistrement n'a pas modifié la base de données." };
+        if (result.changes === 0) {
+          return { success: false, error: "L'enregistrement n'a pas modifié la base de données." };
+        }
       }
     } catch (dbError: unknown) {
       console.error('[Action updateSettings] Erreur SQLite:', dbError);

@@ -1,7 +1,9 @@
 import db from '@/lib/db';
 
 interface DbSettings {
-  companyCode: string;
+  companyCode?: string | null;
+  invoicePrefix?: string | null;
+  quotePrefix?: string | null;
 }
 
 interface DbSequence {
@@ -28,7 +30,7 @@ export function formatDocNumber(
   return `${prefix}-${devPrefix}${padded}/${code}/${year}`;
 }
 
-const getSettingsStmt = db.prepare('SELECT companyCode FROM settings WHERE id = 1');
+const getSettingsStmt = db.prepare('SELECT companyCode, invoicePrefix, quotePrefix FROM settings WHERE id = 1');
 const getSequenceStmt = db.prepare('SELECT current_value, last_year FROM sequences WHERE name = ?');
 const insertSequenceStmt = db.prepare('INSERT INTO sequences (name, current_value, last_year) VALUES (?, 1, ?)');
 const updateSequenceNewYearStmt = db.prepare('UPDATE sequences SET current_value = ?, last_year = ? WHERE name = ?');
@@ -37,7 +39,7 @@ const updateSequenceStmt = db.prepare('UPDATE sequences SET current_value = ? WH
 export function getNextNumber(type: 'quote' | 'invoice' | 'credit_note') {
   const settings = getSettingsStmt.get() as DbSettings | undefined;
   if (!settings) {
-      throw new Error('Company settings not found');
+    throw new Error('Company settings not found');
   }
 
   const now = new Date();
@@ -46,20 +48,36 @@ export function getNextNumber(type: 'quote' | 'invoice' | 'credit_note') {
   const sequence = getSequenceStmt.get(type) as DbSequence | undefined;
 
   const companyCode = settings.companyCode;
-  const prefix = type === 'quote' ? 'DEV' : (type === 'invoice' ? 'FAC' : 'AV');
+
+  // Harmonisation des préfixes selon les réglages avec fallback canonique et nettoyage des tirets/slashs résiduels
+  let configuredPrefix: string | null | undefined = null;
+  if (type === 'quote') {
+    configuredPrefix = settings.quotePrefix || 'DEV';
+  } else if (type === 'invoice') {
+    configuredPrefix = settings.invoicePrefix || 'FAC';
+  } else {
+    configuredPrefix = 'AV';
+  }
+
+  const sanitizedPrefix = (configuredPrefix || '')
+    .trim()
+    .replace(/[-/]+$/, '')
+    .toUpperCase();
+
+  const prefix = sanitizedPrefix || (type === 'quote' ? 'DEV' : (type === 'invoice' ? 'FAC' : 'AV'));
 
   if (!sequence) {
-      insertSequenceStmt.run(type, year);
-      return formatDocNumber(prefix, companyCode, year, 1);
+    insertSequenceStmt.run(type, year);
+    return formatDocNumber(prefix, companyCode, year, 1);
   }
 
   let nextValue = sequence.current_value + 1;
 
   if (sequence.last_year !== year) {
-      nextValue = 1;
-      updateSequenceNewYearStmt.run(nextValue, year, type);
+    nextValue = 1;
+    updateSequenceNewYearStmt.run(nextValue, year, type);
   } else {
-      updateSequenceStmt.run(nextValue, type);
+    updateSequenceStmt.run(nextValue, type);
   }
 
   return formatDocNumber(prefix, companyCode, year, nextValue);

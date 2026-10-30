@@ -139,6 +139,33 @@
       50% { left: 40%; width: 50%; }
       100% { left: 100%; width: 30%; }
     }
+
+    @media (prefers-color-scheme: dark) {
+      body {
+        background: #09090b;
+        color: #f4f4f5;
+      }
+      .glow {
+        background: radial-gradient(circle, rgba(59, 130, 246, 0.15) 0%, rgba(9, 9, 11, 0) 70%);
+      }
+      .logo-container {
+        background: #18181b;
+        border-color: rgba(255, 255, 255, 0.1);
+        box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+      }
+      h1 {
+        background: linear-gradient(135deg, #ffffff 0%, #a1a1aa 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+      .status {
+        color: #a1a1aa;
+      }
+      .progress-container {
+        background: rgba(255, 255, 255, 0.1);
+      }
+    }
   </style>
 </head>
 <body>

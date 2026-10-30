@@ -200,13 +200,13 @@ export function StepAdmin({ wizard }: StepAdminProps) {
         </span>
       </div>
 
-      <div className="flex items-center gap-3 pt-2">
+      <div className="sticky bottom-0 bg-background/95 backdrop-blur-sm pt-3 pb-2 border-t border-border/40 z-10 flex items-center gap-3">
         <Button
           type="button"
           variant="outline"
           onClick={() => setStep(1)}
           disabled={loading}
-          className="gap-2 cursor-pointer h-12 px-4 rounded-xl"
+          className="gap-2 cursor-pointer h-11 px-4 rounded-xl"
         >
           <ChevronLeft className="w-4 h-4" />
           <span>Retour</span>
@@ -214,7 +214,7 @@ export function StepAdmin({ wizard }: StepAdminProps) {
 
         <Button
           type="submit"
-          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-extrabold shadow-md hover:shadow-lg transition-all cursor-pointer text-sm h-12 rounded-xl"
+          className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground gap-2 font-extrabold shadow-md hover:shadow-lg transition-all cursor-pointer text-sm h-11 rounded-xl"
           disabled={loading}
         >
           {loading ? (
