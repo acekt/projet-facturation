@@ -40,7 +40,7 @@ export default defineConfig({
     forks: {
       singleFork: true,
     },
-    setupFiles: ['./tests/setup.ts'],
+    setupFiles: [path.resolve(__dirname, './tests/setup.ts')],
     exclude: [
       '**/node_modules/**',
       '**/dist/**',

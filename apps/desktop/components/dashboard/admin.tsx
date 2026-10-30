@@ -7,33 +7,16 @@ import {
   Users,
   FileText,
   AlertCircle,
-  ArrowUpRight,
   ScrollText,
-  Activity,
-  ShieldCheck,
   Clock,
-  PieChart as PieIcon,
-  BarChart2,
-  Inbox,
+  ShieldCheck,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
-import { formatCurrency, cn } from "@/lib/utils"
-import {
-  AreaChart,
-  Area,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from "recharts"
-import { DashboardMetricsResponse } from "@/lib/types/api"
+import { formatCurrency } from "@/lib/utils"
 import { DashboardSkeleton } from "@/components/dashboard/skeleton"
+import { DashboardRevenueChart } from "@/components/dashboard/DashboardRevenueChart"
+import { DashboardActivityTimeline } from "@/components/dashboard/DashboardActivityTimeline"
 
 interface DashboardAdminProps {
   onNavigate: (page: string) => void
@@ -47,11 +30,11 @@ interface DashboardAdminData {
   unpaidCount: number
   pendingQuotesCount: number
   totalRevenue: number
-  growth: number | string
+  growth: string
   pendingRevenue: number
   overdueRevenue: number
   totalInvoicesCount: number
-  revenueData: Array<{ label: string; value: number }>
+  revenueData: Array<{ date: string; revenue: number; label: string; value: number }>
   paymentMethodData: Array<{ method: string; amount: number }>
   userPerformance: Array<{ name: string; docsCount: number; totalRevenue: number }>
   topClients: Array<{ clientName: string; totalRevenue: number }>
@@ -79,7 +62,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
     unpaidCount: 0,
     pendingQuotesCount: 0,
     totalRevenue: 0,
-    growth: 0,
+    growth: "0",
     pendingRevenue: 0,
     overdueRevenue: 0,
     totalInvoicesCount: 0,
@@ -98,13 +81,35 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
           console.warn("[Dashboard Admin] API returned error:", res.error)
           return
         }
-        const d = res.data as DashboardAdminData | null
-        if (d && typeof d === "object") {
-          setData(d)
-          setDashboardMetrics(d as DashboardMetricsResponse)
+
+        if (res.data) {
+          const metrics = res.data
+          const formatted: DashboardAdminData = {
+            paidCount: metrics.paidCount || 0,
+            partiallyPaidCount: metrics.partiallyPaidCount || 0,
+            unpaidCount: metrics.unpaidCount || 0,
+            pendingQuotesCount: metrics.pendingQuotesCount || 0,
+            totalRevenue: metrics.totalRevenue || 0,
+            growth: String(metrics.growth ?? "0"),
+            pendingRevenue: metrics.pendingRevenue || 0,
+            overdueRevenue: metrics.overdueRevenue || 0,
+            totalInvoicesCount: metrics.totalInvoicesCount || 0,
+            revenueData: (metrics.revenueData || []).map((r) => ({
+              date: r.date || r.label || "",
+              revenue: r.revenue ?? r.value ?? 0,
+              label: r.label || r.date || "",
+              value: r.value ?? r.revenue ?? 0,
+            })),
+            paymentMethodData: metrics.paymentMethodData || [],
+            userPerformance: metrics.userPerformance || [],
+            topClients: metrics.topClients || [],
+            activityTimeline: metrics.activityTimeline || [],
+          }
+          setData(formatted)
+          setDashboardMetrics(formatted)
         }
-      } catch (err) {
-        console.error("[Dashboard Admin] Error fetching metrics:", err)
+      } catch (err: unknown) {
+        console.error("[Dashboard Admin] Failed to fetch metrics:", err)
       }
     },
     [setDashboardMetrics]
@@ -134,7 +139,6 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
     return <DashboardSkeleton />
   }
 
-  const PIE_COLORS = ["#6366f1", "#f59e0b", "#10b981", "#ef4444"]
   const totalRevenu = data.totalRevenue ?? 0
 
   const formatYAxis = (val: number) => {
@@ -158,40 +162,34 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             Vision stratégique admin
           </p>
         </div>
-
-        <div className="inline-flex items-center rounded-lg border border-border bg-secondary/40 p-1">
+        <div className="flex items-center gap-1 bg-secondary/50 p-1 rounded-lg border border-border">
           {PERIOD_OPTIONS.map((opt) => (
-            <button
+            <Button
               key={opt.value}
-              type="button"
+              variant={period === opt.value ? "secondary" : "ghost"}
+              size="sm"
               onClick={() => setPeriod(opt.value)}
-              className={cn(
-                "px-3 py-1.5 text-xs font-semibold rounded-md transition-colors",
-                period === opt.value
-                  ? "bg-card text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
+              className="text-xs h-7 px-3 font-semibold rounded-md transition-all"
             >
               {opt.label}
-            </button>
+            </Button>
           ))}
         </div>
       </div>
 
-      {/* Cartes KPI */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card className="bg-card border-border shadow-sm">
           <CardHeader className="pb-2">
-            <CardDescription className="uppercase text-[10px] font-medium tracking-widest flex items-center gap-2">
-              <FileText className="w-3 h-3 text-indigo-500" /> Factures Payées
+            <CardDescription className="uppercase text-[10px] font-medium tracking-widest text-emerald-600 flex items-center gap-2">
+              <ShieldCheck className="w-3 h-3" /> Chiffre d&apos;Affaires Réalisé
             </CardDescription>
-            <CardTitle className="text-3xl font-semibold text-emerald-600 tabular-nums">
-              {data.paidCount ?? 0}
+            <CardTitle className="text-2xl font-semibold text-foreground tracking-tight tabular-nums">
+              {formatCurrency(totalRevenu)}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-[10px] text-muted-foreground uppercase font-medium tracking-tighter">
-              Règlements complets
+              {data.paidCount ?? 0} factures soldées
             </p>
           </CardContent>
         </Card>
@@ -243,105 +241,12 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="md:col-span-2 border-border shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-md font-semibold">Évolution Commerciale</CardTitle>
-              <CardDescription className="text-[10px] uppercase font-medium tracking-widest">
-                Revenus perçus sur la période (XAF)
-              </CardDescription>
-            </div>
-            <Activity className="w-5 h-5 text-muted-foreground opacity-20" />
-          </CardHeader>
-          <CardContent className="h-[300px]">
-            {totalRevenu === 0 ? (
-              <div className="flex flex-col items-center justify-center h-[300px] border border-dashed rounded-lg text-muted-foreground text-center">
-                <BarChart2 className="w-8 h-8 text-muted-foreground/20 mb-2" />
-                <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground/50">
-                  Aucune donnée financière générée sur cette période.
-                </p>
-              </div>
-            ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <AreaChart data={data.revenueData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#6366f1" stopOpacity={0.1} />
-                      <stop offset="95%" stopColor="#6366f1" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888820" />
-                  <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} dy={10} />
-                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fontWeight: 700 }} tickFormatter={formatYAxis} />
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                    }}
-                    formatter={(val: number) => [formatCurrency(val), "Revenu"]}
-                  />
-                  <Area type="monotone" dataKey="value" stroke="#6366f1" strokeWidth={3} fillOpacity={1} fill="url(#colorRev)" />
-                </AreaChart>
-              </ResponsiveContainer>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="border-border shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle className="text-md font-semibold">Modes de Paiement</CardTitle>
-              <CardDescription className="text-[10px] uppercase font-medium tracking-widest">
-                Répartition en %
-              </CardDescription>
-            </div>
-            <PieIcon className="w-4 h-4 text-muted-foreground opacity-30" />
-          </CardHeader>
-          <CardContent className="h-[300px] flex items-center justify-center">
-            {data?.paymentMethodData && data.paymentMethodData.length > 0 ? (
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={data.paymentMethodData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={60}
-                    outerRadius={80}
-                    paddingAngle={5}
-                    dataKey="amount"
-                    nameKey="method"
-                  >
-                    {data.paymentMethodData.map((_entry, index: number) => (
-                      <Cell key={`cell-${index}`} fill={PIE_COLORS[index % PIE_COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    contentStyle={{
-                      backgroundColor: "hsl(var(--card))",
-                      border: "1px solid hsl(var(--border))",
-                      borderRadius: "8px",
-                      fontSize: "12px",
-                    }}
-                    formatter={(val: number) => [`${val}%`, "Part"]}
-                  />
-                  <Legend
-                    iconType="circle"
-                    layout="horizontal"
-                    verticalAlign="bottom"
-                    align="center"
-                    wrapperStyle={{ fontSize: "10px", fontWeight: 700, paddingTop: "20px" }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-xs text-muted-foreground italic">Aucun paiement enregistré</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      <DashboardRevenueChart
+        revenueData={data.revenueData}
+        paymentMethodData={data.paymentMethodData}
+        totalRevenue={totalRevenu}
+        formatYAxis={formatYAxis}
+      />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <Card className="lg:col-span-2 border-border shadow-sm">
@@ -418,64 +323,31 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
         </Card>
       </div>
 
-      <Card className="border-border overflow-hidden">
-        <CardHeader className="bg-secondary/30">
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-lg">Journal d&apos;Audit Récent</CardTitle>
-              <CardDescription>Dernières actions administratives et métier</CardDescription>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-indigo-500 font-bold text-xs uppercase tracking-tighter"
-              onClick={() => onNavigate("audit")}
-            >
-              Voir tout <ArrowUpRight className="w-3 h-3 ml-1" />
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-0">
-          <div className="divide-y divide-border/50">
-            {(data.activityTimeline || []).slice(0, 5).map((log) => (
-              <div key={log.id} className="flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors">
-                <div className="flex items-center gap-4">
-                  <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
-                    <ScrollText className="w-4 h-4 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{log.action}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase">{log.client}</p>
-                  </div>
-                </div>
-                <span className="text-[10px] font-mono text-muted-foreground tabular-nums">{log.time}</span>
-              </div>
-            ))}
-            {data.activityTimeline.length === 0 && (
-              <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
-                <Inbox className="w-10 h-10 text-muted-foreground opacity-20" />
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">
-                  Journal vide — aucune action enregistrée
-                </p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+      <DashboardActivityTimeline
+        activityTimeline={data.activityTimeline}
+        onNavigate={onNavigate}
+      />
 
-      <div className="flex gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Button
-          className="flex-1 bg-amber-500 hover:bg-amber-600 h-14 text-lg font-semibold tracking-tighter"
+          className="h-12 text-sm font-semibold gap-2 shadow-sm"
+          onClick={() => onNavigate("new-invoice")}
+        >
+          <FileText className="w-4 h-4" /> Nouvelle Facture
+        </Button>
+        <Button
+          variant="outline"
+          className="h-12 text-sm font-semibold gap-2 border-border shadow-sm"
           onClick={() => onNavigate("new-user")}
         >
-          <Users className="w-5 h-5 mr-2" /> AJOUTER UN UTILISATEUR
+          <Users className="w-4 h-4" /> Gérer les Utilisateurs
         </Button>
         <Button
           variant="secondary"
-          className="flex-1 h-14 text-lg font-semibold tracking-tighter"
+          className="h-12 text-sm font-semibold gap-2 shadow-sm"
           onClick={() => onNavigate("audit")}
         >
-          <ScrollText className="w-5 h-5 mr-2" /> VOIR LES LOGS
+          <ScrollText className="w-4 h-4" /> Journal d&apos;Audit
         </Button>
       </div>
     </div>

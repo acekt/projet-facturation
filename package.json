@@ -15,8 +15,11 @@
     "dist:win": "npm run dist:win --workspace=facturier-desktop",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "seed": "npm run seed --workspace=facturier-desktop",
     "lint": "turbo run lint",
-    "quality:decisions": "node scripts/check-decision-records.js"
+    "quality:decisions": "node scripts/check-decision-records.js",
+    "quality:desktop-health": "node scripts/check-desktop-health.mjs",
+    "quality": "npm run quality:decisions && npm run quality:desktop-health"
   },
   "devDependencies": {
     "turbo": "^2.11.9",

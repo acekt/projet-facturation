@@ -361,7 +361,6 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
             </View>
           </View>
         </View>
-
         {/* Bank */}
         <View style={styles.bankSection} wrap={false}>
           <Text style={styles.bankTitle}>Coordonnées pour Virement Bancaire</Text>
@@ -372,9 +371,7 @@ export const PDFDocument = ({ document, type, settings }: PDFDocumentProps) => {
         </View>
 
         <View style={{ marginBottom: 40, fontSize: 10 }} wrap={false}>
-           <Text style={{ fontWeight: 'bold', marginBottom: 10 }}>
-             Arrêter {type === 'devis' ? 'Le Présent devis' : 'La Présente facture'} à la Somme totale de : ... FCFA TTC
-           </Text>
+          <Text style={{ fontWeight: 'bold', marginBottom: 10 }}>Arrêter {type === 'devis' ? 'Le Présent devis' : 'La Présente facture'} à la Somme totale de : ... FCFA TTC</Text>
            <Text style={{ color: '#003399', fontSize: 9, fontWeight: 'bold' }}>N.B:</Text>
            <Text style={{ color: '#2CA02C', fontSize: 9 }}>- Les modes de règlement: *Espèces ; *Chèques ; *Virements .</Text>
            <Text style={{ color: '#2CA02C', fontSize: 9 }}>- Les délais de règlement: *Au Comptant;</Text>

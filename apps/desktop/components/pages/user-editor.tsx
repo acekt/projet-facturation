@@ -7,12 +7,10 @@ import {
   ArrowLeft,
   User,
   Shield,
-  ShieldCheck,
-  Mail,
   Key,
   Lock,
-  Check,
 } from "lucide-react"
+import { UserSummaryCard } from "@/components/editor/UserSummaryCard"
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
@@ -362,53 +360,14 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
           </div>
 
           <div className="space-y-6">
-            <Card className="bg-card border-border sticky top-24">
-              <CardHeader>
-                <CardTitle className="text-foreground font-semibold text-base">Résumé</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center gap-2">
-                    <User className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Nom:</span>
-                    <span className="font-medium text-foreground">{formData.name || "-"}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Email:</span>
-                    <span className="font-medium text-foreground">{formData.email || "-"}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Rôle:</span>
-                    <span className="font-medium text-foreground">
-                      {formData.role === "admin" ? "Administrateur" : "Opérateur"}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Statut:</span>
-                    <span className={`font-medium ${formData.is_active ? "text-emerald-600" : "text-gray-600"}`}>
-                      {formData.is_active ? "Actif" : "Inactif"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-border">
-                  <Button
-                    type="submit"
-                    className="w-full bg-primary hover:bg-primary/90 text-primary-foreground h-12"
-                    disabled={isSubmitting}
-                  >
-                    {isSubmitting
-                      ? "Enregistrement..."
-                      : editingId
-                        ? "Enregistrer les modifications"
-                        : "Créer l'utilisateur"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
+            <UserSummaryCard
+              name={formData.name}
+              email={formData.email}
+              role={formData.role}
+              isActive={formData.is_active}
+              isSubmitting={isSubmitting}
+              isEditing={!!editingId}
+            />
           </div>
         </div>
       </form>

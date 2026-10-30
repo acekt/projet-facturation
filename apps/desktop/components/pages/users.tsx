@@ -4,36 +4,13 @@ import { getUsers, updateUser as updateUserService, deleteUser } from "@/app/act
 import * as React from "react"
 import {
   UserPlus,
-  MoreVertical,
-  Trash2,
-  Key,
-  Edit2,
-  UserX,
-  UserCheck,
   Search,
-  AlertTriangle,
-  Copy,
   ShieldAlert,
 } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { Input } from "@workspace/ui/components/input"
-import { Badge } from "@workspace/ui/components/badge"
-import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-  DropdownMenuSeparator,
-} from "@workspace/ui/components/dropdown-menu"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@workspace/ui/components/dialog"
+import { UserModals } from "./users/UserModals"
+import { UserTableRow } from "./users/UserTableRow"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select"
 import { Alert, AlertDescription } from "@workspace/ui/components/alert"
 import { toast } from "sonner"
@@ -329,117 +306,27 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border/50">
-                  {paginatedUsers.map((u) => {
-                    const isActive = checkIsActive(u)
-                    const isInactive = !isActive
-                    return (
-                      <tr
-                        key={u.id}
-                        className={cn(
-                          "group transition-colors",
-                          u.id === currentUser?.id ? "bg-indigo-500/5" : "hover:bg-muted/30",
-                          isInactive ? "opacity-60 grayscale" : ""
-                        )}
-                      >
-                        <td className="px-4 py-2">
-                          <div className="flex items-center gap-2">
-                            <Avatar className="h-7 w-7 ring-1 ring-border">
-                              <AvatarFallback className="bg-primary/10 text-primary font-semibold text-[10px]">
-                                {u.name.substring(0, 2).toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="text-[11px] font-semibold text-foreground uppercase tracking-tighter">
-                                {u.name}{" "}
-                                {u.id === currentUser?.id && (
-                                  <span className="text-[9px] text-primary font-bold">(MOI)</span>
-                                )}
-                              </p>
-                              <p className="text-[10px] text-muted-foreground leading-none">{u.email}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-2">
-                          <Badge
-                            className={cn(
-                              "text-[9px] px-1.5 py-0 h-5 font-semibold uppercase tracking-widest",
-                              u.role === "admin"
-                                ? "bg-amber-500/10 text-amber-600 border-amber-500/20"
-                                : "bg-indigo-500/10 text-indigo-600 border-indigo-500/20"
-                            )}
-                          >
-                            {u.role === "admin" ? "Admin" : "User"}
-                          </Badge>
-                        </td>
-                        <td className="px-4 py-2">
-                          <StatusBadge
-                            variant={isActive ? "active" : "inactive"}
-                            label={isActive ? "ACTIF" : "INACTIF"}
-                          />
-                        </td>
-                        <td className="px-4 py-2 text-[10px] text-muted-foreground font-semibold uppercase tracking-tighter tabular-nums">
-                          {u.created_at?.split(" ")[0]}
-                        </td>
-                        <td className="px-4 py-2 text-[10px] text-muted-foreground font-bold italic tabular-nums">
-                          {u.last_login_at || "N/A"}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                disabled={currentUser?.role !== "admin"}
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                              >
-                                <MoreVertical className="w-4 h-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="bg-card border-border w-48">
-                              {!isInactive && (
-                                <DropdownMenuItem onClick={() => onEditUser(u.id)} className="gap-2">
-                                  <Edit2 className="w-4 h-4" /> Modifier
-                                </DropdownMenuItem>
-                              )}
-                              {!isInactive && (
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedUser(u)
-                                    setIsResetModalOpen(true)
-                                  }}
-                                  className="gap-2"
-                                >
-                                  <Key className="w-4 h-4" /> Reset MDP
-                                </DropdownMenuItem>
-                              )}
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                onClick={() => {
-                                  setSelectedUser(u)
-                                  setIsStatusModalOpen(true)
-                                }}
-                                className={cn("gap-2", !isInactive ? "text-amber-500" : "text-emerald-500")}
-                              >
-                                {!isInactive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
-                                {!isInactive ? "Désactiver" : "Réactiver"}
-                              </DropdownMenuItem>
-                              {u.id !== currentUser?.id && !isInactive && (
-                                <DropdownMenuItem
-                                  onClick={() => {
-                                    setSelectedUser(u)
-                                    setIsDeleteModalOpen(true)
-                                  }}
-                                  className="gap-2 text-destructive focus:text-destructive"
-                                >
-                                  <Trash2 className="w-4 h-4" /> Supprimer
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </td>
-                      </tr>
-                    )
-                  })}
+                  {paginatedUsers.map((u) => (
+                    <UserTableRow
+                      key={u.id}
+                      user={u}
+                      currentUser={currentUser}
+                      isActive={checkIsActive(u)}
+                      onEditUser={onEditUser}
+                      onOpenResetModal={(user) => {
+                        setSelectedUser(user)
+                        setIsResetModalOpen(true)
+                      }}
+                      onOpenStatusModal={(user) => {
+                        setSelectedUser(user)
+                        setIsStatusModalOpen(true)
+                      }}
+                      onOpenDeleteModal={(user) => {
+                        setSelectedUser(user)
+                        setIsDeleteModalOpen(true)
+                      }}
+                    />
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -450,122 +337,26 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
         )}
       </div>
 
-      {/* Status Change */}
-      <Dialog open={isStatusModalOpen} onOpenChange={setIsStatusModalOpen}>
-        <DialogContent className="bg-card border-border" side="right">
-          <DialogHeader>
-            <DialogTitle>
-              {selectedUser && checkIsActive(selectedUser) ? "Désactiver" : "Réactiver"} le compte
-            </DialogTitle>
-            <DialogDescription>
-              {selectedUser && checkIsActive(selectedUser)
-                ? `Voulez-vous désactiver le compte de ${selectedUser?.name} ? Il ne pourra plus se connecter à l'application.`
-                : `Voulez-vous réactiver le compte de ${selectedUser?.name} ?`}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsStatusModalOpen(false)}>
-              Annuler
-            </Button>
-            <Button
-              variant={selectedUser && checkIsActive(selectedUser) ? "destructive" : "default"}
-              onClick={handleToggleStatus}
-              disabled={selectedUser?.id === currentUser?.id || isSubmitting}
-            >
-              Confirmer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete User */}
-      <Dialog open={isDeleteModalOpen} onOpenChange={setIsDeleteModalOpen}>
-        <DialogContent className="bg-card border-border border-destructive/20">
-          <DialogHeader>
-            <div className="flex items-center gap-2 text-destructive mb-2">
-              <AlertTriangle className="w-5 h-5" />
-              <DialogTitle>Suppression définitive</DialogTitle>
-            </div>
-            <DialogDescription>
-              Cette action est irréversible. Pour confirmer, veuillez saisir le nom complet de l&apos;utilisateur :{" "}
-              <strong>{selectedUser?.name}</strong>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="py-4">
-            <Input
-              value={deleteConfirmName}
-              onChange={(e) => setDeleteConfirmName(e.target.value)}
-              placeholder="Saisir le nom exact..."
-              className="bg-secondary"
-            />
-          </div>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsDeleteModalOpen(false)}>
-              Annuler
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteUser}
-              disabled={deleteConfirmName !== selectedUser?.name || isSubmitting}
-            >
-              Supprimer l&apos;utilisateur
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Password Display (Post reset) */}
-      <Dialog open={isPasswordDisplayOpen} onOpenChange={setIsPasswordDisplayOpen}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <ShieldAlert className="w-5 h-5 text-amber-500" />
-              Mot de passe temporaire
-            </DialogTitle>
-            <DialogDescription>
-              Veuillez copier et transmettre ce mot de passe à l&apos;utilisateur. Il ne sera plus affiché après la
-              fermeture de cette fenêtre.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex items-center gap-2 p-4 bg-secondary rounded-xl font-mono text-xl justify-center relative">
-            {tempPassword}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="absolute right-2"
-              onClick={() => {
-                navigator.clipboard.writeText(tempPassword)
-                toast.success("Copié !")
-              }}
-            >
-              <Copy className="w-4 h-4" />
-            </Button>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setIsPasswordDisplayOpen(false)}>J&apos;ai bien noté le mot de passe</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Reset Request */}
-      <Dialog open={isResetModalOpen} onOpenChange={setIsResetModalOpen}>
-        <DialogContent className="bg-card border-border">
-          <DialogHeader>
-            <DialogTitle>Réinitialiser le mot de passe</DialogTitle>
-            <DialogDescription>
-              Un nouveau mot de passe temporaire sera généré pour <strong>{selectedUser?.name}</strong>.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setIsResetModalOpen(false)}>
-              Annuler
-            </Button>
-            <Button onClick={handleResetPassword} disabled={isSubmitting}>
-              Générer le mot de passe
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <UserModals
+        selectedUser={selectedUser}
+        currentUser={currentUser}
+        isSubmitting={isSubmitting}
+        isStatusModalOpen={isStatusModalOpen}
+        setIsStatusModalOpen={setIsStatusModalOpen}
+        handleToggleStatus={handleToggleStatus}
+        isDeleteModalOpen={isDeleteModalOpen}
+        setIsDeleteModalOpen={setIsDeleteModalOpen}
+        deleteConfirmName={deleteConfirmName}
+        setDeleteConfirmName={setDeleteConfirmName}
+        handleDeleteUser={handleDeleteUser}
+        isResetModalOpen={isResetModalOpen}
+        setIsResetModalOpen={setIsResetModalOpen}
+        handleResetPassword={handleResetPassword}
+        isPasswordDisplayOpen={isPasswordDisplayOpen}
+        setIsPasswordDisplayOpen={setIsPasswordDisplayOpen}
+        tempPassword={tempPassword}
+        checkIsActive={checkIsActive}
+      />
     </div>
   )
 }
