@@ -220,7 +220,6 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     const amount = parseFloat(paymentAmount)
     if (amount <= 0) return void toast.error("Le montant doit être supérieur à 0")
     if (amount > remaining) return void toast.error(`Le montant ne peut pas dépasser le reste à payer (${formatCurrency(remaining)})`)
-    }
 
     setIsRecordingPayment(true)
     try {
