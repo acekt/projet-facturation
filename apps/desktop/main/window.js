@@ -6,6 +6,13 @@ const { BrowserWindow, nativeImage, app, nativeTheme } = require('electron');
 
 let mainWindow = null;
 let splashWindow = null;
+let appReadyHandler = null;
+
+function notifyAppReady() {
+  if (typeof appReadyHandler === 'function') {
+    appReadyHandler();
+  }
+}
 
 /**
  * Résout le chemin ou le NativeImage de l'icône de l'application de façon robuste.
@@ -169,6 +176,48 @@ function createMainWindow({
   const appUrl = `http://127.0.0.1:${port}`;
   const logPath = path.join(userDataPath, 'main.log');
 
+  let isReadyToShow = false;
+  let isContentLoaded = false;
+  let isAppShown = false;
+
+  const tryRevealMainWindow = () => {
+    if (isAppShown || !mainWindow || mainWindow.isDestroyed()) return;
+    if (!isReadyToShow || !isContentLoaded) return;
+
+    isAppShown = true;
+    logToFile(
+      'INFO',
+      '[UI] Application prête et contenu rendu — transition fluide du splash vers la fenêtre principale.'
+    );
+    mainWindow.show();
+    setTimeout(() => {
+      closeSplashWindow();
+      if (process.env.OPEN_DEVTOOLS === 'true' && !app.isPackaged && mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isDevToolsOpened()) {
+        mainWindow.webContents.openDevTools({ mode: 'detach' });
+      }
+    }, 250);
+  };
+
+  appReadyHandler = () => {
+    if (isAppShown) return;
+    logToFile('INFO', '[UI] app:report-ready reçu depuis React.');
+    isReadyToShow = true;
+    isContentLoaded = true;
+    tryRevealMainWindow();
+  };
+
+  // Délai de secours pour garantir que la fenêtre apparaisse même si l'IPC tarde
+  // En mode dev sur Windows, la compilation Webpack initiale peut prendre 25-35s.
+  const guardTimeoutMs = isDev ? 45000 : 8000;
+  setTimeout(() => {
+    if (!isAppShown) {
+      logToFile('INFO', `[UI] Timeout de garde (${guardTimeoutMs / 1000}s) atteint — révélation de secours.`);
+      isReadyToShow = true;
+      isContentLoaded = true;
+      tryRevealMainWindow();
+    }
+  }, guardTimeoutMs);
+
   const loadApp = (attempt = 1) => {
     mainWindow.loadURL(appUrl).catch((err) => {
       if (attempt < 3 && !mainWindow.isDestroyed()) {
@@ -223,21 +272,16 @@ function createMainWindow({
     loadApp();
   }
 
-  const showMainWindow = () => {
-    if (!mainWindow || mainWindow.isDestroyed()) return;
-    if (mainWindow.isVisible()) return;
-
-    mainWindow.show();
-    closeSplashWindow();
-  };
-
   mainWindow.once('ready-to-show', () => {
-    logToFile('INFO', '[UI] ready-to-show reçu — permutation immédiate du splash vers la fenêtre principale.');
-    showMainWindow();
+    isReadyToShow = true;
+    logToFile('INFO', '[UI] ready-to-show reçu de Chromium.');
+    tryRevealMainWindow();
   });
 
   mainWindow.webContents.once('did-finish-load', () => {
-    showMainWindow();
+    logToFile('INFO', '[UI] did-finish-load reçu — HTML chargé, attente du rendu React (app:report-ready)...');
+    // Ne pas révéler immédiatement la fenêtre ici pour éviter le flash blanc avant hydratation React.
+    // La révélation sera déclenchée dès que React envoie app:report-ready (ou par le timeout de garde).
   });
 
   let retryCount = 0;
@@ -293,10 +337,6 @@ function createMainWindow({
     }
   });
 
-  if (!app.isPackaged) {
-    mainWindow.webContents.openDevTools({ mode: 'detach' });
-  }
-
   const LOCAL_ORIGIN = `http://127.0.0.1:${port}`;
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -336,4 +376,5 @@ module.exports = {
   createMainWindow,
   getMainWindow,
   resolveAppIcon,
+  notifyAppReady,
 };

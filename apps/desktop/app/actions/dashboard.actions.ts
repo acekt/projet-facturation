@@ -105,7 +105,22 @@ export async function getDashboardMetrics(range: string = 'month'): Promise<Acti
       const dateVal = new Date(log.createdAt);
       const timeStr = dateVal.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' ' +
                       dateVal.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
-      return { id: log.id, action: log.details || log.action, client: log.userName || 'Système', time: timeStr };
+      let humanAction = log.action;
+      if (log.details) {
+        try {
+          const parsed = JSON.parse(log.details);
+          if (parsed.action === 'FIRST_RUN_SETUP') {
+            humanAction = `Initialisation de l'espace (${parsed.companyName || 'Structure'})`;
+          } else if (parsed.name) {
+            humanAction = `${log.action} : ${parsed.name}`;
+          } else if (parsed.description) {
+            humanAction = parsed.description;
+          }
+        } catch {
+          humanAction = log.details;
+        }
+      }
+      return { id: log.id, action: humanAction, client: log.userName || 'Système', time: timeStr };
     });
 
     const response: DashboardMetricsResponse = {

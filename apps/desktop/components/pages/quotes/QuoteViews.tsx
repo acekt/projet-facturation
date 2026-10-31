@@ -157,15 +157,21 @@ export function QuoteViews({
     return false;
   };
 
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [quotes]);
+
   // ── 1. VUE TABLE ──────────────────────────────────────────────────────────
   if (viewFormat === "table") {
     return (
-      <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 pr-1">
         <DataTable>
           <DataTableHead>
             <DataTableRow>
               <DataTableHeaderCell>Devis</DataTableHeaderCell>
-              <DataTableHeaderCell>Client</DataTableHeaderCell>
+              <DataTableHeaderCell className="min-w-[180px]">Client</DataTableHeaderCell>
               <DataTableHeaderCell>Date</DataTableHeaderCell>
               <DataTableHeaderCell>Statut</DataTableHeaderCell>
               <DataTableHeaderCell align="right">Total</DataTableHeaderCell>
@@ -183,8 +189,8 @@ export function QuoteViews({
                     <span className="font-medium text-sm text-foreground">{quote.number}</span>
                   </div>
                 </DataTableCell>
-                <DataTableCell truncate title={quote.clientName || "—"}>
-                  {quote.clientName || "—"}
+                <DataTableCell className="min-w-[180px] max-w-[320px] truncate" title={quote.clientName || "—"}>
+                  <span className="font-medium text-foreground">{quote.clientName || "—"}</span>
                 </DataTableCell>
                 <DataTableCell>
                   <span className="text-xs text-muted-foreground">Émission : {formatDate(quote.date)}</span>
@@ -234,7 +240,7 @@ export function QuoteViews({
   // ── 2. VUE HORIZONTALE ─────────────────────────────────────────────────────
   if (viewFormat === "horizontal") {
     return (
-      <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 pr-1">
         <div className="space-y-2">
           {quotes.map((quote, index) => (
             <motion.div

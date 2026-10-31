@@ -33,3 +33,10 @@ release/
 apps/desktop/build/*.zip
 apps/desktop/build/*.tar.gz
 
+
+*.db
+*.db-wal
+*.db-shm
+nul
+
+sceenshorts/

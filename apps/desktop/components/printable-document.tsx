@@ -51,7 +51,7 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
       {/* Client & Info */}
       <div className="mb-8 space-y-1">
           <p><span className="font-bold">Client:</span> {document.clientName}</p>
-          <p><span className="font-bold">Objet:</span> {document.notes || "Prestations de services"}</p>
+          <p><span className="font-bold">Objet:</span> {(document as any).subject || "Prestations de services"}</p>
           <p><span className="font-bold">NIF:</span></p>
           <p><span className="font-bold">BC:</span></p>
       </div>
@@ -136,6 +136,13 @@ export function PrintableDocument({ document, type }: PrintableDocumentProps) {
           <p className="col-span-2"><span className="font-bold">IBAN:</span> <span className="font-mono">{settings.iban}</span></p>
         </div>
       </div>
+
+      {document.notes && (
+        <div className="mb-6 p-3 bg-gray-50 border border-gray-200 rounded text-[8pt]">
+          <p className="font-bold uppercase text-gray-700 mb-1">Conditions & Mentions :</p>
+          <p className="whitespace-pre-line text-gray-800">{document.notes}</p>
+        </div>
+      )}
 
       <div className="mb-8">
            <p className="font-bold mb-4">

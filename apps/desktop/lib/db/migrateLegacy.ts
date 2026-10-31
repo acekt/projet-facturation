@@ -367,7 +367,14 @@ export function migrateLegacyDatabase(
     );
   });
 
-  runMigrationTx();
+  // Désactiver temporairement les contraintes de clés étrangères pour permettre
+  // le remappage atomique des identifiants primaires et dépendants (clients, devis, factures)
+  db.pragma('foreign_keys = OFF');
+  try {
+    runMigrationTx();
+  } finally {
+    db.pragma('foreign_keys = ON');
+  }
 
   console.log(
     `[migrateLegacy] Migration V1 -> V2 réussie. ${report.backfilledRows} lignes rattachées au tenant ${targetTenantId}. Sauvegarde : ${report.backupPath || 'N/A'}`

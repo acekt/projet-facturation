@@ -60,8 +60,8 @@ export async function createPayment(data: PaymentCreateRequest): Promise<ActionR
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
     const tf = buildTenantFilter(activeTenantId);
 
-    const checkInvoiceStmt = db.prepare(`SELECT total, created_by FROM invoices WHERE id = ? AND deletedAt IS NULL${tf.sql}`);
-    const invoice = checkInvoiceStmt.get(invoiceId, ...tf.params) as { total: number; created_by?: string } | undefined;
+    const checkInvoiceStmt = db.prepare(`SELECT number, total, created_by FROM invoices WHERE id = ? AND deletedAt IS NULL${tf.sql}`);
+    const invoice = checkInvoiceStmt.get(invoiceId, ...tf.params) as { number?: string; total: number; created_by?: string } | undefined;
     
     if (!invoice) return { success: false, error: 'Facture introuvable ou supprimée' };
     if (session.role !== 'admin' && invoice.created_by !== session.userId) {
@@ -87,7 +87,7 @@ export async function createPayment(data: PaymentCreateRequest): Promise<ActionR
       `).run(id, invoiceId, Math.round(amount), paymentMethod, date, reference || null, session.userId, activeTenantId);
 
       const newStatus = updateInvoiceStatus(invoiceId, activeTenantId);
-      logAudit('CREATE', 'payment', id, `Paiement enregistré: ${amount} XAF sur facture ${invoiceId}`, session.userId, session.name || session.username || null, activeTenantId);
+      logAudit('CREATE', 'payment', id, `Paiement enregistré: ${Math.round(amount)} XAF sur facture ${invoice.number || invoiceId}`, session.userId, session.name || session.username || null, activeTenantId);
       return { id, newStatus };
     });
 
@@ -112,7 +112,8 @@ export async function deletePayment(id: string): Promise<ActionResponse<{ succes
 
     const deleteResult = db.transaction(() => {
       db.prepare(`UPDATE payments SET deletedAt = datetime('now') WHERE id = ?${tf.sql}`).run(id, ...tf.params);
-      logAudit('DELETE', 'payment', id, `Paiement supprimé pour facture ${payment.invoiceId}`, session.userId, session.name || session.username || null, activeTenantId);
+      const inv = db.prepare('SELECT number FROM invoices WHERE id = ?').get(payment.invoiceId) as { number?: string } | undefined;
+      logAudit('DELETE', 'payment', id, `Paiement supprimé pour facture ${inv?.number || payment.invoiceId}`, session.userId, session.name || session.username || null, activeTenantId);
 
       const newStatus = updateInvoiceStatus(payment.invoiceId, activeTenantId);
       return { success: true, newStatus };

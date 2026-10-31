@@ -27,8 +27,20 @@ function validateSender(frame) {
  * @param {Function} options.getMainWindow
  * @param {Function} options.logToFile
  */
-function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile }) {
+function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile, onAppReady }) {
   const { app, ipcMain, BrowserWindow, dialog } = require('electron');
+
+  // ── Notification de disponibilité complète de l'UI React (transition splash fluide)
+  ipcMain.handle('app:report-ready', (event) => {
+    if (!validateSender(event?.senderFrame)) {
+      throw new Error('[IPC:app:report-ready] Expéditeur non autorisé.');
+    }
+    if (typeof onAppReady === 'function') {
+      onAppReady();
+    }
+    return { success: true };
+  });
+
   // ── Version de l'application
   ipcMain.handle('app:get-version', (event) => {
     if (!validateSender(event?.senderFrame)) {
@@ -94,7 +106,7 @@ function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile }) {
       const timer = setTimeout(async () => {
         if (!isSettled) {
           isSettled = true;
-          logToFile('ERROR', `[Print] Timeout de 15s atteint lors de la génération.`);
+          logToFile('ERROR', `[Print] Timeout de 15s atteint lors du chargement HTML.`);
           if (printWin && !printWin.isDestroyed()) {
             printWin.webContents.removeAllListeners('did-finish-load');
             printWin.webContents.removeAllListeners('did-fail-load');
@@ -104,13 +116,16 @@ function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile }) {
           try {
             if (fs.existsSync(tempPath)) await fs.promises.unlink(tempPath);
           } catch (_) {}
-          reject(new Error('Timeout lors de la préparation du document.'));
+          reject(new Error('Timeout lors de la préparation du document pour impression.'));
         }
       }, 15000);
 
       printWin.webContents.on('did-finish-load', () => {
         if (isSettled) return;
-        logToFile('INFO', '[Print] Fenêtre cachée chargée, lancement de print()');
+        // Déarmement immédiat du timer de préparation : l'utilisateur dispose de tout le temps
+        // nécessaire pour interagir avec la boîte de dialogue native du système d'exploitation.
+        clearTimeout(timer);
+        logToFile('INFO', '[Print] Fenêtre cachée chargée, ouverture de la boîte d\'impression native');
 
         printWin.webContents.print(
           {
@@ -120,7 +135,6 @@ function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile }) {
           async (success, errorType) => {
             if (isSettled) return;
             isSettled = true;
-            clearTimeout(timer);
 
             if (printWin && !printWin.isDestroyed()) {
               printWin.destroy();
@@ -134,9 +148,13 @@ function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile }) {
             }
 
             if (success) {
+              logToFile('INFO', '[Print] Impression validée avec succès par l\'utilisateur');
               resolve({ success: true });
+            } else if (!errorType || /cancel/i.test(errorType) || errorType === 'cancelled' || errorType === 'user-cancelled') {
+              logToFile('INFO', `[Print] Impression annulée par l'utilisateur (${errorType || 'dialog_closed'})`);
+              resolve({ success: false, cancelled: true });
             } else {
-              logToFile('WARN', `[Print] Impression annulée ou échouée: ${errorType}`);
+              logToFile('WARN', `[Print] Échec de l'impression native: ${errorType}`);
               reject(new Error(errorType));
             }
           }

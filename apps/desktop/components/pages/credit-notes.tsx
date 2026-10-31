@@ -8,6 +8,7 @@ import { SearchBar } from "@workspace/ui/components/search-bar"
 import { Pagination } from "@workspace/ui/components/pagination-custom"
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer"
 import { CreateCreditNoteModal } from "@/components/features/credit-notes/CreateCreditNoteModal"
+import { DataExportModal } from "@/components/features/export/DataExportModal"
 import { CreditNoteViews, type InvoiceStatusInfo } from "@/components/features/credit-notes/CreditNoteViews"
 import { useStore, type CreditNote } from "@/lib/store"
 import { useShallow } from "zustand/react/shallow"
@@ -35,10 +36,11 @@ export function CreditNotesPage() {
 
   const [searchQuery, setSearchQuery] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
-  const itemsPerPage = 10
+  const itemsPerPage = 9 // Harmonisation Grille 3x3
   const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
   const [previewNote, setPreviewNote] = React.useState<CreditNote | null>(null)
   const [isCreateModalOpen, setIsCreateModalOpen] = React.useState(false)
+  const [isExportModalOpen, setIsExportModalOpen] = React.useState(false)
 
   const canCreate = user?.role === "admin" || user?.role === "user"
 
@@ -75,6 +77,7 @@ export function CreditNotesPage() {
         paidAmount: paid,
         remainingAmount: remaining,
         dueDate: inv.dueDate,
+        invoiceNumber: inv.number,
       }
     },
     [invoices, payments]
@@ -86,8 +89,16 @@ export function CreditNotesPage() {
       const { pdf } = await import("@react-pdf/renderer")
       const { PDFDocument } = await import("@/components/pdf-document")
 
+      const relatedInv = invoices.find((i) => i.id === note.invoiceId);
+      const relatedInvoiceNumber = relatedInv?.number || note.invoiceId;
+
       const blob = await pdf(
-        <PDFDocument document={note} type="avoir" settings={settings} />
+        <PDFDocument
+          document={note}
+          type="avoir"
+          settings={settings}
+          relatedInvoiceNumber={relatedInvoiceNumber}
+        />
       ).toBlob()
 
       const url = URL.createObjectURL(blob)
@@ -111,16 +122,19 @@ export function CreditNotesPage() {
   const exportToCSV = () => {
     try {
       const headers = ["Numéro", "Facture liée", "Client", "Date", "Montant TTC", "Motif", "Statut"]
-      const rows = filtered.map((note) => [
-        note.number,
-        note.invoiceId,
-        note.clientName,
-        formatDate(note.date),
-        String(note.total),
-        note.reason || "",
-        note.status,
-      ])
-      downloadSafeCsv("avoirs.csv", headers, rows)
+      const rows = filtered.map((note) => {
+        const inv = invoices.find((i) => i.id === note.invoiceId)
+        return [
+          note.number,
+          inv?.number || note.invoiceId,
+          note.clientName,
+          formatDate(note.date),
+          String(note.total),
+          note.reason || "",
+          note.status,
+        ]
+      })
+      downloadSafeCsv("avoirs-remboursements.csv", headers, rows)
       toast.success("Export CSV téléchargé avec succès")
     } catch (err) {
       console.error("CSV export failed:", err)
@@ -131,17 +145,17 @@ export function CreditNotesPage() {
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
       <PageHeader
-        title="Avoirs"
+        title="Avoirs & Remboursements"
         description="Gérez les remboursements, réductions commerciales et corrections de facturation"
         actions={
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               className="gap-2 bg-card border-border hover:bg-secondary cursor-pointer"
-              onClick={exportToCSV}
+              onClick={() => setIsExportModalOpen(true)}
             >
               <DownloadCloud className="w-4 h-4" />
-              Exporter CSV
+              Exporter
             </Button>
             {canCreate && (
               <Button
@@ -149,7 +163,7 @@ export function CreditNotesPage() {
                 onClick={() => setIsCreateModalOpen(true)}
               >
                 <Plus className="w-4 h-4" />
-                Nouvel avoir
+                Nouvel avoir / remboursement
               </Button>
             )}
           </div>
@@ -199,6 +213,12 @@ export function CreditNotesPage() {
         onOpenChange={setIsCreateModalOpen}
         invoices={invoices}
         creditNotes={creditNotes}
+      />
+
+      <DataExportModal
+        open={isExportModalOpen}
+        onOpenChange={setIsExportModalOpen}
+        defaultScope="credit-notes"
       />
     </div>
   )

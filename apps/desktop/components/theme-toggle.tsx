@@ -55,7 +55,7 @@ export function ThemeToggle() {
               )}
             </motion.div>
           </AnimatePresence>
-          <span className="sr-only">Basculer le theme</span>
+          <span className="sr-only">Basculer le thème</span>
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-40">
@@ -90,7 +90,7 @@ export function ThemeToggle() {
           className="flex items-center gap-2 cursor-pointer"
         >
           <Monitor className="w-4 h-4" />
-          <span>Systeme</span>
+          <span>Système</span>
           {theme === "system" && (
             <motion.div 
               layoutId="activeTheme"

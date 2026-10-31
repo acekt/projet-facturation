@@ -84,3 +84,4 @@ Accepted
 - Exécution de `npm run quality` : 46 fiches ADR validées et contrôle de santé desktop réussi à 100 %.
 - Exécution de `npm run typecheck` : 3 packages validés, 0 erreur TypeScript.
 - Exécution de la suite de tests unitaires utilisateurs (`tests/unit/components/pages/users.test.tsx`) : 3/3 tests passés.
+

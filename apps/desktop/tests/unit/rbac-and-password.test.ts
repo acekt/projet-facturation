@@ -75,23 +75,23 @@ describe('Phase 3 — RBAC Matrix Harmonization & Mandatory Password Change', ()
 
       expect(adminNavIds).toEqual([
         'dashboard',
-        'users',
-        'audit',
+        'invoices',
+        'quotes',
+        'credit-notes',
         'clients',
         'services',
-        'quotes',
-        'invoices',
-        'credit-notes',
+        'users',
+        'audit',
         'settings',
       ]);
 
       expect(userNavIds).toEqual([
         'dashboard',
+        'invoices',
+        'quotes',
+        'credit-notes',
         'clients',
         'services',
-        'quotes',
-        'invoices',
-        'credit-notes',
         'settings',
       ]);
       expect(userNavIds).not.toContain('users');

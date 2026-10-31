@@ -154,6 +154,21 @@ function waitForServer(baseUrl, timeoutMs = 60000, logToFile, onTick) {
     return new Promise((r) => setTimeout(r, ms));
   }
 
+  function warmupRoot(url) {
+    return new Promise((resolve) => {
+      const req = http.get(url, (res) => {
+        res.resume();
+        resolve(res.statusCode);
+      });
+      req.on('error', () => resolve(null));
+      req.on('timeout', () => {
+        req.destroy();
+        resolve(null);
+      });
+      req.setTimeout(25000);
+    });
+  }
+
   return (async () => {
     const start = Date.now();
     logToFile('INFO', `[Health] Démarrage du polling sur ${healthUrl} (timeout: ${timeoutMs / 1000}s)`);
@@ -163,7 +178,13 @@ function waitForServer(baseUrl, timeoutMs = 60000, logToFile, onTick) {
       const ok = await probe();
 
       if (ok) {
-        logToFile('INFO', '[Health] Serveur Next.js prêt ✓');
+        logToFile('INFO', '[Health] Serveur Next.js prêt ✓ — Pré-compilation (warm-up) de la page...');
+        try {
+          await warmupRoot(`${baseUrl}/`);
+          logToFile('INFO', '[Health] Pré-compilation Next.js terminée avec succès ✓');
+        } catch (_) {
+          // Warmup facultatif pour ne pas bloquer si délai dépassé
+        }
         return;
       }
 

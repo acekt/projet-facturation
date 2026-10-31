@@ -12,6 +12,7 @@ interface A4HeaderProps {
   docDate: string;
   validUntil?: string | null;
   dueDate?: string | null;
+  relatedInvoiceNumber?: string | null;
 }
 
 function fmtDate(s: string): string {
@@ -32,7 +33,7 @@ function fmtDate(s: string): string {
 }
 
 function labelOf(type: DocumentType) {
-  return type === "facture" ? "FACTURE" : type === "devis" ? "DEVIS" : "AVOIR";
+  return type === "facture" ? "FACTURE" : type === "devis" ? "DEVIS" : "NOTE D'AVOIR";
 }
 
 export function A4Header({
@@ -42,6 +43,7 @@ export function A4Header({
   docDate,
   validUntil,
   dueDate,
+  relatedInvoiceNumber,
 }: A4HeaderProps) {
   return (
     <>
@@ -108,6 +110,14 @@ export function A4Header({
             <p className="text-[8px] text-slate-500">
               Échéance :{" "}
               <span className="font-semibold text-[var(--color-brand-accent)]">{fmtDate(dueDate)}</span>
+            </p>
+          )}
+          {type === "avoir" && relatedInvoiceNumber && (
+            <p className="text-[8px] text-slate-500 mt-0.5">
+              Réf. Facture liée :{" "}
+              <span className="font-semibold text-slate-700 font-mono">
+                {relatedInvoiceNumber}
+              </span>
             </p>
           )}
         </div>

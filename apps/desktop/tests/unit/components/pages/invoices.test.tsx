@@ -152,15 +152,13 @@ describe('InvoicesPage Component', () => {
     expect(screen.getByText('Total Gabon SA')).toBeInTheDocument();
   });
 
-  it('affiche le filtre déroulant de statut pour la sélection des états', () => {
+  it('affiche les filtres unifiés d accès rapide pour la sélection des états', () => {
     render(<InvoicesPage onCreateInvoice={vi.fn()} onEditInvoice={vi.fn()} />);
 
-    expect(screen.getByText('Filtrer par statut')).toBeInTheDocument();
-    expect(screen.getByTestId('select-item-all')).toBeInTheDocument();
-    expect(screen.getByTestId('select-item-UNPAID')).toBeInTheDocument();
-    expect(screen.getByTestId('select-item-PAID')).toBeInTheDocument();
-    expect(screen.getByTestId('select-item-PARTIALLY_PAID')).toBeInTheDocument();
-    expect(screen.getByTestId('select-item-overdue')).toBeInTheDocument();
-    expect(screen.getByTestId('select-item-cancelled')).toBeInTheDocument();
+    expect(screen.getByText(/Toutes/i)).toBeInTheDocument();
+    expect(screen.getByText(/À encaisser/i)).toBeInTheDocument();
+    expect(screen.getByText('Payées')).toBeInTheDocument();
+    expect(screen.getByText('En retard')).toBeInTheDocument();
+    expect(screen.getByText('Annulées')).toBeInTheDocument();
   });
 });

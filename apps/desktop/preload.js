@@ -50,6 +50,12 @@ contextBridge.exposeInMainWorld('electron', {
   getUserDataPath: () => ipcRenderer.invoke('app:get-userData-path'),
 
   /**
+   * Notifie le processus principal que l'interface React est complètement montée et peinte,
+   * permettant une transition fluide et instantanée depuis le splash screen sans flash blanc.
+   */
+  reportAppReady: () => ipcRenderer.invoke('app:report-ready'),
+
+  /**
    * Identifiant de la plateforme OS — lecture seule, pas d'invoke réseau.
    * @type {'win32' | 'darwin' | 'linux'}
    */

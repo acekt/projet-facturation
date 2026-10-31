@@ -3,6 +3,7 @@
 import { getDashboardMetrics } from "@/app/actions/dashboard.actions"
 import { useState, useEffect, useCallback } from "react"
 import { useStore } from "@/lib/store"
+import type { DashboardMetricsResponse } from "@/lib/types/api"
 import {
   Users,
   FileText,
@@ -24,7 +25,7 @@ interface DashboardAdminProps {
 
 type DashboardPeriod = "month" | "quarter" | "year"
 
-interface DashboardAdminData {
+interface DashboardAdminData extends Omit<DashboardMetricsResponse, "revenueData" | "paymentMethodData"> {
   paidCount: number
   partiallyPaidCount: number
   unpaidCount: number
@@ -106,7 +107,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             activityTimeline: metrics.activityTimeline || [],
           }
           setData(formatted)
-          setDashboardMetrics(formatted)
+          setDashboardMetrics(formatted as unknown as DashboardMetricsResponse)
         }
       } catch (err: unknown) {
         console.error("[Dashboard Admin] Failed to fetch metrics:", err)

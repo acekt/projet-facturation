@@ -45,6 +45,13 @@ function buildHash(doc: SupportedDocument, type: string): string {
 
 export function DocumentA4({ data, type }: DocumentA4Props) {
   const s = useStore((x) => x.settings);
+  const invoices = useStore((x) => x.invoices);
+
+  const relatedInvoiceNumber = React.useMemo(() => {
+    if (type !== "avoir" || !("invoiceId" in data)) return undefined;
+    const inv = invoices.find((i) => i.id === (data as CreditNoteResponse).invoiceId);
+    return inv?.number || (data as CreditNoteResponse).invoiceId;
+  }, [type, data, invoices]);
 
   const payments =
     "payments" in data ? ((data as InvoiceResponse).payments ?? []) : [];
@@ -130,7 +137,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
           "bg-white text-black",
           "flex flex-col",
           "p-[12mm]",
-          "pb-[40mm]",
+          "pb-[12mm]",
           "box-border mx-auto",
           "shadow-2xl print:shadow-none print:m-0",
         ].join(" ")}
@@ -151,6 +158,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
           docDate={data.date}
           validUntil={validUntil}
           dueDate={dueDate}
+          relatedInvoiceNumber={relatedInvoiceNumber}
         />
 
         {/* 2 · DESTINATAIRE & OBJET */}
@@ -170,12 +178,12 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
           </div>
         </div>
 
-        {(subject || notes || reason) && (
+        {((type === "avoir" && (reason || subject)) || (type !== "avoir" && Boolean(subject && subject.trim() !== ""))) && (
           <div className="mb-4">
             <p className="text-[11px] text-slate-800">
-              <span className="font-bold">Objet :</span>{" "}
+              <span className="font-bold">{type === "avoir" ? "Motif de l'avoir :" : "Objet :"}</span>{" "}
               <span className="font-semibold">
-                {subject || notes || reason}
+                {type === "avoir" ? (reason || subject) : subject}
               </span>
             </p>
           </div>
@@ -265,6 +273,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
           totalPaid={totalPaid}
           remaining={remaining}
           formatCurrency={fmt}
+          notes={notes || s.mentionsLegales}
         />
 
         {/* 5 · FOOTER LÉGAL */}

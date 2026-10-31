@@ -36,10 +36,11 @@ import {
 } from "@workspace/ui/components/data-table";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { INVOICE_STATUS } from "@/lib/constants";
-import type { Invoice, User } from "@/lib/store";
+import type { Invoice, User, CreditNote } from "@/lib/store";
 
 interface InvoiceViewsProps {
   invoices: Invoice[];
+  creditNotes?: CreditNote[];
   viewFormat: "table" | "horizontal" | "block";
   user: User | null;
   searchQuery: string;
@@ -62,32 +63,55 @@ export function formatClientName(name: string) {
   return name.replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
-export function getPaymentStatus(invoice: Invoice) {
+export function getPaymentStatus(invoice: Invoice, creditNotes?: CreditNote[]) {
   const totalPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-  const remaining = invoice.total - totalPaid;
-  if (totalPaid === 0) return { status: "unpaid" as const, paid: 0, remaining: invoice.total };
-  if (totalPaid >= invoice.total) return { status: "paid" as const, paid: totalPaid, remaining: 0 };
-  return { status: "partial" as const, paid: totalPaid, remaining };
+  const totalCredited =
+    creditNotes?.filter((cn) => cn.invoiceId === invoice.id && !cn.deletedAt).reduce((sum, cn) => sum + cn.total, 0) || 0;
+  const remaining = Math.max(0, invoice.total - totalPaid - totalCredited);
+  if (remaining === 0) {
+    return {
+      status: "paid" as const,
+      paid: totalPaid,
+      credited: totalCredited,
+      remaining: 0,
+      settledByCreditNote: totalCredited > 0 && totalPaid === 0,
+    };
+  }
+  if (totalPaid === 0 && totalCredited === 0) {
+    return { status: "unpaid" as const, paid: 0, credited: 0, remaining: invoice.total, settledByCreditNote: false };
+  }
+  return { status: "partial" as const, paid: totalPaid, credited: totalCredited, remaining, settledByCreditNote: false };
 }
 
-export function getPaymentBadge(invoice: Invoice) {
-  const ps = getPaymentStatus(invoice);
+export function getPaymentBadge(invoice: Invoice, creditNotes?: CreditNote[]) {
+  const ps = getPaymentStatus(invoice, creditNotes);
   if (ps.status === "paid") {
-    return <StatusBadge variant="invoice-paid" amount={ps.paid} />;
+    if (ps.settledByCreditNote) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Soldé (Avoir)
+        </span>
+      );
+    }
+    return <StatusBadge variant="invoice-paid" amount={ps.paid + ps.credited} />;
   }
   if (ps.status === "partial") {
-    return <StatusBadge variant="invoice-partial" paidAmount={ps.paid} remainingAmount={ps.remaining} />;
+    return <StatusBadge variant="invoice-partial" paidAmount={ps.paid + ps.credited} remainingAmount={ps.remaining} />;
   }
   return <StatusBadge variant="invoice-unpaid" remainingAmount={ps.remaining} />;
 }
 
-export function isInvoiceProtected(inv: Invoice) {
+export function isInvoiceProtected(inv: Invoice, creditNotes?: CreditNote[]) {
   const totalPaid = inv.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-  return totalPaid > 0 || inv.status === "PAID" || inv.status === "PARTIALLY_PAID";
+  const totalCredited =
+    creditNotes?.filter((cn) => cn.invoiceId === inv.id && !cn.deletedAt).reduce((sum, cn) => sum + cn.total, 0) || 0;
+  return totalPaid > 0 || totalCredited > 0 || inv.status === "PAID" || inv.status === "PARTIALLY_PAID";
 }
 
 export function InvoiceViews({
   invoices,
+  creditNotes,
   viewFormat,
   user,
   searchQuery,
@@ -103,62 +127,72 @@ export function InvoiceViews({
 }: InvoiceViewsProps) {
   const isOperatorOrAdmin = user?.role === "user" || user?.role === "admin";
   const isAdmin = user?.role === "admin";
+  const scrollContainerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    scrollContainerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  }, [invoices]);
 
   const canModify = (inv: Invoice) =>
     isOperatorOrAdmin && (inv.created_by === user?.id || isAdmin);
 
-  const renderActionsMenu = (invoice: Invoice) => (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-          <MoreVertical className="w-4 h-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-52 bg-card border-border">
-        <DropdownMenuItem className="gap-2" onClick={() => onPreview(invoice)}>
-          <Eye className="w-4 h-4" /> Aperçu
-        </DropdownMenuItem>
-        <DropdownMenuItem className="gap-2" onClick={() => onPreview(invoice)}>
-          <Printer className="w-4 h-4" /> Imprimer
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          className="gap-2"
-          onClick={() => onDownloadPDF(invoice)}
-          disabled={isDownloading === invoice.id}
-        >
-          <Download className="w-4 h-4" /> {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
-        </DropdownMenuItem>
-        {canModify(invoice) && !isInvoiceProtected(invoice) && (
-          <DropdownMenuItem className="gap-2" onClick={() => onEdit(invoice.id)}>
-            <Edit2 className="w-4 h-4" /> Modifier
+  const renderActionsMenu = (invoice: Invoice) => {
+    const isProtected = isInvoiceProtected(invoice, creditNotes);
+    const isDraft = invoice.status === "draft" || (invoice.status as string) === "BROUILLON";
+
+    return (
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+            <MoreVertical className="w-4 h-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-52 bg-card border-border">
+          <DropdownMenuItem className="gap-2" onClick={() => onPreview(invoice)}>
+            <Eye className="w-4 h-4" /> Aperçu
           </DropdownMenuItem>
-        )}
-        {invoice.status !== "PAID" && invoice.status !== INVOICE_STATUS.CANCELLED && canModify(invoice) && (
-          <DropdownMenuItem className="gap-2 text-accent" onClick={() => onRecordPayment(invoice)}>
-            <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
+          <DropdownMenuItem className="gap-2" onClick={() => onPreview(invoice)}>
+            <Printer className="w-4 h-4" /> Imprimer
           </DropdownMenuItem>
-        )}
-        {canModify(invoice) && invoice.status !== INVOICE_STATUS.CANCELLED && onEmitCreditNote && (
-          <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => onEmitCreditNote(invoice)}>
-            <RefreshCcw className="w-4 h-4" /> Émettre un avoir
+          <DropdownMenuItem
+            className="gap-2"
+            onClick={() => onDownloadPDF(invoice)}
+            disabled={isDownloading === invoice.id}
+          >
+            <Download className="w-4 h-4" /> {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
           </DropdownMenuItem>
-        )}
-        {canModify(invoice) && invoice.status !== INVOICE_STATUS.CANCELLED && !isInvoiceProtected(invoice) && (
-          <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => onCancel(invoice)}>
-            <RefreshCcw className="w-4 h-4" /> Annuler
-          </DropdownMenuItem>
-        )}
-        {canModify(invoice) && !isInvoiceProtected(invoice) && (
-          <>
-            <div className="h-px bg-border my-1" />
-            <DropdownMenuItem className="gap-2 text-destructive" onClick={() => onDelete(invoice.id)}>
-              <Trash2 className="w-4 h-4" /> Supprimer
+          {canModify(invoice) && isDraft && (
+            <DropdownMenuItem className="gap-2" onClick={() => onEdit(invoice.id)}>
+              <Edit2 className="w-4 h-4" /> Modifier
             </DropdownMenuItem>
-          </>
-        )}
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
+          )}
+          {invoice.status !== "PAID" && invoice.status !== INVOICE_STATUS.CANCELLED && canModify(invoice) && (
+            <DropdownMenuItem className="gap-2 text-accent" onClick={() => onRecordPayment(invoice)}>
+              <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
+            </DropdownMenuItem>
+          )}
+          {canModify(invoice) && invoice.status !== INVOICE_STATUS.CANCELLED && onEmitCreditNote && (
+            <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => onEmitCreditNote(invoice)}>
+              <RefreshCcw className="w-4 h-4" /> Émettre un avoir / remboursement
+            </DropdownMenuItem>
+          )}
+          {canModify(invoice) && invoice.status !== INVOICE_STATUS.CANCELLED && !isProtected && (
+            <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => onCancel(invoice)}>
+              <RefreshCcw className="w-4 h-4" /> Annuler
+            </DropdownMenuItem>
+          )}
+          {canModify(invoice) && !isProtected && (
+            <>
+              <div className="h-px bg-border my-1" />
+              <DropdownMenuItem className="gap-2 text-destructive" onClick={() => onDelete(invoice.id)}>
+                <Trash2 className="w-4 h-4" /> Supprimer
+              </DropdownMenuItem>
+            </>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    );
+  };
 
   // ── 1. VUE TABLEAU ──────────────────────────────────────────────────────────
   if (!viewFormat || viewFormat === "table") {
@@ -167,7 +201,7 @@ export function InvoiceViews({
         <DataTableHead>
           <DataTableRow>
             <DataTableHeaderCell>Facture</DataTableHeaderCell>
-            <DataTableHeaderCell>Client</DataTableHeaderCell>
+            <DataTableHeaderCell className="w-[320px] min-w-[240px]">Client</DataTableHeaderCell>
             <DataTableHeaderCell>Date</DataTableHeaderCell>
             <DataTableHeaderCell>Statut</DataTableHeaderCell>
             <DataTableHeaderCell align="right">Total</DataTableHeaderCell>
@@ -185,13 +219,15 @@ export function InvoiceViews({
                   <span className="font-mono font-medium text-sm text-foreground">{invoice.number}</span>
                 </div>
               </DataTableCell>
-              <DataTableCell truncate title={invoice.clientName}>
-                {formatClientName(invoice.clientName)}
+              <DataTableCell className="w-[320px] min-w-[240px]">
+                <div className="font-medium text-foreground truncate max-w-[320px]" title={invoice.clientName}>
+                  {formatClientName(invoice.clientName)}
+                </div>
               </DataTableCell>
               <DataTableCell>
                 <span className="text-xs text-muted-foreground tabular-nums">{formatDate(invoice.date)}</span>
               </DataTableCell>
-              <DataTableCell>{getPaymentBadge(invoice)}</DataTableCell>
+              <DataTableCell>{getPaymentBadge(invoice, creditNotes)}</DataTableCell>
               <AmountCell amount={invoice.total} />
               <ActionsCell>{renderActionsMenu(invoice)}</ActionsCell>
             </DataTableRow>
@@ -204,8 +240,8 @@ export function InvoiceViews({
                   title={searchQuery ? "Aucun résultat" : "Aucune facture"}
                   description={
                     searchQuery
-                      ? "Aucune facture ne correspond à votre recherche."
-                      : "Les factures sont générées automatiquement après la conversion d'un devis accepté."
+                      ? "Aucune facture ne correspond aux critères de recherche saisis."
+                      : "Aucune facture enregistrée dans cette vue. Vous pouvez créer une facture directement ou convertir un devis validé."
                   }
                   actionLabel={!searchQuery && isOperatorOrAdmin ? "Nouvelle Facture" : undefined}
                   onAction={!searchQuery && isOperatorOrAdmin ? onCreateInvoice : undefined}
@@ -221,7 +257,7 @@ export function InvoiceViews({
   // ── 2. VUE HORIZONTALE ──────────────────────────────────────────────────────
   if (viewFormat === "horizontal") {
     return (
-      <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 pr-1">
         <div className="space-y-3">
           {invoices.map((invoice) => (
             <Card key={invoice.id} className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm">
@@ -244,7 +280,7 @@ export function InvoiceViews({
                     </div>
                   </div>
                   <div className="flex items-center gap-3">
-                    {getPaymentBadge(invoice)}
+                    {getPaymentBadge(invoice, creditNotes)}
                     {renderActionsMenu(invoice)}
                   </div>
                 </div>
@@ -271,7 +307,7 @@ export function InvoiceViews({
 
   // ── 3. VUE BLOC / CARTES ───────────────────────────────────────────────────
   return (
-    <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 pr-1">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {invoices.map((invoice, index) => (
           <motion.div
@@ -288,7 +324,7 @@ export function InvoiceViews({
                       <FileText className="w-5 h-5" />
                     </div>
                     <div className="flex items-center gap-2">
-                      {getPaymentBadge(invoice)}
+                      {getPaymentBadge(invoice, creditNotes)}
                       {renderActionsMenu(invoice)}
                     </div>
                   </div>

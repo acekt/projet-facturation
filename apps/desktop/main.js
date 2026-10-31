@@ -22,6 +22,13 @@ process.setMaxListeners(20);
 const USER_DATA_PATH = app.getPath('userData');
 const isDev = !app.isPackaged;
 
+if (isDev) {
+  // Neutralise le bruit Crashpad 0x2 sous Windows lorsqu'aucun pipe de télémétrie n'est configuré
+  app.commandLine.appendSwitch('disable-crash-reporter');
+}
+// Prévient les plantages OOM (Out of Memory) du processus renderer Chromium
+app.commandLine.appendSwitch('js-flags', '--max-old-space-size=4096');
+
 const { initLogger, logToFile } = require('./main/logging');
 const { loadOrGenerateSecrets } = require('./main/secrets');
 const { performDailyBackup } = require('./main/backup');
@@ -37,6 +44,7 @@ const {
   createSplashWindow,
   createMainWindow,
   getMainWindow,
+  notifyAppReady,
 } = require('./main/window');
 const { validateSender, registerAllIpcHandlers } = require('./main/ipc');
 const { setupAutoUpdater, registerUpdaterIpc } = require('./main/updater');
@@ -57,6 +65,7 @@ registerAllIpcHandlers({
   userDataPath: USER_DATA_PATH,
   getMainWindow,
   logToFile,
+  onAppReady: notifyAppReady,
 });
 
 registerUpdaterIpc({

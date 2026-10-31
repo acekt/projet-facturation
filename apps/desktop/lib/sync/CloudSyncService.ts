@@ -330,7 +330,21 @@ async function pushTable(sb: SupabaseClient, cfg: SyncTableConfig, tenantId: str
     db.prepare(`UPDATE ${cfg.local} SET tenant_id = ? WHERE tenant_id IS NULL OR tenant_id = ''`).run(tenantId);
   }
 
-  const dataCols = cols.filter((c) => c !== 'synced_at' && !(cfg.singleton && c === 'id'));
+  // Colonnes SQLite locales absentes du schéma Supabase distant déployé
+  const LOCAL_ONLY_COLUMNS: Record<string, Set<string>> = {
+    settings: new Set(['logo_path', 'logo_sha256', 'logoPath', 'logoSha256']),
+    clients: new Set(['nif', 'rccm']),
+    quotes: new Set(['dueDate', 'due_date']),
+    invoices: new Set(['validUntil', 'valid_until']),
+  };
+
+  const dataCols = cols.filter((c) => {
+    if (c === 'synced_at') return false;
+    if (cfg.singleton && c === 'id') return false;
+    const excludes = LOCAL_ONLY_COLUMNS[cfg.local];
+    if (excludes && excludes.has(c)) return false;
+    return true;
+  });
   const markSynced = db.prepare(`UPDATE ${cfg.local} SET synced_at = updated_at WHERE ${cfg.singleton ? 'id = 1' : 'id = ?'} AND updated_at = ?`);
 
   const quarantined = getQuarantinedIds(cfg.local);

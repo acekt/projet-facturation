@@ -26,6 +26,7 @@ interface PaymentDialogProps {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
   invoice: Invoice | null;
+  totalCredited?: number;
   paymentType: string;
   onPaymentTypeChange: (val: string) => void;
   paymentAmount: string;
@@ -40,6 +41,7 @@ export function PaymentDialog({
   isOpen,
   onOpenChange,
   invoice,
+  totalCredited = 0,
   paymentType,
   onPaymentTypeChange,
   paymentAmount,
@@ -50,7 +52,7 @@ export function PaymentDialog({
   isSubmitting,
 }: PaymentDialogProps) {
   const totalPaid = invoice?.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-  const remaining = (invoice?.total || 0) - totalPaid;
+  const remaining = Math.max(0, (invoice?.total || 0) - totalPaid - totalCredited);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -94,9 +96,16 @@ export function PaymentDialog({
               disabled={paymentType === "full" || isSubmitting}
             />
             {invoice && (
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
-                Reste à payer: {formatCurrency(remaining)}
-              </p>
+              <div className="space-y-0.5">
+                {totalCredited > 0 && (
+                  <p className="text-[10px] text-amber-600 dark:text-amber-400 uppercase tracking-wider font-bold">
+                    Avoir(s) déduit(s): -{formatCurrency(totalCredited)}
+                  </p>
+                )}
+                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">
+                  Reste net à régler: {formatCurrency(remaining)}
+                </p>
+              </div>
             )}
           </div>
           <div className="space-y-2">

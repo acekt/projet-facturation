@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Plus, DownloadCloud } from "lucide-react";
 import { Button } from "@workspace/ui/components/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
+import { cn } from "@/lib/utils";
 import { useStore, type Quote } from "@/lib/store";
 import { useShallow } from "zustand/react/shallow";
 import { getErrorMessage } from "@/lib/utils/action-error";
@@ -17,6 +17,7 @@ import { PageHeader } from "@workspace/ui/components/page-header";
 import { SearchBar } from "@workspace/ui/components/search-bar";
 import { QuoteDeleteDialog } from "./quotes/QuoteDeleteDialog";
 import { QuoteViews } from "./quotes/QuoteViews";
+import { DataExportModal } from "@/components/features/export/DataExportModal";
 
 interface QuotesPageProps {
   onCreateQuote: (id?: string) => void;
@@ -45,13 +46,27 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
 
   const [searchQuery, setSearchQuery] = React.useState("");
   const [currentPage, setCurrentPage] = React.useState(1);
-  const itemsPerPage = 10;
+  const itemsPerPage = 9; // Harmonisation Grille 3x3
 
   const [selectedQuote, setSelectedQuote] = React.useState<Quote | null>(null);
   const [quoteToDeleteId, setQuoteToDeleteId] = React.useState<string | null>(null);
   const [isDownloading, setIsDownloading] = React.useState<string | null>(null);
   const [isDeleting, setIsDeleting] = React.useState(false);
+  const [isExportModalOpen, setIsExportModalOpen] = React.useState(false);
   const [statusFilter, setStatusFilter] = React.useState<string>("all");
+
+  const quoteCounts = React.useMemo(() => {
+    let draft = 0, pending = 0, converted = 0, refusedExpired = 0;
+    for (const q of quotes) {
+      if (q.deletedAt) continue;
+      const st = q.status as string;
+      if (st === "draft" || st === "BROUILLON") draft++;
+      else if (st === "CONVERTI") converted++;
+      else if (st === "REFUSE" || st === "EXPIRE" || st === "EXPIRED") refusedExpired++;
+      else pending++;
+    }
+    return { draft, pending, converted, refusedExpired };
+  }, [quotes]);
 
   const filteredQuotes = React.useMemo(() => {
     return quotes.filter((quote) => {
@@ -61,6 +76,18 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
         (quote.clientName || "").toLowerCase().includes(q);
 
       if (statusFilter === "all") return matchesSearch;
+      if (statusFilter === "draft") {
+        return matchesSearch && ((quote.status as string) === "draft" || (quote.status as string) === "BROUILLON");
+      }
+      if (statusFilter === "pending") {
+        return matchesSearch && (quote.status === "EN_ATTENTE" || (quote.status as string) === "ENVOYE" || (quote.status as string) === "sent");
+      }
+      if (statusFilter === "CONVERTI") {
+        return matchesSearch && quote.status === "CONVERTI";
+      }
+      if (statusFilter === "refused_expired") {
+        return matchesSearch && (quote.status === "REFUSE" || quote.status === "EXPIRE" || (quote.status as string) === "EXPIRED");
+      }
       return matchesSearch && quote.status === statusFilter;
     });
   }, [quotes, searchQuery, statusFilter]);
@@ -165,15 +192,8 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
           <>
             <Button
               variant="outline"
-              onClick={async () => {
-                try {
-                  await exportQuotesToExcel(quotes);
-                } catch (err) {
-                  console.error("Export Excel failed:", err);
-                  toast.error("Erreur lors de la génération du fichier Excel.");
-                }
-              }}
-              className="gap-2 hidden sm:flex"
+              onClick={() => setIsExportModalOpen(true)}
+              className="gap-2 hidden sm:flex cursor-pointer"
             >
               <DownloadCloud className="w-4 h-4" />
               Export Excel
@@ -192,7 +212,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
         }
       />
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-4">
+      <div className="flex flex-col sm:flex-row gap-4 mb-2">
         <div className="flex-1">
           <SearchBar
             placeholder="Rechercher un devis (numéro, client, objet)..."
@@ -201,21 +221,83 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
             viewFormatKey="quotes"
           />
         </div>
-        <div className="w-full sm:w-60">
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-full bg-secondary border-border text-foreground">
-              <SelectValue placeholder="Filtrer par statut..." />
-            </SelectTrigger>
-            <SelectContent className="bg-card border-border">
-              <SelectItem value="all">Tous les statuts</SelectItem>
-              <SelectItem value="EN_ATTENTE">En attente</SelectItem>
-              <SelectItem value="ENVOYE">Envoyé</SelectItem>
-              <SelectItem value="CONVERTI">Converti en facture</SelectItem>
-              <SelectItem value="REFUSE">Refusé</SelectItem>
-              <SelectItem value="EXPIRE">Expiré</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+      </div>
+
+      {/* Filtres d'accès rapide unifiés (Loi de Hick, Fitts & Seuil de Doherty) */}
+      <div className="flex items-center gap-2 mb-2 overflow-x-auto pb-1">
+        <button
+          type="button"
+          onClick={() => setStatusFilter("all")}
+          className={cn(
+            "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+            statusFilter === "all"
+              ? "bg-secondary text-foreground shadow-xs"
+              : "text-muted-foreground hover:bg-secondary/60"
+          )}
+        >
+          <span>Tous</span>
+          <span className="text-[11px] tabular-nums font-normal opacity-80">({quotes.length})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("draft")}
+          className={cn(
+            "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+            statusFilter === "draft"
+              ? "bg-slate-800 text-white shadow-xs"
+              : "bg-slate-500/10 text-slate-700 dark:text-slate-300 hover:bg-slate-500/20"
+          )}
+        >
+          <span>Brouillons</span>
+          <span className="px-1.5 py-0.5 bg-slate-500/20 rounded-full tabular-nums text-[10px] font-bold">
+            {quoteCounts.draft}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("pending")}
+          className={cn(
+            "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer",
+            statusFilter === "pending"
+              ? "bg-amber-500 text-white shadow-xs"
+              : "bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
+          )}
+        >
+          <span>En attente</span>
+          <span className="px-1.5 py-0.5 bg-amber-600/20 rounded-full tabular-nums text-[10px] font-bold">
+            {quoteCounts.pending}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("CONVERTI")}
+          className={cn(
+            "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer",
+            statusFilter === "CONVERTI"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-muted-foreground hover:bg-secondary/60"
+          )}
+        >
+          <span>Convertis</span>
+          <span className="px-1.5 py-0.5 bg-emerald-700/20 rounded-full tabular-nums text-[10px] font-bold">
+            {quoteCounts.converted}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setStatusFilter("refused_expired")}
+          className={cn(
+            "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer",
+            statusFilter === "refused_expired"
+              ? "bg-slate-700 text-white shadow-xs"
+              : "text-muted-foreground hover:bg-secondary/60"
+          )}
+        >
+          <span>Refusés / Expirés</span>
+          <span className="px-1.5 py-0.5 bg-slate-500/20 rounded-full tabular-nums text-[10px] font-bold">
+            {quoteCounts.refusedExpired}
+          </span>
+        </button>
       </div>
 
       <QuoteViews
@@ -253,6 +335,12 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
           onClose={() => setSelectedQuote(null)}
         />
       )}
+
+      <DataExportModal
+        open={isExportModalOpen}
+        onOpenChange={setIsExportModalOpen}
+        defaultScope="quotes"
+      />
     </div>
   );
 }

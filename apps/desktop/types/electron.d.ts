@@ -36,6 +36,7 @@ export interface IElectronBridge {
   ) => Promise<{ saved: boolean; filePath?: string; error?: string }>;
   getVersion: () => Promise<string>;
   getUserDataPath: () => Promise<string>;
+  reportAppReady?: () => Promise<{ success: boolean }>;
   platform: 'win32' | 'darwin' | 'linux';
   isElectron: true;
   updater?: IElectronUpdaterBridge;

@@ -20,6 +20,7 @@ import { InvoiceDeleteDialog } from "./invoices/InvoiceDeleteDialog"
 import { InvoiceCancelDialog } from "./invoices/InvoiceCancelDialog"
 import { InvoiceViews } from "./invoices/InvoiceViews"
 import { CreateCreditNoteModal } from "@/components/features/credit-notes/CreateCreditNoteModal"
+import { DataExportModal } from "@/components/features/export/DataExportModal"
 import { useCommandFilter } from "@/lib/command-navigation"
 import { useShallow } from "zustand/react/shallow"
 
@@ -29,59 +30,51 @@ interface InvoicesPageProps {
 }
 
 export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPageProps) {
-  const {
-    invoices,
-    setInvoices,
-    setQuotes,
-    setPayments,
-    settings,
-    creditNotes,
-    setCreditNotes,
-    user,
-    viewFormat,
-    isDataLoaded,
-  } = useStore(
-    useShallow((state) => ({
-      invoices: state.invoices,
-      setInvoices: state.setInvoices,
-      setQuotes: state.setQuotes,
-      setPayments: state.setPayments,
-      settings: state.settings,
-      creditNotes: state.creditNotes,
-      setCreditNotes: state.setCreditNotes,
-      user: state.user,
-      viewFormat: state.viewFormat,
-      isDataLoaded: state.isDataLoaded,
+  const { invoices, setInvoices, setQuotes, setPayments, settings, creditNotes, setCreditNotes, user, viewFormat, isDataLoaded } = useStore(
+    useShallow((s) => ({
+      invoices: s.invoices, setInvoices: s.setInvoices, setQuotes: s.setQuotes, setPayments: s.setPayments,
+      settings: s.settings, creditNotes: s.creditNotes, setCreditNotes: s.setCreditNotes,
+      user: s.user, viewFormat: s.viewFormat, isDataLoaded: s.isDataLoaded,
     }))
   )
 
   const [searchQuery, setSearchQuery] = React.useState("")
   useCommandFilter("invoices", setSearchQuery)
   const [currentPage, setCurrentPage] = React.useState(1)
-  const itemsPerPage = 10
+  const itemsPerPage = 9 // Harmonisation Grille 3x3 pour éviter les cartes orphelines et trous visuels (10 % 3 = 1)
   const [selectedInvoice, setSelectedInvoice] = React.useState<Invoice | null>(null)
   const [invoiceForCreditNote, setInvoiceForCreditNote] = React.useState<Invoice | null>(null)
   const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
+  const [isExportModalOpen, setIsExportModalOpen] = React.useState(false)
 
   const [paymentDialogOpen, setPaymentDialogOpen] = React.useState(false)
   const [paymentInvoice, setPaymentInvoice] = React.useState<Invoice | null>(null)
   const [paymentMethod, setPaymentMethod] = React.useState("Espèces")
-  const [paymentAmount, setPaymentAmount] = React.useState("")
-  const [paymentType, setPaymentType] = React.useState("full")
+  const [paymentAmount, setPaymentAmount] = React.useState(""), [paymentType, setPaymentType] = React.useState("full")
   const [paymentDate, setPaymentDate] = React.useState(new Date().toISOString().split("T")[0])
-  const [paymentReference, setPaymentReference] = React.useState("")
-  const [isRecordingPayment, setIsRecordingPayment] = React.useState(false)
-
+  const [paymentReference, setPaymentReference] = React.useState(""), [isRecordingPayment, setIsRecordingPayment] = React.useState(false)
   const [invoiceToDeleteId, setInvoiceToDeleteId] = React.useState<string | null>(null)
   const [invoiceToCancel, setInvoiceToCancel] = React.useState<Invoice | null>(null)
   const [deleteAssociatedQuote, setDeleteAssociatedQuote] = React.useState(false)
-
-  const [isDeleting, setIsDeleting] = React.useState(false)
-  const [isCancelling, setIsCancelling] = React.useState(false)
+  const [isDeleting, setIsDeleting] = React.useState(false), [isCancelling, setIsCancelling] = React.useState(false)
   const [statusFilter, setStatusFilter] = React.useState<string>("all")
 
-  const unpaidCount = React.useMemo(() => {
-    return invoices.filter((inv) => !inv.deletedAt && (inv.status === "UNPAID" || inv.status === "PARTIALLY_PAID" || inv.status === "overdue")).length
+  const invoiceCounts = React.useMemo(() => {
+    let draft = 0, unpaid = 0, paid = 0, overdue = 0, cancelled = 0
+    const now = Date.now()
+    for (const inv of invoices) {
+      if (inv.deletedAt) continue
+      const st = inv.status as string
+      if (st === "draft" || st === "BROUILLON") draft++
+      else if (st === "cancelled" || st === "CANCELLED") cancelled++
+      else if (st === "PAID") paid++
+      else {
+        const isPastDue = inv.dueDate ? new Date(inv.dueDate).getTime() < now : false
+        if (st === "overdue" || isPastDue) overdue++
+        if (st === "UNPAID" || st === "PARTIALLY_PAID" || st === "overdue" || isPastDue) unpaid++
+      }
+    }
+    return { draft, unpaid, paid, overdue, cancelled }
   }, [invoices])
 
   const filteredInvoices = React.useMemo(() => {
@@ -92,8 +85,15 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         (invoice.clientName || "").toLowerCase().includes(q) ||
         (invoice.clientEmail || "").toLowerCase().includes(q)
       if (statusFilter === "all") return matchesSearch
+      if (statusFilter === "draft") {
+        return matchesSearch && (invoice.status === "draft" || (invoice.status as string) === "BROUILLON")
+      }
       if (statusFilter === "unpaid_any") {
         return matchesSearch && (invoice.status === "UNPAID" || invoice.status === "PARTIALLY_PAID" || invoice.status === "overdue")
+      }
+      if (statusFilter === "overdue") {
+        const isPastDue = invoice.dueDate ? new Date(invoice.dueDate).getTime() < Date.now() : false
+        return matchesSearch && (invoice.status === "overdue" || (isPastDue && invoice.status !== "PAID" && (invoice.status as string) !== "cancelled" && (invoice.status as string) !== "CANCELLED"))
       }
       return matchesSearch && invoice.status === statusFilter
     })
@@ -168,11 +168,16 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     }
   }
 
+  const getInvoiceNetRemaining = React.useCallback((inv: Invoice | null) => {
+    if (!inv) return 0
+    const paid = inv.payments?.reduce((s, p) => s + p.amount, 0) || 0
+    const credited = creditNotes.filter((c) => c.invoiceId === inv.id && !c.deletedAt).reduce((s, c) => s + c.total, 0)
+    return Math.max(0, inv.total - paid - credited)
+  }, [creditNotes])
+
   const handleOpenPayment = (invoice: Invoice) => {
-    const totalPaid = invoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
-    const remaining = invoice.total - totalPaid
     setPaymentInvoice(invoice)
-    setPaymentAmount(remaining.toString())
+    setPaymentAmount(getInvoiceNetRemaining(invoice).toString())
     setPaymentType("full")
     setPaymentMethod("Espèces")
     setPaymentDate(new Date().toISOString().split("T")[0])
@@ -211,18 +216,10 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
 
   const confirmPayment = async () => {
     if (!paymentInvoice || isRecordingPayment) return
-    const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
-    const remaining = paymentInvoice.total - totalPaid
+    const remaining = getInvoiceNetRemaining(paymentInvoice)
     const amount = parseFloat(paymentAmount)
-
-    if (amount <= 0) {
-      toast.error("Le montant doit être supérieur à 0")
-      return
-    }
-
-    if (amount > remaining) {
-      toast.error(`Le montant ne peut pas dépasser le reste à payer (${formatCurrency(remaining)})`)
-      return
+    if (amount <= 0) return void toast.error("Le montant doit être supérieur à 0")
+    if (amount > remaining) return void toast.error(`Le montant ne peut pas dépasser le reste à payer (${formatCurrency(remaining)})`)
     }
 
     setIsRecordingPayment(true)
@@ -272,18 +269,10 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
           <>
             <Button
               variant="outline"
-              onClick={async () => {
-                try {
-                  await exportInvoicesToExcel(invoices)
-                } catch (err) {
-                  console.error("Export Excel failed:", err)
-                  toast.error("Erreur lors de la génération du fichier Excel.")
-                }
-              }}
-              className="gap-2 hidden sm:flex"
+              onClick={() => setIsExportModalOpen(true)}
+              className="gap-2 hidden sm:flex cursor-pointer"
             >
-              <DownloadCloud className="w-4 h-4" />
-              Export Excel
+              <DownloadCloud className="w-4 h-4" /> Export Excel
             </Button>
             {(user?.role === "user" || user?.role === "admin") && (
               <Button
@@ -304,11 +293,16 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         statusFilter={statusFilter}
         onStatusFilterChange={setStatusFilter}
         totalCount={invoices.length}
-        unpaidCount={unpaidCount}
+        draftCount={invoiceCounts.draft}
+        unpaidCount={invoiceCounts.unpaid}
+        paidCount={invoiceCounts.paid}
+        overdueCount={invoiceCounts.overdue}
+        cancelledCount={invoiceCounts.cancelled}
       />
 
       <InvoiceViews
         invoices={paginatedInvoices}
+        creditNotes={creditNotes}
         viewFormat={viewFormat.invoices || "table"}
         user={user}
         searchQuery={searchQuery}
@@ -318,10 +312,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         onEdit={(id) => onEditInvoice(id)}
         onRecordPayment={handleOpenPayment}
         onEmitCreditNote={(inv) => setInvoiceForCreditNote(inv)}
-        onCancel={(inv) => {
-          setInvoiceToCancel(inv)
-          setDeleteAssociatedQuote(false)
-        }}
+        onCancel={(inv) => { setInvoiceToCancel(inv); setDeleteAssociatedQuote(false); }}
         onDelete={(id) => setInvoiceToDeleteId(id)}
         onCreateInvoice={onCreateInvoice}
       />
@@ -353,19 +344,16 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         isOpen={paymentDialogOpen}
         onOpenChange={setPaymentDialogOpen}
         invoice={paymentInvoice}
+        totalCredited={paymentInvoice ? creditNotes.filter((c) => c.invoiceId === paymentInvoice.id && !c.deletedAt).reduce((s, c) => s + c.total, 0) : 0}
         paymentType={paymentType}
         onPaymentTypeChange={(val) => {
           setPaymentType(val)
-          if (val === "full" && paymentInvoice) {
-            const totalPaid = paymentInvoice.payments?.reduce((sum, p) => sum + p.amount, 0) || 0
-            setPaymentAmount((paymentInvoice.total - totalPaid).toString())
-          }
+          if (val === "full" && paymentInvoice) setPaymentAmount(getInvoiceNetRemaining(paymentInvoice).toString())
         }}
         paymentAmount={paymentAmount}
         onPaymentAmountChange={(val) => {
-          const value = parseFloat(val) || 0
-          const remaining = paymentInvoice ? paymentInvoice.total - (paymentInvoice.payments?.reduce((s, p) => s + p.amount, 0) || 0) : Infinity
-          if (value <= remaining) setPaymentAmount(val)
+          const v = parseFloat(val) || 0
+          if (!paymentInvoice || v <= getInvoiceNetRemaining(paymentInvoice)) setPaymentAmount(val)
         }}
         paymentMethod={paymentMethod}
         onPaymentMethodChange={setPaymentMethod}
@@ -387,6 +375,12 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         onDeleteAssociatedQuoteChange={setDeleteAssociatedQuote}
         onConfirm={confirmCancelInvoice}
         isCancelling={isCancelling}
+      />
+
+      <DataExportModal
+        open={isExportModalOpen}
+        onOpenChange={setIsExportModalOpen}
+        defaultScope="invoices"
       />
     </div>
   )

@@ -28,6 +28,10 @@ import { cn, formatCurrency } from "../lib/utils";
 // ── Dictionnaire de variantes ──────────────────────────────────────────────────
 const VARIANT_MAP = {
   // Factures — statuts de paiement
+  "invoice-draft": {
+    base: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+    label: "Brouillon",
+  },
   "invoice-paid": {
     base: "bg-emerald-100 text-emerald-700 border-emerald-200",
     label: "Soldé",
@@ -41,6 +45,10 @@ const VARIANT_MAP = {
     label: "Non payé",
   },
   // Devis — statuts de cycle de vie
+  "quote-draft": {
+    base: "bg-slate-100 text-slate-700 border-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700",
+    label: "Brouillon",
+  },
   "quote-pending": {
     base: "bg-primary-light text-primary border-primary/20",
     label: "En Attente",
@@ -143,6 +151,7 @@ export function getInvoiceStatusVariant(
   info: InvoicePaymentInfo,
 ): StatusBadgeVariant {
   const { paidAmount, total } = info;
+  if ((info.status as string) === "draft" || (info.status as string) === "BROUILLON") return "invoice-draft";
   if (paidAmount >= total && total > 0) return "invoice-paid";
   if (paidAmount > 0) return "invoice-partial";
   return "invoice-unpaid";
@@ -153,10 +162,13 @@ type QuoteStatus = (typeof QUOTE_STATUS)[keyof typeof QUOTE_STATUS];
 
 export function getQuoteStatusVariant(status: QuoteStatus): StatusBadgeVariant {
   switch (status) {
+    case "draft" as any:
+    case "BROUILLON" as any:
+      return "quote-draft";
     case QUOTE_STATUS.CONVERTI:
       return "quote-converted";
     case QUOTE_STATUS.ENVOYE:
-      return "quote-sent";
+      return "quote-pending";
     case QUOTE_STATUS.REFUSE:
       return "quote-refused";
     case QUOTE_STATUS.EXPIRE:

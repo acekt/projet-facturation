@@ -95,3 +95,4 @@ if (hasError) {
 
 console.log('🎉 [desktop-health] Tous les contrôles préventifs de santé desktop sont validés !');
 process.exit(0);
+

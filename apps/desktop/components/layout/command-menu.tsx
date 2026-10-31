@@ -49,7 +49,7 @@ const navItems = [
   // Opérations
   { id: "quotes", label: "Devis", icon: FileText, roles: ["admin", "user"] },
   { id: "invoices", label: "Factures", icon: FileText, roles: ["admin", "user"] },
-  { id: "credit-notes", label: "Avoirs", icon: RefreshCcw, roles: ["admin", "user"] },
+  { id: "credit-notes", label: "Avoirs & Remboursements", icon: RefreshCcw, roles: ["admin", "user"] },
   // Bottom
   { id: "settings", label: "Paramètres", icon: Settings, roles: ["admin", "user"] },
 ]

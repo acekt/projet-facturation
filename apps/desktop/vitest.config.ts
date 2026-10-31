@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import path from 'path';
@@ -37,9 +38,6 @@ export default defineConfig({
     globals: true,
     fileParallelism: false,
     pool: 'forks',
-    forks: {
-      singleFork: true,
-    },
     setupFiles: [path.resolve(__dirname, './tests/setup.ts')],
     exclude: [
       '**/node_modules/**',

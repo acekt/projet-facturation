@@ -1,37 +1,35 @@
-"use client"
+"use client";
 
-import { getUsers, createUser, updateUser as updateUserService } from "@/app/actions/user.actions"
-import * as React from "react"
-import { motion } from "framer-motion"
-import {
-  ArrowLeft,
-  User,
-  Shield,
-  Key,
-  Lock,
-} from "lucide-react"
-import { UserSummaryCard } from "@/components/editor/UserSummaryCard"
-import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
-import { Button } from "@workspace/ui/components/button"
-import { Input } from "@workspace/ui/components/input"
-import { Label } from "@workspace/ui/components/label"
-import { Switch } from "@workspace/ui/components/switch"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select"
-import { toast } from "sonner"
-import { useStore } from "@/lib/store"
-import { userCreateSchema, userUpdateSchema } from "@/lib/validations"
+import * as React from "react";
+import { motion } from "framer-motion";
+import { ArrowLeft, User, Lock, Key } from "lucide-react";
+import { getUsers, createUser, updateUser as updateUserService } from "@/app/actions/user.actions";
+import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
+import { Button } from "@workspace/ui/components/button";
+import { Input } from "@workspace/ui/components/input";
+import { Label } from "@workspace/ui/components/label";
+import { Switch } from "@workspace/ui/components/switch";
+import { toast } from "sonner";
+import { useStore } from "@/lib/store";
+import { userCreateSchema, userUpdateSchema } from "@/lib/validations";
+import { UserSummaryCard } from "@/components/editor/UserSummaryCard";
+import { UserRoleSelector } from "@/components/editor/UserRoleSelector";
+import { PasswordStrengthIndicator } from "@/components/editor/PasswordStrengthIndicator";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 
 interface UserEditorProps {
-  onBack: () => void
-  editingId?: string | null
+  onBack: () => void;
+  editingId?: string | null;
 }
 
 export function UserEditor({ onBack, editingId }: UserEditorProps) {
-  const currentUser = useStore((s) => s.user)
-  const setUsers = useStore((s) => s.setUsers)
-  const [isLoading, setIsLoading] = React.useState(!!editingId)
-  const [isSubmitting, startSubmitTransition] = React.useTransition()
-  const [showPassword, setShowPassword] = React.useState(false)
+  const currentUser = useStore((s) => s.user);
+  const setUsers = useStore((s) => s.setUsers);
+  const [isLoading, setIsLoading] = React.useState(!!editingId);
+  const [isSubmitting, startSubmitTransition] = React.useTransition();
+  const [showPassword, setShowPassword] = React.useState(false);
+  const formRef = React.useRef<HTMLFormElement>(null);
 
   const [formData, setFormData] = React.useState({
     name: "",
@@ -41,15 +39,15 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
     password: "",
     force_password_change: true,
     is_active: true,
-  })
+  });
 
-  const [errors, setErrors] = React.useState<Record<string, string>>({})
+  const [errors, setErrors] = React.useState<Record<string, string>>({});
 
   const fetchUser = React.useCallback(async () => {
     try {
-      const res = await getUsers()
+      const res = await getUsers();
       if (res.success && res.data) {
-        const user = res.data.find((u) => u.id === editingId)
+        const user = res.data.find((u) => u.id === editingId);
         if (user) {
           setFormData({
             name: user.name,
@@ -59,59 +57,79 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
             password: "",
             force_password_change: Boolean(user.force_password_change),
             is_active: user.is_active === 1,
-          })
+          });
         }
       } else {
-        toast.error(res.error || "Erreur lors du chargement de l'utilisateur")
-        onBack()
+        toast.error(res.error || "Erreur lors du chargement de l'utilisateur");
+        onBack();
       }
     } catch {
-      toast.error("Erreur lors du chargement de l'utilisateur")
-      onBack()
+      toast.error("Erreur lors du chargement de l'utilisateur");
+      onBack();
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }, [editingId, onBack])
+  }, [editingId, onBack]);
 
   React.useEffect(() => {
     if (editingId) {
-      fetchUser()
+      fetchUser();
     }
-  }, [editingId, fetchUser])
+  }, [editingId, fetchUser]);
+
+  const isDirty = React.useMemo(() => {
+    if (editingId) {
+      return !!(formData.name || formData.phone || formData.password);
+    }
+    return !!(formData.name || formData.email || formData.password);
+  }, [editingId, formData.name, formData.email, formData.phone, formData.password]);
+
+  const { guardNavigation } = useUnsavedChangesGuard({ isDirty });
+
+  const handleBackSafe = () => {
+    guardNavigation(onBack);
+  };
+
+  useKeyboardShortcuts({
+    onSave: () => {
+      formRef.current?.requestSubmit();
+    },
+    onEscape: handleBackSafe,
+  });
 
   const validateForm = () => {
-    const schema = editingId ? userUpdateSchema : userCreateSchema
+    const schema = editingId ? userUpdateSchema : userCreateSchema;
     const dataToValidate = editingId
       ? {
           ...formData,
           email: formData.email && formData.email !== "" ? formData.email : undefined,
         }
-      : { ...formData, username: formData.email }
+      : { ...formData, username: formData.email };
 
-    const result = schema.safeParse(dataToValidate)
+    const result = schema.safeParse(dataToValidate);
 
     if (!result.success) {
-      const newErrors: Record<string, string> = {}
+      const newErrors: Record<string, string> = {};
       result.error.errors.forEach((err) => {
         if (err.path[0]) {
-          newErrors[err.path[0] as string] = err.message
+          newErrors[err.path[0] as string] = err.message;
         }
-      })
-      setErrors(newErrors)
-      const firstError = result.error.errors[0]?.message || "Veuillez corriger les erreurs du formulaire"
-      toast.error(firstError)
-      return false
+      });
+      setErrors(newErrors);
+      const firstError = result.error.errors[0]?.message || "Veuillez corriger les erreurs du formulaire";
+      toast.error(firstError);
+      return false;
     }
 
-    setErrors({})
-    return true
-  }
+    setErrors({});
+    return true;
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
+    e.preventDefault();
 
     if (!validateForm()) {
-      return
+      return;
     }
 
     startSubmitTransition(async () => {
@@ -136,33 +154,33 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
               password: formData.password,
               force_password_change: formData.force_password_change,
               is_active: formData.is_active,
-            }
+            };
 
-        const res = editingId ? await updateUserService(editingId, payload) : await createUser(payload)
+        const res = editingId ? await updateUserService(editingId, payload) : await createUser(payload);
 
         if (res.success) {
-          const refreshed = await getUsers()
+          const refreshed = await getUsers();
           if (refreshed.success && refreshed.data) {
-            setUsers(refreshed.data)
+            setUsers(refreshed.data);
           }
-          toast.success(editingId ? "Utilisateur mis à jour" : "Utilisateur créé avec succès")
-          onBack()
+          toast.success(editingId ? "Utilisateur mis à jour" : "Utilisateur créé avec succès");
+          onBack();
         } else {
-          toast.error(res.error || "Erreur lors de l'opération")
+          toast.error(res.error || "Erreur lors de l'opération");
         }
       } catch (err) {
-        console.error("[UserEditor] handleSubmit error:", err)
-        toast.error("Erreur réseau")
+        console.error("[UserEditor] handleSubmit error:", err);
+        toast.error("Erreur réseau");
       }
-    })
-  }
+    });
+  };
 
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="text-muted-foreground">Chargement...</div>
+        <div className="text-muted-foreground text-sm font-medium">Chargement du profil...</div>
       </div>
-    )
+    );
   }
 
   return (
@@ -172,7 +190,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
       className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6"
     >
       <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" onClick={onBack}>
+        <Button variant="ghost" size="sm" onClick={handleBackSafe} className="cursor-pointer">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Retour
         </Button>
@@ -180,123 +198,94 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
           <h1 className="text-2xl font-bold text-foreground tracking-tight">
             {editingId ? "Modifier l'utilisateur" : "Nouvel utilisateur"}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-muted-foreground mt-1 text-sm">
             {editingId
-              ? "Mettez à jour les informations du compte"
-              : "Créez un nouvel accès pour un membre de votre équipe"}
+              ? "Mettez à jour les informations et les droits d'accès du collaborateur"
+              : "Créez un nouvel accès sécurisé pour un membre de votre équipe"}
           </p>
         </div>
       </div>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <Card className="bg-card border-border">
-              <CardHeader>
+            {/* INFORMATIONS PERSONNELLES */}
+            <Card className="bg-card border-border shadow-sm">
+              <CardHeader className="pb-3">
                 <CardTitle className="text-foreground font-semibold text-base flex items-center gap-2">
-                  <User className="w-5 h-5" />
-                  Informations Personnelles
+                  <User className="w-4 h-4 text-primary" />
+                  Identité & Coordonnées
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">
+                <div className="space-y-1.5">
+                  <Label htmlFor="name" className="text-xs font-medium">
                     Nom complet <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="name"
                     value={formData.name || ""}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Jean Dupont"
-                    className="bg-secondary border-border text-foreground"
+                    placeholder="Ex: Jean Paul Ndong"
+                    className="bg-secondary/60 border-border text-foreground text-sm h-10"
                   />
-                  {errors.name && <p className="text-destructive text-sm font-medium">{errors.name}</p>}
+                  {errors.name && <p className="text-destructive text-xs font-medium">{errors.name}</p>}
                 </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="email">
-                    Email <span className="text-destructive">*</span>
-                  </Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={formData.email || ""}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="jean@facturier.ga"
-                    className="bg-secondary border-border text-foreground"
-                    disabled={!!editingId}
-                  />
-                  {errors.email && <p className="text-destructive text-sm font-medium">{errors.email}</p>}
-                  {editingId && !errors.email && (
-                    <p className="text-xs text-muted-foreground">L&apos;email ne peut pas être modifié</p>
-                  )}
-                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="email" className="text-xs font-medium">
+                      Adresse Email (Identifiant de connexion) <span className="text-destructive">*</span>
+                    </Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={formData.email || ""}
+                      onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                      placeholder="jean.ndong@entreprise.ga"
+                      className="bg-secondary/60 border-border text-foreground text-sm h-10"
+                      disabled={!!editingId}
+                    />
+                    {errors.email && <p className="text-destructive text-xs font-medium">{errors.email}</p>}
+                    {editingId && !errors.email && (
+                      <p className="text-[11px] text-muted-foreground">L&apos;identifiant email ne peut pas être modifié</p>
+                    )}
+                  </div>
 
-                <div className="space-y-2">
-                  <Label htmlFor="phone">Téléphone</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    value={formData.phone || ""}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    placeholder="+241 XX XX XX XX"
-                    className="bg-secondary border-border text-foreground"
-                  />
-                  {errors.phone && <p className="text-destructive text-sm font-medium">{errors.phone}</p>}
+                  <div className="space-y-1.5">
+                    <Label htmlFor="phone" className="text-xs font-medium">
+                      Numéro de téléphone
+                    </Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={formData.phone || ""}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="+241 74 00 00 00"
+                      className="bg-secondary/60 border-border text-foreground text-sm h-10"
+                    />
+                    {errors.phone && <p className="text-destructive text-xs font-medium">{errors.phone}</p>}
+                  </div>
                 </div>
               </CardContent>
             </Card>
 
-            <Card className="bg-card border-border">
-              <CardHeader>
-                <CardTitle className="text-foreground font-semibold text-base flex items-center gap-2">
-                  <Shield className="w-5 h-5" />
-                  Rôle & Droits
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="role">
-                    Rôle <span className="text-destructive">*</span>
-                  </Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(value: "admin" | "user") => setFormData({ ...formData, role: value })}
-                    disabled={editingId === currentUser?.id}
-                  >
-                    <SelectTrigger className="bg-secondary border-border text-foreground">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent className="bg-card border-border">
-                      <SelectItem value="user">
-                        <div className="flex flex-col">
-                          <span className="font-medium">Opérateur</span>
-                          <span className="text-xs text-muted-foreground">
-                            Accès aux devis, factures, clients, services
-                          </span>
-                        </div>
-                      </SelectItem>
-                      <SelectItem value="admin">
-                        <div className="flex flex-col">
-                          <span className="font-medium">Administrateur</span>
-                          <span className="text-xs text-muted-foreground">
-                            Gestion utilisateurs, paramètres, audit
-                          </span>
-                        </div>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                  {errors.role && <p className="text-destructive text-sm font-medium mt-1">{errors.role}</p>}
-                  {editingId === currentUser?.id && !errors.role && (
-                    <p className="text-xs text-muted-foreground">Vous ne pouvez pas modifier votre propre rôle</p>
-                  )}
-                </div>
+            {/* SÉLECTION VISUELLE DE RÔLE & STATUT */}
+            <Card className="bg-card border-border shadow-sm">
+              <CardContent className="p-4 sm:p-5 space-y-4">
+                <UserRoleSelector
+                  value={formData.role}
+                  onChange={(val) => setFormData({ ...formData, role: val })}
+                  disabled={editingId === currentUser?.id}
+                  disabledMessage="Vous ne pouvez pas modifier votre propre rôle"
+                  error={errors.role}
+                />
 
-                <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 border border-border">
+                <div className="flex items-center justify-between p-3.5 rounded-xl bg-secondary/40 border border-border mt-4">
                   <div className="space-y-0.5">
-                    <Label className="text-sm font-medium">Statut du compte</Label>
-                    <p className="text-[10px] text-muted-foreground">
-                      Un compte inactif ne peut pas se connecter
+                    <Label className="text-xs font-semibold text-foreground">Autorisation de connexion (Compte actif)</Label>
+                    <p className="text-[11px] text-muted-foreground">
+                      Désactivez cette option pour suspendre temporairement l&apos;accès du collaborateur sans supprimer son historique.
                     </p>
                   </div>
                   <Switch
@@ -308,45 +297,52 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
               </CardContent>
             </Card>
 
-            <Card className="bg-card border-border">
-              <CardHeader>
+            {/* SÉCURITÉ & MOT DE PASSE */}
+            <Card className="bg-card border-border shadow-sm">
+              <CardHeader className="pb-3">
                 <CardTitle className="text-foreground font-semibold text-base flex items-center gap-2">
-                  <Lock className="w-5 h-5" />
-                  Sécurité
+                  <Lock className="w-4 h-4 text-primary" />
+                  Sécurité & Authentification
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="password">Mot de passe {editingId ? "(optionnel)" : "*"}</Label>
+                  <Label htmlFor="password" className="text-xs font-medium">
+                    {editingId ? "Nouveau mot de passe (Laisser vide pour conserver l'actuel)" : "Mot de passe provisoire *"}{" "}
+                  </Label>
                   <div className="relative">
                     <Input
                       id="password"
                       type={showPassword ? "text" : "password"}
                       value={formData.password || ""}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder={editingId ? "Laisser vide pour ne pas modifier" : "Minimum 8 caractères"}
-                      className="bg-secondary border-border text-foreground pr-10"
+                      placeholder={editingId ? "Conserver le mot de passe actuel" : "Ex: Passw0rd2026!"}
+                      className="bg-secondary/60 border-border text-foreground pr-10 text-sm h-10"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="absolute right-0 top-0 h-full px-3"
+                      className="absolute right-0 top-0 h-full px-3 text-muted-foreground hover:text-foreground cursor-pointer"
                       aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? <Lock className="w-4 h-4" /> : <Key className="w-4 h-4" />}
                     </Button>
                   </div>
-                  {errors.password && <p className="text-destructive text-sm font-medium">{errors.password}</p>}
+
+                  <PasswordStrengthIndicator password={formData.password} isOptional={!!editingId} />
+                  {errors.password && <p className="text-destructive text-xs font-medium">{errors.password}</p>}
                 </div>
 
                 {!editingId && (
-                  <div className="flex items-center justify-between p-4 rounded-lg bg-secondary/50 border border-border">
+                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-secondary/40 border border-border mt-3">
                     <div className="space-y-0.5">
-                      <Label className="text-sm font-medium">Forcer le changement au premier login</Label>
-                      <p className="text-[10px] text-muted-foreground">
-                        L&apos;utilisateur devra définir son propre mot de passe à la première connexion
+                      <Label className="text-xs font-semibold text-foreground">
+                        Exiger le renouvellement du mot de passe
+                      </Label>
+                      <p className="text-[11px] text-muted-foreground">
+                        Recommandé : Le collaborateur devra obligatoirement définir son propre mot de passe confidentiel lors de son premier accès.
                       </p>
                     </div>
                     <Switch
@@ -359,6 +355,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
             </Card>
           </div>
 
+          {/* RÉCAPITULATIF FLOTTANT */}
           <div className="space-y-6">
             <UserSummaryCard
               name={formData.name}
@@ -372,5 +369,5 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
         </div>
       </form>
     </motion.div>
-  )
+  );
 }

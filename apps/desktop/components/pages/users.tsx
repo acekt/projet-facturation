@@ -55,7 +55,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
   const [roleFilter, setRoleFilter] = React.useState("all")
   const [statusFilter, setStatusFilter] = React.useState("all")
   const [currentPage, setCurrentPage] = React.useState(1)
-  const itemsPerPage = 10
+  const itemsPerPage = 9 // Harmonisation Grille 3x3
 
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [isStatusModalOpen, setIsStatusModalOpen] = React.useState(false)

@@ -2,14 +2,15 @@
 
 import { getAuditLogs } from "@/app/actions/audit.actions"
 import * as React from "react"
-import { ShieldCheck, User } from "lucide-react"
+import { ShieldCheck, User, Code2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@workspace/ui/components/table"
 import { Badge } from "@workspace/ui/components/badge"
 import { PageHeader } from "@workspace/ui/components/page-header"
 import { SearchBar } from "@workspace/ui/components/search-bar"
 import { Pagination } from "@workspace/ui/components/pagination-custom"
-import { formatDate } from "@/lib/utils"
+import { formatDate, cn } from "@/lib/utils"
+import { formatAuditAction, formatAuditEntity, formatAuditDetails } from "@/lib/utils/auditFormatter"
 import { toast } from "sonner"
 
 export interface AuditLogItem {
@@ -62,12 +63,21 @@ export function AuditLogsPage() {
   const filteredLogs = React.useMemo(() => {
     if (!searchQuery.trim()) return logs
     const q = searchQuery.toLowerCase()
-    return logs.filter((log) =>
-      (log.userName && log.userName.toLowerCase().includes(q)) ||
-      (log.action && log.action.toLowerCase().includes(q)) ||
-      (log.entityType && log.entityType.toLowerCase().includes(q)) ||
-      (log.details && log.details.toLowerCase().includes(q))
-    )
+    return logs.filter((log) => {
+      const actionInfo = formatAuditAction(log.action)
+      const entity = formatAuditEntity(log.entityType)
+      const details = formatAuditDetails(log.details)
+
+      return (
+        (log.userName && log.userName.toLowerCase().includes(q)) ||
+        (log.action && log.action.toLowerCase().includes(q)) ||
+        actionInfo.label.toLowerCase().includes(q) ||
+        entity.toLowerCase().includes(q) ||
+        (log.entityType && log.entityType.toLowerCase().includes(q)) ||
+        details.humanText.toLowerCase().includes(q) ||
+        (log.details && log.details.toLowerCase().includes(q))
+      )
+    })
   }, [logs, searchQuery])
 
   const totalPages = Math.ceil(filteredLogs.length / itemsPerPage) || 1
@@ -112,43 +122,59 @@ export function AuditLogsPage() {
                 <TableRow>
                   <TableHead className="w-[180px]">Date & Heure</TableHead>
                   <TableHead className="w-[180px]">Utilisateur</TableHead>
-                  <TableHead className="w-[120px]">Action</TableHead>
-                  <TableHead className="w-[140px]">Entité</TableHead>
+                  <TableHead className="w-[150px]">Action</TableHead>
+                  <TableHead className="w-[130px]">Entité</TableHead>
                   <TableHead>Détails de l'événement</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {displayedLogs.map((log) => (
-                  <TableRow key={log.id} className="hover:bg-muted/30">
-                    <TableCell className="font-mono text-xs text-muted-foreground tabular-nums whitespace-nowrap">
-                      {formatDate(log.createdAt)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                        <span className="font-medium text-sm truncate">{log.userName || 'Système'}</span>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={
-                          log.action === 'DELETE'
-                            ? 'destructive'
-                            : log.action === 'CREATE'
-                            ? 'default'
-                            : 'secondary'
-                        }
-                        className="text-[11px] font-semibold"
-                      >
-                        {log.action}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="capitalize text-sm font-medium">{log.entityType}</TableCell>
-                    <TableCell className="max-w-md truncate text-sm text-muted-foreground">
-                      {log.details || '—'}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {displayedLogs.map((log) => {
+                  const actionInfo = formatAuditAction(log.action)
+                  const entityLabel = formatAuditEntity(log.entityType)
+                  const detailsInfo = formatAuditDetails(log.details)
+
+                  return (
+                    <TableRow key={log.id} className="hover:bg-muted/30">
+                      <TableCell className="font-mono text-xs text-muted-foreground tabular-nums whitespace-nowrap">
+                        {formatDate(log.createdAt)}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <User className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                          <span className="font-medium text-sm truncate">{log.userName || 'Système'}</span>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            actionInfo.variant === "destructive"
+                              ? "destructive"
+                              : actionInfo.variant === "success" || actionInfo.variant === "info" || actionInfo.variant === "default"
+                              ? "default"
+                              : "secondary"
+                          }
+                          className={cn(
+                            "text-[11px] font-semibold",
+                            actionInfo.variant === "success" && "bg-emerald-600 hover:bg-emerald-600 text-white",
+                            actionInfo.variant === "info" && "bg-blue-600 hover:bg-blue-600 text-white",
+                            actionInfo.variant === "warning" && "bg-amber-600 hover:bg-amber-600 text-white",
+                            actionInfo.variant === "default" && "bg-indigo-600 hover:bg-indigo-600 text-white"
+                          )}
+                        >
+                          {actionInfo.label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-sm font-medium text-foreground">
+                        {entityLabel}
+                      </TableCell>
+                      <TableCell className="max-w-lg text-sm text-foreground/90">
+                        <span title={detailsInfo.humanText} className="line-clamp-2">
+                          {detailsInfo.humanText}
+                        </span>
+                      </TableCell>
+                    </TableRow>
+                  )
+                })}
                 {displayedLogs.length === 0 && !isLoading && (
                   <TableRow>
                     <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">

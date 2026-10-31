@@ -23,7 +23,16 @@ function FallbackError({ error, resetErrorBoundary }: { error: any; resetErrorBo
   )
 }
 
+let hasReportedReady = false;
+
 export function Providers({ children }: { children: React.ReactNode }) {
+  React.useEffect(() => {
+    if (!hasReportedReady && typeof window !== "undefined" && window.electron?.reportAppReady) {
+      hasReportedReady = true;
+      window.electron.reportAppReady().catch(() => {});
+    }
+  }, []);
+
   return (
     <ThemeProvider
       attribute="class"

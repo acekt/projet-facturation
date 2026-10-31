@@ -14,9 +14,11 @@ import { toast } from "sonner";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
 import { computeTotals, computeItemTotal } from "@/lib/math-logic";
 import { getInvoiceById, createInvoice, getInvoices } from "@/app/actions/invoice.actions";
-import { ClientSelectCard } from "@/components/editor/ClientSelectCard";
+import { DocumentCommercialHeader } from "@/components/editor/DocumentCommercialHeader";
 import { EditorItemsTable } from "@/components/editor/EditorItemsTable";
 import { FiscalSummaryCard } from "@/components/editor/FiscalSummaryCard";
+import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 
 interface InvoiceEditorProps {
   onBack: () => void;
@@ -71,6 +73,17 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       ...prev,
       items: typeof newItems === "function" ? newItems(prev.items) : newItems,
     }));
+  };
+
+  const isDirty = React.useMemo(() => {
+    if (!isNew) return false;
+    return !!(selectedClient || items.some((it) => it.description || it.unitPrice > 0));
+  }, [isNew, selectedClient, items]);
+
+  const { guardNavigation } = useUnsavedChangesGuard({ isDirty });
+
+  const handleBackSafe = () => {
+    guardNavigation(onBack);
   };
 
   const handleSaveDraft = () => {
@@ -251,11 +264,16 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     }
   };
 
+  useKeyboardShortcuts({
+    onSave: () => handleSave("UNPAID"),
+    onEscape: handleBackSafe,
+  });
+
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6">
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="sm" onClick={onBack}>
+          <Button variant="ghost" size="sm" onClick={handleBackSafe} className="cursor-pointer">
             <ArrowLeft className="w-4 h-4 mr-2" />
             Retour
           </Button>
@@ -268,43 +286,19 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-4">
-              <CardTitle className="text-foreground font-semibold text-base">
-                Informations de la Facture
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground text-sm">
-                    Date d'émission <span className="text-destructive">*</span>
-                  </Label>
-                  <DatePicker value={invoiceDate || ""} onChange={setInvoiceDate} />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-muted-foreground text-sm">Date d'échéance (optionnelle)</Label>
-                  <DatePicker value={dueDate || ""} onChange={setDueDate} />
-                </div>
-              </div>
-              <div className="space-y-2 pt-2">
-                <Label className="text-muted-foreground text-sm">Objet de la facture</Label>
-                <Input
-                  value={subject || ""}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="Ex: Prestation de services informatiques"
-                  className="bg-secondary border-border text-foreground"
-                />
-              </div>
-            </CardContent>
-          </Card>
-
-          <ClientSelectCard
-            selectedClient={selectedClient}
+          <DocumentCommercialHeader
+            type="facture"
+            client={selectedClient}
             onSelectClient={setSelectedClient}
             clients={clients}
-            title="Client"
-            description="Sélectionnez un client dans votre base de données pour cette facture"
+            docDate={invoiceDate || ""}
+            onDocDateChange={setInvoiceDate}
+            secondaryDate={dueDate || ""}
+            onSecondaryDateChange={setDueDate}
+            secondaryDateLabel="Date d'échéance"
+            subject={subject || ""}
+            onSubjectChange={setSubject}
+            disabled={isSubmitting}
           />
 
           <EditorItemsTable
@@ -350,7 +344,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             canPreview={!!selectedClient}
             onPreview={() => setPreviewOpen(true)}
             onSave={() => handleSave("UNPAID")}
-            saveLabel="Générer la Facture"
+            saveLabel="Générer la Facture (Ctrl+S)"
             onSaveDraft={isNew ? async () => handleSaveDraft() : undefined}
           />
         </div>

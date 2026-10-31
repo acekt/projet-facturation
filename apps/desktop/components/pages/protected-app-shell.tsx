@@ -65,6 +65,11 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
     }
   }, [initialUser, setUser]);
 
+  // Signal de transition fluide depuis le splash screen Electron
+  React.useEffect(() => {
+    window.electron?.reportAppReady?.();
+  }, []);
+
   const [currentPage, setCurrentPage] = React.useState("dashboard")
   const [editingId, setEditingId] = React.useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)

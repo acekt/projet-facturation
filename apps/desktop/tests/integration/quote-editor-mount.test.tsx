@@ -74,7 +74,7 @@ describe('QuoteEditor Integration - Ghost Data Purge', () => {
 
     // Check UI to see if it renders clean state
     // We expect the subject input to be empty, not showing "Ghost Subject Data"
-    const subjectInput = screen.getByPlaceholderText("Ex: Développement de l'application mobile") as HTMLInputElement;
+    const subjectInput = screen.getByPlaceholderText("Ex: Prestation de conseil ou maintenance réseau...") as HTMLInputElement;
     expect(subjectInput.value).toBe('');
 
     // Fill in some temporary data to check unmount purge

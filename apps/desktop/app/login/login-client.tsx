@@ -48,6 +48,7 @@ export default function LoginClient() {
 
   // Charger le nom d'utilisateur mémorisé au démarrage
   React.useEffect(() => {
+    window.electron?.reportAppReady?.();
     const savedUsername = localStorage.getItem("facturier_remembered_username");
     if (savedUsername) {
       setUsername(savedUsername);

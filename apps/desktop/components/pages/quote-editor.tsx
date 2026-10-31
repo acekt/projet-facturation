@@ -9,9 +9,8 @@ import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewe
 import { computeTotals, computeItemTotal } from "@/lib/math-logic";
 import { getQuoteById, createQuote, updateQuote, getQuotes } from "@/app/actions/quote.actions";
 import { QuoteEditorHeader } from "@/components/editor/QuoteEditorHeader";
-import { QuoteInfoCard } from "@/components/editor/QuoteInfoCard";
+import { DocumentCommercialHeader } from "@/components/editor/DocumentCommercialHeader";
 import { QuoteNotesCard } from "@/components/editor/QuoteNotesCard";
-import { ClientSelectCard } from "@/components/editor/ClientSelectCard";
 import { EditorItemsTable } from "@/components/editor/EditorItemsTable";
 import { FiscalSummaryCard } from "@/components/editor/FiscalSummaryCard";
 import { useKeyboardShortcuts } from "@/hooks/use-keyboard-shortcuts";
@@ -302,22 +301,19 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          <QuoteInfoCard
-            quoteDate={quoteDate || ""}
-            validUntil={validUntil || ""}
-            subject={subject || ""}
-            disabled={status === "CONVERTI"}
-            onQuoteDateChange={(d) => updateDraft("quoteDate", d)}
-            onValidUntilChange={(d) => updateDraft("validUntil", d)}
-            onSubjectChange={(s) => updateDraft("subject", s)}
-          />
-
-          <ClientSelectCard
-            selectedClient={selectedClient}
+          <DocumentCommercialHeader
+            type="devis"
+            client={selectedClient}
             onSelectClient={(c) => updateDraft("selectedClient", c)}
             clients={clients}
-            title="Client"
-            description="Sélectionnez un client dans votre base de données pour ce devis"
+            docDate={quoteDate || ""}
+            onDocDateChange={(d) => updateDraft("quoteDate", d)}
+            secondaryDate={validUntil || ""}
+            onSecondaryDateChange={(d) => updateDraft("validUntil", d)}
+            secondaryDateLabel="Date de validité"
+            subject={subject || ""}
+            onSubjectChange={(s) => updateDraft("subject", s)}
+            disabled={status === "CONVERTI"}
           />
 
           <EditorItemsTable

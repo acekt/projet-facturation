@@ -240,7 +240,7 @@ export async function updateQuote(id: string, data: QuoteCreateRequest): Promise
         }
       }
 
-      logAudit('UPDATE', 'quote', id, `Devis modifié: ${id}`, session.userId, session.name || session.username || null, activeTenantId);
+      logAudit('UPDATE', 'quote', id, `Devis modifié: ${existingQuote.number || id}`, session.userId, session.name || session.username || null, activeTenantId);
       return { id };
     });
 

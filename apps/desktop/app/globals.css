@@ -22,3 +22,35 @@ input, textarea, [contenteditable='true'], [contenteditable=''] {
 a, button, [role='button'], label {
   cursor: pointer;
 }
+
+/* ═══════════════════════════════════════════════════════════
+   SCROLLBAR DISCRÈTE ET ÉLÉGANTE (DESKTOP)
+   Remplace la scrollbar Win32 native de 17px par un ascenseur
+   fin et moderne de 6px parfaitement intégré.
+   ═══════════════════════════════════════════════════════════ */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.35);
+  border-radius: 9999px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.6);
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.35);
+}

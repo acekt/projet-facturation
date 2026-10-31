@@ -220,7 +220,7 @@ export const migration0002: Migration = {
           tvaAmount INTEGER NOT NULL DEFAULT 0 CHECK (tvaAmount >= 0),
           cssAmount INTEGER NOT NULL DEFAULT 0 CHECK (cssAmount >= 0),
           total INTEGER NOT NULL DEFAULT 0 CHECK (total >= 0),
-          status TEXT NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('UNPAID', 'PAID', 'PARTIALLY_PAID', 'CANCELLED', 'OVERDUE', 'pending', 'sent', 'open', 'paid', 'partially_paid', 'partial', 'cancelled')),
+          status TEXT NOT NULL DEFAULT 'UNPAID' CHECK (status IN ('UNPAID', 'PAID', 'PARTIALLY_PAID', 'CANCELLED', 'OVERDUE', 'pending', 'sent', 'open', 'paid', 'partially_paid', 'partial', 'cancelled', 'draft', 'BROUILLON')),
           notes TEXT,
           subject TEXT,
           validUntil TEXT,

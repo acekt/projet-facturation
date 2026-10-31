@@ -10,7 +10,7 @@ interface A4FooterProps {
 
 export function A4Footer({ settings: s, hash }: A4FooterProps) {
   return (
-    <div className="fixed bottom-0 left-0 w-full px-[15mm] pb-[15mm] text-center bg-white text-[8px] text-gray-500">
+    <div className="print:fixed print:bottom-0 print:left-0 print:w-full mt-auto pt-6 pb-2 w-full text-center bg-white text-[8px] text-gray-500">
       <div
         className="w-12 h-[2px] mx-auto mb-2"
         style={{ backgroundColor: "var(--color-brand-primary)" }}

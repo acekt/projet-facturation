@@ -60,7 +60,7 @@ export const navItems: NavItemConfig[] = [
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ['admin', 'user'], group: 'sales' },
   { id: "invoices", label: "Factures", icon: FileText, roles: ['admin', 'user'], group: 'sales' },
   { id: "quotes", label: "Devis", icon: FileText, roles: ['admin', 'user'], group: 'sales' },
-  { id: "credit-notes", label: "Avoirs", icon: RefreshCcw, roles: ['admin', 'user'], group: 'sales' },
+  { id: "credit-notes", label: "Avoirs & Remboursements", icon: RefreshCcw, roles: ['admin', 'user'], group: 'sales' },
 
   // 2. Référentiel
   { id: "clients", label: "Clients", icon: Users, roles: ['admin', 'user'], group: 'repository' },
@@ -83,12 +83,13 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: propUser }: SidebarProps) {
-  const { user: storeUser, setUser, invoices, quotes } = useStore(
+  const { user: storeUser, setUser, invoices, quotes, creditNotes } = useStore(
     useShallow((state) => ({
       user: state.user,
       setUser: state.setUser,
       invoices: state.invoices,
       quotes: state.quotes,
+      creditNotes: state.creditNotes,
     }))
   )
   const user = propUser || storeUser
@@ -97,12 +98,16 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
 
   // Badges contextuels réactifs
   const unpaidCount = React.useMemo(
-    () => invoices.filter((i) => !i.deletedAt && (i.status === 'UNPAID' || i.status === 'PARTIALLY_PAID')).length,
+    () => invoices.filter((i) => !i.deletedAt && (i.status === 'UNPAID' || i.status === 'PARTIALLY_PAID' || i.status === 'overdue')).length,
     [invoices]
   )
   const pendingQuotesCount = React.useMemo(
-    () => quotes.filter((q) => !q.deletedAt && q.status === 'EN_ATTENTE').length,
+    () => quotes.filter((q) => !q.deletedAt && (q.status === 'EN_ATTENTE' || q.status === 'ENVOYE' || (q.status as string) === 'sent')).length,
     [quotes]
+  )
+  const activeCreditNotesCount = React.useMemo(
+    () => (creditNotes || []).filter((cn) => !cn.deletedAt && (cn.status as string) !== 'cancelled').length,
+    [creditNotes]
   )
 
   const handleConfirmLogout = async () => {
@@ -126,6 +131,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
   const getItemBadge = (id: string): number | null => {
     if (id === 'invoices' && unpaidCount > 0) return unpaidCount
     if (id === 'quotes' && pendingQuotesCount > 0) return pendingQuotesCount
+    if (id === 'credit-notes' && activeCreditNotesCount > 0) return activeCreditNotesCount
     return null
   }
 

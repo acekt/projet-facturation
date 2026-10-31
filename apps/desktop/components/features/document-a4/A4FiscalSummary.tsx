@@ -3,6 +3,7 @@
 import * as React from "react";
 import type { Settings } from "@/lib/store";
 import type { DocumentType } from "./A4Header";
+import { amountInWordsFCFA } from "@/lib/utils/amount-in-words";
 
 interface A4FiscalSummaryProps {
   settings: Settings;
@@ -17,6 +18,7 @@ interface A4FiscalSummaryProps {
   totalPaid: number;
   remaining: number;
   formatCurrency: (n: number) => string;
+  notes?: string | null;
 }
 
 export function A4FiscalSummary({
@@ -32,6 +34,7 @@ export function A4FiscalSummary({
   totalPaid,
   remaining,
   formatCurrency: fmt,
+  notes,
 }: A4FiscalSummaryProps) {
   return (
     <div className="grid grid-cols-2 mt-auto pt-6 gap-8">
@@ -72,23 +75,58 @@ export function A4FiscalSummary({
           </div>
         </div>
 
-        {/* Conditions de règlement */}
+        {/* Conditions & Modalités de règlement */}
         <div className="text-[8.5px] text-slate-500 flex flex-col gap-0.5">
-          <p>
-            <span className="font-semibold text-slate-700">Règlement :</span> Espèces · Chèques · Virements
-          </p>
-          <p>
-            <span className="font-semibold text-slate-700">Délais :</span> Au comptant
-          </p>
+          {notes && notes.trim() !== "" ? (
+            <div className="p-2 rounded bg-slate-50 border border-slate-200">
+              <p className="font-semibold text-slate-700 uppercase text-[7.5px] tracking-wider mb-0.5">
+                {type === "avoir" ? "Modalités de remboursement" : "Conditions & Notes"}
+              </p>
+              <p className="text-[8px] text-slate-600 whitespace-pre-line leading-relaxed">
+                {notes.trim()}
+              </p>
+            </div>
+          ) : type === "avoir" ? (
+            <p>
+              <span className="font-semibold text-slate-700">Modalité :</span> Crédit porté en déduction des prochaines factures ou remboursement selon accord commercial
+            </p>
+          ) : type === "devis" ? (
+            <p>
+              <span className="font-semibold text-slate-700">Règlement :</span> Virement bancaire ou chèque à validation du bon de commande
+            </p>
+          ) : (
+            <>
+              <p>
+                <span className="font-semibold text-slate-700">Règlement :</span> Espèces · Chèques · Virements
+              </p>
+              <p>
+                <span className="font-semibold text-slate-700">Délais :</span> Au comptant
+              </p>
+            </>
+          )}
+        </div>
+
+        {/* Arrêté légal du montant en toutes lettres */}
+        <div className="p-2.5 rounded bg-slate-50 border-l-2 border-brand-primary text-[8px] text-slate-700 leading-relaxed">
+          <span className="font-bold">
+            Arrêté{" "}
+            {type === "devis"
+              ? "le présent devis à la somme estimative de"
+              : type === "avoir"
+              ? "la présente note d'avoir à la somme de"
+              : "la présente facture à la somme de"}{" "}
+            :
+          </span>{" "}
+          <span className="font-semibold">{amountInWordsFCFA(total)}</span> ({fmt(total)}).
         </div>
 
         {/* Signature */}
-        <div className="mt-4">
+        <div className="mt-2">
           <p className="text-[10px] font-bold text-brand-primary uppercase tracking-wider">
             La Direction
           </p>
-          <div className="border-b border-slate-300 w-32 mt-10 mb-1" />
-          <p className="text-[8px] text-slate-400 font-medium">Cachet & Signature</p>
+          <div className="border-b border-slate-300 w-32 mt-8 mb-1" />
+          <p className="text-[8px] text-slate-400 font-medium">Cachet & Signature autorisée</p>
         </div>
       </div>
 
@@ -145,13 +183,22 @@ export function A4FiscalSummary({
             </div>
           </div>
 
-          {/* LOGIQUE CONDITIONNELLE (DEVIS vs FACTURE/AVOIR) */}
+          {/* LOGIQUE CONDITIONNELLE (DEVIS vs AVOIR vs FACTURE) */}
           {type === "devis" ? (
             <div className="mt-2 bg-slate-50 p-3 rounded-lg flex justify-between items-center print:break-inside-avoid">
-              <span className="text-[14px] font-extrabold text-slate-800 uppercase tracking-widest">
-                Net à Payer
+              <span className="text-[12px] font-extrabold text-slate-800 uppercase tracking-widest">
+                Total Estimé TTC
               </span>
               <span className="text-[14px] font-extrabold text-slate-800 tabular-nums leading-none">
+                {fmt(total)}
+              </span>
+            </div>
+          ) : type === "avoir" ? (
+            <div className="mt-2 bg-orange-50 border border-orange-200/60 p-3 rounded-lg flex justify-between items-center print:break-inside-avoid">
+              <span className="text-[11px] font-extrabold text-orange-800 uppercase tracking-widest">
+                Montant Avoir TTC (Crédit)
+              </span>
+              <span className="text-[14px] font-extrabold text-orange-900 tabular-nums leading-none">
                 {fmt(total)}
               </span>
             </div>

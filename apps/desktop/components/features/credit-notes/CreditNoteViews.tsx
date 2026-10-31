@@ -28,6 +28,7 @@ export interface InvoiceStatusInfo {
   paidAmount: number
   remainingAmount: number
   dueDate?: string
+  invoiceNumber?: string
 }
 
 interface CreditNoteViewsProps {
@@ -55,10 +56,11 @@ export function CreditNoteViews({
             <thead className="bg-secondary/40 text-muted-foreground uppercase text-[11px] font-semibold sticky top-0 z-10 border-b border-border">
               <tr>
                 <th className="px-6 py-3.5">Numéro</th>
-                <th className="px-6 py-3.5">Facture liée</th>
                 <th className="px-6 py-3.5">Client</th>
-                <th className="px-6 py-3.5">Statut Facture</th>
-                <th className="px-6 py-3.5 text-right">Montant</th>
+                <th className="px-6 py-3.5">Facture liée</th>
+                <th className="px-6 py-3.5">Statut Avoir</th>
+                <th className="px-6 py-3.5">Nouveau solde facture</th>
+                <th className="px-6 py-3.5 text-right">Montant Avoir</th>
                 <th className="px-6 py-3.5">Date</th>
                 <th className="px-6 py-3.5 text-right">Actions</th>
               </tr>
@@ -71,20 +73,25 @@ export function CreditNoteViews({
                     <td className="px-6 py-4 font-mono font-medium text-foreground whitespace-nowrap">
                       {note.number}
                     </td>
-                    <td className="px-6 py-4 font-mono text-muted-foreground text-xs whitespace-nowrap">
-                      {note.invoiceId}
-                    </td>
                     <td className="px-6 py-4 font-medium text-foreground">{note.clientName}</td>
+                    <td className="px-6 py-4 font-mono text-muted-foreground text-xs whitespace-nowrap">
+                      {invoiceInfo?.invoiceNumber || note.invoiceId}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 font-semibold border-emerald-500/20 text-xs">
+                        Remboursé / Déduit
+                      </Badge>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       {invoiceInfo ? (
-                        <StatusBadge
-                          variant={getInvoiceStatusVariant(invoiceInfo)}
-                          amount={invoiceInfo.status === "PAID" ? invoiceInfo.total : undefined}
-                          paidAmount={invoiceInfo.paidAmount}
-                          remainingAmount={invoiceInfo.remainingAmount}
-                        />
+                        <div className="flex items-center gap-1.5 text-xs font-mono">
+                          <span className="text-muted-foreground">Reste :</span>
+                          <span className={invoiceInfo.remainingAmount === 0 ? "text-emerald-600 font-semibold" : "text-foreground font-semibold"}>
+                            {formatCurrency(invoiceInfo.remainingAmount)}
+                          </span>
+                        </div>
                       ) : (
-                        <span className="text-muted-foreground text-xs">N/A</span>
+                        <span className="text-muted-foreground text-xs">—</span>
                       )}
                     </td>
                     <td className="px-6 py-4 text-right whitespace-nowrap font-medium text-primary tabular-nums">
@@ -123,8 +130,13 @@ export function CreditNoteViews({
           </table>
         </div>
         {creditNotes.length === 0 && (
-          <div className="p-8 text-center text-muted-foreground">
-            Aucun avoir émis.
+          <div className="py-16 text-center">
+            <h3 className="text-base font-semibold text-foreground tracking-tight">
+              Aucun avoir émis
+            </h3>
+            <p className="text-sm text-muted-foreground mt-1 max-w-md mx-auto">
+              Les notes d&apos;avoir permettent d&apos;annuler ou de rectifier partiellement une facture existante. Créez un avoir depuis le bouton « Nouvel avoir » ou depuis une facture.
+            </p>
           </div>
         )}
       </div>
@@ -261,23 +273,28 @@ export function CreditNoteViews({
                         </DropdownMenuContent>
                       </DropdownMenu>
                     </div>
-                    <div className="flex items-center gap-2 mb-1">
+                    <div className="flex items-center justify-between gap-2 mb-1">
                       <h3 className="font-mono font-bold text-sm">{note.number}</h3>
-                      {invoiceInfo && (
-                        <StatusBadge
-                          variant={getInvoiceStatusVariant(invoiceInfo)}
-                          amount={invoiceInfo.status === "PAID" ? invoiceInfo.total : undefined}
-                          paidAmount={invoiceInfo.paidAmount}
-                          remainingAmount={invoiceInfo.remainingAmount}
-                        />
-                      )}
+                      <Badge className="bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 font-semibold border-emerald-500/20 text-[10px]">
+                        Remboursé / Déduit
+                      </Badge>
                     </div>
                     <p className="text-xs text-muted-foreground mb-2">{note.clientName}</p>
                     <div className="space-y-1 mb-3">
                       <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
                         <FileText className="w-3 h-3" />
-                        <span className="tabular-nums">Date: {formatDate(note.date)}</span>
+                        <span className="tabular-nums">Date : {formatDate(note.date)}</span>
                       </div>
+                      {invoiceInfo?.invoiceNumber && (
+                        <div className="flex items-center justify-between text-[11px] bg-secondary/50 p-1.5 rounded-lg border border-border/40">
+                          <span className="font-mono text-[10px] text-muted-foreground">
+                            Facture {invoiceInfo.invoiceNumber}
+                          </span>
+                          <span className="text-[10px] font-semibold text-foreground">
+                            Solde restant : {formatCurrency(invoiceInfo.remainingAmount)}
+                          </span>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-border/50">
                       <p className="text-lg font-semibold text-foreground tracking-tighter tabular-nums">

@@ -106,7 +106,7 @@ export function DataTableCell({
         "px-4 py-3 text-sm text-foreground align-middle",
         align === "right" && "text-right",
         align === "center" && "text-center",
-        truncate && "truncate max-w-0",
+        truncate && "truncate max-w-[260px]",
         className
       )}
       {...props}

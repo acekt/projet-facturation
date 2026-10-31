@@ -10,7 +10,7 @@ export function formatCurrency(value: number) {
     style: "decimal",
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(Math.round(value)).replace(/\u00a0/g, " ") + " FCFA"
+  }).format(Math.round(value)).replace(/[\u00a0\u202f]/g, " ") + " FCFA"
 }
 
 export function formatShortCurrency(value: number) {

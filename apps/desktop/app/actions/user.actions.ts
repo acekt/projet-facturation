@@ -179,7 +179,7 @@ export async function updateUser(id: string, data: any): Promise<ActionResponse<
       }
     }
 
-    logAudit('UPDATE', 'user', id, `Utilisateur mis à jour: ${id}`, session.userId, session.name || session.username || null, activeTenantId);
+    logAudit('UPDATE', 'user', id, `Utilisateur mis à jour: ${name || targetUser.email || id}`, session.userId, session.name || session.username || null, activeTenantId);
     return { success: true, data: true };
   } catch (error) {
     console.error('[Action updateUser] Error:', error);
@@ -199,11 +199,11 @@ export async function deleteUser(id: string): Promise<ActionResponse<boolean>> {
 
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
     const tf = buildTenantFilter(activeTenantId);
-    const targetUser = db.prepare(`SELECT id FROM users WHERE id = ?${tf.sql}`).get(id, ...tf.params);
+    const targetUser = db.prepare(`SELECT id, name, username, email FROM users WHERE id = ?${tf.sql}`).get(id, ...tf.params) as { id: string; name?: string; username?: string; email?: string } | undefined;
     if (!targetUser) return { success: false, error: 'User not found' };
 
     db.prepare('UPDATE users SET is_active = 0, deletedAt = CURRENT_TIMESTAMP WHERE id = ?').run(id);
-    logAudit('DELETE', 'user', id, `Utilisateur désactivé/supprimé: ${id}`, session.userId, session.name || session.username || null, activeTenantId);
+    logAudit('DELETE', 'user', id, `Utilisateur désactivé/supprimé: ${targetUser?.name || targetUser?.username || targetUser?.email || id}`, session.userId, session.name || session.username || null, activeTenantId);
 
     return { success: true, data: true };
   } catch (error) {
