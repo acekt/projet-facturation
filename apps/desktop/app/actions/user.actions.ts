@@ -10,6 +10,7 @@ import { enqueueCloudMember } from '@/lib/sync/cloudMembers';
 import { encryptSecret } from '@/lib/crypto/secretStore';
 import { userCreateSchema, userUpdateSchema } from '@/lib/validations';
 import type { UserResponse } from '@/lib/types/api';
+import { z } from 'zod';
 import type { ActionResponse } from './client.actions';
 import { getErrorMessage } from '@/lib/utils/action-error';
 
@@ -44,7 +45,7 @@ export async function getUsers(): Promise<ActionResponse<UserResponse[]>> {
   }
 }
 
-export async function createUser(data: any): Promise<ActionResponse<UserResponse>> {
+export async function createUser(data: z.infer<typeof userCreateSchema>): Promise<ActionResponse<UserResponse>> {
   try {
     const session = await getSession();
     if (!session || session.role !== 'admin') return { success: false, error: 'Forbidden' };
@@ -121,7 +122,7 @@ export async function createUser(data: any): Promise<ActionResponse<UserResponse
   }
 }
 
-export async function updateUser(id: string, data: any): Promise<ActionResponse<boolean>> {
+export async function updateUser(id: string, data: z.infer<typeof userUpdateSchema>): Promise<ActionResponse<boolean>> {
   try {
     const session = await getSession();
     if (!session || session.role !== 'admin') return { success: false, error: 'Forbidden' };

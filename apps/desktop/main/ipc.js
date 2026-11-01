@@ -83,101 +83,106 @@ function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile, onAppR
       throw new Error('[IPC:print-document] Expéditeur non autorisé.');
     }
     return new Promise(async (resolve, reject) => {
-      let printWin = new BrowserWindow({
-        show: false,
-        webPreferences: {
-          nodeIntegration: false,
-          contextIsolation: true,
-          sandbox: true,
-        },
-      });
-
-      const tempPath = path.join(userDataPath, `print_temp_${Date.now()}.html`);
-
+      let printWin = null;
+      let tempPath = null;
       try {
-        await fs.promises.writeFile(tempPath, htmlContent, 'utf8');
-      } catch (err) {
-        logToFile('ERROR', `[Print] Impossible d'écrire le fichier temp: ${err.message}`);
-        printWin.destroy();
-        return reject(new Error('Erreur de préparation du document.'));
-      }
+        printWin = new BrowserWindow({
+          show: false,
+          webPreferences: {
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true,
+          },
+        });
 
-      let isSettled = false;
-      const timer = setTimeout(async () => {
-        if (!isSettled) {
-          isSettled = true;
-          logToFile('ERROR', `[Print] Timeout de 15s atteint lors du chargement HTML.`);
+        tempPath = path.join(userDataPath, `print_temp_${Date.now()}.html`);
+
+        await fs.promises.writeFile(tempPath, htmlContent, 'utf8');
+
+        let isSettled = false;
+
+        const cleanup = async () => {
           if (printWin && !printWin.isDestroyed()) {
             printWin.webContents.removeAllListeners('did-finish-load');
             printWin.webContents.removeAllListeners('did-fail-load');
             printWin.destroy();
             printWin = null;
           }
-          try {
-            if (fs.existsSync(tempPath)) await fs.promises.unlink(tempPath);
-          } catch (_) {}
-          reject(new Error('Timeout lors de la préparation du document pour impression.'));
-        }
-      }, 15000);
-
-      printWin.webContents.on('did-finish-load', () => {
-        if (isSettled) return;
-        // Déarmement immédiat du timer de préparation : l'utilisateur dispose de tout le temps
-        // nécessaire pour interagir avec la boîte de dialogue native du système d'exploitation.
-        clearTimeout(timer);
-        logToFile('INFO', '[Print] Fenêtre cachée chargée, ouverture de la boîte d\'impression native');
-
-        printWin.webContents.print(
-          {
-            silent: false,
-            printBackground: true,
-          },
-          async (success, errorType) => {
-            if (isSettled) return;
-            isSettled = true;
-
-            if (printWin && !printWin.isDestroyed()) {
-              printWin.destroy();
-            }
-            printWin = null;
-
+          if (tempPath && fs.existsSync(tempPath)) {
             try {
-              if (fs.existsSync(tempPath)) await fs.promises.unlink(tempPath);
+              await fs.promises.unlink(tempPath);
             } catch (e) {
               logToFile('WARN', `[Print] Impossible de supprimer le fichier temp: ${e.message}`);
             }
-
-            if (success) {
-              logToFile('INFO', '[Print] Impression validée avec succès par l\'utilisateur');
-              resolve({ success: true });
-            } else if (!errorType || /cancel/i.test(errorType) || errorType === 'cancelled' || errorType === 'user-cancelled') {
-              logToFile('INFO', `[Print] Impression annulée par l'utilisateur (${errorType || 'dialog_closed'})`);
-              resolve({ success: false, cancelled: true });
-            } else {
-              logToFile('WARN', `[Print] Échec de l'impression native: ${errorType}`);
-              reject(new Error(errorType));
-            }
           }
-        );
-      });
+        };
 
-      printWin.webContents.on('did-fail-load', async (ev, errorCode, errorDescription) => {
-        if (isSettled) return;
-        isSettled = true;
-        clearTimeout(timer);
+        const timer = setTimeout(async () => {
+          if (!isSettled) {
+            isSettled = true;
+            logToFile('ERROR', `[Print] Timeout de 15s atteint lors du chargement HTML.`);
+            await cleanup();
+            reject(new Error('Timeout lors de la préparation du document pour impression.'));
+          }
+        }, 15000);
 
-        logToFile('ERROR', `[Print] Échec du chargement de la page d'impression: ${errorDescription}`);
+        printWin.webContents.on('did-finish-load', () => {
+          if (isSettled) return;
+          // Déarmement immédiat du timer de préparation : l'utilisateur dispose de tout le temps
+          // nécessaire pour interagir avec la boîte de dialogue native du système d'exploitation.
+          clearTimeout(timer);
+          logToFile('INFO', '[Print] Fenêtre cachée chargée, ouverture de la boîte d\'impression native');
+
+          printWin.webContents.print(
+            {
+              silent: false,
+              printBackground: true,
+            },
+            async (success, errorType) => {
+              if (isSettled) return;
+              isSettled = true;
+
+              await cleanup();
+
+              if (success) {
+                logToFile('INFO', '[Print] Impression validée avec succès par l\'utilisateur');
+                resolve({ success: true });
+              } else if (!errorType || /cancel/i.test(errorType) || errorType === 'cancelled' || errorType === 'user-cancelled') {
+                logToFile('INFO', `[Print] Impression annulée par l'utilisateur (${errorType || 'dialog_closed'})`);
+                resolve({ success: false, cancelled: true });
+              } else {
+                logToFile('WARN', `[Print] Échec de l'impression native: ${errorType}`);
+                reject(new Error(errorType));
+              }
+            }
+          );
+        });
+
+        printWin.webContents.on('did-fail-load', async (ev, errorCode, errorDescription) => {
+          if (isSettled) return;
+          isSettled = true;
+          clearTimeout(timer);
+
+          logToFile('ERROR', `[Print] Échec du chargement de la page d'impression: ${errorDescription}`);
+          await cleanup();
+          reject(new Error('Échec du rendu du document.'));
+        });
+
+        printWin.loadFile(tempPath).catch((err) => {
+          if (!isSettled) {
+            isSettled = true;
+            clearTimeout(timer);
+            cleanup().then(() => reject(err));
+          }
+        });
+
+      } catch (err) {
+        logToFile('ERROR', `[Print] Erreur de préparation du document: ${err.message}`);
         if (printWin && !printWin.isDestroyed()) {
-          printWin.destroy();
+           printWin.destroy();
         }
-        printWin = null;
-        try {
-          if (fs.existsSync(tempPath)) await fs.promises.unlink(tempPath);
-        } catch (_) {}
-        reject(new Error('Échec du rendu du document.'));
-      });
-
-      printWin.loadFile(tempPath).catch(() => {});
+        reject(new Error('Erreur de préparation du document.'));
+      }
     });
   });
 
@@ -259,7 +264,35 @@ function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile, onAppR
   });
 }
 
+/**
+ * Nettoie les fichiers temporaires générés par l'impression et l'export PDF
+ * qui auraient pu subsister suite à un arrêt brutal de l'application.
+ * @param {string} userDataPath
+ * @param {Function} logToFile
+ */
+async function cleanupTempFiles(userDataPath, logToFile) {
+  try {
+    const files = await fs.promises.readdir(userDataPath);
+    const tempFiles = files.filter(f => f.startsWith('print_temp_') || f.startsWith('pdf_temp_'));
+
+    if (tempFiles.length > 0) {
+      logToFile('INFO', `[Cleanup] ${tempFiles.length} fichiers temporaires résiduels trouvés.`);
+      for (const file of tempFiles) {
+        try {
+          await fs.promises.unlink(path.join(userDataPath, file));
+        } catch (e) {
+          logToFile('WARN', `[Cleanup] Impossible de supprimer ${file}: ${e.message}`);
+        }
+      }
+      logToFile('INFO', '[Cleanup] Nettoyage des fichiers temporaires terminé.');
+    }
+  } catch (err) {
+    logToFile('WARN', `[Cleanup] Erreur lors de la lecture de ${userDataPath}: ${err.message}`);
+  }
+}
+
 module.exports = {
   validateSender,
   registerAllIpcHandlers,
+  cleanupTempFiles,
 };
