@@ -56,7 +56,16 @@ export async function getInvoiceById(id: string): Promise<ActionResponse<Invoice
     }
 
     const items = db.prepare('SELECT * FROM invoice_items WHERE invoiceId = ?').all(id) as DbInvoiceItem[];
-    const payments = db.prepare('SELECT * FROM payments WHERE invoiceId = ? AND deletedAt IS NULL').all(id) as any[];
+    const payments = db.prepare('SELECT * FROM payments WHERE invoiceId = ? AND deletedAt IS NULL').all(id) as Array<{
+        id: string;
+        invoiceId: string;
+        amount: number;
+        paymentMethod: string;
+        date: string;
+        reference?: string;
+        createdAt: string;
+        deletedAt?: string;
+    }>;
 
     const response: InvoiceResponse = {
       ...invoice,
@@ -139,43 +148,47 @@ export async function deleteInvoice(id: string, deleteQuote: boolean = false): P
       return { success: false, error: 'Invoice not found' };
     }
 
-    const existingCN = db.prepare("SELECT id FROM credit_notes WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')").get(id);
-    if (!existingCN) {
-      const items = db.prepare("SELECT * FROM invoice_items WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')").all(id) as DbInvoiceItem[];
-      if (items.length > 0) {
-        CreditNoteService.createCreditNote(
-          {
-            invoiceId: invoice.id,
-            reason: `Annulation de facture ${invoice.number}`,
-            items: items.map((it) => ({
-              description: it.description,
-              quantity: it.quantity,
-              unitPrice: it.unitPrice,
-            })),
-          },
-          session.userId,
-          activeTenantId
-        );
+    const deleteTx = db.transaction(() => {
+      const existingCN = db.prepare("SELECT id FROM credit_notes WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')").get(id);
+      if (!existingCN) {
+        const items = db.prepare("SELECT * FROM invoice_items WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')").all(id) as DbInvoiceItem[];
+        if (items.length > 0) {
+          CreditNoteService.createCreditNote(
+            {
+              invoiceId: invoice.id,
+              reason: `Annulation de facture ${invoice.number}`,
+              items: items.map((it) => ({
+                description: it.description,
+                quantity: it.quantity,
+                unitPrice: it.unitPrice,
+              })),
+            },
+            session.userId,
+            activeTenantId
+          );
+        }
       }
-    }
 
-    const result = InvoiceRepository.softDelete(id, session.userId, session.role, activeTenantId);
+      const result = InvoiceRepository.softDelete(id, session.userId, session.role, activeTenantId);
 
-    if (result.changes === 0) {
-      return { success: false, error: 'Invoice not found or unauthorized' };
-    }
-
-    if (invoice.quoteId) {
-      db.prepare("UPDATE quotes SET status = 'EN_ATTENTE' WHERE id = ?").run(invoice.quoteId);
-
-      if (deleteQuote) {
-        db.prepare("UPDATE quotes SET deletedAt = datetime('now') WHERE id = ?").run(invoice.quoteId);
+      if (result.changes === 0) {
+        return { success: false, error: 'Invoice not found or unauthorized' };
       }
-    }
 
-    logAudit('DELETE', 'invoice', id, `Facture supprimée: ${invoice.number || id}`, session.userId, session.name || session.username || null, activeTenantId);
+      if (invoice.quoteId) {
+        db.prepare("UPDATE quotes SET status = 'EN_ATTENTE' WHERE id = ?").run(invoice.quoteId);
 
-    return { success: true, data: true };
+        if (deleteQuote) {
+          db.prepare("UPDATE quotes SET deletedAt = datetime('now') WHERE id = ?").run(invoice.quoteId);
+        }
+      }
+
+      logAudit('DELETE', 'invoice', id, `Facture supprimée: ${invoice.number || id}`, session.userId, session.name || session.username || null, activeTenantId);
+
+      return { success: true, data: true };
+    });
+
+    return deleteTx();
   } catch (error) {
     console.error('[Action deleteInvoice] Error:', error);
     return { success: false, error: 'Failed to delete invoice' };

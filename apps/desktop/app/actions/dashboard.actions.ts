@@ -49,7 +49,7 @@ export async function getDashboardMetrics(range: string = 'month'): Promise<Acti
     const pendingRevenue = MetricsRepository.getPendingRevenue(session.userId, session.role, iDateFilter, activeTenantId);
     const overdueRevenue = MetricsRepository.getOverdueRevenue(session.userId, session.role, activeTenantId);
 
-    const counts = MetricsRepository.getInvoiceCounts(session.userId, session.role, activeTenantId);
+    const counts = MetricsRepository.getInvoiceCounts(session.userId, session.role, validatedRange, activeTenantId);
     const pendingQuotesCount = MetricsRepository.getPendingQuotesCount(session.userId, session.role, activeTenantId);
     const topClients = MetricsRepository.getTopClients(session.userId, session.role, activeTenantId);
     const userPerformance = MetricsRepository.getUserPerformance(session.role, activeTenantId);
