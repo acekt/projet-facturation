@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { IUpdateStatusPayload, IUpdateProgressPayload } from "@/types/electron";
 import { getErrorMessage } from "@/lib/utils/action-error";
+import { toast } from "sonner";
 
 export function UpdateManager() {
   const [appVersion, setAppVersion] = React.useState<string>("1.0.0");
@@ -104,7 +105,9 @@ export function UpdateManager() {
       await window.electron.updater.install();
     } catch (e: unknown) {
       setStatus('error');
-      setErrorMessage(getErrorMessage(e, "Impossible de relancer l'application"));
+      const msg = getErrorMessage(e, "Impossible de relancer l'application");
+      setErrorMessage(msg);
+      toast.error(`Erreur d'installation : ${msg}`);
     }
   };
 

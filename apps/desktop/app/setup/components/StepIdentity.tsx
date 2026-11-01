@@ -42,6 +42,8 @@ export function StepIdentity({ wizard }: StepIdentityProps) {
     handleCompanyNameChange,
     handleSelectLegalForm,
     handleLogoUpload,
+    customLegalFormValue,
+    setCustomLegalFormValue,
   } = wizard;
 
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -178,8 +180,11 @@ export function StepIdentity({ wizard }: StepIdentityProps) {
               <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }}>
                 <Input
                   type="text"
-                  value={legalForm}
-                  onChange={(e) => setLegalForm(e.target.value)}
+                  value={customLegalFormValue}
+                  onChange={(e) => {
+                    setCustomLegalFormValue(e.target.value)
+                    setLegalForm(e.target.value)
+                  }}
                   placeholder="Précisez votre forme juridique (ex: GIE, Association, SASU...)"
                   className="bg-secondary/50 border-border text-foreground text-xs mt-2"
                   required

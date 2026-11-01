@@ -34,6 +34,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   const clearInvoiceDraft = useStore((state) => state.clearInvoiceDraft);
 
   const isNew = !editingId;
+  const initMentionsRef = React.useRef(settings.mentionsLegales);
 
   const [localDraft, setLocalDraft] = React.useState(() => {
     const today = new Date();
@@ -43,7 +44,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       invoiceDate: today.toISOString().split("T")[0],
       dueDate: "",
       discount: 0,
-      notes: settings.mentionsLegales || "",
+      notes: initMentionsRef.current || "",
       subject: "",
     };
   });
@@ -98,7 +99,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       invoiceDate: new Date().toISOString().split("T")[0],
       dueDate: "",
       discount: 0,
-      notes: settings.mentionsLegales || "",
+      notes: initMentionsRef.current || "",
       subject: "",
     };
 
@@ -113,7 +114,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         setLocalDraft(blankDraft);
       }
     };
-  }, [isNew, clearInvoiceDraft, settings.mentionsLegales]);
+  }, [isNew, clearInvoiceDraft]);
 
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
