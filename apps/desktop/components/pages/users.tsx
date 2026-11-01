@@ -193,7 +193,7 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
     const pw = generatePassword()
     setIsSubmitting(true)
     try {
-      const res = await updateUserService(selectedUser.id, { password: pw })
+      const res = await updateUserService(selectedUser.id, { password: pw } as any)
       if (res.success) {
         setTempPassword(pw)
         setIsResetModalOpen(false)

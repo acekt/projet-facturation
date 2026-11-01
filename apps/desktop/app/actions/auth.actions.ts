@@ -105,7 +105,7 @@ async function verifyUserPassword(user: DbUser | undefined, passwordAttempt: str
 
   if (!user) {
       try { await bcrypt.compare(passwordAttempt, dummyHash); } catch (e) {
-        logger.warn("[Auth] Fallback bcrypt delay dummy comparison failed");
+        logger.warn("[Auth] Fallback bcrypt delay dummy comparison failed", undefined, e);
       }
       return false;
   }
@@ -114,7 +114,7 @@ async function verifyUserPassword(user: DbUser | undefined, passwordAttempt: str
   try {
       isValid = await bcrypt.compare(passwordAttempt, user.password);
   } catch (e) {
-      logger.warn("[Auth] bcrypt compare threw an error", e);
+      logger.warn("[Auth] bcrypt compare threw an error", undefined, e);
       isValid = false;
   }
 
@@ -127,7 +127,7 @@ async function verifyUserPassword(user: DbUser | undefined, passwordAttempt: str
               const newBcryptHash = await bcrypt.hash(passwordAttempt, 10);
               db.prepare("UPDATE users SET password = ? WHERE id = ?").run(newBcryptHash, user.id);
           } catch (upgradeError) {
-              logger.warn("[Auth] Failed to upgrade user password hash", upgradeError);
+              logger.warn("[Auth] Failed to upgrade user password hash", undefined, upgradeError);
           }
       }
   }
@@ -226,7 +226,7 @@ export async function loginUser(data: z.infer<typeof loginSchema>): Promise<Acti
     const forcePasswordChange = user.force_password_change ? 1 : 0;
 
     try { UserRepository.updateLastLogin(user.id); } catch (e) {
-      logger.warn("[Auth] Failed to update last login", e);
+      logger.warn("[Auth] Failed to update last login", undefined, e);
     }
 
     logAuditAsync("LOGIN_SUCCESS", "user", user.id, "Connexion réussie", user.id, user.name, tenantId);
@@ -267,7 +267,7 @@ export async function loginUser(data: z.infer<typeof loginSchema>): Promise<Acti
     };
 
     try { (await cookies()).set("auth_session", signedSession, cookieOptions); } catch (e) {
-      logger.warn("[Auth] Failed to set auth_session cookie", e);
+      logger.warn("[Auth] Failed to set auth_session cookie", undefined, e);
     }
 
     return { success: true, data: sessionPayload };
@@ -288,7 +288,7 @@ export async function logoutUser(): Promise<ActionResponse<void>> {
     try { 
       (await cookies()).delete("auth_session"); 
     } catch (e) {
-      logger.warn("[Auth] Failed to delete auth_session cookie", e);
+      logger.warn("[Auth] Failed to delete auth_session cookie", undefined, e);
     }
 
     return { success: true, data: undefined };
@@ -405,7 +405,7 @@ export async function changeOwnPassword(data: { currentPassword?: string; newPas
           UPDATE pending_cloud_members SET password = ? WHERE email = ?
         `).run(encryptSecret(newPassword), user.email.toLowerCase().trim());
       } catch (e) {
-        logger.warn("[Auth] Failed to update pending_cloud_members password", e);
+        logger.warn("[Auth] Failed to update pending_cloud_members password", undefined, e);
       }
     }
 
@@ -431,7 +431,7 @@ export async function changeOwnPassword(data: { currentPassword?: string; newPas
     };
 
     try { (await cookies()).set("auth_session", signedSession, cookieOptions); } catch (e) {
-      logger.warn("[Auth] Failed to set auth_session cookie", e);
+      logger.warn("[Auth] Failed to set auth_session cookie", undefined, e);
     }
 
     logAudit("PASSWORD_CHANGED", "user", user.id, "Changement de mot de passe personnel effectué", user.id, user.name, tenantId);

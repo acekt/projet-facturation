@@ -148,7 +148,7 @@ export async function deleteInvoice(id: string, deleteQuote: boolean = false): P
       return { success: false, error: 'Invoice not found' };
     }
 
-    const deleteTx = db.transaction(() => {
+    const deleteTx = db.transaction((): ActionResponse<boolean> => {
       const existingCN = db.prepare("SELECT id FROM credit_notes WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')").get(id);
       if (!existingCN) {
         const items = db.prepare("SELECT * FROM invoice_items WHERE invoiceId = ? AND (deletedAt IS NULL OR deletedAt = '')").all(id) as DbInvoiceItem[];

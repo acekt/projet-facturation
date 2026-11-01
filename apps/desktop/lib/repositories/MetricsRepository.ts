@@ -63,7 +63,7 @@ export const MetricsRepository = {
     return row?.total ?? 0;
   },
 
-  getInvoiceCounts(userId: string, role: string, dateFilter: 'month' | 'quarter' | 'year' = 'month', tenantId?: string | null) {
+  getInvoiceCounts(userId: string, role: string, dateFilter: 'month' | 'quarter' | 'year' | 'all' = 'month', tenantId?: string | null) {
     const activeTenantId = resolveActiveTenantId(userId, tenantId);
     const tf = buildTenantFilter(activeTenantId);
 
