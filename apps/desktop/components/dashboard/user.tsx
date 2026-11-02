@@ -39,8 +39,17 @@ interface UserDashboardState extends Omit<Partial<DashboardMetricsResponse>, 'us
   userPerformance?: Array<{ name: string; docsCount: number; totalRevenue: number }>;
 }
 
+type DashboardPeriod = "month" | "quarter" | "year" | "all"
+
+const PERIOD_OPTIONS: Array<{ value: DashboardPeriod; label: string }> = [
+  { value: "month", label: "30 jours" },
+  { value: "quarter", label: "Trimestre" },
+  { value: "year", label: "Année" },
+]
+
 export function DashboardUser({ onNavigate }: DashboardUserProps) {
   const [isMounted, setIsMounted] = useState(false)
+  const [period, setPeriod] = useState<DashboardPeriod>("month")
   const isDataLoaded = useStore(state => state.isDataLoaded)
   const user = useStore(state => state.user)
 
@@ -77,7 +86,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
 
     ;(async () => {
       try {
-        const res = await getDashboardMetrics('month')
+        const res = await getDashboardMetrics(period)
 
         if (!res.success) {
           throw new Error(res.error || `Erreur serveur lors de la récupération des métriques`)
@@ -134,7 +143,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
     return () => {
       controller.abort()
     }
-  }, [])
+  }, [period])
 
   // LE GUARD CLAUSE OBLIGATOIRE (Anti-Flash)
   if (!isMounted || !isDataLoaded) {
@@ -182,16 +191,18 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
             <h1 className="text-2xl font-semibold text-foreground tracking-tighter">Tableau de Bord</h1>
             <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest mt-1">Espace Opérateur</p>
         </div>
-        
-        <div className="flex gap-2">
-            {user?.role === 'admin' && (
-              <Button 
-                onClick={() => onNavigate('clients')} 
-                className="bg-primary hover:bg-primary/90 text-primary-foreground h-10 px-5 font-bold gap-2 text-xs shadow-md shadow-primary/10"
-              >
-                  <UserPlus className="w-4 h-4" /> NOUVEAU CLIENT
-              </Button>
-            )}
+        <div className="flex items-center gap-1 bg-secondary/50 p-1 rounded-lg border border-border">
+          {PERIOD_OPTIONS.map((opt) => (
+            <Button
+              key={opt.value}
+              variant={period === opt.value ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setPeriod(opt.value)}
+              className="text-xs h-7 px-3 font-semibold rounded-md transition-all"
+            >
+              {opt.label}
+            </Button>
+          ))}
         </div>
       </div>
 

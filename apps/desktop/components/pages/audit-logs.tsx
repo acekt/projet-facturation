@@ -1,6 +1,6 @@
 "use client"
 
-import { getAuditLogs } from "@/app/actions/audit.actions"
+import { getPaginatedAuditLogs } from "@/app/actions/audit.actions"
 import * as React from "react"
 import { ShieldCheck, User, Code2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card"
@@ -27,15 +27,26 @@ export interface AuditLogItem {
 
 export function AuditLogsPage() {
   const [logs, setLogs] = React.useState<AuditLogItem[]>([])
+  const [totalCount, setTotalCount] = React.useState(0)
   const [isLoading, setIsLoading] = React.useState(true)
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [debouncedSearch, setDebouncedSearch] = React.useState("")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 10
 
   React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchQuery)
+      setCurrentPage(1)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  React.useEffect(() => {
     const fetchLogs = async () => {
+      setIsLoading(true)
       try {
-        const res = await getAuditLogs()
+        const res = await getPaginatedAuditLogs(currentPage, itemsPerPage, debouncedSearch)
 
         if (!res.success) {
           if (res.error === 'Unauthorized') {
@@ -46,8 +57,9 @@ export function AuditLogsPage() {
           return
         }
 
-        if (res.data && Array.isArray(res.data)) {
-          setLogs(res.data as AuditLogItem[])
+        if (res.data) {
+          setLogs(res.data.logs as AuditLogItem[])
+          setTotalCount(res.data.totalCount)
         }
       } catch (err) {
         console.error('[AuditLogsPage] Fetch error:', err)
@@ -58,33 +70,10 @@ export function AuditLogsPage() {
     }
 
     fetchLogs()
-  }, [])
+  }, [currentPage, itemsPerPage, debouncedSearch])
 
-  const filteredLogs = React.useMemo(() => {
-    if (!searchQuery.trim()) return logs
-    const q = searchQuery.toLowerCase()
-    return logs.filter((log) => {
-      const actionInfo = formatAuditAction(log.action)
-      const entity = formatAuditEntity(log.entityType)
-      const details = formatAuditDetails(log.details)
-
-      return (
-        (log.userName && log.userName.toLowerCase().includes(q)) ||
-        (log.action && log.action.toLowerCase().includes(q)) ||
-        actionInfo.label.toLowerCase().includes(q) ||
-        entity.toLowerCase().includes(q) ||
-        (log.entityType && log.entityType.toLowerCase().includes(q)) ||
-        details.humanText.toLowerCase().includes(q) ||
-        (log.details && log.details.toLowerCase().includes(q))
-      )
-    })
-  }, [logs, searchQuery])
-
-  const totalPages = Math.ceil(filteredLogs.length / itemsPerPage) || 1
-  const displayedLogs = filteredLogs.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
-  )
+  const totalPages = Math.ceil(totalCount / itemsPerPage) || 1
+  const displayedLogs = logs
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden space-y-6">
@@ -104,7 +93,7 @@ export function AuditLogsPage() {
           className="max-w-md"
         />
         <div className="text-xs text-muted-foreground tabular-nums">
-          {filteredLogs.length} événement(s) enregistré(s)
+          {totalCount} événement(s) enregistré(s)
         </div>
       </div>
 

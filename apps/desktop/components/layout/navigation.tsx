@@ -115,11 +115,16 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
     try {
       await supabaseSession.logout()
       await logoutUser()
+      setUser(null)
+      window.location.href = '/login'
     } catch (e) {
       console.warn("Erreur logout:", e)
+      setUser(null)
+      window.location.href = '/login'
+    } finally {
+      setIsLoggingOut(false)
+      setShowLogoutDialog(false)
     }
-    setUser(null)
-    window.location.href = '/login'
   }
 
   const filteredItems = navItems.filter((item) => item.roles.includes(user?.role || 'user'))

@@ -103,10 +103,12 @@ export function useSetupWizard() {
     }
   };
 
+  const [customLegalFormValue, setCustomLegalFormValue] = React.useState('');
+
   const handleSelectLegalForm = (form: string) => {
     if (form === 'Autre') {
       setIsCustomLegalForm(true);
-      setLegalForm('');
+      setLegalForm(customLegalFormValue);
     } else {
       setIsCustomLegalForm(false);
       setLegalForm(form);
@@ -355,6 +357,8 @@ export function useSetupWizard() {
     handleSelectLegalForm,
     handleLogoUpload,
     handleNextStep,
+    customLegalFormValue,
+    setCustomLegalFormValue,
     handleSubmit,
     identityProgress,
     billingProgress,
