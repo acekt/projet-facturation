@@ -120,11 +120,9 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         } else {
           throw new Error("Delete failed")
         }
-        setInvoiceToDeleteId(null)
         return
       }
       toast.success("Facture supprimée")
-      setInvoiceToDeleteId(null)
       const updatedInvoices = await getInvoices()
       if (updatedInvoices.success && updatedInvoices.data) {
         setInvoices(updatedInvoices.data)
@@ -132,6 +130,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     } catch {
       toast.error("Erreur lors de la suppression")
     } finally {
+      setInvoiceToDeleteId(null)
       setIsDeleting(false)
     }
   }
@@ -147,12 +146,10 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         } else {
           throw new Error("Failed to cancel invoice")
         }
-        setInvoiceToCancel(null)
         return
       }
 
       toast.success("Facture annulée avec succès")
-      setInvoiceToCancel(null)
       setDeleteAssociatedQuote(false)
 
       const updatedInvoices = await getInvoices()
@@ -164,6 +161,7 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     } catch {
       toast.error("Erreur lors de l'annulation de la facture")
     } finally {
+      setInvoiceToCancel(null)
       setIsCancelling(false)
     }
   }
@@ -220,7 +218,6 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
     const amount = parseFloat(paymentAmount)
     if (amount <= 0) return void toast.error("Le montant doit être supérieur à 0")
     if (amount > remaining) return void toast.error(`Le montant ne peut pas dépasser le reste à payer (${formatCurrency(remaining)})`)
-
 
     setIsRecordingPayment(true)
     try {
@@ -357,6 +354,10 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         }}
         paymentMethod={paymentMethod}
         onPaymentMethodChange={setPaymentMethod}
+        paymentDate={paymentDate}
+        onPaymentDateChange={setPaymentDate}
+        paymentReference={paymentReference}
+        onPaymentReferenceChange={setPaymentReference}
         onConfirm={confirmPayment}
         isSubmitting={isRecordingPayment}
       />

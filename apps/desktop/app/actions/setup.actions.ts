@@ -9,13 +9,14 @@ import { SetupService } from '@/lib/services/SetupService';
 import { EnrollmentService, type IEnrollmentInput } from '@/lib/services/EnrollmentService';
 import { provisionCloudAccount } from '@/lib/sync/CloudSyncService';
 import type { SessionResponse } from '@/lib/types/api';
+import { z } from 'zod';
 import type { ActionResponse } from './client.actions';
 import { getErrorMessage } from '@/lib/utils/action-error';
 
 const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 jours
 const SESSION_EXPIRATION_MS = SESSION_MAX_AGE_SECONDS * 1000;
 
-export async function setupApp(data: any): Promise<ActionResponse<SessionResponse>> {
+export async function setupApp(data: z.infer<typeof setupSchema>): Promise<ActionResponse<SessionResponse>> {
   try {
     if (SetupService.isInitialized()) {
       return { success: false, error: "L'application est déjà initialisée. Configuration interdite." };

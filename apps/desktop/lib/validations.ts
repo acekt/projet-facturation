@@ -399,7 +399,7 @@ export const creditNoteCreateSchema = z.object({
 // ============================================================================
 
 export const dashboardMetricsQuerySchema = z.object({
-  range: z.enum(['month', 'quarter', 'year']).optional(),
+  range: z.enum(['month', 'quarter', 'year', 'all']).optional(),
 });
 
 // ============================================================================

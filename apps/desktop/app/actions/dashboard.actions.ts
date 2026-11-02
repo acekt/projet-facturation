@@ -49,8 +49,7 @@ export async function getDashboardMetrics(range: string = 'month'): Promise<Acti
     const pendingRevenue = MetricsRepository.getPendingRevenue(session.userId, session.role, iDateFilter, activeTenantId);
     const overdueRevenue = MetricsRepository.getOverdueRevenue(session.userId, session.role, activeTenantId);
 
-    // Passez `iDateFilter` (ou `undefined` si vous voulez compter toutes les factures hors filtre de date) en 3ème argument, et `activeTenantId` en 4ème argument :
-    const counts = MetricsRepository.getInvoiceCounts(session.userId, session.role, undefined, activeTenantId);
+    const counts = MetricsRepository.getInvoiceCounts(session.userId, session.role, validatedRange, activeTenantId);
     const pendingQuotesCount = MetricsRepository.getPendingQuotesCount(session.userId, session.role, activeTenantId);
     const topClients = MetricsRepository.getTopClients(session.userId, session.role, activeTenantId);
     const userPerformance = MetricsRepository.getUserPerformance(session.role, activeTenantId);

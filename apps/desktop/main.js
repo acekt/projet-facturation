@@ -46,7 +46,7 @@ const {
   getMainWindow,
   notifyAppReady,
 } = require('./main/window');
-const { validateSender, registerAllIpcHandlers } = require('./main/ipc');
+const { validateSender, registerAllIpcHandlers, cleanupTempFiles } = require('./main/ipc');
 const { setupAutoUpdater, registerUpdaterIpc } = require('./main/updater');
 
 initLogger(USER_DATA_PATH);
@@ -76,6 +76,7 @@ registerUpdaterIpc({
 
 // ── Cycle de vie de l'application
 app.whenReady().then(async () => {
+  cleanupTempFiles(USER_DATA_PATH, logToFile);
   performDailyBackup(USER_DATA_PATH, logToFile);
   let port;
 

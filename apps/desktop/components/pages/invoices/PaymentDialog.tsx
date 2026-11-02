@@ -33,6 +33,10 @@ interface PaymentDialogProps {
   onPaymentAmountChange: (val: string) => void;
   paymentMethod: string;
   onPaymentMethodChange: (val: string) => void;
+  paymentDate: string;
+  onPaymentDateChange: (val: string) => void;
+  paymentReference: string;
+  onPaymentReferenceChange: (val: string) => void;
   onConfirm: () => Promise<void>;
   isSubmitting?: boolean;
 }
@@ -48,6 +52,10 @@ export function PaymentDialog({
   onPaymentAmountChange,
   paymentMethod,
   onPaymentMethodChange,
+  paymentDate,
+  onPaymentDateChange,
+  paymentReference,
+  onPaymentReferenceChange,
   onConfirm,
   isSubmitting,
 }: PaymentDialogProps) {
@@ -79,6 +87,39 @@ export function PaymentDialog({
                 <SelectItem value="acompte">Acompte / Partiel</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label
+              htmlFor="payment-date"
+              className="text-muted-foreground text-xs uppercase font-bold tracking-wider"
+            >
+              Date du paiement <span className="text-destructive">*</span>
+            </Label>
+            <Input
+              id="payment-date"
+              type="date"
+              value={paymentDate}
+              onChange={(e) => onPaymentDateChange(e.target.value)}
+              className="bg-secondary border-border h-11"
+              disabled={isSubmitting}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label
+              htmlFor="payment-reference"
+              className="text-muted-foreground text-xs uppercase font-bold tracking-wider"
+            >
+              Référence du paiement
+            </Label>
+            <Input
+              id="payment-reference"
+              type="text"
+              placeholder="Numéro de chèque, ID transaction..."
+              value={paymentReference}
+              onChange={(e) => onPaymentReferenceChange(e.target.value)}
+              className="bg-secondary border-border h-11"
+              disabled={isSubmitting}
+            />
           </div>
           <div className="space-y-2">
             <Label

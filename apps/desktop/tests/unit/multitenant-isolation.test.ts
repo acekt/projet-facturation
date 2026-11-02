@@ -207,7 +207,7 @@ describe('Phase 1 & 2 — Shared @workspace/database & Local Multi-Tenant Isolat
       expect(alphaUsers[0].id).toBe('admin-alpha');
 
       // Verify MetricsRepository isolation
-      const alphaCounts = MetricsRepository.getInvoiceCounts('admin-alpha', 'admin', 'tenant-alpha');
+      const alphaCounts = MetricsRepository.getInvoiceCounts('admin-alpha', 'admin', 'all', 'tenant-alpha');
       expect(alphaCounts.totalInvoicesCount).toBe(1);
 
       // Verify resolveActiveTenantId & reconcileLocalTenantId

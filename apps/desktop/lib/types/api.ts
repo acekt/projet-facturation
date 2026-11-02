@@ -326,7 +326,7 @@ export interface DbCreditNoteItem {
 // ============================================================================
 
 export interface DashboardQueryParams {
-  range?: 'month' | 'quarter' | 'year';
+  range?: 'month' | 'quarter' | 'year' | 'all';
 }
 
 export type DashboardMetricsResponse = IDashboardMetrics;

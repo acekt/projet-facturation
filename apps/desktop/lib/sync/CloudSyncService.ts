@@ -565,28 +565,28 @@ export async function syncWithCloud(accessToken: string): Promise<SyncReport> {
       }
     }
 
-    // 1) PUSH (parents -> enfants), puis suppressions
-    for (const cfg of SYNC_TABLES) {
-      try {
-        await pushTable(sb, cfg, ctx.tenantId, report);
-      } catch (e: unknown) {
-        report.errors.push(getErrorMessage(e));
-      }
-    }
+    // 1) PUSH en parallèle par groupes (parents, puis enfants), puis suppressions
+    const baseTables = SYNC_TABLES.filter(c => !c.local.includes('items') && c.local !== 'payments');
+    const itemTables = SYNC_TABLES.filter(c => c.local.includes('items') || c.local === 'payments');
+
+    const pushPromises = baseTables.map(cfg => pushTable(sb, cfg, ctx.tenantId, report).catch(e => report.errors.push(getErrorMessage(e))));
+    await Promise.allSettled(pushPromises);
+
+    const pushChildPromises = itemTables.map(cfg => pushTable(sb, cfg, ctx.tenantId, report).catch(e => report.errors.push(getErrorMessage(e))));
+    await Promise.allSettled(pushChildPromises);
+
     try {
       await pushTombstones(sb, ctx.tenantId, report);
     } catch (e: unknown) {
       report.errors.push(getErrorMessage(e));
     }
 
-    // 2) PULL (parents -> enfants)
-    for (const cfg of SYNC_TABLES) {
-      try {
-        await pullTable(sb, cfg, ctx.tenantId, report);
-      } catch (e: unknown) {
-        report.errors.push(getErrorMessage(e));
-      }
-    }
+    // 2) PULL en parallèle par groupes (parents, puis enfants)
+    const pullPromises = baseTables.map(cfg => pullTable(sb, cfg, ctx.tenantId, report).catch(e => report.errors.push(getErrorMessage(e))));
+    await Promise.allSettled(pullPromises);
+
+    const pullChildPromises = itemTables.map(cfg => pullTable(sb, cfg, ctx.tenantId, report).catch(e => report.errors.push(getErrorMessage(e))));
+    await Promise.allSettled(pullChildPromises);
 
     // 3) Canal descendant Hub (annonces et drapeaux de fonctionnalités - H1)
     try {

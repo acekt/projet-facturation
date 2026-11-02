@@ -134,18 +134,17 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
 
     startSubmitTransition(async () => {
       try {
-        const payload = editingId
-          ? {
+        const payloadUpdate = {
               name: formData.name,
-              ...(formData.email && formData.email !== "" ? { email: formData.email, username: formData.email } : {}),
+              ...(formData.email && formData.email !== "" ? { email: formData.email } : {}),
               phone: formData.phone || null,
               role: formData.role,
               ...(formData.password && formData.password !== ""
                 ? { password: formData.password, force_password_change: true }
                 : {}),
               is_active: formData.is_active,
-            }
-          : {
+        };
+        const payloadCreate = {
               username: formData.email,
               name: formData.name,
               email: formData.email,
@@ -154,9 +153,9 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
               password: formData.password,
               force_password_change: formData.force_password_change,
               is_active: formData.is_active,
-            };
+        };
 
-        const res = editingId ? await updateUserService(editingId, payload) : await createUser(payload);
+        const res = editingId ? await updateUserService(editingId, payloadUpdate as any) : await createUser(payloadCreate as any);
 
         if (res.success) {
           const refreshed = await getUsers();

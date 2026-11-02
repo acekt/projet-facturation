@@ -127,17 +127,20 @@ export function ServicesPage() {
       return
     }
 
-    if (formData.unitPrice < 0) {
-      toast.error("Le prix unitaire ne peut pas être négatif.")
+    const price = Number(formData.unitPrice)
+    if (!Number.isFinite(price) || price < 0) {
+      toast.error("Le prix unitaire doit être un nombre positif ou nul.")
       return
     }
+
+    const validatedData = { ...formData, unitPrice: price }
 
     if (editingService) {
       const originalService = services.find((s) => s.id === editingService.id)
 
       setIsSubmitting(true)
       try {
-        const response = await updateServiceAction(editingService.id, formData)
+        const response = await updateServiceAction(editingService.id, validatedData)
         if (!response.success) {
           if (response.error === "Forbidden") {
             toast.error("Action refusée : Ce service est protégé ou vous manquez de droits.")
@@ -161,10 +164,10 @@ export function ServicesPage() {
       const tempId = crypto.randomUUID()
       const serviceToCreate: Service = {
         id: tempId,
-        name: formData.name.trim(),
-        description: formData.description?.trim() || "",
-        category: formData.category,
-        unitPrice: formData.unitPrice,
+        name: validatedData.name.trim(),
+        description: validatedData.description?.trim() || "",
+        category: validatedData.category,
+        unitPrice: validatedData.unitPrice,
       }
 
       setIsSubmitting(true)

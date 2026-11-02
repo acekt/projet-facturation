@@ -63,12 +63,23 @@ export const MetricsRepository = {
     return row?.total ?? 0;
   },
 
-  getInvoiceCounts(userId: string, role: string, dateFilter?: string, tenantId?: string | null) {
+  getInvoiceCounts(userId: string, role: string, dateFilter: 'month' | 'quarter' | 'year' | 'all' = 'month', tenantId?: string | null) {
     const activeTenantId = resolveActiveTenantId(userId, tenantId);
     const tf = buildTenantFilter(activeTenantId);
 
+    let dateSql = "1=1";
+    if (dateFilter === 'month') {
+      dateSql = "strftime('%Y-%m', date) = strftime('%Y-%m', 'now')";
+    } else if (dateFilter === 'quarter') {
+      dateSql = "date >= date('now', '-3 months')";
+    } else if (dateFilter === 'year') {
+      dateSql = "strftime('%Y', date) = strftime('%Y', 'now')";
+    } else if (dateFilter === 'all') {
+      dateSql = "1=1";
+    }
+
     const getCount = (statusWhere: string) => {
-      const whereClause = dateFilter ? `(${statusWhere}) AND (${dateFilter})` : statusWhere;
+      const whereClause = `(${statusWhere}) AND (${dateSql})`;
       let query = `SELECT COUNT(*) as count FROM invoices WHERE ${whereClause} AND deletedAt IS NULL${tf.sql}`;
       const params: unknown[] = [...tf.params];
       if (role !== ROLES.ADMIN) {

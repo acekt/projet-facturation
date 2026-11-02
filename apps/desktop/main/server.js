@@ -206,6 +206,12 @@ function killNextProcess(logToFile) {
     const pid = nextProcess.pid;
     logToFile('INFO', `[Shutdown] Destruction de l'arbre de processus Next.js (PID: ${pid})...`);
     try {
+      nextProcess.kill();
+    } catch (killErr) {
+      logToFile('WARN', `[Shutdown] Erreur lors du nextProcess.kill(): ${killErr.message}`);
+    }
+
+    try {
       if (process.platform === 'win32') {
         execSync(`taskkill /pid ${pid} /T /F`, { stdio: 'ignore' });
         logToFile('INFO', `[Shutdown] taskkill /pid ${pid} /T /F — succès.`);
@@ -214,7 +220,7 @@ function killNextProcess(logToFile) {
         logToFile('INFO', `[Shutdown] SIGKILL envoyé au process group -${pid} — succès.`);
       }
     } catch (e) {
-      logToFile('WARN', `[Shutdown] Erreur lors du kill (déjà terminé ?) : ${e.message}`);
+      logToFile('WARN', `[Shutdown] Erreur lors du hard kill (déjà terminé ?) : ${e.message}`);
     }
     nextProcess = null;
   }

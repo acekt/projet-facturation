@@ -6,7 +6,7 @@
   "private": true,
   "main": "main.js",
   "scripts": {
-    "dev": "npm run rebuild:node && cross-env NODE_OPTIONS=\"--max-old-space-size=8192\" next dev --webpack",
+    "dev": "npm run rebuild:node && cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" next dev --webpack",
     "build": "next build --webpack",
     "start": "next start",
     "start:electron": "node .next/standalone/server.js",
