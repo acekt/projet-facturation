@@ -32,6 +32,10 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  if (STATIC_ASSET_REGEX.test(pathname) || pathname.startsWith("/_next/")) {
+    return NextResponse.next();
+  }
+
   let SESSION_SECRET: string;
   try {
     SESSION_SECRET = getSessionSecret();
