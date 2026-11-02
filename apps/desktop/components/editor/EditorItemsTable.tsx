@@ -14,6 +14,10 @@ import {
 } from "@workspace/ui/components/select";
 import { formatCurrency } from "@/lib/utils";
 import type { DraftItem, Service } from "@/lib/store";
+import { ServiceFormDialog, type ServiceFormData } from "@/components/pages/services/ServiceFormDialog";
+import { createService } from "@/app/actions/service.actions";
+import { toast } from "sonner";
+import { useStore } from "@/lib/store";
 
 interface EditorItemsTableProps {
   items: DraftItem[];
@@ -32,6 +36,37 @@ export function EditorItemsTable({
   onRemoveItem,
   isSubmitting,
 }: EditorItemsTableProps) {
+  const [isServiceFormOpen, setIsServiceFormOpen] = React.useState(false);
+  const [isCreatingService, setIsCreatingService] = React.useState(false);
+  const [targetItemId, setTargetItemId] = React.useState<string | null>(null);
+  const addService = useStore((s) => s.addService);
+
+  const [serviceFormData, setServiceFormData] = React.useState<ServiceFormData>({
+    name: "", category: "Service", unitPrice: 0, description: ""
+  });
+
+  const handleCreateService = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreatingService(true);
+    try {
+      const res = await createService(serviceFormData);
+      if (res.success && res.data) {
+        addService(res.data);
+        if (targetItemId) {
+          onUpdateItem(targetItemId, "description", res.data.name);
+          onUpdateItem(targetItemId, "unitPrice", res.data.unitPrice);
+        }
+        setIsServiceFormOpen(false);
+        toast.success("Service créé et ajouté avec succès");
+      } else {
+        toast.error(res.error || "Erreur lors de la création du service");
+      }
+    } catch (e) {
+      toast.error("Erreur serveur lors de la création du service");
+    } finally {
+      setIsCreatingService(false);
+    }
+  };
   return (
     <Card className="bg-card border-border">
       <CardHeader className="pb-4">
@@ -138,6 +173,15 @@ export function EditorItemsTable({
           ))}
         </div>
       </CardContent>
+      <ServiceFormDialog
+        isEdit={false}
+        isOpen={isServiceFormOpen}
+        onOpenChange={setIsServiceFormOpen}
+        formData={serviceFormData}
+        onChange={setServiceFormData}
+        onSubmit={handleCreateService}
+        isSubmitting={isCreatingService}
+      />
     </Card>
   );
 }

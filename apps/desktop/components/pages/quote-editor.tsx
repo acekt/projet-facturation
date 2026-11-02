@@ -6,6 +6,7 @@ import { useStore, type DraftItem, type Quote, type Client } from "@/lib/store";
 import { useShallow } from "zustand/react/shallow";
 import { toast } from "sonner";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
+import { CreationSuccessModal } from "@/components/features/common/CreationSuccessModal";
 import { computeTotals, computeItemTotal } from "@/lib/math-logic";
 import { getQuoteById, createQuote, updateQuote, getQuotes } from "@/app/actions/quote.actions";
 import { QuoteEditorHeader } from "@/components/editor/QuoteEditorHeader";
@@ -114,6 +115,8 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [successModalOpen, setSuccessModalOpen] = React.useState(false);
+  const [createdQuote, setCreatedQuote] = React.useState<Quote | null>(null);
 
   React.useEffect(() => {
     if (!editingId) return;
