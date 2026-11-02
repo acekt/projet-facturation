@@ -24,9 +24,9 @@ export async function getDashboardMetrics(range: string = 'month'): Promise<Acti
     const { range: validatedRange }: DashboardQueryParams = validation.data;
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
 
-    let pDateFilter = "strftime('%Y-%m', p.date) = strftime('%Y-%m', 'now')";
-    let pPrevDateFilter = "strftime('%Y-%m', p.date) = strftime('%Y-%m', 'now', '-1 month')";
-    let iDateFilter = "strftime('%Y-%m', i.date) = strftime('%Y-%m', 'now')";
+    let pDateFilter = "p.date >= date('now', '-30 days')";
+    let pPrevDateFilter = "p.date >= date('now', '-60 days') AND p.date < date('now', '-30 days')";
+    let iDateFilter = "i.date >= date('now', '-30 days')";
 
     if (validatedRange === 'quarter') {
       pDateFilter = "p.date >= date('now', '-3 months')";
@@ -36,6 +36,10 @@ export async function getDashboardMetrics(range: string = 'month'): Promise<Acti
       pDateFilter = "strftime('%Y', p.date) = strftime('%Y', 'now')";
       pPrevDateFilter = "strftime('%Y', p.date) = strftime('%Y', 'now', '-1 year')";
       iDateFilter = "strftime('%Y', i.date) = strftime('%Y', 'now')";
+    } else if (validatedRange === 'all') {
+      pDateFilter = "1=1";
+      pPrevDateFilter = "1=0";
+      iDateFilter = "1=1";
     }
 
     const totalRevenue = MetricsRepository.getTotalRevenue(session.userId, session.role, pDateFilter, activeTenantId);

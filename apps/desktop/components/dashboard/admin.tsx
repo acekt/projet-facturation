@@ -1,6 +1,7 @@
 "use client"
 
 import { getDashboardMetrics } from "@/app/actions/dashboard.actions"
+import * as React from "react"
 import { useState, useEffect, useCallback } from "react"
 import { useStore } from "@/lib/store"
 import type { DashboardMetricsResponse } from "@/lib/types/api"
@@ -124,8 +125,18 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
     }
   }, [])
 
+  const fetchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
-    fetchMetrics(period)
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+    fetchTimeoutRef.current = setTimeout(() => {
+      fetchMetrics(period)
+    }, 100);
+    return () => {
+      if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+    }
   }, [period, invoicesCount, paymentsCount, quotesCount, fetchMetrics])
 
   useEffect(() => {
@@ -250,8 +261,8 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <Card className="lg:col-span-2 border-border shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
+        <Card className="lg:col-span-2 border-border shadow-sm flex flex-col min-h-0">
+          <CardHeader className="flex flex-row items-center justify-between shrink-0">
             <div>
               <CardTitle className="text-md font-semibold">Performance Opérateurs</CardTitle>
               <CardDescription className="text-[10px] uppercase font-medium tracking-widest">
@@ -260,7 +271,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             </div>
             <Users className="w-5 h-5 text-muted-foreground opacity-20" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 overflow-y-auto pt-2">
             <div className="space-y-3">
               {(data?.userPerformance || []).map((u) => (
                 <div
@@ -290,8 +301,8 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
           </CardContent>
         </Card>
 
-        <Card className="border-border shadow-sm">
-          <CardHeader className="flex flex-row items-center justify-between">
+        <Card className="border-border shadow-sm flex flex-col min-h-0">
+          <CardHeader className="flex flex-row items-center justify-between shrink-0">
             <div>
               <CardTitle className="text-md font-semibold">Top Clients</CardTitle>
               <CardDescription className="text-[10px] uppercase font-medium tracking-widest">
@@ -300,7 +311,7 @@ export function DashboardAdmin({ onNavigate }: DashboardAdminProps) {
             </div>
             <ShieldCheck className="w-5 h-5 text-muted-foreground opacity-20" />
           </CardHeader>
-          <CardContent>
+          <CardContent className="flex-1 overflow-y-auto pt-2">
             <div className="space-y-3">
               {(data?.topClients || []).map((client, index: number) => (
                 <div

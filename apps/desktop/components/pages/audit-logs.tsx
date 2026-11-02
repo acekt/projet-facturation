@@ -42,6 +42,8 @@ export function AuditLogsPage() {
     return () => clearTimeout(timer)
   }, [searchQuery])
 
+  const fetchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
   React.useEffect(() => {
     const fetchLogs = async () => {
       setIsLoading(true)
@@ -69,7 +71,17 @@ export function AuditLogsPage() {
       }
     }
 
-    fetchLogs()
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
+    }
+
+    fetchTimeoutRef.current = setTimeout(() => {
+      fetchLogs()
+    }, 100);
+
+    return () => {
+      if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
+    }
   }, [currentPage, itemsPerPage, debouncedSearch])
 
   const totalPages = Math.ceil(totalCount / itemsPerPage) || 1
