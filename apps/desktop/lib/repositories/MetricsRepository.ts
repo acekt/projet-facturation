@@ -69,7 +69,7 @@ export const MetricsRepository = {
 
     let dateSql = "1=1";
     if (dateFilter === 'month') {
-      dateSql = "strftime('%Y-%m', date) = strftime('%Y-%m', 'now')";
+      dateSql = "date >= date('now', '-30 days')";
     } else if (dateFilter === 'quarter') {
       dateSql = "date >= date('now', '-3 months')";
     } else if (dateFilter === 'year') {
@@ -78,8 +78,8 @@ export const MetricsRepository = {
       dateSql = "1=1";
     }
 
-    const getCount = (statusWhere: string) => {
-      const whereClause = `(${statusWhere}) AND (${dateSql})`;
+    const getCount = (statusWhere: string, ignoreDate: boolean = false) => {
+      const whereClause = ignoreDate ? `(${statusWhere})` : `(${statusWhere}) AND (${dateSql})`;
       let query = `SELECT COUNT(*) as count FROM invoices WHERE ${whereClause} AND deletedAt IS NULL${tf.sql}`;
       const params: unknown[] = [...tf.params];
       if (role !== ROLES.ADMIN) {
@@ -90,10 +90,10 @@ export const MetricsRepository = {
     };
 
     return {
-      paidCount: getCount(`status = '${INVOICE_STATUS.PAID}'`),
-      unpaidCount: getCount(`status = '${INVOICE_STATUS.UNPAID}'`),
-      partiallyPaidCount: getCount(`status = '${INVOICE_STATUS.PARTIALLY_PAID}'`),
-      totalInvoicesCount: getCount(`status != '${INVOICE_STATUS.CANCELLED}'`)
+      paidCount: getCount(`UPPER(status) = 'PAID'`),
+      unpaidCount: getCount(`UPPER(status) IN ('UNPAID', 'OVERDUE')`, true),
+      partiallyPaidCount: getCount(`UPPER(status) = 'PARTIALLY_PAID'`, true),
+      totalInvoicesCount: getCount(`UPPER(status) != 'CANCELLED'`)
     };
   },
 

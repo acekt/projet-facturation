@@ -56,7 +56,7 @@ export function getNextNumber(type: 'quote' | 'invoice' | 'credit_note') {
   } else if (type === 'invoice') {
     configuredPrefix = settings.invoicePrefix || 'FAC';
   } else {
-    configuredPrefix = 'AV';
+    configuredPrefix = 'AVR';
   }
 
   const sanitizedPrefix = (configuredPrefix || '')

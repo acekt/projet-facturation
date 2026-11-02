@@ -171,8 +171,12 @@ if (!globalForDb.db_ready) {
     }
 
     try {
-      const { migrateLegacyDatabase } = require('./db/migrateLegacy');
-      migrateLegacyDatabase(db, dbPath);
+      const globalForLegacy = globalThis as unknown as { __facturierLegacyMigrated?: boolean };
+      if (!globalForLegacy.__facturierLegacyMigrated) {
+        const { migrateLegacyDatabase } = require('./db/migrateLegacy');
+        migrateLegacyDatabase(db, dbPath);
+        globalForLegacy.__facturierLegacyMigrated = true;
+      }
     } catch (e) {
       console.error('Legacy migration check error:', e);
     }

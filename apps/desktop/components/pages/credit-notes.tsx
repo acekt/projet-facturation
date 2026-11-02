@@ -170,7 +170,7 @@ export function CreditNotesPage() {
         }
       />
 
-      <div className="flex flex-col sm:flex-row gap-4 mb-2">
+      <div className="flex flex-col sm:flex-row gap-4 mb-2 items-center">
         <div className="flex-1">
           <SearchBar
             placeholder="Rechercher par numéro d'avoir, client, numéro de facture ou motif..."
@@ -181,6 +181,9 @@ export function CreditNotesPage() {
             }}
             viewFormatKey="creditNotes"
           />
+        </div>
+        <div className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block font-medium">
+          {filtered.length} avoir(s) émis
         </div>
       </div>
 

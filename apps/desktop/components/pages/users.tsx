@@ -91,15 +91,25 @@ export function UsersPage({ onCreateUser, onEditUser }: UsersPageProps) {
     [setUsers]
   )
 
+  const fetchTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
   React.useEffect(() => {
     const controller = new AbortController()
-    if (currentUser?.role !== "admin") {
-      setIsLoading(false)
-    } else {
-      fetchUsers(controller.signal)
+    if (fetchTimeoutRef.current) {
+      clearTimeout(fetchTimeoutRef.current);
     }
+
+    fetchTimeoutRef.current = setTimeout(() => {
+      if (currentUser?.role !== "admin") {
+        setIsLoading(false)
+      } else {
+        fetchUsers(controller.signal)
+      }
+    }, 100);
+
     return () => {
       controller.abort()
+      if (fetchTimeoutRef.current) clearTimeout(fetchTimeoutRef.current);
     }
   }, [currentUser?.id, currentUser?.role, fetchUsers])
 
