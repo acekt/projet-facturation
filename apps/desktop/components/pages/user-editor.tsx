@@ -5,7 +5,8 @@ import { motion } from "framer-motion";
 import { ArrowLeft, User, Lock, Key } from "lucide-react";
 import { getUsers, createUser, updateUser as updateUserService } from "@/app/actions/user.actions";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
-import { Button } from "@workspace/ui/components/button";
+import { Button } from "@workspace/ui/components/button"
+import { CreationSuccessModal } from "@/components/features/common/CreationSuccessModal";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Switch } from "@workspace/ui/components/switch";

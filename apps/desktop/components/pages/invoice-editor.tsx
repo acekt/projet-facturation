@@ -12,6 +12,7 @@ import { Textarea } from "@workspace/ui/components/textarea";
 import { useStore, type DraftItem, type Invoice, type Client } from "@/lib/store";
 import { toast } from "sonner";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
+import { CreationSuccessModal } from "@/components/features/common/CreationSuccessModal";
 import { computeTotals, computeItemTotal } from "@/lib/math-logic";
 import { getInvoiceById, createInvoice, getInvoices } from "@/app/actions/invoice.actions";
 import { DocumentCommercialHeader } from "@/components/editor/DocumentCommercialHeader";
@@ -118,6 +119,8 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
 
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [successModalOpen, setSuccessModalOpen] = React.useState(false);
+  const [createdInvoice, setCreatedInvoice] = React.useState<Invoice | null>(null);
 
   React.useEffect(() => {
     if (!editingId) return;
