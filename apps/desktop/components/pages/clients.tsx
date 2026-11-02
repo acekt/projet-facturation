@@ -15,6 +15,7 @@ import { ClientFormDialog, type ClientFormData } from "./clients/ClientFormDialo
 import { ClientDeleteDialog } from "./clients/ClientDeleteDialog"
 import { ClientDetailsDialog } from "./clients/ClientDetailsDialog"
 import { ClientViews } from "./clients/ClientViews"
+import { CreationSuccessModal } from "@/components/features/common/CreationSuccessModal"
 import { useCommandFilter } from "@/lib/command-navigation"
 
 const INITIAL_CLIENT_FORM: ClientFormData = {
@@ -79,6 +80,8 @@ export function ClientsPage() {
   const [editingClient, setEditingClient] = React.useState<Client | null>(null)
   const [selectedClient, setSelectedClient] = React.useState<Client | null>(null)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = React.useState(false)
+  const [successModalOpen, setSuccessModalOpen] = React.useState(false)
+  const [createdClient, setCreatedClient] = React.useState<Client | null>(null)
   const [clientToDeleteId, setClientToDeleteId] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 

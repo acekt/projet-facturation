@@ -16,6 +16,10 @@ import {
 import { VisuallyHidden } from "@workspace/ui/components/visually-hidden";
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
 import { getInitials } from "@/lib/utils";
+import { ClientFormDialog, type ClientFormData } from "@/components/pages/clients/ClientFormDialog";
+import { createClient } from "@/app/actions/client.actions";
+import { toast } from "sonner";
+import { useStore } from "@/lib/store";
 import type { Client } from "@/lib/store";
 
 interface ClientSelectCardProps {
@@ -35,6 +39,34 @@ export function ClientSelectCard({
 }: ClientSelectCardProps) {
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");
+  const [isClientFormOpen, setIsClientFormOpen] = React.useState(false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const addClient = useStore((s) => s.addClient);
+
+  const [clientFormData, setClientFormData] = React.useState<ClientFormData>({
+    name: "", email: "", phone: "", address: "", nif: "", rccm: "", status: "active"
+  });
+
+  const handleCreateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const res = await createClient(clientFormData);
+      if (res.success && res.data) {
+        addClient(res.data);
+        onSelectClient(res.data);
+        setIsClientFormOpen(false);
+        setClientSearchOpen(false);
+        toast.success("Client créé avec succès");
+      } else {
+        toast.error(res.error || "Erreur lors de la création du client");
+      }
+    } catch (e) {
+      toast.error("Erreur serveur lors de la création du client");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const filteredClients = React.useMemo(() => {
     return clients.filter(
@@ -48,9 +80,14 @@ export function ClientSelectCard({
   return (
     <Card className="bg-card border-border">
       <CardHeader className="pb-4">
-        <CardTitle className="text-foreground font-semibold text-base">
-          {title} <span className="text-destructive">*</span>
-        </CardTitle>
+        <div className="flex items-center justify-between w-full">
+          <CardTitle className="text-foreground font-semibold text-base">
+            {title} <span className="text-destructive">*</span>
+          </CardTitle>
+          <Button variant="link" size="sm" className="h-auto p-0 text-primary" onClick={() => setIsClientFormOpen(true)}>
+            + Nouveau client
+          </Button>
+        </div>
       </CardHeader>
       <CardContent>
         {selectedClient ? (
@@ -134,12 +171,27 @@ export function ClientSelectCard({
                   ) : (
                     <p className="text-sm text-muted-foreground text-center py-4">Aucun client trouvé</p>
                   )}
+
+                  <div className="pt-2 mt-4 border-t border-border/50 text-center">
+                    <Button variant="link" size="sm" className="text-primary" onClick={() => setIsClientFormOpen(true)}>
+                      + Créer un nouveau client
+                    </Button>
+                  </div>
                 </div>
               </div>
             </DialogContent>
           </Dialog>
         )}
       </CardContent>
+      <ClientFormDialog
+        mode="add"
+        isOpen={isClientFormOpen}
+        onOpenChange={setIsClientFormOpen}
+        data={clientFormData}
+        onChange={setClientFormData}
+        onSubmit={handleCreateClient}
+        isSubmitting={isSubmitting}
+      />
     </Card>
   );
 }

@@ -272,6 +272,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
           total={data.total}
           totalPaid={totalPaid}
           remaining={remaining}
+          payments={"payments" in data ? (data.payments ?? []) : []}
           formatCurrency={fmt}
           notes={notes || s.mentionsLegales}
         />

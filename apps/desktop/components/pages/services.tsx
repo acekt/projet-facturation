@@ -16,6 +16,7 @@ import { ServiceFormDialog, type ServiceFormData } from "./services/ServiceFormD
 import { ServiceDeleteDialog } from "./services/ServiceDeleteDialog"
 import { ServiceDetailsDialog } from "./services/ServiceDetailsDialog"
 import { ServiceViews } from "./services/ServiceViews"
+import { CreationSuccessModal } from "@/components/features/common/CreationSuccessModal"
 import { useCommandFilter } from "@/lib/command-navigation"
 
 const INITIAL_SERVICE_FORM: ServiceFormData = {
