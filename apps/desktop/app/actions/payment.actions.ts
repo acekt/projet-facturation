@@ -125,3 +125,37 @@ export async function deletePayment(id: string): Promise<ActionResponse<{ succes
     return { success: false, error: 'Failed to delete payment' };
   }
 }
+
+import { PaymentRepository, ClientPaymentHistoryRow, InvoicePaymentHistoryRow } from '@/lib/repositories/PaymentRepository';
+
+export async function getClientPaymentHistory(clientId: string, clientName?: string): Promise<ActionResponse<ClientPaymentHistoryRow[]>> {
+  try {
+    const session = await getSession();
+    if (!session || !session.userId) return { success: false, error: 'Unauthorized' };
+
+    const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId || null);
+
+    // In our repository we check by both id and name for completeness
+    const history = PaymentRepository.findPaymentsByClientId(clientId, clientName || '', activeTenantId || "");
+
+    return { success: true, data: history };
+  } catch (error) {
+    console.error('[Action getClientPaymentHistory] Error:', error);
+    return { success: false, error: 'Failed to fetch client payment history' };
+  }
+}
+
+export async function getInvoicePaymentHistory(invoiceId: string): Promise<ActionResponse<InvoicePaymentHistoryRow[]>> {
+  try {
+    const session = await getSession();
+    if (!session || !session.userId) return { success: false, error: 'Unauthorized' };
+
+    const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId || null);
+    const history = PaymentRepository.findPaymentsByInvoiceId(invoiceId, activeTenantId || "");
+
+    return { success: true, data: history };
+  } catch (error) {
+    console.error('[Action getInvoicePaymentHistory] Error:', error);
+    return { success: false, error: 'Failed to fetch invoice payment history' };
+  }
+}

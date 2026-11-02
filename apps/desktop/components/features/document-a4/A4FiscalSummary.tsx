@@ -17,6 +17,7 @@ interface A4FiscalSummaryProps {
   total: number;
   totalPaid: number;
   remaining: number;
+  payments?: { date: string; amount: number; paymentMethod?: string; reference?: string | null }[];
   formatCurrency: (n: number) => string;
   notes?: string | null;
 }
@@ -33,6 +34,7 @@ export function A4FiscalSummary({
   total,
   totalPaid,
   remaining,
+  payments = [],
   formatCurrency: fmt,
   notes,
 }: A4FiscalSummaryProps) {
@@ -215,13 +217,31 @@ export function A4FiscalSummary({
 
               {/* Lignes de paiements (Réglé & Reste) */}
               <div className="mt-2 text-[9px] flex flex-col gap-1.5 px-1 pt-1">
-                <div className="flex justify-between items-center">
-                  <span className="text-slate-500 font-medium">Réglé</span>
-                  <span className="text-slate-600 font-semibold tabular-nums">
-                    {fmt(totalPaid)}
-                  </span>
-                </div>
-                <div className="flex justify-between items-center">
+                {payments.length > 0 ? (
+                  <>
+                    <div className="text-slate-500 font-medium mb-1 border-b border-slate-100 pb-0.5">Détail des règlements :</div>
+                    {payments.map((p, i) => (
+                      <div key={i} className="flex justify-between items-center text-[8px] pl-1">
+                        <span className="text-slate-500">{new Date(p.date).toLocaleDateString('fr-FR')} - {p.paymentMethod} {p.reference ? `(${p.reference})` : ''}</span>
+                        <span className="text-slate-600 font-semibold tabular-nums">+{fmt(p.amount)}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between items-center mt-1 pt-1 border-t border-slate-100">
+                      <span className="text-slate-500 font-bold">Total Réglé</span>
+                      <span className="text-slate-700 font-bold tabular-nums">
+                        {fmt(totalPaid)}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500 font-medium">Réglé</span>
+                    <span className="text-slate-600 font-semibold tabular-nums">
+                      {fmt(totalPaid)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex justify-between items-center mt-0.5">
                   <span className="font-bold text-brand-primary">Reste à Payer</span>
                   <span className="font-bold text-[var(--color-brand-accent)] tabular-nums text-[11px]">{fmt(remaining)}</span>
                 </div>
