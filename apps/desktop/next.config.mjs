@@ -89,6 +89,7 @@ const nextConfig = {
     }
 
     if (dev) {
+      config.cache = false;
       config.watchOptions = {
         ...config.watchOptions,
         ignored: [

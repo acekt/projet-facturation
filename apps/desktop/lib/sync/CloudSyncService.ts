@@ -336,6 +336,9 @@ async function pushTable(sb: SupabaseClient, cfg: SyncTableConfig, tenantId: str
     clients: new Set(['nif', 'rccm']),
     quotes: new Set(['dueDate', 'due_date']),
     invoices: new Set(['validUntil', 'valid_until']),
+    credit_note_items: new Set(['deletedAt', 'deleted_at']),
+    invoice_items: new Set(['deletedAt', 'deleted_at']),
+    quote_items: new Set(['deletedAt', 'deleted_at']),
   };
 
   const dataCols = cols.filter((c) => {

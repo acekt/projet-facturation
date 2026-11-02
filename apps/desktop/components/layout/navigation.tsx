@@ -102,12 +102,8 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
     [invoices]
   )
   const pendingQuotesCount = React.useMemo(
-    () => quotes.filter((q) => !q.deletedAt && (q.status === 'EN_ATTENTE' || q.status === 'ENVOYE' || (q.status as string) === 'sent')).length,
+    () => quotes.filter((q) => !q.deletedAt && !['CONVERTI', 'REFUSE', 'EXPIRE', 'invoiced', 'archived', 'cancelled'].includes(q.status)).length,
     [quotes]
-  )
-  const activeCreditNotesCount = React.useMemo(
-    () => (creditNotes || []).filter((cn) => !cn.deletedAt && (cn.status as string) !== 'cancelled').length,
-    [creditNotes]
   )
 
   const handleConfirmLogout = async () => {
@@ -136,7 +132,6 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
   const getItemBadge = (id: string): number | null => {
     if (id === 'invoices' && unpaidCount > 0) return unpaidCount
     if (id === 'quotes' && pendingQuotesCount > 0) return pendingQuotesCount
-    if (id === 'credit-notes' && activeCreditNotesCount > 0) return activeCreditNotesCount
     return null
   }
 
