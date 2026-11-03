@@ -17,6 +17,7 @@ export async function getPayments(): Promise<ActionResponse<PaymentResponse[]>> 
     if (!session) return { success: false, error: 'Unauthorized' };
 
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
+    if (!activeTenantId) return { success: false, error: 'Tenant introuvable' };
     const tf = buildTenantFilter(activeTenantId);
     let query = `SELECT id, invoiceId, amount, paymentMethod, date, reference, createdAt, deletedAt, created_by FROM payments WHERE deletedAt IS NULL${tf.sql}`;
     const params: unknown[] = [...tf.params];
@@ -59,6 +60,7 @@ export async function createPayment(data: PaymentCreateRequest): Promise<ActionR
 
     const { invoiceId, amount, paymentMethod, date, reference } = validation.data;
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
+    if (!activeTenantId) return { success: false, error: 'Tenant introuvable' };
     const tf = buildTenantFilter(activeTenantId);
 
     const checkInvoiceStmt = db.prepare(`
@@ -129,6 +131,7 @@ export async function deletePayment(id: string): Promise<ActionResponse<{ succes
     if (session.role !== 'admin') return { success: false, error: 'Forbidden: Only Admin can delete payments' };
 
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
+    if (!activeTenantId) return { success: false, error: 'Tenant introuvable' };
     const tf = buildTenantFilter(activeTenantId);
     const payment = db.prepare(`SELECT invoiceId FROM payments WHERE id = ? AND deletedAt IS NULL${tf.sql}`).get(id, ...tf.params) as DbPayment | undefined;
     if (!payment) return { success: false, error: 'Payment not found' };

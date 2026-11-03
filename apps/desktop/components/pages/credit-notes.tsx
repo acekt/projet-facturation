@@ -12,7 +12,7 @@ import { DataExportModal } from "@/components/features/export/DataExportModal"
 import { CreditNoteViews, type InvoiceStatusInfo } from "@/components/features/credit-notes/CreditNoteViews"
 import { useStore, type CreditNote } from "@/lib/store"
 import { useShallow } from "zustand/react/shallow"
-import { formatDate, downloadSafeCsv } from "@/lib/utils"
+import { formatDate, downloadSafeCsv, cn } from "@/lib/utils"
 import { toast } from "sonner"
 
 export function CreditNotesPage() {
@@ -35,6 +35,7 @@ export function CreditNotesPage() {
   )
 
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [statusFilter, setStatusFilter] = React.useState<string>("all")
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 9 // Harmonisation Grille 3x3
   const [isDownloading, setIsDownloading] = React.useState<string | null>(null)
@@ -44,17 +45,37 @@ export function CreditNotesPage() {
 
   const canCreate = user?.role === "admin" || user?.role === "user"
 
+  const counts = React.useMemo(() => {
+    let open = 0, applied = 0, cancelled = 0;
+    for (const note of creditNotes) {
+      if (note.deletedAt) continue;
+      const st = (note.status || "").toLowerCase();
+      if (st === "applied") applied++;
+      else if (st === "cancelled") cancelled++;
+      else open++;
+    }
+    return { total: open + applied + cancelled, open, applied, cancelled };
+  }, [creditNotes]);
+
   const filtered = React.useMemo(() => {
     return creditNotes.filter((note) => {
-      const q = searchQuery.toLowerCase()
-      return (
+      if (note.deletedAt) return false;
+      const q = searchQuery.toLowerCase();
+      const matchesSearch =
         note.number.toLowerCase().includes(q) ||
         note.clientName.toLowerCase().includes(q) ||
         note.invoiceId.toLowerCase().includes(q) ||
-        (note.reason && note.reason.toLowerCase().includes(q))
-      )
-    })
-  }, [creditNotes, searchQuery])
+        (note.reason && note.reason.toLowerCase().includes(q));
+
+      if (!matchesSearch) return false;
+      const st = (note.status || "").toLowerCase();
+      if (statusFilter === "all") return true;
+      if (statusFilter === "open") return st === "open";
+      if (statusFilter === "applied") return st === "applied";
+      if (statusFilter === "cancelled") return st === "cancelled";
+      return true;
+    });
+  }, [creditNotes, searchQuery, statusFilter]);
 
   const totalPages = Math.ceil(filtered.length / itemsPerPage) || 1
   const paginated = filtered.slice(
@@ -185,6 +206,83 @@ export function CreditNotesPage() {
         <div className="text-xs text-muted-foreground whitespace-nowrap hidden sm:block font-medium">
           {filtered.length} avoir(s) émis
         </div>
+      </div>
+
+      {/* Filtres d'accès rapide unifiés avec compteurs réactifs */}
+      <div className="flex items-center gap-2 mb-2 overflow-x-auto pb-1">
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter("all")
+            setCurrentPage(1)
+          }}
+          className={cn(
+            "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+            statusFilter === "all"
+              ? "bg-secondary text-foreground shadow-xs"
+              : "text-muted-foreground hover:bg-secondary/60"
+          )}
+        >
+          <span>Tous</span>
+          <span className="text-[11px] tabular-nums font-normal opacity-80">({counts.total})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter("open")
+            setCurrentPage(1)
+          }}
+          className={cn(
+            "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer",
+            statusFilter === "open"
+              ? "bg-amber-500 text-white shadow-xs"
+              : "bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
+          )}
+        >
+          <span>En attente / Ouverts</span>
+          <span className="px-1.5 py-0.5 bg-amber-600/20 rounded-full tabular-nums text-[10px] font-bold">
+            {counts.open}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter("applied")
+            setCurrentPage(1)
+          }}
+          className={cn(
+            "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+            statusFilter === "applied"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-muted-foreground hover:bg-secondary/60"
+          )}
+        >
+          <span>Remboursés / Déduits</span>
+          <span className="px-1.5 py-0.5 bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 rounded-full tabular-nums text-[10px] font-bold">
+            {counts.applied}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setStatusFilter("cancelled")
+            setCurrentPage(1)
+          }}
+          className={cn(
+            "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
+            statusFilter === "cancelled"
+              ? "bg-slate-700 text-white shadow-xs"
+              : "text-muted-foreground hover:bg-secondary/60"
+          )}
+        >
+          <span>Annulés</span>
+          <span className="px-1.5 py-0.5 bg-slate-500/15 text-slate-700 dark:text-slate-300 rounded-full tabular-nums text-[10px] font-bold">
+            {counts.cancelled}
+          </span>
+        </button>
       </div>
 
       <CreditNoteViews

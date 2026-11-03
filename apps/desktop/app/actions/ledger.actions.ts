@@ -4,21 +4,10 @@ import { getSession } from '@/lib/api/auth';
 import { resolveActiveTenantId } from '@/lib/api/tenant';
 import { LedgerRepository, LedgerEntry, LedgerFilters, LedgerSummary } from '@/lib/repositories/LedgerRepository';
 import type { ActionResponse } from './client.actions';
-import { z } from 'zod';
+import { ledgerEntryCreateSchema, type LedgerEntryCreateRequest } from '@/lib/validations/ledger';
 import { logAudit } from '@/lib/api/audit';
 
-export const ledgerEntryCreateSchema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)"),
-  type: z.enum(['IN', 'OUT'], { required_error: "Le type (IN/OUT) est requis" }),
-  category: z.string().min(1, "La catégorie est requise").max(255),
-  description: z.string().min(1, "La description est requise").max(1000),
-  amount: z.number().int("Le montant doit être un entier en XAF (pas de décimales)").min(0, "Le montant doit être supérieur ou égal à 0"),
-  paymentMethod: z.string().min(1, "La méthode de paiement est requise").max(255),
-  reference: z.string().max(255).optional().nullable(),
-  counterparty: z.string().max(255).optional().nullable(),
-});
-
-export type LedgerEntryCreateRequest = z.infer<typeof ledgerEntryCreateSchema>;
+export type { LedgerEntryCreateRequest };
 
 export async function getLedgerEntriesAction(filters: Omit<LedgerFilters, 'tenantId'>): Promise<ActionResponse<LedgerEntry[]>> {
   try {
@@ -26,6 +15,7 @@ export async function getLedgerEntriesAction(filters: Omit<LedgerFilters, 'tenan
     if (!session || !session.userId) return { success: false, error: 'Unauthorized' };
 
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
+    if (!activeTenantId) return { success: false, error: 'Tenant introuvable' };
 
     const entries = LedgerRepository.findAll({
       ...filters,
@@ -45,6 +35,7 @@ export async function getLedgerSummaryAction(filters: Omit<LedgerFilters, 'tenan
     if (!session || !session.userId) return { success: false, error: 'Unauthorized' };
 
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
+    if (!activeTenantId) return { success: false, error: 'Tenant introuvable' };
 
     const summary = LedgerRepository.getSummary({
       ...filters,
@@ -72,6 +63,7 @@ export async function createLedgerEntryAction(data: LedgerEntryCreateRequest): P
     }
 
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
+    if (!activeTenantId) return { success: false, error: 'Tenant introuvable' };
 
     const entry = LedgerRepository.create({
       ...validation.data,
@@ -97,6 +89,7 @@ export async function deleteLedgerEntryAction(id: string): Promise<ActionRespons
     if (session.role !== 'admin') return { success: false, error: 'Forbidden: Only Admin can delete ledger entries' };
 
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
+    if (!activeTenantId) return { success: false, error: 'Tenant introuvable' };
 
     const success = LedgerRepository.softDelete(id, activeTenantId, session.userId, session.name || session.username || undefined);
 

@@ -13,6 +13,7 @@ import {
   Edit2,
   Calendar,
 } from "lucide-react";
+import { ShareDocumentModal } from "@/components/features/share/ShareDocumentModal";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
 import {
@@ -346,7 +347,7 @@ export function QuoteViews({
                 </div>
                 <div className="bg-secondary/30 px-4 py-2 border-t border-border/50 flex items-center justify-between">
                   <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Total TTC</div>
-                  <div className="font-semibold text-foreground text-sm tracking-tighter">{formatCurrency(quote.total)}</div>
+                  <div className="font-semibold text-foreground text-sm tabular-nums">{formatCurrency(quote.total)}</div>
                 </div>
               </CardContent>
             </Card>

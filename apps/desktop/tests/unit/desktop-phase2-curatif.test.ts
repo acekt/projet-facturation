@@ -47,7 +47,7 @@ describe('Phase 2 — Plan Curatif Desktop (ADR-0045)', () => {
       const governanceGroup = navItems.filter((i) => i.group === 'governance');
       const bottomGroup = navItems.filter((i) => i.group === 'bottom');
 
-      expect(salesGroup.map((i) => i.id)).toEqual(['dashboard', 'invoices', 'quotes', 'credit-notes']);
+      expect(salesGroup.map((i) => i.id)).toEqual(['dashboard', 'invoices', 'quotes', 'credit-notes', 'ledger']);
       expect(repositoryGroup.map((i) => i.id)).toEqual(['clients', 'services', 'stock']);
       expect(governanceGroup.map((i) => i.id)).toEqual(['users', 'audit']);
       expect(bottomGroup.map((i) => i.id)).toEqual(['settings']);

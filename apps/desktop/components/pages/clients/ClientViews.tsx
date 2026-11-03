@@ -343,7 +343,7 @@ export function ClientViews({
                   <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">
                     Chiffre d'Affaires
                   </div>
-                  <div className="font-semibold text-foreground text-sm tracking-tighter">
+                  <div className="font-semibold text-foreground text-sm tabular-nums">
                     {formatCurrency(getClientPaidTotal(client.id))}
                   </div>
                 </div>

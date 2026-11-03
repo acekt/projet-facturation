@@ -75,10 +75,28 @@ export async function getDashboardMetrics(range: string = 'month'): Promise<Acti
         const label = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
         revenueData.push({ date: dateStr, revenue, label, value: revenue });
       }
+    } else if (validatedRange === 'quarter') {
+      const paymentsGrouped = MetricsRepository.getMonthlyRevenueGrouped(session.userId, session.role, activeTenantId);
+      const paymentsMap = new Map(paymentsGrouped.map(p => [p.monthStr, p.total]));
+      const now = new Date();
+      const currentMonthIndex = now.getMonth();
+      const quarterStartMonth = Math.floor(currentMonthIndex / 3) * 3;
+      const allMonths = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
+      revenueData = [0, 1, 2].map((offset) => {
+        const mIndex = quarterStartMonth + offset;
+        const monthStr = String(mIndex + 1).padStart(2, '0');
+        const revenue = paymentsMap.get(monthStr) || 0;
+        return {
+          date: `${mIndex + 1}/${now.getFullYear()}`,
+          revenue,
+          label: allMonths[mIndex],
+          value: revenue,
+        };
+      });
     } else {
       const paymentsGrouped = MetricsRepository.getMonthlyRevenueGrouped(session.userId, session.role, activeTenantId);
       const paymentsMap = new Map(paymentsGrouped.map(p => [p.monthStr, p.total]));
-      const months = ["Jan", "Fev", "Mar", "Avr", "Mai", "Jun", "Jul", "Aou", "Sep", "Oct", "Nov", "Dec"];
+      const months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
       revenueData = months.map((m, i) => {
         const monthStr = String(i + 1).padStart(2, '0');
         const revenue = paymentsMap.get(monthStr) || 0;

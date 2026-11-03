@@ -284,7 +284,7 @@ export function ServiceViews({
                   <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">
                     Tarif Standard
                   </div>
-                  <div className="font-semibold text-foreground text-sm tracking-tighter">
+                  <div className="font-semibold text-foreground text-sm tabular-nums">
                     {formatCurrency(service.unitPrice)}
                   </div>
                 </div>

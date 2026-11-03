@@ -100,6 +100,10 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
   const [isLoggingOut, setIsLoggingOut] = React.useState(false)
 
   // Badges contextuels réactifs
+  const activeCreditNotesCount = React.useMemo(
+    () => (creditNotes || []).filter((cn) => !cn.deletedAt && cn.status !== 'cancelled').length,
+    [creditNotes]
+  )
   const unpaidCount = React.useMemo(
     () => invoices.filter((i) => !i.deletedAt && (i.status === 'UNPAID' || i.status === 'PARTIALLY_PAID' || i.status === 'overdue')).length,
     [invoices]
@@ -158,6 +162,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
   const getItemBadge = (id: string): number | null => {
     if (id === 'invoices' && unpaidCount > 0) return unpaidCount
     if (id === 'quotes' && pendingQuotesCount > 0) return pendingQuotesCount
+    if (id === 'credit-notes' && activeCreditNotesCount > 0) return activeCreditNotesCount
     if (id === 'stock' && lowStockCount > 0) return lowStockCount
     return null
   }

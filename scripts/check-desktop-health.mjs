@@ -89,6 +89,53 @@ if (lineViolations.length > 0) {
   console.log(`✅ [desktop-health] Règle M-400 : 100% des fichiers sous la barre des ${MAX_LINES} lignes.`);
 }
 
+// ── Contrôle de conformité Next.js Server Actions ("use server") ──
+const actionsDir = path.join(rootDir, 'apps', 'desktop', 'app', 'actions');
+const serverActionViolations = [];
+
+if (fs.existsSync(actionsDir)) {
+  const actionFiles = fs.readdirSync(actionsDir).filter((f) => f.endsWith('.ts'));
+  for (const af of actionFiles) {
+    const fullPath = path.join(actionsDir, af);
+    const content = fs.readFileSync(fullPath, 'utf8');
+    const isServerFile = /^\s*["']use server["']/m.test(content);
+    if (!isServerFile) continue;
+
+    const lines = content.split('\n');
+    lines.forEach((line, index) => {
+      // Interdit: export const, export let, export var, export class, export default, export function (non-async)
+      const exportMatch = line.match(/^export\s+(const|let|var|class|default)\s+([a-zA-Z0-9_$]+)/);
+      if (exportMatch) {
+        serverActionViolations.push({
+          file: `apps/desktop/app/actions/${af}`,
+          line: index + 1,
+          identifier: exportMatch[2],
+          raw: line.trim(),
+        });
+      }
+      const syncFuncMatch = line.match(/^export\s+function\s+([a-zA-Z0-9_$]+)/);
+      if (syncFuncMatch) {
+        serverActionViolations.push({
+          file: `apps/desktop/app/actions/${af}`,
+          line: index + 1,
+          identifier: syncFuncMatch[1],
+          raw: line.trim(),
+        });
+      }
+    });
+  }
+}
+
+if (serverActionViolations.length > 0) {
+  console.error(`❌ [desktop-health] Violation Server Actions ("use server" ne peut exporter que des async functions) :`);
+  serverActionViolations.forEach((v) => {
+    console.error(`   - ${v.file}:${v.line} -> "${v.identifier}" (${v.raw})`);
+  });
+  hasError = true;
+} else {
+  console.log(`✅ [desktop-health] Server Actions : 100% conformes aux règles Next.js ("use server").`);
+}
+
 if (hasError) {
   process.exit(1);
 }

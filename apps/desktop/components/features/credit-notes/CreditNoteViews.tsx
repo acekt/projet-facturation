@@ -297,7 +297,7 @@ export function CreditNoteViews({
                       )}
                     </div>
                     <div className="flex items-center justify-between pt-3 border-t border-border/50">
-                      <p className="text-lg font-semibold text-foreground tracking-tighter tabular-nums">
+                      <p className="text-lg font-semibold text-foreground tabular-nums">
                         {formatCurrency(note.total)}
                       </p>
                       <Badge className="bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-400 text-[10px] px-2 py-0 h-5 border-orange-200">

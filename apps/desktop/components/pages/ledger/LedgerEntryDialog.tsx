@@ -23,7 +23,7 @@ import {
 import { Input } from "@workspace/ui/components/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select"
 import { Textarea } from "@workspace/ui/components/textarea"
-import { ledgerEntryCreateSchema, type LedgerEntryCreateRequest } from "@/app/actions/ledger.actions"
+import { ledgerEntryCreateSchema, type LedgerEntryCreateRequest } from "@/lib/validations/ledger"
 import { createLedgerEntryAction } from "@/app/actions/ledger.actions"
 import type { LedgerEntry } from "@/lib/repositories/LedgerRepository"
 
