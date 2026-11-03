@@ -32,6 +32,7 @@ const CreditNotesPage = dynamic(() => import("@/components/pages/credit-notes").
 const AuditLogsPage = dynamic(() => import("@/components/pages/audit-logs").then((m) => m.AuditLogsPage), { loading: () => <PageLoadingFallback />, ssr: false })
 const StockPage = dynamic(() => import("@/components/pages/stock").then((m) => m.StockPage), { loading: () => <PageLoadingFallback />, ssr: false })
 const UsersPage = dynamic(() => import("@/components/pages/users").then((m) => m.UsersPage), { loading: () => <PageLoadingFallback />, ssr: false })
+const LedgerPage = dynamic(() => import("@/components/pages/ledger").then((m) => m.LedgerPage), { loading: () => <PageLoadingFallback />, ssr: false })
 const UserEditor = dynamic(() => import("@/components/pages/user-editor").then((m) => m.UserEditor), { loading: () => <PageLoadingFallback />, ssr: false })
 
 const pageVariants = {
@@ -193,6 +194,8 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
         return <StockPage />
       case "credit-notes":
         return <CreditNotesPage />
+      case "ledger":
+        return <LedgerPage />
       case "audit":
         return <AuditLogsPage />
       case "settings":

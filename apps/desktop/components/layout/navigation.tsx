@@ -17,6 +17,7 @@ import {
   LogOut,
   ScrollText,
   KeyRound,
+  BookOpen,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useStore, type User } from "@/lib/store"
@@ -61,6 +62,7 @@ export const navItems: NavItemConfig[] = [
   { id: "invoices", label: "Factures", icon: FileText, roles: ['admin', 'user'], group: 'sales' },
   { id: "quotes", label: "Devis", icon: FileText, roles: ['admin', 'user'], group: 'sales' },
   { id: "credit-notes", label: "Avoirs & Remboursements", icon: RefreshCcw, roles: ['admin', 'user'], group: 'sales' },
+  { id: "ledger", label: "Livre des comptes", icon: BookOpen, roles: ['admin', 'user'], group: 'sales' },
 
   // 2. Référentiel
   { id: "clients", label: "Clients", icon: Users, roles: ['admin', 'user'], group: 'repository' },
