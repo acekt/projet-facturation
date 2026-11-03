@@ -115,6 +115,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
 
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [successModalData, setSuccessModalData] = React.useState<import("@/lib/store").Quote | null>(null);
   const [successModalOpen, setSuccessModalOpen] = React.useState(false);
   const [createdQuote, setCreatedQuote] = React.useState<Quote | null>(null);
 

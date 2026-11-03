@@ -84,6 +84,7 @@ export function ClientsPage() {
   const [createdClient, setCreatedClient] = React.useState<Client | null>(null)
   const [clientToDeleteId, setClientToDeleteId] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [successModalData, setSuccessModalData] = React.useState<import("@/lib/store").Client | null>(null)
 
   const [newClient, setNewClient] = React.useState<ClientFormData>(INITIAL_CLIENT_FORM)
   const [editFormData, setEditFormData] = React.useState<ClientFormData>(INITIAL_CLIENT_FORM)
@@ -176,7 +177,7 @@ export function ClientsPage() {
       addClient(response.data)
       setIsAddDialogOpen(false)
       setNewClient(INITIAL_CLIENT_FORM)
-      toast.success("Client ajouté avec succès")
+      setSuccessModalData(response.data)
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Erreur inconnue"
       toast.error(`Échec de l'ajout : ${msg}`)

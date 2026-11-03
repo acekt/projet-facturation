@@ -101,10 +101,16 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
     () => invoices.filter((i) => !i.deletedAt && (i.status === 'UNPAID' || i.status === 'PARTIALLY_PAID' || i.status === 'overdue')).length,
     [invoices]
   )
-  const pendingQuotesCount = React.useMemo(
-    () => quotes.filter((q) => !q.deletedAt && !['CONVERTI', 'REFUSE', 'EXPIRE', 'invoiced', 'archived', 'cancelled'].includes(q.status)).length,
-    [quotes]
-  )
+  const pendingQuotesCount = React.useMemo(() => {
+    const today = new Date().toISOString().split('T')[0];
+    return quotes.filter((q) => {
+      if (q.deletedAt) return false;
+      const status = (q.status || "").toUpperCase();
+      if (['CONVERTI', 'REFUSE', 'EXPIRE', 'EXPIRED', 'REJECTED', 'DRAFT', 'BROUILLON', 'INVOICED', 'ARCHIVED', 'CANCELLED'].includes(status)) return false;
+      if (q.validUntil && q.validUntil < today) return false;
+      return true;
+    }).length;
+  }, [quotes])
 
   const handleConfirmLogout = async () => {
     setIsLoggingOut(true)

@@ -12,7 +12,10 @@ import { VisuallyHidden } from "@workspace/ui/components/visually-hidden";
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
 import { Button } from "@workspace/ui/components/button";
 import { StatusBadge } from "@workspace/ui/components/status-badge";
-import { Mail, Phone, MapPin, Edit2 } from "lucide-react";
+import { Mail, Phone, MapPin, Edit2, CreditCard } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
+import { getClientPaymentHistory } from "@/app/actions/payment.actions";
+import { toast } from "sonner";
 import { formatCurrency, getInitials, cn } from "@/lib/utils";
 import type { Client, Invoice, User } from "@/lib/store";
 
@@ -33,6 +36,26 @@ export function ClientDetailsDialog({
   user,
   onEdit,
 }: ClientDetailsDialogProps) {
+  const [paymentHistory, setPaymentHistory] = React.useState<any[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
+
+  React.useEffect(() => {
+    if (isOpen && client) {
+      setIsLoadingHistory(true);
+      getClientPaymentHistory(client.id, client.name)
+        .then(res => {
+          if (res.success && res.data) {
+            setPaymentHistory(res.data);
+          }
+        })
+        .catch(err => {
+          console.error(err);
+          toast.error("Erreur lors du chargement de l'historique");
+        })
+        .finally(() => setIsLoadingHistory(false));
+    }
+  }, [isOpen, client]);
+
   if (!client) return null;
 
   const clientPaidTotal = invoices
@@ -83,7 +106,13 @@ export function ClientDetailsDialog({
           </VisuallyHidden>
         </DialogHeader>
 
-        <div className="space-y-4 py-2 text-sm">
+        <Tabs defaultValue="info" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="info">Informations & Résumé</TabsTrigger>
+            <TabsTrigger value="payments">Historique des Paiements</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="info" className="space-y-4 py-2 text-sm mt-4">
           {/* Coordonnées & Contact */}
           <div className="p-3.5 rounded-lg bg-secondary/30 border border-border/60 space-y-2.5">
             <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
@@ -162,8 +191,33 @@ export function ClientDetailsDialog({
               <span className="font-medium text-foreground">{clientInvoicesCount}</span> facture(s) émise(s)
             </div>
           </div>
+          </TabsContent>
+          <TabsContent value="payments" className="py-2 mt-4 max-h-[300px] overflow-y-auto">
+            {isLoadingHistory ? (
+              <div className="text-center text-sm text-muted-foreground py-8">Chargement...</div>
+            ) : paymentHistory.length === 0 ? (
+              <div className="text-center text-sm text-muted-foreground py-8">Aucun paiement enregistré</div>
+            ) : (
+              <div className="space-y-3">
+                {paymentHistory.map((p, i) => (
+                  <div key={i} className="flex justify-between items-center p-3 rounded-lg border border-border bg-secondary/20">
+                    <div>
+                      <div className="font-semibold text-foreground text-sm">{formatCurrency(p.amount)}</div>
+                      <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
+                        <CreditCard className="w-3 h-3" /> {p.paymentMethod || "Non spécifié"}
+                        <span className="mx-1">•</span>
+                        {p.date}
+                        {p.invoiceNumber && <><span className="mx-1">•</span> Facture {p.invoiceNumber}</>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
+        <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
             <Button variant="outline" onClick={() => onOpenChange(false)}>
               Fermer
             </Button>
@@ -180,7 +234,6 @@ export function ClientDetailsDialog({
               </Button>
             )}
           </div>
-        </div>
       </DialogContent>
     </Dialog>
   );

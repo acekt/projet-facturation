@@ -41,6 +41,12 @@ interface PaymentDialogProps {
   isSubmitting?: boolean;
 }
 
+// custom progress
+const Progress = ({ value, className }: { value: number; className?: string }) => (
+  <div className={`w-full bg-secondary overflow-hidden rounded-full ${className}`}>
+    <div className="h-full bg-primary transition-all" style={{ width: `${value}%` }} />
+  </div>
+);
 export function PaymentDialog({
   isOpen,
   onOpenChange,
@@ -60,6 +66,7 @@ export function PaymentDialog({
   isSubmitting,
 }: PaymentDialogProps) {
   const totalPaid = invoice?.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
+  const progress = invoice?.total ? Math.min(100, Math.round(((totalPaid + totalCredited) / invoice.total) * 100)) : 0;
   const remaining = Math.max(0, (invoice?.total || 0) - totalPaid - totalCredited);
 
   return (
@@ -74,6 +81,26 @@ export function PaymentDialog({
           </VisuallyHidden>
         </DialogHeader>
         <div className="space-y-4 py-4">
+          {invoice && (
+            <div className="p-3 bg-secondary/30 rounded-lg border border-border/50 space-y-2 mb-4">
+              <div className="flex justify-between text-xs mb-1">
+                <span className="text-muted-foreground font-medium">Progression du règlement</span>
+                <span className="font-bold text-primary">{progress}%</span>
+              </div>
+              <Progress value={progress} className="h-2" />
+              {invoice.payments && invoice.payments.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Historique des acomptes</span>
+                  {invoice.payments.map((p, i) => (
+                    <div key={i} className="flex justify-between text-xs">
+                      <span>{p.date} ({p.paymentMethod})</span>
+                      <span className="font-semibold">{formatCurrency(p.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <div className="space-y-2">
             <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">
               Type de règlement <span className="text-destructive">*</span>

@@ -119,6 +119,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
 
   const [previewOpen, setPreviewOpen] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [successModalData, setSuccessModalData] = React.useState<Invoice | null>(null);
   const [successModalOpen, setSuccessModalOpen] = React.useState(false);
   const [createdInvoice, setCreatedInvoice] = React.useState<Invoice | null>(null);
 

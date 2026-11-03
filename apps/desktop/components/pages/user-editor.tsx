@@ -29,6 +29,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
   const setUsers = useStore((s) => s.setUsers);
   const [isLoading, setIsLoading] = React.useState(!!editingId);
   const [isSubmitting, startSubmitTransition] = React.useTransition();
+  const [successModalData, setSuccessModalData] = React.useState<any>(null);
   const [showPassword, setShowPassword] = React.useState(false);
   const formRef = React.useRef<HTMLFormElement>(null);
 
@@ -163,8 +164,12 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
           if (refreshed.success && refreshed.data) {
             setUsers(refreshed.data);
           }
-          toast.success(editingId ? "Utilisateur mis à jour" : "Utilisateur créé avec succès");
-          onBack();
+          if (!editingId) {
+            setSuccessModalData(res.data);
+          } else {
+            toast.success("Utilisateur mis à jour");
+            onBack();
+          }
         } else {
           toast.error(res.error || "Erreur lors de l'opération");
         }

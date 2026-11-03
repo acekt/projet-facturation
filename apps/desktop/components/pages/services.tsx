@@ -58,6 +58,7 @@ export function ServicesPage() {
   const [selectedService, setSelectedService] = React.useState<Service | null>(null)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [successModalData, setSuccessModalData] = React.useState<import("@/lib/store").Service | null>(null)
   const [formData, setFormData] = React.useState<ServiceFormData>(INITIAL_SERVICE_FORM)
 
   const filteredServices = React.useMemo(() => {

@@ -19,6 +19,10 @@ import { VisuallyHidden } from "@workspace/ui/components/visually-hidden";
 import { Avatar, AvatarFallback } from "@workspace/ui/components/avatar";
 import { getInitials } from "@/lib/utils";
 import type { Client } from "@/lib/store";
+import { ClientFormDialog, type ClientFormData } from "@/components/pages/clients/ClientFormDialog";
+import { createClient } from "@/app/actions/client.actions";
+import { useStore } from "@/lib/store";
+import { toast } from "sonner";
 
 interface DocumentCommercialHeaderProps {
   type: "devis" | "facture";
@@ -51,6 +55,50 @@ export function DocumentCommercialHeader({
 }: DocumentCommercialHeaderProps) {
   const [clientSearchOpen, setClientSearchOpen] = React.useState(false);
   const [clientSearch, setClientSearch] = React.useState("");
+  const [isClientFormOpen, setIsClientFormOpen] = React.useState(false);
+  const [isCreatingClient, setIsCreatingClient] = React.useState(false);
+  const [clientFormData, setClientFormData] = React.useState<ClientFormData>({
+    name: "", email: "", phone: "", address: "", nif: "", rccm: "", status: "active"
+  });
+  const addClient = useStore((state) => state.addClient);
+
+  const handleCreateClient = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (isCreatingClient) return;
+
+    if (!clientFormData.name.trim() || !clientFormData.phone.trim()) {
+      toast.error("Le nom et le téléphone sont obligatoires.");
+      return;
+    }
+
+    setIsCreatingClient(true);
+    try {
+      const clientToCreate = {
+        name: clientFormData.name.trim(),
+        email: clientFormData.email && clientFormData.email.trim() !== "" ? clientFormData.email.trim() : null,
+        phone: clientFormData.phone.trim(),
+        address: clientFormData.address?.trim() || null,
+        nif: clientFormData.nif?.trim() || null,
+        rccm: clientFormData.rccm?.trim() || null,
+        status: (clientFormData.status as "active" | "inactive") || "active",
+      };
+
+      const res = await createClient(clientToCreate);
+      if (res.success && res.data) {
+        addClient(res.data);
+        onSelectClient(res.data);
+        setIsClientFormOpen(false);
+        setClientFormData({ name: "", email: "", phone: "", address: "", nif: "", rccm: "", status: "active" });
+        toast.success("Client créé et sélectionné");
+      } else {
+        toast.error(res.error || "Erreur lors de la création du client");
+      }
+    } catch (err) {
+      toast.error("Erreur inattendue");
+    } finally {
+      setIsCreatingClient(false);
+    }
+  };
 
   const filteredClients = React.useMemo(() => {
     return clients.filter(
@@ -72,6 +120,14 @@ export function DocumentCommercialHeader({
                 <User className="w-3.5 h-3.5 text-primary" />
                 Client destinataire <span className="text-destructive">*</span>
               </Label>
+              <button
+                type="button"
+                onClick={() => setIsClientFormOpen(true)}
+                className="text-[10px] font-semibold text-primary hover:underline ml-2"
+                disabled={disabled}
+              >
+                + Nouveau
+              </button>
               {client && !disabled && (
                 <Button
                   variant="ghost"
@@ -212,6 +268,15 @@ export function DocumentCommercialHeader({
           </div>
         </div>
       </CardContent>
+      <ClientFormDialog
+        mode="add"
+        isOpen={isClientFormOpen}
+        onOpenChange={setIsClientFormOpen}
+        data={clientFormData}
+        onChange={setClientFormData}
+        onSubmit={handleCreateClient}
+        isSubmitting={isCreatingClient}
+      />
     </Card>
   );
 }

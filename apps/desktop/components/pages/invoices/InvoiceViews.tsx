@@ -109,6 +109,12 @@ export function isInvoiceProtected(inv: Invoice, creditNotes?: CreditNote[]) {
   return totalPaid > 0 || totalCredited > 0 || inv.status === "PAID" || inv.status === "PARTIALLY_PAID";
 }
 
+// custom progress
+const Progress = ({ value, className }: { value: number; className?: string }) => (
+  <div className={`w-full bg-secondary overflow-hidden rounded-full ${className}`}>
+    <div className="h-full bg-primary transition-all" style={{ width: `${value}%` }} />
+  </div>
+);
 export function InvoiceViews({
   invoices,
   creditNotes,
@@ -339,6 +345,15 @@ export function InvoiceViews({
                   <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Total TTC</div>
                   <div className="font-semibold text-foreground text-sm tracking-tighter tabular-nums">{formatCurrency(invoice.total)}</div>
                 </div>
+                {invoice.payments && invoice.payments.length > 0 && (
+                  <div className="px-4 pb-3 bg-secondary/30">
+                    <div className="flex justify-between items-center text-[10px] text-muted-foreground mb-1">
+                      <span>Progression</span>
+                      <span className="font-bold">{Math.round(((invoice.payments.reduce((s,p)=>s+p.amount,0) + (creditNotes?.filter(c=>c.invoiceId === invoice.id && !c.deletedAt).reduce((s,c)=>s+c.total,0)||0)) / invoice.total) * 100)}%</span>
+                    </div>
+                    <Progress value={Math.round(((invoice.payments.reduce((s,p)=>s+p.amount,0) + (creditNotes?.filter(c=>c.invoiceId === invoice.id && !c.deletedAt).reduce((s,c)=>s+c.total,0)||0)) / invoice.total) * 100)} className="h-1" />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>

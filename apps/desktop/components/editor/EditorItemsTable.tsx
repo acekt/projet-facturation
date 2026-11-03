@@ -91,6 +91,13 @@ export function EditorItemsTable({
           <div className="grid grid-cols-12 gap-2 md:gap-4 px-4 py-3 bg-secondary/20 rounded-t-lg text-sm font-semibold text-muted-foreground border-b border-border hidden md:grid">
             <div className="col-span-6">
               Description <span className="text-destructive">*</span>
+              <button
+                type="button"
+                onClick={() => setIsServiceFormOpen(true)}
+                className="text-[10px] font-bold text-primary hover:underline ml-2"
+              >
+                + Nouveau
+              </button>
             </div>
             <div className="col-span-2 text-right">
               Qté <span className="text-destructive">*</span>
@@ -107,8 +114,9 @@ export function EditorItemsTable({
               className="grid grid-cols-12 gap-2 md:gap-4 items-start p-3 rounded-xl bg-muted/30"
             >
               <div className="col-span-12 md:col-span-6">
-                <Select
-                  onValueChange={(val) => onUpdateItem(item.id, "description", val)}
+                <div className="flex items-center gap-1 w-full">
+                  <Select
+                    onValueChange={(val) => onUpdateItem(item.id, "description", val)}
                   value={item.description || ""}
                   disabled={isSubmitting}
                 >
@@ -128,6 +136,18 @@ export function EditorItemsTable({
                     ))}
                   </SelectContent>
                 </Select>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTargetItemId(item.id);
+                    setIsServiceFormOpen(true);
+                  }}
+                  className="md:hidden text-primary p-2 flex-shrink-0"
+                  title="Nouveau Service"
+                >
+                  <Plus className="w-4 h-4" />
+                </button>
+                </div>
               </div>
               <div className="col-span-4 md:col-span-2">
                 <Input

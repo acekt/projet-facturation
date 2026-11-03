@@ -18,13 +18,13 @@ const COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
 export function CloudSyncRunner() {
   const userId = useStore(state => state.user?.id)
   const isSyncingRef = React.useRef(false)
-  const lastSyncTime = React.useRef(0)
+  const lastSyncTimeRef = React.useRef<number>(0)
 
   const sync = React.useCallback(async (silent: boolean, ignoreCooldown = false) => {
     if (isSyncingRef.current || typeof navigator === "undefined" || !navigator.onLine) return;
 
     const now = Date.now();
-    if (!ignoreCooldown && now - lastSyncTime.current < COOLDOWN_MS) {
+    if (!ignoreCooldown && now - lastSyncTimeRef.current < 300_000) {
         return;
     }
 
@@ -35,7 +35,7 @@ export function CloudSyncRunner() {
       if (!token) return;
 
       const res = await runCloudSync(token);
-      lastSyncTime.current = Date.now();
+      lastSyncTimeRef.current = Date.now();
 
       if (!res.success) {
         if (!silent) toast.error(`Synchronisation : ${res.error}`);
