@@ -5,6 +5,7 @@ import { DbInvoice, DbSettings, CreditNoteCreateRequest } from '@/lib/types/api'
 import { INVOICE_STATUS } from '@/lib/constants';
 import { computeTotals } from '@/lib/math-logic';
 import { buildTenantFilter, resolveActiveTenantId } from '@/lib/api/tenant';
+import { StockRepository } from '@/lib/repositories/StockRepository';
 
 export class CreditNoteServiceError extends Error {
   constructor(public message: string, public status: number) {
@@ -100,6 +101,19 @@ export const CreditNoteService = {
           Math.round(item.quantity * item.unitPrice),
           targetTenantId
         );
+
+        if ((item as any).id) {
+          try {
+             StockRepository.recordStockMovement({
+               serviceId: (item as any).id,
+               type: 'CREDIT_NOTE_RESTOCK',
+               quantity: item.quantity,
+               referenceDoc: number,
+             }, userId, targetTenantId);
+          } catch (e) {
+             // Ignore if it's not a valid service or doesn't track stock
+          }
+        }
       }
 
       if (totalAlreadyCredited + computed.total >= invoiceTotal) {

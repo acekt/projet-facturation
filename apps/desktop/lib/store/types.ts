@@ -24,7 +24,7 @@ export type CreditNote = CreditNoteResponse;
 export type Settings = SettingsResponse;
 
 export interface DraftItem {
-  id: string;
+  id?: string;
   description: string;
   quantity: number;
   unitPrice: number;

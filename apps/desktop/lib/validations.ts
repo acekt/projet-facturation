@@ -220,6 +220,10 @@ export const serviceSchema = z.object({
     .default("Prestation de services"),
   // XAF RULE: unit price in the service catalogue must be a non-negative integer.
   unitPrice: z.number().int("Le prix doit être un entier en XAF (pas de décimales)").min(0, "Le prix ne peut pas être négatif"),
+  trackStock: z.number().int().optional().default(0),
+  stockQuantity: z.number().int().optional().default(0),
+  minStockAlert: z.number().int().optional().default(5),
+  unit: z.string().optional().nullable().default("Unité"),
 });
 
 export const serviceUpdateSchema = z.object({

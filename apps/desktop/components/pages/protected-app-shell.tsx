@@ -30,6 +30,7 @@ const ServicesPage = dynamic(() => import("@/components/pages/services").then((m
 const SettingsPage = dynamic(() => import("@/components/pages/settings").then((m) => m.SettingsPage), { loading: () => <PageLoadingFallback />, ssr: false })
 const CreditNotesPage = dynamic(() => import("@/components/pages/credit-notes").then((m) => m.CreditNotesPage), { loading: () => <PageLoadingFallback />, ssr: false })
 const AuditLogsPage = dynamic(() => import("@/components/pages/audit-logs").then((m) => m.AuditLogsPage), { loading: () => <PageLoadingFallback />, ssr: false })
+const StockPage = dynamic(() => import("@/components/pages/stock").then((m) => m.StockPage), { loading: () => <PageLoadingFallback />, ssr: false })
 const UsersPage = dynamic(() => import("@/components/pages/users").then((m) => m.UsersPage), { loading: () => <PageLoadingFallback />, ssr: false })
 const UserEditor = dynamic(() => import("@/components/pages/user-editor").then((m) => m.UserEditor), { loading: () => <PageLoadingFallback />, ssr: false })
 
@@ -188,6 +189,8 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
         return <ClientsPage />
       case "services":
         return <ServicesPage />
+      case "stock":
+        return <StockPage />
       case "credit-notes":
         return <CreditNotesPage />
       case "audit":

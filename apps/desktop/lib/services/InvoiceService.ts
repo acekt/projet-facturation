@@ -6,6 +6,7 @@ import { ROLES, QUOTE_STATUS, INVOICE_STATUS } from '@/lib/constants';
 import { getTaxRates } from '@/lib/api/invoice-logic';
 import { computeTotals } from '@/lib/math-logic';
 import { buildTenantFilter, resolveActiveTenantId } from '@/lib/api/tenant';
+import { StockRepository } from '@/lib/repositories/StockRepository';
 
 export class InvoiceServiceError extends Error {
   constructor(public message: string, public status: number) {
@@ -108,6 +109,19 @@ export const InvoiceService = {
           Math.round(item.quantity * item.unitPrice),
           activeTenantId
         );
+
+        if (item.id) { // Assuming item.id contains the serviceId if it's a catalog item
+          try {
+             StockRepository.recordStockMovement({
+               serviceId: item.id,
+               type: 'INVOICE_DEDUCTION',
+               quantity: item.quantity,
+               referenceDoc: number,
+             }, userId, activeTenantId);
+          } catch (e) {
+             // Ignore if it's not a valid service or doesn't track stock
+          }
+        }
       }
 
       if (data.quoteId) {

@@ -65,6 +65,7 @@ export const navItems: NavItemConfig[] = [
   // 2. Référentiel
   { id: "clients", label: "Clients", icon: Users, roles: ['admin', 'user'], group: 'repository' },
   { id: "services", label: "Services", icon: Briefcase, roles: ['admin', 'user'], group: 'repository' },
+  { id: "stock", label: "Gestion de stock", icon: Briefcase, roles: ['admin', 'user'], group: 'repository' },
 
   // 3. Gouvernance & Sécurité
   { id: "users", label: "Utilisateurs", icon: KeyRound, roles: ['admin'], group: 'governance' },
@@ -135,9 +136,27 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
   const governanceItems = filteredItems.filter((i) => i.group === 'governance')
   const bottomItems = filteredItems.filter((i) => i.group === 'bottom')
 
+  const [lowStockCount, setLowStockCount] = React.useState(0);
+
+  React.useEffect(() => {
+    const fetchLowStock = async () => {
+      try {
+         const { getLowStockAlerts } = await import("@/app/actions/stock.actions");
+         const res = await getLowStockAlerts();
+         if (res.success && res.data) {
+            setLowStockCount(res.data.length);
+         }
+      } catch (e) {
+         // silently ignore
+      }
+    };
+    fetchLowStock();
+  }, [currentPage]);
+
   const getItemBadge = (id: string): number | null => {
     if (id === 'invoices' && unpaidCount > 0) return unpaidCount
     if (id === 'quotes' && pendingQuotesCount > 0) return pendingQuotesCount
+    if (id === 'stock' && lowStockCount > 0) return lowStockCount
     return null
   }
 

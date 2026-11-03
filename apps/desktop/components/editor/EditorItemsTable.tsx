@@ -51,7 +51,7 @@ export function EditorItemsTable({
     try {
       const res = await createService(serviceFormData);
       if (res.success && res.data) {
-        addService(res.data);
+        addService(res.data as Service);
         if (targetItemId) {
           onUpdateItem(targetItemId, "description", res.data.name);
           onUpdateItem(targetItemId, "unitPrice", res.data.unitPrice);
@@ -116,7 +116,7 @@ export function EditorItemsTable({
               <div className="col-span-12 md:col-span-6">
                 <div className="flex items-center gap-1 w-full">
                   <Select
-                    onValueChange={(val) => onUpdateItem(item.id, "description", val)}
+                    onValueChange={(val) => onUpdateItem(item.id as string, "description", val)}
                   value={item.description || ""}
                   disabled={isSubmitting}
                 >
@@ -139,7 +139,7 @@ export function EditorItemsTable({
                 <button
                   type="button"
                   onClick={() => {
-                    setTargetItemId(item.id);
+                    setTargetItemId(item.id as string);
                     setIsServiceFormOpen(true);
                   }}
                   className="md:hidden text-primary p-2 flex-shrink-0"
@@ -156,7 +156,7 @@ export function EditorItemsTable({
                   step="any"
                   value={item.quantity ?? 1}
                   onChange={(e) =>
-                    onUpdateItem(item.id, "quantity", parseFloat(e.target.value) || 0)
+                    onUpdateItem(item.id as string, "quantity", parseFloat(e.target.value) || 0)
                   }
                   className="text-right tabular-nums"
                   disabled={isSubmitting}
@@ -169,7 +169,7 @@ export function EditorItemsTable({
                   step="1"
                   value={item.unitPrice ?? 0}
                   onChange={(e) =>
-                    onUpdateItem(item.id, "unitPrice", Math.round(parseFloat(e.target.value) || 0))
+                    onUpdateItem(item.id as string, "unitPrice", Math.round(parseFloat(e.target.value) || 0))
                   }
                   className="text-right tabular-nums"
                   disabled={isSubmitting}
@@ -182,7 +182,7 @@ export function EditorItemsTable({
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => onRemoveItem(item.id)}
+                  onClick={() => onRemoveItem(item.id as string)}
                   className="text-muted-foreground hover:text-destructive"
                   disabled={items.length === 1 || isSubmitting}
                 >
