@@ -80,6 +80,7 @@ describe('Phase 3 — RBAC Matrix Harmonization & Mandatory Password Change', ()
         'credit-notes',
         'clients',
         'services',
+        'stock',
         'users',
         'audit',
         'settings',
@@ -92,6 +93,7 @@ describe('Phase 3 — RBAC Matrix Harmonization & Mandatory Password Change', ()
         'credit-notes',
         'clients',
         'services',
+        'stock',
         'settings',
       ]);
       expect(userNavIds).not.toContain('users');

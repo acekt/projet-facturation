@@ -33,11 +33,17 @@ export const PREDEFINED_SERVICE_CATEGORIES = [
   "Autre prestation",
 ] as const;
 
+import { Switch } from "@workspace/ui/components/switch";
+
 export interface ServiceFormData {
   name: string;
   description: string;
   category: string;
   unitPrice: number;
+  trackStock?: number;
+  stockQuantity?: number;
+  minStockAlert?: number;
+  unit?: string | null;
 }
 
 interface ServiceFormDialogProps {
@@ -143,6 +149,62 @@ export function ServiceFormDialog({
               disabled={isSubmitting}
             />
           </div>
+
+          <div className="pt-4 border-t border-border mt-4">
+             <div className="flex items-center justify-between mb-4">
+               <div>
+                  <Label htmlFor="track-stock" className="text-foreground font-medium">Activer le suivi de stock</Label>
+                  <p className="text-xs text-muted-foreground">Suivre les entrées et sorties pour cet article</p>
+               </div>
+               <Switch
+                  id="track-stock"
+                  checked={formData.trackStock === 1}
+                  onCheckedChange={(checked) => onChange({ ...formData, trackStock: checked ? 1 : 0 })}
+                  disabled={isSubmitting || (isEdit && formData.trackStock === 1)}
+               />
+             </div>
+
+             {formData.trackStock === 1 && (
+                <div className="grid grid-cols-3 gap-4 bg-muted/50 p-4 rounded-lg">
+                   <div className="space-y-2">
+                      <Label htmlFor="stock-initial" className="text-muted-foreground">Stock initial</Label>
+                      <Input
+                        id="stock-initial"
+                        type="number"
+                        min="0"
+                        value={formData.stockQuantity || 0}
+                        onChange={(e) => onChange({ ...formData, stockQuantity: parseInt(e.target.value, 10) || 0 })}
+                        disabled={isSubmitting || isEdit}
+                        className="bg-secondary"
+                      />
+                   </div>
+                   <div className="space-y-2">
+                      <Label htmlFor="stock-alert" className="text-muted-foreground">Seuil d'alerte</Label>
+                      <Input
+                        id="stock-alert"
+                        type="number"
+                        min="0"
+                        value={formData.minStockAlert || 5}
+                        onChange={(e) => onChange({ ...formData, minStockAlert: parseInt(e.target.value, 10) || 0 })}
+                        disabled={isSubmitting}
+                        className="bg-secondary"
+                      />
+                   </div>
+                   <div className="space-y-2">
+                      <Label htmlFor="stock-unit" className="text-muted-foreground">Unité</Label>
+                      <Input
+                        id="stock-unit"
+                        value={formData.unit || "Unité"}
+                        onChange={(e) => onChange({ ...formData, unit: e.target.value })}
+                        disabled={isSubmitting}
+                        className="bg-secondary"
+                        placeholder="ex: kg, L, Unité"
+                      />
+                   </div>
+                </div>
+             )}
+          </div>
+
           <Button
             type="submit"
             className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4 h-11"

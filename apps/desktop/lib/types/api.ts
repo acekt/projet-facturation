@@ -452,6 +452,10 @@ export interface DbClient {
   createdAt?: string;
   created_by?: string;
   tenant_id?: string | null;
+  trackStock: number;
+  stockQuantity: number;
+  minStockAlert: number;
+  unit: string | null;
 }
 
 // ============================================================================
@@ -463,6 +467,10 @@ export interface ServiceCreateRequest {
   description?: string;
   category?: string;
   unitPrice: number;
+  trackStock?: number;
+  stockQuantity?: number;
+  minStockAlert?: number;
+  unit?: string | null;
 }
 
 export interface ServiceUpdateRequest {
@@ -470,6 +478,10 @@ export interface ServiceUpdateRequest {
   description?: string;
   category?: string;
   unitPrice: number;
+  trackStock?: number;
+  stockQuantity?: number;
+  minStockAlert?: number;
+  unit?: string | null;
 }
 
 export type ServiceResponse = IService;

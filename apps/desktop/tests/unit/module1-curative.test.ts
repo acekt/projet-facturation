@@ -248,6 +248,10 @@ describe('Module 1 Curatif — Anti-Parasites, Intégrité & Dédoublonnage', ()
         name: 'Service A',
         category: 'Cat B',
         unitPrice: 200000,
+        trackStock: 0,
+        stockQuantity: 0,
+        minStockAlert: 5,
+        unit: 'Unité'
       });
       expect(res.success).toBe(false);
       expect(res.error).toBe('Un service avec ce nom existe déjà');
@@ -257,6 +261,10 @@ describe('Module 1 Curatif — Anti-Parasites, Intégrité & Dédoublonnage', ()
         name: 'Service B',
         category: 'Cat B Modifiée',
         unitPrice: 220000,
+        trackStock: 0,
+        stockQuantity: 0,
+        minStockAlert: 5,
+        unit: 'Unité'
       });
       expect(selfUpdate.success).toBe(true);
       expect(selfUpdate.data?.unitPrice).toBe(220000);

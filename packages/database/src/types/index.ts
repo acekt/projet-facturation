@@ -87,6 +87,10 @@ export interface IService {
   createdAt?: string;
   created_by?: string;
   tenant_id?: string | null;
+  trackStock: number;
+  stockQuantity: number;
+  minStockAlert: number;
+  unit: string | null;
 }
 
 export interface IQuoteItem {

@@ -170,6 +170,10 @@ export function ServicesPage() {
         description: validatedData.description?.trim() || "",
         category: validatedData.category,
         unitPrice: validatedData.unitPrice,
+        trackStock: validatedData.trackStock || 0,
+        stockQuantity: validatedData.stockQuantity || 0,
+        minStockAlert: validatedData.minStockAlert || 5,
+        unit: validatedData.unit || "Unité",
       }
 
       setIsSubmitting(true)
@@ -183,7 +187,7 @@ export function ServicesPage() {
           throw new Error(response.error)
         }
 
-        addService(response.data)
+        addService(response.data as Service)
         setIsDialogOpen(false)
         setFormData(INITIAL_SERVICE_FORM)
         toast.success("Service ajouté au catalogue")

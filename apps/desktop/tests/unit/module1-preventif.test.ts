@@ -207,8 +207,8 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
       await deleteClient(c.data.id);
 
       // Actions sur Service
-      const s = await createService({ name: 'Service Tracé', unitPrice: 15000 });
-      await updateService(s.data.id, { name: 'Service Tracé Modifié', unitPrice: 20000 });
+      const s = await createService({ name: 'Service Tracé', unitPrice: 15000, trackStock: 0, stockQuantity: 0, minStockAlert: 5, unit: 'Unité' });
+      await updateService(s.data.id, { name: 'Service Tracé Modifié', unitPrice: 20000, trackStock: 0, stockQuantity: 0, minStockAlert: 5, unit: 'Unité' });
       await deleteService(s.data.id);
 
       const logs = db.prepare(`
