@@ -25,6 +25,8 @@
 import * as React from "react"
 import { getErrorMessage } from "@/lib/utils/action-error"
 import { X, Printer, Download, FileText, Loader2, ZoomIn, ZoomOut, Maximize } from "lucide-react"
+import { ShareDocumentModal } from "@/components/features/share/ShareDocumentModal";
+import { Send } from "lucide-react";
 import { Button } from "@workspace/ui/components/button"
 import { DocumentA4 } from "@/components/document-a4"
 import { printElement, buildPrintHtml } from "@/lib/electron-print"
@@ -60,6 +62,9 @@ export function FullScreenDocumentViewer({
   const [zoomLevel, setZoomLevel]     = React.useState(1)
   const [isPrinting, setIsPrinting]   = React.useState(false)
   const [isExporting, setIsExporting] = React.useState(false)
+
+  const [shareModalOpen, setShareModalOpen] = React.useState(false);
+
   const viewerRef = React.useRef<HTMLDivElement>(null)
 
   // ── Fermeture par Échap ─────────────────────────────────────────────────
@@ -317,6 +322,16 @@ export function FullScreenDocumentViewer({
           <DocumentA4 {...docProps} />
         </div>
       </div>
+
+      {docProps.data && (
+        <ShareDocumentModal
+          open={shareModalOpen}
+          onOpenChange={setShareModalOpen}
+          document={docProps.data as any}
+          type={(docProps as any).type}
+        />
+      )}
+
     </div>
   )
 }
