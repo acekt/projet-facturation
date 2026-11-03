@@ -58,4 +58,9 @@ describe('Sprint A UI Wiring Tests', () => {
     expect(content).toContain('Historique des acomptes');
     expect(content).toContain('Progress');
   });
+
+  it('should exclude EXPIRED in navigation.tsx', () => {
+    const content = fs.readFileSync(path.resolve(__dirname, '../../components/layout/navigation.tsx'), 'utf8');
+    expect(content).toContain('EXPIRED');
+  });
 });
