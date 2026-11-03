@@ -101,7 +101,7 @@ export const MetricsRepository = {
     const activeTenantId = resolveActiveTenantId(userId, tenantId);
     const tf = buildTenantFilter(activeTenantId);
 
-    let query = `SELECT COUNT(*) as count FROM quotes WHERE status NOT IN ('CONVERTI', 'REFUSE', 'EXPIRE', 'invoiced', 'archived', 'cancelled') AND deletedAt IS NULL${tf.sql}`;
+    let query = `SELECT COUNT(*) as count FROM quotes WHERE UPPER(status) NOT IN ('CONVERTI', 'REFUSE', 'EXPIRE', 'EXPIRED', 'REJECTED', 'DRAFT', 'BROUILLON', 'INVOICED', 'ARCHIVED', 'CANCELLED') AND deletedAt IS NULL AND (validUntil IS NULL OR date(validUntil) >= date('now'))${tf.sql}`;
     const params: unknown[] = [...tf.params];
     if (role !== ROLES.ADMIN) {
       query += ' AND created_by = ?';
