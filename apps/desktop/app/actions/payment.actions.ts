@@ -9,6 +9,7 @@ import { paymentCreateSchema } from '@/lib/validations';
 import { updateInvoiceStatus } from '@/lib/api/invoice-logic';
 import type { PaymentCreateRequest, PaymentResponse, DbPayment } from '@/lib/types/api';
 import type { ActionResponse } from './client.actions';
+import { LedgerRepository } from '@/lib/repositories/LedgerRepository';
 
 export async function getPayments(): Promise<ActionResponse<PaymentResponse[]>> {
   try {
@@ -60,8 +61,13 @@ export async function createPayment(data: PaymentCreateRequest): Promise<ActionR
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
     const tf = buildTenantFilter(activeTenantId);
 
-    const checkInvoiceStmt = db.prepare(`SELECT number, total, created_by FROM invoices WHERE id = ? AND deletedAt IS NULL${tf.sql}`);
-    const invoice = checkInvoiceStmt.get(invoiceId, ...tf.params) as { number?: string; total: number; created_by?: string } | undefined;
+    const checkInvoiceStmt = db.prepare(`
+      SELECT i.number, i.total, i.created_by, c.name as clientName
+      FROM invoices i
+      LEFT JOIN clients c ON i.clientId = c.id
+      WHERE i.id = ? AND i.deletedAt IS NULL${tf.sql.replace(/tenant_id/g, 'i.tenant_id')}
+    `);
+    const invoice = checkInvoiceStmt.get(invoiceId, ...tf.params) as { number?: string; total: number; created_by?: string; clientName?: string } | undefined;
     
     if (!invoice) return { success: false, error: 'Facture introuvable ou supprimée' };
     if (session.role !== 'admin' && invoice.created_by !== session.userId) {
@@ -87,6 +93,23 @@ export async function createPayment(data: PaymentCreateRequest): Promise<ActionR
       `).run(id, invoiceId, Math.round(amount), paymentMethod, date, reference || null, session.userId, activeTenantId);
 
       const newStatus = updateInvoiceStatus(invoiceId, activeTenantId);
+
+      // Auto-sync with ledger
+      LedgerRepository.create({
+        tenant_id: activeTenantId,
+        date,
+        type: 'IN',
+        category: 'Ventes & Facturation',
+        description: `Paiement reçu pour facture ${invoice.number || invoiceId}`,
+        amount: Math.round(amount),
+        paymentMethod,
+        reference: reference || null,
+        counterparty: invoice.clientName || 'Client inconnu',
+        linkedInvoiceId: invoiceId,
+        linkedPaymentId: id,
+        created_by: session.userId,
+      });
+
       logAudit('CREATE', 'payment', id, `Paiement enregistré: ${Math.round(amount)} XAF sur facture ${invoice.number || invoiceId}`, session.userId, session.name || session.username || null, activeTenantId);
       return { id, newStatus };
     });
@@ -112,6 +135,10 @@ export async function deletePayment(id: string): Promise<ActionResponse<{ succes
 
     const deleteResult = db.transaction(() => {
       db.prepare(`UPDATE payments SET deletedAt = datetime('now') WHERE id = ?${tf.sql}`).run(id, ...tf.params);
+
+      // Sync deletion with ledger
+      db.prepare(`UPDATE ledger_entries SET deletedAt = datetime('now') WHERE linkedPaymentId = ? AND tenant_id = ?`).run(id, activeTenantId);
+
       const inv = db.prepare('SELECT number FROM invoices WHERE id = ?').get(payment.invoiceId) as { number?: string } | undefined;
       logAudit('DELETE', 'payment', id, `Paiement supprimé pour facture ${inv?.number || payment.invoiceId}`, session.userId, session.name || session.username || null, activeTenantId);
 
