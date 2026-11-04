@@ -28,7 +28,7 @@ function validateSender(frame) {
  * @param {Function} options.logToFile
  */
 function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile, onAppReady }) {
-  const { app, ipcMain, BrowserWindow, dialog } = require('electron');
+  const { app, ipcMain, BrowserWindow, dialog, shell } = require('electron');
 
   // ── Notification de disponibilité complète de l'UI React (transition splash fluide)
   ipcMain.handle('app:report-ready', (event) => {
@@ -55,6 +55,42 @@ function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile, onAppR
       throw new Error('[IPC:app:get-userData-path] Expéditeur non autorisé.');
     }
     return userDataPath;
+  });
+
+  // ── Ouverture sécurisée des liens externes (WhatsApp, mailto)
+  ipcMain.handle('app:open-external', async (event, url) => {
+    if (!validateSender(event?.senderFrame)) {
+      throw new Error('[IPC:app:open-external] Expéditeur non autorisé.');
+    }
+    if (typeof url !== 'string') {
+      throw new Error('[IPC:app:open-external] URL invalide.');
+    }
+
+    const isAllowed = /^https:\/\/(wa\.me|api\.whatsapp\.com)\//.test(url) || /^mailto:/.test(url);
+    if (!isAllowed) {
+      if (typeof logToFile === 'function') {
+        logToFile('WARN', `[IPC:app:open-external] URL externe rejetée : ${url}`);
+      }
+      throw new Error('[IPC:app:open-external] Protocole ou domaine non autorisé.');
+    }
+
+    if (typeof logToFile === 'function') {
+      logToFile('INFO', `[IPC:app:open-external] Ouverture externe autorisée : ${url}`);
+    }
+    await shell.openExternal(url);
+    return { success: true };
+  });
+
+  // ── Révéler un fichier dans l'explorateur OS
+  ipcMain.handle('app:show-item-in-folder', async (event, fullPath) => {
+    if (!validateSender(event?.senderFrame)) {
+      throw new Error('[IPC:app:show-item-in-folder] Expéditeur non autorisé.');
+    }
+    if (typeof fullPath !== 'string') {
+      throw new Error('[IPC:app:show-item-in-folder] Chemin invalide.');
+    }
+    shell.showItemInFolder(fullPath);
+    return { success: true };
   });
 
   // ── Impression native (fenêtre active)

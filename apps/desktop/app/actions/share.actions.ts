@@ -22,7 +22,7 @@ export async function logDocumentShareAction(
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
 
     db.prepare(`
-      INSERT INTO audit_logs (id, userId, action, entity, entityId, details, createdAt, tenant_id)
+      INSERT INTO audit_logs (id, userId, action, entityType, entityId, details, createdAt, tenant_id)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       crypto.randomUUID(),

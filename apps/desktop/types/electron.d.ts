@@ -36,7 +36,8 @@ export interface IElectronBridge {
   ) => Promise<{ saved: boolean; filePath?: string; error?: string }>;
   getVersion: () => Promise<string>;
   getUserDataPath: () => Promise<string>;
-  openExternal?: (url: string) => Promise<void>;
+  openExternal?: (url: string) => Promise<{ success: boolean } | void>;
+  showItemInFolder?: (fullPath: string) => Promise<{ success: boolean } | void>;
   reportAppReady?: () => Promise<{ success: boolean }>;
   platform: 'win32' | 'darwin' | 'linux';
   isElectron: true;

@@ -50,6 +50,20 @@ contextBridge.exposeInMainWorld('electron', {
   getUserDataPath: () => ipcRenderer.invoke('app:get-userData-path'),
 
   /**
+   * Ouvre une URL externe de manière contrôlée (WhatsApp, mailto).
+   * @param {string} url - L'URL externe autorisée.
+   * @returns {Promise<{ success: boolean }>}
+   */
+  openExternal: (url) => ipcRenderer.invoke('app:open-external', url),
+
+  /**
+   * Révèle un fichier dans l'explorateur du système d'exploitation.
+   * @param {string} fullPath - Chemin absolu du fichier.
+   * @returns {Promise<{ success: boolean }>}
+   */
+  showItemInFolder: (fullPath) => ipcRenderer.invoke('app:show-item-in-folder', fullPath),
+
+  /**
    * Notifie le processus principal que l'interface React est complètement montée et peinte,
    * permettant une transition fluide et instantanée depuis le splash screen sans flash blanc.
    */

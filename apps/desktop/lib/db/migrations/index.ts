@@ -7,6 +7,7 @@ import { migration0002 } from './0002_schema_hardening';
 import { migration0003 } from './0003_backfill_and_sync_schema';
 import { migration0004 } from './0004_stock_management';
 import { migration0005 } from './0005_account_ledger';
+import { migration0006 } from './0006_item_service_link';
 
 export const ALL_MIGRATIONS: Migration[] = [
   migration0001,
@@ -14,6 +15,7 @@ export const ALL_MIGRATIONS: Migration[] = [
   migration0003,
   migration0004,
   migration0005,
+  migration0006,
 ];
 
 /**
