@@ -194,7 +194,7 @@ export function ForcePasswordChangeDialog({
                   type={showCurrent ? "text" : "password"}
                   value={currentPassword}
                   onChange={(e) => setCurrentPassword(e.target.value)}
-                  placeholder="••••••••"
+                  placeholder="Entrez votre mot de passe"
                   className="bg-secondary/50 border-border pr-10"
                   disabled={isSubmitting}
                 />

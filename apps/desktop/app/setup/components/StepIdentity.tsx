@@ -124,7 +124,7 @@ export function StepIdentity({ wizard }: StepIdentityProps) {
                 type="text"
                 value={companyName}
                 onChange={(e) => handleCompanyNameChange(e.target.value)}
-                placeholder="ex: Global Maintenance, Kori Tech..."
+                placeholder="Entrez le nom ou la raison sociale"
                 className="pl-10 bg-secondary/60 border-border text-foreground font-semibold text-sm h-11"
                 required
                 autoFocus
@@ -211,7 +211,7 @@ export function StepIdentity({ wizard }: StepIdentityProps) {
                 type="text"
                 value={nif}
                 onChange={(e) => setNif(e.target.value)}
-                placeholder="ex: 123456 A"
+                placeholder="Entrez le numéro NIF"
                 className="pl-10 bg-secondary/50 border-border text-foreground font-mono text-xs"
               />
             </div>
@@ -226,7 +226,7 @@ export function StepIdentity({ wizard }: StepIdentityProps) {
                 type="text"
                 value={rccm}
                 onChange={(e) => setRccm(e.target.value)}
-                placeholder="ex: GA-LBV-2026-B12"
+                placeholder="Entrez le numéro RCCM"
                 className="pl-10 bg-secondary/50 border-border text-foreground font-mono text-xs"
               />
             </div>
@@ -249,7 +249,7 @@ export function StepIdentity({ wizard }: StepIdentityProps) {
               type="text"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="ex: Centre-ville, Boulevard Triomphal, Libreville, Gabon"
+              placeholder="Entrez l'adresse complète"
               className="pl-10 bg-secondary/50 border-border text-foreground text-xs"
             />
           </div>
@@ -265,7 +265,7 @@ export function StepIdentity({ wizard }: StepIdentityProps) {
                 type="text"
                 value={companyPhone}
                 onChange={(e) => setCompanyPhone(e.target.value)}
-                placeholder="+241 01 23 45 67"
+                placeholder="Entrez le numéro de téléphone"
                 className="pl-10 bg-secondary/50 border-border text-foreground text-xs"
               />
             </div>
@@ -280,7 +280,7 @@ export function StepIdentity({ wizard }: StepIdentityProps) {
                 type="email"
                 value={companyEmail}
                 onChange={(e) => setCompanyEmail(e.target.value)}
-                placeholder="contact@votre-entreprise.ga"
+                placeholder="Entrez l'adresse email"
                 className="pl-10 bg-secondary/50 border-border text-foreground text-xs"
               />
             </div>

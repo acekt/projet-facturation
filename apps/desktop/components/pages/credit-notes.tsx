@@ -151,7 +151,7 @@ export function CreditNotesPage() {
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
-              className="gap-2 bg-card border-border hover:bg-secondary cursor-pointer"
+              className="gap-2 cursor-pointer"
               onClick={() => setIsExportModalOpen(true)}
             >
               <DownloadCloud className="w-4 h-4" />
@@ -159,7 +159,7 @@ export function CreditNotesPage() {
             </Button>
             {canCreate && (
               <Button
-                className="gap-2 bg-primary hover:bg-primary-hover text-white shadow-sm cursor-pointer"
+                className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer"
                 onClick={() => setIsCreateModalOpen(true)}
               >
                 <Plus className="w-4 h-4" />

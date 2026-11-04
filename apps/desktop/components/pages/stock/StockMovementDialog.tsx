@@ -106,14 +106,14 @@ export function StockMovementDialog({
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ex: Réapprovisionnement, Perte, etc."
+              placeholder="Entrez le motif de l'opération"
               className="bg-secondary border-border"
               disabled={isSubmitting}
             />
           </div>
           <Button
             type="submit"
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4"
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer w-full mt-4"
             disabled={isSubmitting}
           >
             {isSubmitting ? "Enregistrement..." : "Confirmer"}

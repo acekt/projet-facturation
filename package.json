@@ -22,6 +22,7 @@
     "quality": "npm run quality:decisions && npm run quality:desktop-health"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "turbo": "^2.11.9",
     "typescript": "^5.9.3"
   },

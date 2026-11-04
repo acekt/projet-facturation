@@ -18,6 +18,7 @@ import {
   CreditCard,
 } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
+import { PageHeader } from "@workspace/ui/components/page-header"
 import { Input } from "@workspace/ui/components/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
 import {
@@ -162,39 +163,33 @@ export function LedgerPage() {
   return (
     <div className="flex flex-col gap-6 h-full">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-foreground flex items-center gap-3">
-            <BookOpen className="w-8 h-8 text-primary" />
-            Livre des Comptes
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Suivi quotidien des entrées (recettes), des sorties (dépenses) et de la trésorerie.
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            className="border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800"
-            onClick={() => { setDialogType('IN'); setDialogOpen(true); }}
-          >
-            <Plus className="w-4 h-4 mr-2" />
-            Nouvelle Recette (Entrée)
-          </Button>
-          <Button
-            variant="outline"
-            className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 hover:text-rose-800"
-            onClick={() => { setDialogType('OUT'); setDialogOpen(true); }}
-          >
-            <Minus className="w-4 h-4 mr-2" />
-            Nouvelle Dépense (Sortie)
-          </Button>
-          <Button variant="outline" onClick={handleExportCSV}>
-            <Download className="w-4 h-4 mr-2" />
-            Exporter CSV
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        title="Livre des Comptes"
+        description="Suivi quotidien des entrées (recettes), des sorties (dépenses) et de la trésorerie."
+        actions={
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="gap-2 cursor-pointer"
+              onClick={() => { setDialogType('IN'); setDialogOpen(true); }}
+            >
+              <Plus className="w-4 h-4 mr-2" />
+              Nouvelle Recette (Entrée)
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2 cursor-pointer"
+              onClick={() => { setDialogType('OUT'); setDialogOpen(true); }}
+            >
+              <Minus className="w-4 h-4 mr-2" />
+              Nouvelle Dépense (Sortie)
+            </Button>
+            <Button variant="outline" className="gap-2 cursor-pointer" onClick={handleExportCSV}>
+              <Download className="w-4 h-4 mr-2" /> Export
+            </Button>
+          </div>
+        }
+      />
 
       {/* Barre Temporelle */}
       <div className="flex items-center gap-4 bg-card p-3 rounded-xl border border-border shadow-sm overflow-x-auto">

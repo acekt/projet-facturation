@@ -416,7 +416,7 @@ export default function LoginClient() {
                     autoComplete="username"
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
-                    placeholder="jean@facturier.ga"
+                    placeholder="Entrez l'adresse email"
                     className="bg-secondary border-border text-foreground"
                     required
                     disabled={isSubmitting || isRedirecting}
@@ -436,7 +436,7 @@ export default function LoginClient() {
                         autoComplete="current-password"
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        placeholder="••••••••"
+                        placeholder="Entrez votre mot de passe"
                         className="bg-secondary border-border text-foreground pr-10"
                         required
                         disabled={isSubmitting || isRedirecting}

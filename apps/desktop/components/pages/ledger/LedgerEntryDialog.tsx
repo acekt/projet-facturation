@@ -226,7 +226,7 @@ export function LedgerEntryDialog({ isOpen, onOpenChange, defaultType = 'IN', on
                 <FormItem>
                   <FormLabel>Libellé / Motif</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Raison de l'opération..." {...field} />
+                    <Textarea placeholder="Entrez le motif de l'opération" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

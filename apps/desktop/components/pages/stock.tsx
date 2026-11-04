@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Package, AlertTriangle, ArrowDown, ArrowUp, Activity } from "lucide-react"
+import { Package, AlertTriangle, ArrowDown, ArrowUp, Activity, Download } from "lucide-react"
 import { useStore } from "@/lib/store"
 import { PageHeader } from "@workspace/ui/components/page-header"
 import { SearchBar } from "@workspace/ui/components/search-bar"
@@ -54,6 +54,13 @@ export function StockPage() {
       <PageHeader
         title="Gestion de Stock"
         description="Gérez et suivez le stock de vos produits et services"
+        actions={
+          <div className="flex items-center gap-2">
+            <Button variant="outline" className="gap-2 cursor-pointer" onClick={() => {}}>
+              <Download className="w-4 h-4 mr-2" /> Export
+            </Button>
+          </div>
+        }
       />
 
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -133,10 +140,10 @@ export function StockPage() {
                 <td className="p-4 text-muted-foreground">{item.minStockAlert}</td>
                 <td className="p-4 text-muted-foreground">{item.unit || "Unité"}</td>
                 <td className="p-4 text-right flex justify-end gap-2">
-                  <Button variant="outline" size="sm" className="gap-1 hover:bg-destructive hover:text-destructive-foreground" onClick={() => setMovementDialog({ isOpen: true, type: "INVENTORY_OUT", serviceId: item.id, serviceName: item.name })}>
+                  <Button variant="outline" size="sm" className="gap-2 cursor-pointer hover:bg-destructive hover:text-destructive-foreground" onClick={() => setMovementDialog({ isOpen: true, type: "INVENTORY_OUT", serviceId: item.id, serviceName: item.name })}>
                     <ArrowDown className="w-3 h-3" /> Sortie
                   </Button>
-                  <Button variant="outline" size="sm" className="gap-1 hover:bg-primary hover:text-primary-foreground" onClick={() => setMovementDialog({ isOpen: true, type: "INVENTORY_IN", serviceId: item.id, serviceName: item.name })}>
+                  <Button variant="outline" size="sm" className="gap-2 cursor-pointer hover:bg-primary hover:text-primary-foreground" onClick={() => setMovementDialog({ isOpen: true, type: "INVENTORY_IN", serviceId: item.id, serviceName: item.name })}>
                     <ArrowUp className="w-3 h-3" /> Entrée
                   </Button>
                   <Button variant="ghost" size="sm" onClick={() => setHistoryDialog({ isOpen: true, serviceId: item.id, serviceName: item.name })}>

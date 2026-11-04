@@ -48,7 +48,7 @@ export function QuoteInfoCard({
           <Input
             value={subject || ""}
             onChange={(e) => onSubjectChange(e.target.value)}
-            placeholder="Ex: Prestation de conseil ou maintenance réseau..."
+            placeholder="Entrez la désignation"
             className="bg-secondary border-border text-foreground"
             disabled={disabled}
           />

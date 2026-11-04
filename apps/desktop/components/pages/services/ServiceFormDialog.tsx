@@ -87,7 +87,7 @@ export function ServiceFormDialog({
               id="service-name"
               value={formData.name}
               onChange={(e) => onChange({ ...formData, name: e.target.value })}
-              placeholder="Ex: Audit de sécurité informatique"
+              placeholder="Entrez l'objet du document"
               className="bg-secondary border-border"
               required
               disabled={isSubmitting}

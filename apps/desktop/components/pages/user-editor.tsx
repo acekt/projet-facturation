@@ -231,7 +231,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                     id="name"
                     value={formData.name || ""}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Ex: Jean Paul Ndong"
+                    placeholder="Entrez le nom ou la raison sociale"
                     className="bg-secondary/60 border-border text-foreground text-sm h-10"
                   />
                   {errors.name && <p className="text-destructive text-xs font-medium">{errors.name}</p>}
@@ -247,7 +247,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                       type="email"
                       value={formData.email || ""}
                       onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                      placeholder="jean.ndong@entreprise.ga"
+                      placeholder="Entrez l'adresse email"
                       className="bg-secondary/60 border-border text-foreground text-sm h-10"
                       disabled={!!editingId}
                     />
@@ -266,7 +266,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
                       type="tel"
                       value={formData.phone || ""}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                      placeholder="+241 74 00 00 00"
+                      placeholder="Entrez le numéro de téléphone"
                       className="bg-secondary/60 border-border text-foreground text-sm h-10"
                     />
                     {errors.phone && <p className="text-destructive text-xs font-medium">{errors.phone}</p>}

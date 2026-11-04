@@ -72,7 +72,7 @@ export function ClientFormDialog({
               id={`${mode}-name`}
               value={data.name}
               onChange={(e) => onChange({ ...data, name: e.target.value })}
-              placeholder="Ex: Societe Gabon Mining"
+              placeholder="Entrez le nom ou la raison sociale"
               className="bg-secondary border-border text-foreground"
               required
               disabled={isSubmitting}
@@ -88,7 +88,7 @@ export function ClientFormDialog({
               type="email"
               value={data.email}
               onChange={(e) => onChange({ ...data, email: e.target.value })}
-              placeholder="contact@entreprise.ga"
+              placeholder="Entrez l'adresse email"
               className="bg-secondary border-border text-foreground"
               disabled={isSubmitting}
             />
@@ -104,7 +104,7 @@ export function ClientFormDialog({
                 required
                 value={data.phone}
                 onChange={(e) => onChange({ ...data, phone: e.target.value })}
-                placeholder="+241 01 02 03 04"
+                placeholder="Entrez le numéro de téléphone"
                 className="bg-secondary border-border text-foreground"
                 disabled={isSubmitting}
               />
@@ -135,7 +135,7 @@ export function ClientFormDialog({
               id={`${mode}-address`}
               value={data.address}
               onChange={(e) => onChange({ ...data, address: e.target.value })}
-              placeholder="Libreville, Gabon"
+              placeholder="Entrez l'adresse complète"
               className="bg-secondary border-border text-foreground"
               disabled={isSubmitting}
             />
@@ -148,7 +148,7 @@ export function ClientFormDialog({
                 id={`${mode}-nif`}
                 value={data.nif}
                 onChange={(e) => onChange({ ...data, nif: e.target.value })}
-                placeholder="Ex: 0123456A"
+                placeholder="Entrez le numéro NIF"
                 className="bg-secondary border-border text-foreground font-mono text-sm"
                 disabled={isSubmitting}
               />
@@ -159,7 +159,7 @@ export function ClientFormDialog({
                 id={`${mode}-rccm`}
                 value={data.rccm}
                 onChange={(e) => onChange({ ...data, rccm: e.target.value })}
-                placeholder="Ex: RG/LBV/2026/B/1234"
+                placeholder="Entrez le numéro RCCM"
                 className="bg-secondary border-border text-foreground font-mono text-sm"
                 disabled={isSubmitting}
               />
@@ -168,7 +168,7 @@ export function ClientFormDialog({
 
           <Button
             type="submit"
-            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground mt-4"
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer w-full mt-4"
             disabled={isSubmitting}
           >
             {isSubmitting

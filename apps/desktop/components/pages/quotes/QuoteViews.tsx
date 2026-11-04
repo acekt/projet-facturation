@@ -1,4 +1,5 @@
 "use client";
+import { ShareDocumentModal } from "@/components/features/share/ShareDocumentModal";
 
 import * as React from "react";
 import { motion } from "framer-motion";
@@ -12,6 +13,7 @@ import {
   Eye,
   Edit2,
   Calendar,
+  Share
 } from "lucide-react";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
@@ -63,6 +65,7 @@ interface QuoteActionDropdownProps {
   isDownloading: string | null;
   canModify: boolean;
   canDelete: boolean;
+  onShare?: (quote: any) => void;
 }
 
 function QuoteActionDropdown({
@@ -75,7 +78,9 @@ function QuoteActionDropdown({
   isDownloading,
   canModify,
   canDelete,
+  onShare,
 }: QuoteActionDropdownProps) {
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -103,6 +108,9 @@ function QuoteActionDropdown({
             <DropdownMenuItem className="gap-2" onClick={() => onEdit(quote.id)}>
               <Edit2 className="w-4 h-4" /> Modifier le devis
             </DropdownMenuItem>
+          <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => onShare && onShare(quote)}>
+            <Share className="w-4 h-4" /> Partager
+          </DropdownMenuItem>
             {quote.status !== "EXPIRED" && quote.status !== "EXPIRE" && (
               <DropdownMenuItem
                 className="gap-2 text-primary font-medium"
@@ -142,6 +150,8 @@ export function QuoteViews({
   onDelete,
   onCreateQuote,
 }: QuoteViewsProps) {
+  const [shareDoc, setShareDoc] = React.useState<any>(null);
+
   const isAdmin = user?.role === "admin";
   const isOperatorOrAdmin = isAdmin || user?.role === "user";
 
@@ -210,7 +220,8 @@ export function QuoteViews({
                     isDownloading={isDownloading}
                     canModify={canModify(quote)}
                     canDelete={canDelete(quote)}
-                  />
+                    onShare={setShareDoc}
+/>
                 </ActionsCell>
               </DataTableRow>
             ))}
@@ -280,7 +291,8 @@ export function QuoteViews({
                       isDownloading={isDownloading}
                       canModify={canModify(quote)}
                       canDelete={canDelete(quote)}
-                    />
+                      onShare={setShareDoc}
+/>
                   </div>
                 </CardContent>
               </Card>
@@ -334,7 +346,8 @@ export function QuoteViews({
                         isDownloading={isDownloading}
                         canModify={canModify(quote)}
                         canDelete={canDelete(quote)}
-                      />
+                        onShare={setShareDoc}
+/>
                     </div>
                   </div>
                   <h3 className="font-semibold text-foreground text-sm mb-1">{quote.number}</h3>
@@ -368,6 +381,15 @@ export function QuoteViews({
           </div>
         )}
       </div>
+
+      {shareDoc && (
+        <ShareDocumentModal
+          open={!!shareDoc}
+          onOpenChange={(open) => !open && setShareDoc(null)}
+          document={shareDoc}
+          type="quote"
+        />
+      )}
     </div>
   );
 }

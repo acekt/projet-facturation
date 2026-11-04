@@ -97,7 +97,7 @@ export function StepAdmin({ wizard }: StepAdminProps) {
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="ex: Jean-Paul MBOUMBA"
+            placeholder="Entrez le nom ou la raison sociale"
             className="bg-secondary/50 border-border text-foreground text-xs h-10"
             required
             autoFocus
@@ -113,7 +113,7 @@ export function StepAdmin({ wizard }: StepAdminProps) {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="admin@votre-entreprise.ga"
+              placeholder="Entrez l'adresse email"
               className="pl-10 bg-secondary/50 border-border text-foreground text-xs font-medium h-10"
               required
             />
@@ -186,7 +186,7 @@ export function StepAdmin({ wizard }: StepAdminProps) {
               type="tel"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
-              placeholder="+241 07 00 00 00"
+              placeholder="Entrez le numéro de téléphone"
               className="pl-10 bg-secondary/50 border-border text-foreground text-xs h-10"
             />
           </div>

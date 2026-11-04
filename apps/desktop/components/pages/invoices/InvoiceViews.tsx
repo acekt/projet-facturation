@@ -1,4 +1,5 @@
 "use client";
+import { ShareDocumentModal } from "@/components/features/share/ShareDocumentModal";
 
 import * as React from "react";
 import { motion } from "framer-motion";
@@ -13,6 +14,7 @@ import {
   Eye,
   RefreshCcw,
   Calendar,
+  Share
 } from "lucide-react";
 import { Card, CardContent } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
@@ -56,6 +58,7 @@ interface InvoiceViewsProps {
 }
 
 export function formatClientName(name: string) {
+
   if (!name) return "—";
   if (name.length <= 6 && !name.includes(" ")) {
     return name.toUpperCase();
@@ -131,6 +134,8 @@ export function InvoiceViews({
   onDelete,
   onCreateInvoice,
 }: InvoiceViewsProps) {
+  const [shareDoc, setShareDoc] = React.useState<any>(null);
+
   const isOperatorOrAdmin = user?.role === "user" || user?.role === "admin";
   const isAdmin = user?.role === "admin";
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -183,9 +188,14 @@ export function InvoiceViews({
             </DropdownMenuItem>
           )}
           {canModify(invoice) && invoice.status !== INVOICE_STATUS.CANCELLED && !isProtected && (
-            <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => onCancel(invoice)}>
-              <RefreshCcw className="w-4 h-4" /> Annuler
-            </DropdownMenuItem>
+            <>
+              <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => onCancel(invoice)}>
+                <RefreshCcw className="w-4 h-4" /> Annuler
+              </DropdownMenuItem>
+              <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setShareDoc(invoice)}>
+                <Share className="w-4 h-4" /> Partager
+              </DropdownMenuItem>
+            </>
           )}
           {canModify(invoice) && !isProtected && (
             <>
@@ -374,6 +384,15 @@ export function InvoiceViews({
           </div>
         )}
       </div>
+
+      {shareDoc && (
+        <ShareDocumentModal
+          open={!!shareDoc}
+          onOpenChange={(open) => !open && setShareDoc(null)}
+          document={shareDoc}
+          type="invoice"
+        />
+      )}
     </div>
   );
 }
