@@ -11,7 +11,7 @@ import bcrypt from "bcryptjs";
 import { signSession, getSession } from "@/lib/api/auth";
 import { resolveActiveTenantId, reconcileLocalTenantId } from "@/lib/api/tenant";
 import { encryptSecret } from "@/lib/crypto/secretStore";
-import type { ActionResponse } from './client.actions';
+import type { ActionResponse } from '@/lib/types/api';
 import { logger } from "@/lib/logger";
 import { getErrorMessage } from "@/lib/utils/action-error";
 

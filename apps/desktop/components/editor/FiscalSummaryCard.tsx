@@ -141,7 +141,7 @@ export function FiscalSummaryCard({
                 <span>TPS ({effectiveTpsRate}%)</span>
               </label>
               <span className="text-foreground text-right tabular-nums">
-                {applyTps ? formatCurrency(tpsAmount) : "0 FCFA"}
+                {!applyTps ? "0 FCFA (Exonéré)" : formatCurrency(tpsAmount)}
               </span>
             </div>
 

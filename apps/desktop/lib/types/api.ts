@@ -572,3 +572,7 @@ export interface SettingsUpdateRequest {
 }
 
 export type SettingsResponse = ISettings;
+
+export type ActionResponse<T> =
+  | { success: true; data: T; error?: never; details?: never }
+  | { success: false; data?: never; error: string; details?: any };

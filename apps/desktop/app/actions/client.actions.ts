@@ -8,7 +8,7 @@ import { clientSchema, clientUpdateSchema } from '@/lib/validations';
 import crypto from 'crypto';
 import type { ClientCreateRequest, ClientUpdateRequest, DbClient } from '@/lib/types/api';
 
-export type ActionResponse<T> = 
+type ActionResponse<T> =
   | { success: true; data: T; error?: never; details?: never }
   | { success: false; data?: never; error: string; details?: any };
 

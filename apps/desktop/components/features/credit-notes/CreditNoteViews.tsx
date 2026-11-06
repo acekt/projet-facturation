@@ -153,19 +153,19 @@ function CreditNoteActionDropdown({
       <DropdownMenuContent align="end" className="w-56 bg-card border-border shadow-lg p-1.5 rounded-xl">
         <DropdownMenuItem
           className="gap-2.5 cursor-pointer font-medium"
-          onClick={() => onViewDetails(note)}
+          onClick={() => setTimeout(() => { onViewDetails(note) }, 0)}
         >
           <Info className="w-4 h-4 text-primary" /> Voir les détails
         </DropdownMenuItem>
         <DropdownMenuItem
           className="gap-2.5 cursor-pointer"
-          onClick={() => onPreview(note)}
+          onClick={() => setTimeout(() => { onPreview(note) }, 0)}
         >
           <Eye className="w-4 h-4 text-muted-foreground" /> Aperçu du document (A4)
         </DropdownMenuItem>
         <DropdownMenuItem
           className="gap-2.5 cursor-pointer"
-          onClick={() => onDownloadPDF(note)}
+          onClick={() => setTimeout(() => { onDownloadPDF(note) }, 0)}
           disabled={isDownloading === note.id}
         >
           <Download className="w-4 h-4 text-muted-foreground" />
@@ -173,7 +173,7 @@ function CreditNoteActionDropdown({
         </DropdownMenuItem>
         <DropdownMenuItem
           className="gap-2.5 cursor-pointer"
-          onClick={() => onShare(note)}
+          onClick={() => setTimeout(() => { onShare(note) }, 0)}
         >
           <Send className="w-4 h-4 text-primary" /> Partager (WhatsApp / Email)
         </DropdownMenuItem>

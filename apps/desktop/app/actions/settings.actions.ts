@@ -7,7 +7,7 @@ import db from '@/lib/db';
 import { SettingsRepository } from '@/lib/repositories/SettingsRepository';
 import { settingsSchema } from '@/lib/validations';
 import type { SettingsUpdateRequest, DbSettings } from '@/lib/types/api';
-import type { ActionResponse } from './client.actions';
+import type { ActionResponse } from '@/lib/types/api';
 import { getErrorMessage } from '@/lib/utils/action-error';
 
 export async function getSettings(): Promise<ActionResponse<DbSettings>> {

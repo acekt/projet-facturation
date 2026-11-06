@@ -3,7 +3,7 @@
 import crypto from "crypto";
 import db from "@/lib/db";
 import { getSession } from "@/lib/api/auth";
-import type { ActionResponse } from "./client.actions";
+import type { ActionResponse } from "@/lib/types/api";
 import { resolveActiveTenantId } from "@/lib/api/tenant";
 import { sendDocumentEmailSchema, smtpTestSchema } from "@/lib/validations";
 import { sendSmtpMail, verifySmtpConnection } from "@/lib/services/SmtpMailer";

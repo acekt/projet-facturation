@@ -6,7 +6,7 @@ import { getSession } from '@/lib/api/auth';
 import { resolveActiveTenantId } from '@/lib/api/tenant';
 import { dashboardMetricsQuerySchema } from '@/lib/validations';
 import type { DashboardMetricsResponse, DashboardQueryParams, CashflowPoint } from '@/lib/types/api';
-import type { ActionResponse } from './client.actions';
+import type { ActionResponse } from '@/lib/types/api';
 import { formatAuditShortDateTimeFr, formatAuditDetails, cleanDocumentNumbersInText } from '@/lib/utils/auditFormatter';
 
 export async function getDashboardMetrics(range: string = 'month'): Promise<ActionResponse<DashboardMetricsResponse>> {

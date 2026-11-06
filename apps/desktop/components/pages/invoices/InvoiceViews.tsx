@@ -190,7 +190,7 @@ export function InvoiceViews({
           </DropdownMenuItem>
           <DropdownMenuItem
             className="gap-2.5 cursor-pointer"
-            onClick={() => onDownloadPDF(invoice)}
+            onClick={() => setTimeout(() => { onDownloadPDF(invoice) }, 0)}
             disabled={isDownloading === invoice.id}
           >
             <Download className="w-4 h-4 text-muted-foreground" />
@@ -205,7 +205,7 @@ export function InvoiceViews({
             <>
               <DropdownMenuSeparator className="my-1 bg-border/60" />
               {canEditDraft && (
-                <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => onEdit(invoice.id)}>
+                <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => setTimeout(() => { onEdit(invoice.id) }, 0)}>
                   <Edit2 className="w-4 h-4 text-muted-foreground" /> Modifier la facture
                 </DropdownMenuItem>
               )}

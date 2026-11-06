@@ -295,6 +295,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     }
   };
 
+
   useKeyboardShortcuts({
     onSave: () => handleSave("UNPAID"),
     onEscape: handleBackSafe,
@@ -361,7 +362,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-6 sticky top-6">
           <FiscalSummaryCard
             subtotal={subtotal}
             discount={discount}

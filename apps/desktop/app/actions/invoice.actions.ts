@@ -19,7 +19,7 @@ import type {
   InvoiceCreateRequest,
   DbInvoiceItem,
 } from '@/lib/types/api';
-import type { ActionResponse } from './client.actions';
+import type { ActionResponse } from '@/lib/types/api';
 
 export async function getInvoices(): Promise<ActionResponse<InvoiceResponse[]>> {
   try {
@@ -139,6 +139,7 @@ export async function deleteInvoice(id: string, deleteQuote: boolean = false): P
   try {
     const session = await getSession();
     if (!session || !session.userId) return { success: false, error: 'Unauthorized' };
+    if (session.role !== 'admin') return { success: false, error: 'Forbidden' };
 
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
     const invoice = InvoiceRepository.findById(id, session.userId, session.role, activeTenantId);

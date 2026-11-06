@@ -7,7 +7,7 @@ import db from '@/lib/db';
 import { serviceSchema, serviceUpdateSchema } from '@/lib/validations';
 import crypto from 'crypto';
 import type { ServiceCreateRequest, ServiceUpdateRequest, DbService } from '@/lib/types/api';
-import type { ActionResponse } from './client.actions';
+import type { ActionResponse } from '@/lib/types/api';
 
 function derivePhysicalStockName(serviceName: string, explicitStockName?: string | null): string | null {
   if (explicitStockName && explicitStockName.trim() !== '') {

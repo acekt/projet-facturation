@@ -8,7 +8,7 @@ import crypto from 'crypto';
 import { paymentCreateSchema } from '@/lib/validations';
 import { updateInvoiceStatus } from '@/lib/api/invoice-logic';
 import type { PaymentCreateRequest, PaymentResponse, DbPayment } from '@/lib/types/api';
-import type { ActionResponse } from './client.actions';
+import type { ActionResponse } from '@/lib/types/api';
 import { LedgerRepository } from '@/lib/repositories/LedgerRepository';
 import { PaymentRepository, ClientPaymentHistoryRow, InvoicePaymentHistoryRow } from '@/lib/repositories/PaymentRepository';
 

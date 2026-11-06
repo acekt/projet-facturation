@@ -16,7 +16,7 @@ import { resolveValidLocalUserId, resolveValidServiceId } from '@/lib/services/I
 import { assertLicenseAllowsCreation, LicenseRestrictedError } from '@/lib/api/license';
 import { getErrorMessage } from '@/lib/utils/action-error';
 import type { QuoteCreateRequest, QuoteResponse, QuoteItem, DbClient, DbQuoteItem } from '@/lib/types/api';
-import type { ActionResponse } from './client.actions';
+import type { ActionResponse } from '@/lib/types/api';
 
 export async function getQuotes(): Promise<ActionResponse<QuoteResponse[]>> {
   try {
@@ -281,6 +281,7 @@ export async function deleteQuote(id: string): Promise<ActionResponse<boolean>> 
   try {
     const session = await getSession();
     if (!session || !session.userId) return { success: false, error: 'Unauthorized' };
+    if (session.role !== 'admin') return { success: false, error: 'Forbidden' };
 
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
     const quote = QuoteRepository.findWithStatus(id, session.userId, session.role, activeTenantId);

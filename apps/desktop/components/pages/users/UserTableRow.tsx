@@ -152,18 +152,18 @@ export function UserTableRow({
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="bg-card border-border w-48">
             {!isInactive && (
-              <DropdownMenuItem onClick={() => onEditUser(user.id)} className="gap-2">
+              <DropdownMenuItem onClick={() => setTimeout(() => { onEditUser(user.id) }, 0)} className="gap-2">
                 <Edit2 className="w-4 h-4" /> Modifier
               </DropdownMenuItem>
             )}
             {!isInactive && (
-              <DropdownMenuItem onClick={() => onOpenResetModal(user)} className="gap-2">
+              <DropdownMenuItem onClick={() => setTimeout(() => { onOpenResetModal(user) }, 0)} className="gap-2">
                 <Key className="w-4 h-4" /> Réinitialiser MDP
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => onOpenStatusModal(user)}
+              onClick={() => setTimeout(() => { onOpenStatusModal(user) }, 0)}
               className={cn("gap-2", !isInactive ? "text-amber-500" : "text-emerald-500")}
             >
               {!isInactive ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
@@ -171,7 +171,7 @@ export function UserTableRow({
             </DropdownMenuItem>
             {user.id !== currentUser?.id && !isInactive && (
               <DropdownMenuItem
-                onClick={() => onOpenDeleteModal(user)}
+                onClick={() => setTimeout(() => { onOpenDeleteModal(user) }, 0)}
                 className="gap-2 text-destructive focus:text-destructive"
               >
                 <Trash2 className="w-4 h-4" /> Supprimer

@@ -3,7 +3,7 @@
 import db from '@/lib/db';
 import { getSession } from '@/lib/api/auth';
 import { buildTenantFilter, resolveActiveTenantId } from '@/lib/api/tenant';
-import type { ActionResponse } from './client.actions';
+import type { ActionResponse } from '@/lib/types/api';
 
 export async function getAuditLogs(limit?: number): Promise<ActionResponse<any[]>> {
   try {
