@@ -43,7 +43,7 @@ describe('Module 1 Curatif — Anti-Parasites, Intégrité & Dédoublonnage', ()
       expect(escapeCsvCell('Libreville')).toBe('"Libreville"');
       expect(escapeCsvCell('Boulevard Triomphal, Libreville')).toBe('"Boulevard Triomphal, Libreville"');
       expect(escapeCsvCell('Société "Gabon Services"')).toBe('"Société ""Gabon Services"""');
-      expect(escapeCsvCell("Ligne 1\nLigne 2")).toBe("\"Ligne 1\nLigne 2\"");
+      expect(escapeCsvCell("Ligne 1\nLigne 2")).toBe("\"Ligne 1 - Ligne 2\"");
       expect(escapeCsvCell(150000)).toBe('"150000"');
       expect(escapeCsvCell(null)).toBe('""');
       expect(escapeCsvCell(undefined)).toBe('""');

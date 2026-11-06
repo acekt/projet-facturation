@@ -159,7 +159,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
           .doc-a4 thead {
             display: table-header-group !important;
           }
-          .doc-a4 tr {
+          .doc-a4 tr, .doc-a4 .closing-block {
             break-inside: avoid !important;
             page-break-inside: avoid !important;
           }

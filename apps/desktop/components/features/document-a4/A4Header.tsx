@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import type { Settings } from "@/lib/store";
+import { DefaultCompanyLogo } from "../common/DefaultCompanyLogo";
 
 export type DocumentType = "facture" | "devis" | "avoir";
 
@@ -57,8 +58,8 @@ export function A4Header({
               className="h-14 w-auto object-contain flex-shrink-0"
             />
           ) : (
-            <div className="h-14 w-14 rounded-sm bg-brand-primary flex items-center justify-center text-white text-[7px] font-bold tracking-widest flex-shrink-0">
-              LOGO
+            <div className="h-14 w-14 rounded-sm flex items-center justify-center flex-shrink-0 text-brand-primary border border-brand-primary/10 bg-brand-primary/5">
+              <DefaultCompanyLogo className="w-10 h-10" />
             </div>
           )}
           <div className="flex flex-col justify-center">
