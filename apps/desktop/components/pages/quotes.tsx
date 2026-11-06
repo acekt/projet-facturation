@@ -118,7 +118,7 @@ export function QuotesPage({ onCreateQuote }: QuotesPageProps) {
   );
 
   React.useEffect(() => {
-    if (currentPage > totalPages) {
+    if (currentPage > totalPages && totalPages > 0) {
       setCurrentPage(Math.max(1, totalPages));
     }
   }, [currentPage, totalPages]);

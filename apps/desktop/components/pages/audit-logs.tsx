@@ -115,10 +115,10 @@ export function AuditLogsPage() {
   const safePage = Math.min(currentPage, Math.max(1, totalPages))
 
   React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(Math.max(1, totalPages))
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(Math.max(1, totalPages));
     }
-  }, [currentPage, totalPages])
+  }, [currentPage, totalPages]);
   const displayedLogs = logs
 
   return (
