@@ -77,7 +77,7 @@ registerUpdaterIpc({
 // ── Cycle de vie de l'application
 app.whenReady().then(async () => {
   cleanupTempFiles(USER_DATA_PATH, logToFile);
-  performDailyBackup(USER_DATA_PATH, logToFile);
+  performDailyBackup(USER_DATA_PATH, logToFile, isDev);
   let port;
 
   if (isDev) {
@@ -86,36 +86,45 @@ app.whenReady().then(async () => {
       baseDir: __dirname,
       logToFile,
     });
-    logToFile('INFO', '[Dev] Recherche du serveur Next.js en cours...');
 
     let foundPort = null;
-    let attempts = 0;
+    while (!foundPort) {
+      logToFile('INFO', '[Dev] Recherche du serveur Next.js en cours (timeout 120s)...');
+      let attempts = 0;
+      let startTime = Date.now();
 
-    while (!foundPort && attempts < 60) {
-      foundPort = await scanForDevServer();
-      if (!foundPort) {
-        await new Promise((resolve) => setTimeout(resolve, 500));
-        attempts++;
+      while (!foundPort && (Date.now() - startTime) < 120000) {
+        foundPort = await scanForDevServer();
+        if (!foundPort) {
+          await new Promise((resolve) => setTimeout(resolve, 500));
+        }
       }
-    }
 
-    if (foundPort) {
-      port = foundPort;
-      logToFile('INFO', `[Dev] Serveur Next.js détecté avec succès sur le port ${port} !`);
-      try {
-        await waitForServer(`http://127.0.0.1:${port}`, 60000, logToFile);
-        isServerReady = true;
-      } catch (e) {
-        logToFile('WARN', `[Dev] Health check timeout: ${e.message} — tentative de chargement quand même.`);
+      if (foundPort) {
+        port = foundPort;
+        logToFile('INFO', `[Dev] Serveur Next.js détecté avec succès sur le port ${port} !`);
+        try {
+          await waitForServer(`http://127.0.0.1:${port}`, 60000, logToFile);
+          isServerReady = true;
+        } catch (e) {
+          logToFile('WARN', `[Dev] Health check timeout: ${e.message} — tentative de chargement quand même.`);
+        }
+      } else {
+        logToFile('ERROR', '[Dev] Impossible de trouver Next.js après 120 secondes. Avez-vous lancé npm run dev ?');
+        const retry = dialog.showMessageBoxSync({
+          type: 'error',
+          title: 'Serveur Introuvable',
+          message: "Aucun serveur Next.js n'a été détecté après 120 secondes.\nVeuillez vérifier que 'npm run dev' est bien lancé dans un terminal.",
+          buttons: ['Réessayer', 'Quitter'],
+          defaultId: 0,
+          cancelId: 1
+        });
+
+        if (retry === 1) {
+          app.quit();
+          return;
+        }
       }
-    } else {
-      logToFile('ERROR', '[Dev] Impossible de trouver Next.js. Avez-vous lancé npm run dev ?');
-      dialog.showErrorBox(
-        'Serveur Introuvable',
-        "Aucun serveur Next.js n'a été détecté. Veuillez lancer 'npm run dev' dans un terminal."
-      );
-      app.quit();
-      return;
     }
   } else {
     const appSecrets = loadOrGenerateSecrets(USER_DATA_PATH, logToFile);

@@ -8,8 +8,9 @@ const path = require('path');
  * et politique de rétention des 7 derniers jours glissants.
  * @param {string} userDataPath
  * @param {Function} logToFile
+ * @param {boolean} [isDev=false]
  */
-function performDailyBackup(userDataPath, logToFile) {
+function performDailyBackup(userDataPath, logToFile, isDev = false) {
   try {
     const dataDir = path.join(userDataPath, 'data');
     const dbPath = path.join(dataDir, 'database.sqlite');
@@ -32,19 +33,24 @@ function performDailyBackup(userDataPath, logToFile) {
       logToFile('INFO', `[Backup] Sauvegarde journalière déjà existante pour aujourd'hui : ${backupFileName}`);
     } else {
       fs.copyFileSync(dbPath, backupFilePath);
-      try {
-        const Database = require('better-sqlite3');
-        const check = new Database(backupFilePath, { readonly: true });
-        const ok = check.pragma('integrity_check', { simple: true }) === 'ok';
-        check.close();
-        if (!ok) {
-          fs.unlinkSync(backupFilePath);
-          logToFile('ERROR', `[Backup] Sauvegarde corrompue détectée et supprimée : ${backupFileName}`);
-        } else {
-          logToFile('INFO', `[Backup] Sauvegarde journalière vérifiée avec succès : ${backupFileName}`);
+
+      if (isDev) {
+        logToFile('INFO', `[Backup] Sauvegarde journalière effectuée (vérification SQLite ignorée en Dev) : ${backupFileName}`);
+      } else {
+        try {
+          const Database = require('better-sqlite3');
+          const check = new Database(backupFilePath, { readonly: true });
+          const ok = check.pragma('integrity_check', { simple: true }) === 'ok';
+          check.close();
+          if (!ok) {
+            fs.unlinkSync(backupFilePath);
+            logToFile('ERROR', `[Backup] Sauvegarde corrompue détectée et supprimée : ${backupFileName}`);
+          } else {
+            logToFile('INFO', `[Backup] Sauvegarde journalière vérifiée avec succès : ${backupFileName}`);
+          }
+        } catch (checkErr) {
+          logToFile('INFO', `[Backup] Sauvegarde journalière effectuée (vérification ignorée) : ${backupFileName}`);
         }
-      } catch (checkErr) {
-        logToFile('INFO', `[Backup] Sauvegarde journalière effectuée (vérification ignorée) : ${backupFileName}`);
       }
     }
 

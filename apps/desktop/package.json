@@ -7,6 +7,7 @@
   "main": "main.js",
   "scripts": {
     "dev": "npm run rebuild:node && cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" next dev --webpack",
+    "dev:electron": "electron .",
     "build": "next build --webpack",
     "start": "next start",
     "start:electron": "node .next/standalone/server.js",
@@ -125,11 +126,11 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
-    "@supabase/supabase-js": "^2.117.3",
-    "@workspace/ui": "^1.0.0",
     "@react-pdf/font": "^4.1.2",
     "@react-pdf/primitives": "^4.4.0",
     "@react-pdf/renderer": "^4.5.1",
+    "@supabase/supabase-js": "^2.117.3",
+    "@workspace/ui": "^1.0.0",
     "autoprefixer": "^10.4.20",
     "bcryptjs": "^3.0.3",
     "better-sqlite3": "^12.10.0",
@@ -173,6 +174,6 @@
     "tailwindcss": "^4.3.3",
     "tw-animate-css": "1.3.3",
     "typescript": "5.9.3",
-    "vitest": "^4.1.11"
+    "vitest": "^4.1.12"
   }
 }
