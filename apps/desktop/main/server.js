@@ -49,7 +49,7 @@ function findAvailablePort(preferred = 3000) {
  * @param {number} timeoutMs
  * @returns {Promise<number | null>}
  */
-function scanForDevServer(start = DEV_PORT_RANGE_START, end = DEV_PORT_RANGE_END, timeoutMs = 1500) {
+function scanForDevServer(start = DEV_PORT_RANGE_START, end = DEV_PORT_RANGE_END, timeoutMs = 8000) {
   const checks = [];
   const hosts = ['127.0.0.1', 'localhost'];
 
@@ -60,9 +60,15 @@ function scanForDevServer(start = DEV_PORT_RANGE_START, end = DEV_PORT_RANGE_END
           { hostname, port, path: '/api/health', timeout: timeoutMs },
           (res) => {
             res.resume();
-            resolve(port);
+            resolve(port); // Détection dès que Next.js renvoie n'importe quelle réponse HTTP
           }
         );
+        req.on('socket', (socket) => {
+          socket.on('connect', () => {
+            // TCP connect = Serveur Next.js vivant, même si Webpack compile
+            resolve(port);
+          });
+        });
         req.on('error', () => resolve(null));
         req.on('timeout', () => {
           req.destroy();
