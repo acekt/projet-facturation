@@ -206,17 +206,9 @@ function createMainWindow({
     tryRevealMainWindow();
   };
 
-  // Délai de secours pour garantir que la fenêtre apparaisse même si l'IPC tarde
-  // En mode dev sur Windows, la compilation Webpack initiale peut prendre 25-35s.
-  const guardTimeoutMs = isDev ? 45000 : 8000;
-  setTimeout(() => {
-    if (!isAppShown) {
-      logToFile('INFO', `[UI] Timeout de garde (${guardTimeoutMs / 1000}s) atteint — révélation de secours.`);
-      isReadyToShow = true;
-      isContentLoaded = true;
-      tryRevealMainWindow();
-    }
-  }, guardTimeoutMs);
+  // Plafonnement strict du Splash Screen à 5 secondes (4500ms d'attente max)
+  const SPLASH_MAX_MS = 4500;
+  let splashTimeout = null;
 
   const loadApp = (attempt = 1) => {
     mainWindow.loadURL(appUrl).catch((err) => {
@@ -258,16 +250,22 @@ function createMainWindow({
 
   if (!isServerReady) {
     createSplashWindow({ resourcesPath, baseDir, logToFile });
-    logToFile('INFO', `[UI] Attente de /api/health sur le port ${port}...`);
-    waitForServerFn(`http://127.0.0.1:${port}`, 25000, logToFile)
-      .then(() => {
-        logToFile('INFO', '[UI] Serveur prêt — chargement de la fenêtre principale.');
-        loadApp();
-      })
-      .catch((err) => {
-        logToFile('WARN', `[UI] Health check timeout: ${err.message} — chargement quand même.`);
-        loadApp();
-      });
+    // Démarrage IMMÉDIAT du chargement sans attendre le health check
+    logToFile('INFO', `[UI] Chargement immédiat de ${appUrl} (sans warm-up bloquant)`);
+    loadApp();
+
+    splashTimeout = setTimeout(() => {
+      if (!isAppShown) {
+        logToFile('WARN', `[UI] Timeout Splash Screen atteint (${SPLASH_MAX_MS}ms) — Révélation forcée de mainWindow.`);
+        isReadyToShow = true;
+        isContentLoaded = true;
+        // On s'assure d'avoir un fond neutre si la compilation Next.js est en cours
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.setBackgroundColor(isDark ? '#09090b' : '#f8fafc');
+        }
+        tryRevealMainWindow();
+      }
+    }, SPLASH_MAX_MS);
   } else {
     loadApp();
   }
