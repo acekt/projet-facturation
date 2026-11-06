@@ -80,7 +80,7 @@ export const InvoiceService = {
     const dueDate =
       data.dueDate ||
       (() => {
-        const d = new Date(data.date || Date.now());
+        const d = data.date ? new Date(data.date) : new Date();
         d.setDate(d.getDate() + 30);
         return d.toISOString().split('T')[0];
       })();
@@ -100,7 +100,7 @@ export const InvoiceService = {
         data.clientId,
         data.clientName,
         data.clientEmail && typeof data.clientEmail === 'string' && data.clientEmail.trim() !== '' ? data.clientEmail.trim() : null,
-        data.date,
+        data.date || new Date().toISOString().split('T')[0],
         dueDate,
         computed.subtotal,
         computed.discount,
