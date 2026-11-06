@@ -57,7 +57,7 @@ export function getInitials(name?: string | null, fallback: string = 'CL'): stri
  */
 export function escapeCsvCell(val: string | number | null | undefined): string {
   if (val === null || val === undefined) return '""';
-  const raw = String(val);
+  const raw = String(val).replace(/\r?\n/g, " - ");
   const needsFormulaEscape = /^[=@]|^[+-][A-Za-z]/.test(raw.trimStart());
   const str = needsFormulaEscape ? `'${raw}` : raw;
   return `"${str.replace(/"/g, '""')}"`;
@@ -75,7 +75,7 @@ export function buildSafeCsvContent(
   const csvBody = [headers, ...rows]
     .map((row) => row.map((cell) => escapeCsvCell(cell)).join(delimiter))
     .join('\r\n');
-  return '\uFEFF' + csvBody;
+  return '\uFEFFsep=;\r\n' + csvBody;
 }
 
 /**

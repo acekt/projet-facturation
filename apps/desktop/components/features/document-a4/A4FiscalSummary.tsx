@@ -38,13 +38,21 @@ export function A4FiscalSummary({
   formatCurrency: fmt,
   notes,
 }: A4FiscalSummaryProps) {
-  const sanitizedNotes = notes
+  let sanitizedNotes = notes
     ? notes.replace(/date démission/gi, "date d'émission")
     : notes;
 
+  if (
+    (type === "facture" || type as string === "invoice") &&
+    sanitizedNotes &&
+    /proposition commerciale valable/i.test(sanitizedNotes)
+  ) {
+    sanitizedNotes = "Paiement à 30 jours à compter de la date d'émission. Tout retard de paiement donnera lieu au versement de pénalités de retard selon la réglementation en vigueur.";
+  }
+
   return (
     <div
-      className="grid grid-cols-2 mt-auto pt-6 gap-8 print:break-inside-avoid"
+      className="grid grid-cols-2 mt-auto pt-6 gap-8 print:break-inside-avoid closing-block"
       style={{ breakInside: "avoid", pageBreakInside: "avoid" }}
     >
       {/* ─ COLONNE GAUCHE : BANQUE & SIGNATURE ─ */}
