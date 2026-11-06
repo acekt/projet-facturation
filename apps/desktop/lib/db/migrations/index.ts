@@ -8,6 +8,10 @@ import { migration0003 } from './0003_backfill_and_sync_schema';
 import { migration0004 } from './0004_stock_management';
 import { migration0005 } from './0005_account_ledger';
 import { migration0006 } from './0006_item_service_link';
+import { migration0007 } from './0007_selective_taxes_and_cleanup';
+import { migration0008 } from './0008_smtp_settings';
+import { migration0009 } from './0009_ux_stock_audit_ledger_excellence';
+import { migration0010 } from './0010_high_load_indexes';
 
 export const ALL_MIGRATIONS: Migration[] = [
   migration0001,
@@ -16,6 +20,10 @@ export const ALL_MIGRATIONS: Migration[] = [
   migration0004,
   migration0005,
   migration0006,
+  migration0007,
+  migration0008,
+  migration0009,
+  migration0010,
 ];
 
 /**

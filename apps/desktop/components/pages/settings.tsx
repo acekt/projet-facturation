@@ -3,6 +3,7 @@
 import * as React from "react"
 import { Save, ShieldAlert } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
+import { PageHeader } from "@/components/features/common/PageHeader"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs"
 import { Alert, AlertDescription } from "@workspace/ui/components/alert"
 import { useStore } from "@/lib/store"
@@ -39,6 +40,11 @@ export function SettingsPage() {
       cssRate: settings.cssRate ?? 1,
       tpsRate: settings.tpsRate ?? 9.5,
       sessionTimeout: settings.sessionTimeout ?? 60,
+      smtpHost: settings.smtpHost ?? "",
+      smtpPort: settings.smtpPort ?? 587,
+      smtpUser: settings.smtpUser ?? "",
+      smtpPass: settings.smtpPass ?? "",
+      smtpSecure: Boolean(settings.smtpSecure),
     })
     setErrors({})
   }, [settings])
@@ -107,102 +113,108 @@ export function SettingsPage() {
   const hasSecurityErrors = !!errors.sessionTimeout
 
   return (
-    <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6 max-w-4xl">
-      {!isAdmin && (
-        <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6">
-          <ShieldAlert className="h-4 w-4" />
-          <AlertDescription className="font-medium">
-            Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
-          </AlertDescription>
-        </Alert>
-      )}
+    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        {/* En-tête fixe en haut */}
+        <div className="shrink-0 pb-4 border-b border-border space-y-4">
+          {!isAdmin && (
+            <Alert variant="default" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50">
+              <ShieldAlert className="h-4 w-4" />
+              <AlertDescription className="font-medium">
+                Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
+              </AlertDescription>
+            </Alert>
+          )}
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground tracking-tight">Paramètres</h1>
-          <p className="text-muted-foreground mt-1">Configurez votre entreprise et vos préférences de facturation</p>
+          <PageHeader
+            title="Paramètres"
+            description="Configurez votre entreprise et vos préférences de facturation"
+            actions={
+              isAdmin ? (
+                <Button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="gap-2 h-10 px-5 bg-primary hover:bg-primary-hover text-white shadow-sm cursor-pointer"
+                >
+                  <Save className="w-4 h-4" />
+                  {isSaving ? "Enregistrement..." : "Enregistrer (Ctrl+S)"}
+                </Button>
+              ) : (
+                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50">
+                  <ShieldAlert className="w-4 h-4" />
+                  <span className="text-xs font-medium">Lecture seule (Opérateur)</span>
+                </div>
+              )
+            }
+          />
+
+          <TabsList className="bg-secondary p-1 rounded-xl flex-wrap">
+            <TabsTrigger value="company" className="rounded-lg px-6 relative cursor-pointer">
+              Entreprise
+              {hasCompanyErrors && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />}
+            </TabsTrigger>
+            <TabsTrigger value="billing" className="rounded-lg px-6 relative cursor-pointer">
+              Facturation
+              {hasBillingErrors && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />}
+            </TabsTrigger>
+            <TabsTrigger value="bank" className="rounded-lg px-6 relative cursor-pointer">
+              Banque
+              {hasBankErrors && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />}
+            </TabsTrigger>
+            <TabsTrigger value="security" className="rounded-lg px-6 relative cursor-pointer">
+              Sécurité
+              {hasSecurityErrors && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />}
+            </TabsTrigger>
+            <TabsTrigger value="system" className="rounded-lg px-6 relative cursor-pointer">
+              Mises à jour
+            </TabsTrigger>
+          </TabsList>
         </div>
-        {isAdmin ? (
-          <Button
-            onClick={handleSave}
-            disabled={isSaving}
-            className="gap-2 h-11 px-6 bg-primary hover:bg-primary-hover text-white shadow-sm cursor-pointer"
-          >
-            <Save className="w-4 h-4" />
-            {isSaving ? "Enregistrement..." : "Enregistrer (Ctrl+S)"}
-          </Button>
-        ) : (
-          <div className="flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50">
-            <ShieldAlert className="w-4 h-4" />
-            <span className="text-sm font-medium">Lecture seule (Opérateur)</span>
-          </div>
-        )}
-      </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="bg-secondary p-1 rounded-xl mb-6 flex-wrap">
-          <TabsTrigger value="company" className="rounded-lg px-6 relative cursor-pointer">
-            Entreprise
-            {hasCompanyErrors && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />}
-          </TabsTrigger>
-          <TabsTrigger value="billing" className="rounded-lg px-6 relative cursor-pointer">
-            Facturation
-            {hasBillingErrors && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />}
-          </TabsTrigger>
-          <TabsTrigger value="bank" className="rounded-lg px-6 relative cursor-pointer">
-            Banque
-            {hasBankErrors && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />}
-          </TabsTrigger>
-          <TabsTrigger value="security" className="rounded-lg px-6 relative cursor-pointer">
-            Sécurité
-            {hasSecurityErrors && <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-destructive animate-pulse" />}
-          </TabsTrigger>
-          <TabsTrigger value="system" className="rounded-lg px-6 relative cursor-pointer">
-            Mises à jour
-          </TabsTrigger>
-        </TabsList>
+        {/* Zone de contenu scrollable sur toute la largeur */}
+        <div className="flex-1 overflow-y-auto min-h-0 pt-6 pr-2 pb-6">
+          <TabsContent value="company" className="mt-0 outline-none">
+            <CompanySettingsTab
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+              setErrors={setErrors}
+              isAdmin={isAdmin}
+            />
+          </TabsContent>
 
-        <TabsContent value="company" className="mt-0">
-          <CompanySettingsTab
-            formData={formData}
-            setFormData={setFormData}
-            errors={errors}
-            setErrors={setErrors}
-            isAdmin={isAdmin}
-          />
-        </TabsContent>
+          <TabsContent value="billing" className="mt-0 outline-none">
+            <BillingSettingsTab
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+              setErrors={setErrors}
+              isAdmin={isAdmin}
+            />
+          </TabsContent>
 
-        <TabsContent value="billing" className="mt-0">
-          <BillingSettingsTab
-            formData={formData}
-            setFormData={setFormData}
-            errors={errors}
-            setErrors={setErrors}
-            isAdmin={isAdmin}
-          />
-        </TabsContent>
+          <TabsContent value="bank" className="mt-0 outline-none">
+            <BankSettingsTab
+              formData={formData}
+              setFormData={setFormData}
+              isAdmin={isAdmin}
+            />
+          </TabsContent>
 
-        <TabsContent value="bank" className="mt-0">
-          <BankSettingsTab
-            formData={formData}
-            setFormData={setFormData}
-            isAdmin={isAdmin}
-          />
-        </TabsContent>
+          <TabsContent value="security" className="mt-0 outline-none">
+            <SecuritySettingsTab
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+              setErrors={setErrors}
+              isAdmin={isAdmin}
+            />
+          </TabsContent>
 
-        <TabsContent value="security" className="mt-0">
-          <SecuritySettingsTab
-            formData={formData}
-            setFormData={setFormData}
-            errors={errors}
-            setErrors={setErrors}
-            isAdmin={isAdmin}
-          />
-        </TabsContent>
-
-        <TabsContent value="system" className="mt-0">
-          <UpdateManager />
-        </TabsContent>
+          <TabsContent value="system" className="mt-0 outline-none">
+            <UpdateManager />
+          </TabsContent>
+        </div>
       </Tabs>
     </div>
   )

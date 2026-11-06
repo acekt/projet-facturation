@@ -110,18 +110,18 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
 
       const clientsB = await getClients();
       expect(clientsB.success).toBe(true);
-      expect(clientsB.data.length).toBe(0);
+      expect(clientsB.data!.length).toBe(0);
 
       const servicesB = await getServices();
       expect(servicesB.success).toBe(true);
-      expect(servicesB.data.length).toBe(0);
+      expect(servicesB.data!.length).toBe(0);
 
       // Tentative d accès direct par ID sur les données du Tenant A
-      const getClientB = await getClientById(clientA.data.id);
+      const getClientB = await getClientById(clientA.data!.id);
       expect(getClientB.success).toBe(false);
       expect(getClientB.error).toBe('Client not found');
 
-      const getServiceB = await getServiceById(serviceA.data.id);
+      const getServiceB = await getServiceById(serviceA.data!.id);
       expect(getServiceB.success).toBe(false);
       expect(getServiceB.error).toBe('Service not found');
     });
@@ -145,19 +145,19 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
         tenantId: 'tenant-portgentil',
       });
 
-      const updateClientRes = await updateClient(clientA.data.id, { name: 'Client Piraté' });
+      const updateClientRes = await updateClient(clientA.data!.id, { name: 'Client Piraté' });
       expect(updateClientRes.success).toBe(false);
       expect(updateClientRes.error).toBe('Client not found');
 
-      const deleteClientRes = await deleteClient(clientA.data.id);
+      const deleteClientRes = await deleteClient(clientA.data!.id);
       expect(deleteClientRes.success).toBe(false);
       expect(deleteClientRes.error).toBe('Client not found');
 
-      const updateServiceRes = await updateService(serviceA.data.id, { name: 'Service Piraté', unitPrice: 10 });
+      const updateServiceRes = await updateService(serviceA.data!.id, { name: 'Service Piraté', unitPrice: 10 });
       expect(updateServiceRes.success).toBe(false);
       expect(updateServiceRes.error).toBe('Service not found');
 
-      const deleteServiceRes = await deleteService(serviceA.data.id);
+      const deleteServiceRes = await deleteService(serviceA.data!.id);
       expect(deleteServiceRes.success).toBe(false);
       expect(deleteServiceRes.error).toBe('Service not found');
     });
@@ -203,32 +203,32 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
 
       // Actions sur Client
       const c = await createClient({ name: 'Client Tracé', email: 'trace@audit.ga', phone: '+241 01 02 03 04' });
-      await updateClient(c.data.id, { name: 'Client Tracé Renommé' });
-      await deleteClient(c.data.id);
+      await updateClient(c.data!.id, { name: 'Client Tracé Renommé' });
+      await deleteClient(c.data!.id);
 
       // Actions sur Service
       const s = await createService({ name: 'Service Tracé', unitPrice: 15000, trackStock: 0, stockQuantity: 0, minStockAlert: 5, unit: 'Unité' });
-      await updateService(s.data.id, { name: 'Service Tracé Modifié', unitPrice: 20000, trackStock: 0, stockQuantity: 0, minStockAlert: 5, unit: 'Unité' });
-      await deleteService(s.data.id);
+      await updateService(s.data!.id, { name: 'Service Tracé Modifié', unitPrice: 20000, trackStock: 0, stockQuantity: 0, minStockAlert: 5, unit: 'Unité' });
+      await deleteService(s.data!.id);
 
       const logs = db.prepare(`
         SELECT action, entityType, entityId, userId, tenant_id 
         FROM audit_logs 
         WHERE tenant_id = 'tenant-audit-test' 
-        ORDER BY createdAt ASC
+        ORDER BY createdAt ASC, rowid ASC
       `).all() as Array<{ action: string; entityType: string; entityId: string; userId: string; tenant_id: string }>;
 
       expect(logs.length).toBe(6);
 
       // Logs Client
-      expect(logs[0]).toMatchObject({ action: 'CREATE', entityType: 'client', entityId: c.data.id, userId: 'user-admin-audit' });
-      expect(logs[1]).toMatchObject({ action: 'UPDATE', entityType: 'client', entityId: c.data.id, userId: 'user-admin-audit' });
-      expect(logs[2]).toMatchObject({ action: 'DELETE', entityType: 'client', entityId: c.data.id, userId: 'user-admin-audit' });
+      expect(logs[0]).toMatchObject({ action: 'CREATE', entityType: 'client', entityId: c.data!.id, userId: 'user-admin-audit' });
+      expect(logs[1]).toMatchObject({ action: 'UPDATE', entityType: 'client', entityId: c.data!.id, userId: 'user-admin-audit' });
+      expect(logs[2]).toMatchObject({ action: 'DELETE', entityType: 'client', entityId: c.data!.id, userId: 'user-admin-audit' });
 
       // Logs Service
-      expect(logs[3]).toMatchObject({ action: 'CREATE', entityType: 'service', entityId: s.data.id, userId: 'user-admin-audit' });
-      expect(logs[4]).toMatchObject({ action: 'UPDATE', entityType: 'service', entityId: s.data.id, userId: 'user-admin-audit' });
-      expect(logs[5]).toMatchObject({ action: 'DELETE', entityType: 'service', entityId: s.data.id, userId: 'user-admin-audit' });
+      expect(logs[3]).toMatchObject({ action: 'CREATE', entityType: 'service', entityId: s.data!.id, userId: 'user-admin-audit' });
+      expect(logs[4]).toMatchObject({ action: 'UPDATE', entityType: 'service', entityId: s.data!.id, userId: 'user-admin-audit' });
+      expect(logs[5]).toMatchObject({ action: 'DELETE', entityType: 'service', entityId: s.data!.id, userId: 'user-admin-audit' });
     });
   });
 
@@ -249,11 +249,11 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
       expect(c.success).toBe(true);
 
       // Opérateur peut mettre à jour
-      const u = await updateClient(c.data.id, { name: 'Client Opérateur Mis à Jour' });
+      const u = await updateClient(c.data!.id, { name: 'Client Opérateur Mis à Jour' });
       expect(u.success).toBe(true);
 
       // Opérateur NE PEUT PAS supprimer
-      const d = await deleteClient(c.data.id);
+      const d = await deleteClient(c.data!.id);
       expect(d.success).toBe(false);
       expect(d.error).toBe('Forbidden');
     });
@@ -268,7 +268,7 @@ describe('Module 1 Préventif — Indexation SQLite, Étanchéité Multi-Tenant,
       });
 
       const client = await createClient({ name: 'Débiteur SARL', phone: '+241 01 02 03 04' });
-      const clientId = client.data.id;
+      const clientId = client.data!.id;
 
       // Création d une facture impayée
       const invoiceId = crypto.randomUUID();

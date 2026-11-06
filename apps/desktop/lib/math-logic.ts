@@ -1,6 +1,7 @@
 // lib/math-logic.ts
 export {
   type ITaxRates,
+  type ITaxSelectionOptions,
   type IInvoiceItemInput,
   type IComputedTotals,
   type IRegimeTotals,
@@ -10,5 +11,6 @@ export {
   type ComputedTotals,
   computeItemTotal,
   computeTotals,
+  calculateGabonTaxes,
   computeTotalsByRegime,
 } from '@workspace/database/fiscal';

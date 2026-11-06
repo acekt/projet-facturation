@@ -4,6 +4,7 @@ import * as React from "react"
 import { ScrollText, ArrowUpRight, Inbox } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@workspace/ui/components/card"
 import { Button } from "@workspace/ui/components/button"
+import { formatAuditShortDateTimeFr } from "@/lib/utils/auditFormatter"
 
 interface TimelineItem {
   id: string
@@ -41,20 +42,25 @@ export function DashboardActivityTimeline({
       </CardHeader>
       <CardContent className="p-0">
         <div className="divide-y divide-border/50">
-          {(activityTimeline || []).slice(0, 5).map((log) => (
-            <div key={log.id} className="flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors">
-              <div className="flex items-center gap-4">
-                <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
-                  <ScrollText className="w-4 h-4 text-muted-foreground" />
+          {(activityTimeline || []).slice(0, 5).map((log) => {
+            const formattedTime = log.time && log.time.includes(" à ")
+              ? log.time
+              : formatAuditShortDateTimeFr(log.time)
+            return (
+              <div key={log.id} className="flex items-center justify-between p-4 hover:bg-secondary/20 transition-colors">
+                <div className="flex items-center gap-4">
+                  <div className="w-8 h-8 rounded-lg bg-secondary flex items-center justify-center">
+                    <ScrollText className="w-4 h-4 text-muted-foreground" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">{log.action}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">{log.client}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm font-medium">{log.action}</p>
-                  <p className="text-[10px] text-muted-foreground uppercase">{log.client}</p>
-                </div>
+                <span className="text-[10px] font-mono text-muted-foreground tabular-nums">{formattedTime}</span>
               </div>
-              <span className="text-[10px] font-mono text-muted-foreground tabular-nums">{log.time}</span>
-            </div>
-          ))}
+            )
+          })}
           {(!activityTimeline || activityTimeline.length === 0) && (
             <div className="flex flex-col items-center justify-center py-12 gap-3 text-center">
               <Inbox className="w-10 h-10 text-muted-foreground opacity-20" />

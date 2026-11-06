@@ -10,51 +10,31 @@ interface A4FooterProps {
 
 export function A4Footer({ settings: s, hash }: A4FooterProps) {
   return (
-    <div className="print:fixed print:bottom-0 print:left-0 print:w-full mt-auto pt-6 pb-2 w-full text-center bg-white text-[8px] text-gray-500">
+    <div className="mt-auto pt-5 pb-1 w-full text-center bg-white text-[8px] text-gray-500 print:break-inside-avoid">
       <div
         className="w-12 h-[2px] mx-auto mb-2"
         style={{ backgroundColor: "var(--color-brand-primary)" }}
       />
 
-      {/* Ligne 1 : Identité complète de l'entreprise */}
+      {/* Ligne unique : Identité juridique & fiscale de l'entreprise (sans redondance bancaire ni conditions) */}
       <p className="text-[8px] text-slate-400 text-center leading-tight">
         {[
           s.companyName,
           s.legalForm,
           s.nif ? `NIF : ${s.nif}` : null,
           s.rccm ? `RCCM : ${s.rccm}` : null,
+          s.address ? s.address : null,
           s.phone ? `Tél : ${s.phone}` : null,
           s.email ? s.email : null,
         ]
           .filter(Boolean)
-          .join(" | ")}
+          .join(" • ")}
       </p>
 
-      {/* Ligne 2 : Coordonnées bancaires */}
-      {(s.bankName || s.accountNumber) && (
-        <p className="text-[8px] text-slate-400 text-center leading-tight mt-0.5">
-          {[
-            s.bankName && `Banque : ${s.bankName}`,
-            s.accountNumber && `N° Compte : ${s.accountNumber}`,
-            s.iban && `IBAN : ${s.iban}`,
-          ]
-            .filter(Boolean)
-            .join(" | ")}
-        </p>
-      )}
-
-      {/* Ligne 3 : Mention légale libre */}
-      {s.mentionsLegales && (
-        <p className="text-[7.5px] text-slate-400 italic text-center leading-tight mt-0.5">
-          {s.mentionsLegales}
-        </p>
-      )}
-
-      {/* Ligne 4 : Référence de validation fiscale DGI */}
+      {/* Empreinte de validation fiscale DGI */}
       <p className="text-[7px] font-mono text-slate-300 text-center mt-1 tracking-wider">
         {hash}
       </p>
     </div>
   );
 }
-

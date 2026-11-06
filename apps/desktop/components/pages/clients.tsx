@@ -6,10 +6,10 @@ import { Button } from "@workspace/ui/components/button"
 import { useStore, type Client } from "@/lib/store"
 import { useShallow } from "zustand/react/shallow"
 import { toast } from "sonner"
-import { escapeCsvCell } from "@/lib/utils"
+import { DataExportModal } from "@/components/features/export/DataExportModal"
 import { Pagination } from "@workspace/ui/components/pagination-custom"
 import { createClient, updateClient as updateClientAction, deleteClient } from "@/app/actions/client.actions"
-import { PageHeader } from "@workspace/ui/components/page-header"
+import { PageHeader } from "@/components/features/common/PageHeader"
 import { SearchBar } from "@workspace/ui/components/search-bar"
 import { ClientFormDialog, type ClientFormData } from "./clients/ClientFormDialog"
 import { ClientDeleteDialog } from "./clients/ClientDeleteDialog"
@@ -17,6 +17,7 @@ import { ClientDetailsDialog } from "./clients/ClientDetailsDialog"
 import { ClientViews } from "./clients/ClientViews"
 import { CreationSuccessModal } from "@/components/features/common/CreationSuccessModal"
 import { useCommandFilter } from "@/lib/command-navigation"
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value"
 
 const INITIAL_CLIENT_FORM: ClientFormData = {
   name: "",
@@ -71,6 +72,7 @@ export function ClientsPage() {
   )
 
   const [searchQuery, setSearchQuery] = React.useState("")
+  const debouncedSearch = useDebouncedValue(searchQuery, 200)
   useCommandFilter("clients", setSearchQuery)
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 9 // Grid 3x3
@@ -80,8 +82,8 @@ export function ClientsPage() {
   const [editingClient, setEditingClient] = React.useState<Client | null>(null)
   const [selectedClient, setSelectedClient] = React.useState<Client | null>(null)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = React.useState(false)
+  const [isExportModalOpen, setIsExportModalOpen] = React.useState(false)
   const [successModalOpen, setSuccessModalOpen] = React.useState(false)
-  const [createdClient, setCreatedClient] = React.useState<Client | null>(null)
   const [clientToDeleteId, setClientToDeleteId] = React.useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
   const [successModalData, setSuccessModalData] = React.useState<import("@/lib/store").Client | null>(null)
@@ -90,18 +92,27 @@ export function ClientsPage() {
   const [editFormData, setEditFormData] = React.useState<ClientFormData>(INITIAL_CLIENT_FORM)
 
   const filteredClients = React.useMemo(() => {
+    const q = debouncedSearch.toLowerCase()
     return clients.filter(
       (client) =>
-        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (client.email || "").toLowerCase().includes(searchQuery.toLowerCase())
+        !client.deletedAt &&
+        (client.name.toLowerCase().includes(q) ||
+        (client.email || "").toLowerCase().includes(q))
     )
-  }, [clients, searchQuery])
+  }, [clients, debouncedSearch])
 
-  const totalPages = Math.ceil(filteredClients.length / itemsPerPage)
+  const totalPages = Math.ceil(filteredClients.length / itemsPerPage) || 1
+  const safePage = Math.min(currentPage, Math.max(1, totalPages))
   const paginatedClients = filteredClients.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    (safePage - 1) * itemsPerPage,
+    safePage * itemsPerPage
   )
+
+  React.useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages))
+    }
+  }, [currentPage, totalPages])
 
   React.useEffect(() => {
     setCurrentPage(1)
@@ -124,27 +135,6 @@ export function ClientsPage() {
   const handleOpenDetails = (client: Client) => {
     setSelectedClient(client)
     setIsDetailsDialogOpen(true)
-  }
-
-  const handleExportCsv = () => {
-    const headers = ["Nom", "Email", "Telephone", "Adresse", "NIF", "RCCM"]
-    const targetList = searchQuery.trim() ? filteredClients : clients
-    const rows = targetList.map((c) => [
-      escapeCsvCell(c.name),
-      escapeCsvCell(c.email),
-      escapeCsvCell(c.phone || ""),
-      escapeCsvCell(c.address || ""),
-      escapeCsvCell(c.nif || ""),
-      escapeCsvCell(c.rccm || ""),
-    ])
-    const csvContent = [headers.map(escapeCsvCell).join(","), ...rows.map((r) => r.join(","))].join("\n")
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    link.href = URL.createObjectURL(blob)
-    link.setAttribute("download", `clients_${new Date().toISOString().split("T")[0]}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
   }
 
   const handleAddClient = async (e: React.FormEvent) => {
@@ -178,6 +168,7 @@ export function ClientsPage() {
       setIsAddDialogOpen(false)
       setNewClient(INITIAL_CLIENT_FORM)
       setSuccessModalData(response.data)
+      setSuccessModalOpen(true)
     } catch (error) {
       const msg = error instanceof Error ? error.message : "Erreur inconnue"
       toast.error(`Échec de l'ajout : ${msg}`)
@@ -261,58 +252,67 @@ export function ClientsPage() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col overflow-hidden space-y-6">
-          <PageHeader
-            title="Clients"
-            description="Gérez votre base de clients et leurs coordonnées"
-            actions={
-              <>
-                <Button variant="outline" onClick={handleExportCsv} className="gap-2 hidden sm:flex">
-                  <DownloadCloud className="w-4 h-4" />
-                  Export CSV
-                </Button>
-                <Button
-                  variant="primary-shadow"
-                  className="gap-2"
-                  onClick={() => {
-                    setNewClient(INITIAL_CLIENT_FORM)
-                    setIsAddDialogOpen(true)
-                  }}
-                >
-                  <Plus className="w-4 h-4" />
-                  Nouveau client
-                </Button>
-              </>
-            }
-          />
+        <div className="flex flex-col h-full overflow-hidden">
+          <div className="shrink-0 pb-4 border-b border-border bg-background z-10 space-y-4">
+            <PageHeader
+              title="Clients"
+              description="Gérez votre base de clients et leurs coordonnées"
+              actions={
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsExportModalOpen(true)}
+                    className="gap-2 hidden sm:flex cursor-pointer"
+                  >
+                    <DownloadCloud className="w-4 h-4" /> Export Excel
+                  </Button>
+                  <Button
+                    variant="primary-shadow"
+                    className="gap-2 cursor-pointer"
+                    onClick={() => {
+                      setNewClient(INITIAL_CLIENT_FORM)
+                      setIsAddDialogOpen(true)
+                    }}
+                  >
+                    <Plus className="w-4 h-4" />
+                    Nouveau client
+                  </Button>
+                </>
+              }
+            />
 
-          <SearchBar
-            placeholder="Rechercher un client..."
-            value={searchQuery}
-            onChange={setSearchQuery}
-            viewFormatKey="clients"
-          />
+            <SearchBar
+              placeholder="Rechercher un client..."
+              value={searchQuery}
+              onChange={setSearchQuery}
+              viewFormatKey="clients"
+            />
+          </div>
 
-          <ClientViews
-            clients={paginatedClients}
-            viewFormat={viewFormat.clients || "table"}
-            invoices={invoices}
-            user={user}
-            searchQuery={searchQuery}
-            onViewDetails={handleOpenDetails}
-            onEdit={handleOpenEdit}
-            onDelete={(id) => setClientToDeleteId(id)}
-            onOpenAdd={() => {
-              setNewClient(INITIAL_CLIENT_FORM)
-              setIsAddDialogOpen(true)
-            }}
-          />
+          <div className="flex-1 overflow-y-auto min-h-0 pt-4 pr-1 space-y-4">
+            <ClientViews
+              clients={paginatedClients}
+              viewFormat={viewFormat.clients || "table"}
+              invoices={invoices}
+              user={user}
+              searchQuery={searchQuery}
+              onViewDetails={handleOpenDetails}
+              onEdit={handleOpenEdit}
+              onDelete={(id) => setClientToDeleteId(id)}
+              onOpenAdd={() => {
+                setNewClient(INITIAL_CLIENT_FORM)
+                setIsAddDialogOpen(true)
+              }}
+            />
+          </div>
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
+          <div className="shrink-0 pt-3 border-t border-border bg-background">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
 
           <ClientFormDialog
             mode="add"
@@ -351,6 +351,29 @@ export function ClientsPage() {
               setIsDetailsDialogOpen(false)
               handleOpenEdit(client)
             }}
+          />
+
+          <CreationSuccessModal
+            isOpen={successModalOpen}
+            onOpenChange={setSuccessModalOpen}
+            title="Client créé avec succès"
+            subtitle={`La fiche de ${successModalData?.name || "ce client"} a été enregistrée avec succès.`}
+            details={[
+              { label: "Nom du client", value: successModalData?.name || "—" },
+              { label: "Email", value: successModalData?.email || "—" },
+              { label: "Téléphone", value: successModalData?.phone || "—" },
+            ]}
+            onClose={() => {
+              setSuccessModalOpen(false)
+              setSuccessModalData(null)
+            }}
+          />
+
+          <DataExportModal
+            open={isExportModalOpen}
+            onOpenChange={setIsExportModalOpen}
+            defaultScope="clients"
+            initialEntity="clients"
           />
         </div>
       )}

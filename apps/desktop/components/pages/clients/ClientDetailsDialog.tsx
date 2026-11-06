@@ -14,6 +14,7 @@ import { Button } from "@workspace/ui/components/button";
 import { StatusBadge } from "@workspace/ui/components/status-badge";
 import { Mail, Phone, MapPin, Edit2, CreditCard } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
+import { Pagination } from "@workspace/ui/components/pagination-custom";
 import { getClientPaymentHistory } from "@/app/actions/payment.actions";
 import { toast } from "sonner";
 import { formatCurrency, getInitials, cn } from "@/lib/utils";
@@ -38,17 +39,20 @@ export function ClientDetailsDialog({
 }: ClientDetailsDialogProps) {
   const [paymentHistory, setPaymentHistory] = React.useState<any[]>([]);
   const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const itemsPerPage = 10;
 
   React.useEffect(() => {
     if (isOpen && client) {
+      setCurrentPage(1);
       setIsLoadingHistory(true);
       getClientPaymentHistory(client.id, client.name)
-        .then(res => {
+        .then((res) => {
           if (res.success && res.data) {
             setPaymentHistory(res.data);
           }
         })
-        .catch(err => {
+        .catch((err) => {
           console.error(err);
           toast.error("Erreur lors du chargement de l'historique");
         })
@@ -58,12 +62,19 @@ export function ClientDetailsDialog({
 
   if (!client) return null;
 
-  const clientPaidTotal = invoices
-    ?.filter((inv) => inv.clientId === client.id && inv.status === "PAID")
-    .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0) || 0;
+  const clientPaidTotal =
+    invoices
+      ?.filter((inv) => inv.clientId === client.id && inv.status === "PAID")
+      .reduce((sum, inv) => sum + (Number(inv.total) || 0), 0) || 0;
 
   const clientInvoicesCount =
     invoices?.filter((inv) => inv.clientId === client.id).length || 0;
+
+  const totalPages = Math.ceil(paymentHistory.length / itemsPerPage) || 1;
+  const paginatedPayments = paymentHistory.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage
+  );
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -108,132 +119,147 @@ export function ClientDetailsDialog({
 
         <Tabs defaultValue="info" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="info">Informations & Résumé</TabsTrigger>
+            <TabsTrigger value="info">Informations &amp; Résumé</TabsTrigger>
             <TabsTrigger value="payments">Historique des Paiements</TabsTrigger>
           </TabsList>
 
           <TabsContent value="info" className="space-y-4 py-2 text-sm mt-4">
-          {/* Coordonnées & Contact */}
-          <div className="p-3.5 rounded-lg bg-secondary/30 border border-border/60 space-y-2.5">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Coordonnées & Contact
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
-              <div className="flex items-center gap-2 text-foreground">
-                <Mail className="w-4 h-4 text-primary shrink-0" />
-                <span className="truncate">
-                  {client.email ? (
-                    <a href={`mailto:${client.email}`} className="text-primary hover:underline">
-                      {client.email}
-                    </a>
-                  ) : (
-                    <span className="text-muted-foreground/60 italic">Pas d'adresse email</span>
-                  )}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-foreground">
-                <Phone className="w-4 h-4 text-primary shrink-0" />
-                <span>
-                  {client.phone ? (
-                    <a href={`tel:${client.phone}`} className="hover:underline">
-                      {client.phone}
-                    </a>
-                  ) : (
-                    <span className="text-muted-foreground/60 italic">Non renseigné</span>
-                  )}
-                </span>
-              </div>
-              <div className="flex items-start gap-2 text-foreground sm:col-span-2">
-                <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                <span>
-                  {client.address || (
-                    <span className="text-muted-foreground/60 italic">
-                      Aucune adresse géographique enregistrée
-                    </span>
-                  )}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          {/* Mentions fiscales CEMAC */}
-          <div className="p-3.5 rounded-lg bg-secondary/20 border border-border/50 space-y-2">
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              Identifiants Fiscaux & Réglementaires (OHADA / Gabon)
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <span className="text-muted-foreground">NIF :</span>
-                <p className="font-mono font-medium text-foreground mt-0.5">
-                  {client.nif || <span className="text-muted-foreground/50 font-normal italic">—</span>}
-                </p>
-              </div>
-              <div>
-                <span className="text-muted-foreground">RCCM :</span>
-                <p className="font-mono font-medium text-foreground mt-0.5">
-                  {client.rccm || <span className="text-muted-foreground/50 font-normal italic">—</span>}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* Synthèse Facturation */}
-          <div className="p-3.5 rounded-lg bg-secondary/30 border border-border/50 flex items-center justify-between">
-            <div>
+            {/* Coordonnées & Contact */}
+            <div className="p-3.5 rounded-lg bg-secondary/30 border border-border/60 space-y-2.5">
               <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                Volume d'Affaires Encaissé
+                Coordonnées &amp; Contact
               </div>
-              <div className="text-lg font-bold text-foreground mt-0.5">
-                {formatCurrency(clientPaidTotal)}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs">
+                <div className="flex items-center gap-2 text-foreground">
+                  <Mail className="w-4 h-4 text-primary shrink-0" />
+                  <span className="truncate">
+                    {client.email ? (
+                      <a href={`mailto:${client.email}`} className="text-primary hover:underline">
+                        {client.email}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground/60 italic">Pas d&apos;adresse email</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-center gap-2 text-foreground">
+                  <Phone className="w-4 h-4 text-primary shrink-0" />
+                  <span>
+                    {client.phone ? (
+                      <a href={`tel:${client.phone}`} className="hover:underline">
+                        {client.phone}
+                      </a>
+                    ) : (
+                      <span className="text-muted-foreground/60 italic">Non renseigné</span>
+                    )}
+                  </span>
+                </div>
+                <div className="flex items-start gap-2 text-foreground sm:col-span-2">
+                  <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span>
+                    {client.address || (
+                      <span className="text-muted-foreground/60 italic">
+                        Aucune adresse géographique enregistrée
+                      </span>
+                    )}
+                  </span>
+                </div>
               </div>
             </div>
-            <div className="text-right text-xs text-muted-foreground">
-              <span className="font-medium text-foreground">{clientInvoicesCount}</span> facture(s) émise(s)
+
+            {/* Mentions fiscales CEMAC */}
+            <div className="p-3.5 rounded-lg bg-secondary/20 border border-border/50 space-y-2">
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                Identifiants Fiscaux &amp; Réglementaires (OHADA / Gabon)
+              </div>
+              <div className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-muted-foreground">NIF :</span>
+                  <p className="font-mono font-medium text-foreground mt-0.5">
+                    {client.nif || <span className="text-muted-foreground/50 font-normal italic">—</span>}
+                  </p>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">RCCM :</span>
+                  <p className="font-mono font-medium text-foreground mt-0.5">
+                    {client.rccm || <span className="text-muted-foreground/50 font-normal italic">—</span>}
+                  </p>
+                </div>
+              </div>
             </div>
-          </div>
+
+            {/* Synthèse Facturation */}
+            <div className="p-3.5 rounded-lg bg-secondary/30 border border-border/50 flex items-center justify-between">
+              <div>
+                <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                  Volume d&apos;Affaires Encaissé
+                </div>
+                <div className="text-lg font-bold text-foreground mt-0.5">
+                  {formatCurrency(clientPaidTotal)}
+                </div>
+              </div>
+              <div className="text-right text-xs text-muted-foreground">
+                <span className="font-medium text-foreground">{clientInvoicesCount}</span> facture(s) émise(s)
+              </div>
+            </div>
           </TabsContent>
-          <TabsContent value="payments" className="py-2 mt-4 max-h-[300px] overflow-y-auto">
+
+          <TabsContent value="payments" className="py-2 mt-4 max-h-[340px] overflow-y-auto">
             {isLoadingHistory ? (
               <div className="text-center text-sm text-muted-foreground py-8">Chargement...</div>
             ) : paymentHistory.length === 0 ? (
               <div className="text-center text-sm text-muted-foreground py-8">Aucun paiement enregistré</div>
             ) : (
               <div className="space-y-3">
-                {paymentHistory.map((p, i) => (
-                  <div key={i} className="flex justify-between items-center p-3 rounded-lg border border-border bg-secondary/20">
+                {paginatedPayments.map((p, i) => (
+                  <div
+                    key={p.id || i}
+                    className="flex justify-between items-center p-3 rounded-lg border border-border bg-secondary/20"
+                  >
                     <div>
-                      <div className="font-semibold text-foreground text-sm">{formatCurrency(p.amount)}</div>
+                      <div className="font-semibold text-foreground text-sm">
+                        {formatCurrency(p.amount)}
+                      </div>
                       <div className="text-xs text-muted-foreground flex items-center gap-1.5 mt-1">
                         <CreditCard className="w-3 h-3" /> {p.paymentMethod || "Non spécifié"}
                         <span className="mx-1">•</span>
                         {p.date}
-                        {p.invoiceNumber && <><span className="mx-1">•</span> Facture {p.invoiceNumber}</>}
+                        {p.invoiceNumber && (
+                          <>
+                            <span className="mx-1">•</span> Facture {p.invoiceNumber}
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
                 ))}
+                <Pagination
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={setCurrentPage}
+                />
               </div>
             )}
           </TabsContent>
         </Tabs>
 
         <div className="flex items-center justify-end gap-2 pt-2 border-t border-border/40">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Fermer
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Fermer
+          </Button>
+          {(user?.role === "admin" || user?.role === "user") && (
+            <Button
+              variant="default"
+              className="gap-1.5"
+              onClick={() => {
+                onOpenChange(false);
+                onEdit(client);
+              }}
+            >
+              <Edit2 className="w-4 h-4" /> Modifier ce client
             </Button>
-            {(user?.role === "admin" || user?.role === "user") && (
-              <Button
-                variant="default"
-                className="gap-1.5"
-                onClick={() => {
-                  onOpenChange(false);
-                  onEdit(client);
-                }}
-              >
-                <Edit2 className="w-4 h-4" /> Modifier ce client
-              </Button>
-            )}
-          </div>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

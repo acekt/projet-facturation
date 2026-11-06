@@ -50,12 +50,21 @@ export function InvoiceFilterBar({
           className={cn(
             "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
             statusFilter === "all"
-              ? "bg-secondary text-foreground shadow-xs"
-              : "text-muted-foreground hover:bg-secondary/60"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted/60 text-muted-foreground hover:bg-muted"
           )}
         >
           <span>Toutes</span>
-          <span className="text-[11px] tabular-nums font-normal opacity-80">({totalCount})</span>
+          <span
+            className={cn(
+              "px-1.5 py-0.5 rounded-full tabular-nums text-[10px] font-semibold",
+              statusFilter === "all"
+                ? "bg-primary-foreground/20 text-primary-foreground"
+                : "bg-background/80 text-foreground"
+            )}
+          >
+            {totalCount}
+          </span>
         </button>
 
         <button
@@ -64,12 +73,19 @@ export function InvoiceFilterBar({
           className={cn(
             "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
             statusFilter === "draft"
-              ? "bg-slate-800 text-white shadow-xs"
-              : "bg-slate-500/10 text-slate-700 dark:text-slate-300 hover:bg-slate-500/20"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted/60 text-muted-foreground hover:bg-muted"
           )}
         >
           <span>Brouillons</span>
-          <span className="px-1.5 py-0.5 bg-slate-500/20 rounded-full tabular-nums text-[10px] font-bold">
+          <span
+            className={cn(
+              "px-1.5 py-0.5 rounded-full tabular-nums text-[10px] font-semibold",
+              statusFilter === "draft"
+                ? "bg-primary-foreground/20 text-primary-foreground"
+                : "bg-background/80 text-foreground"
+            )}
+          >
             {draftCount}
           </span>
         </button>
@@ -80,12 +96,19 @@ export function InvoiceFilterBar({
           className={cn(
             "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer",
             statusFilter === "unpaid_any" || statusFilter === "UNPAID" || statusFilter === "PARTIALLY_PAID"
-              ? "bg-amber-500 text-white shadow-xs"
-              : "bg-amber-500/10 text-amber-700 dark:text-amber-400 hover:bg-amber-500/20"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted/60 text-muted-foreground hover:bg-muted"
           )}
         >
           <span>À encaisser</span>
-          <span className="px-1.5 py-0.5 bg-amber-600/20 rounded-full tabular-nums text-[10px] font-bold">
+          <span
+            className={cn(
+              "px-1.5 py-0.5 rounded-full tabular-nums text-[10px] font-semibold",
+              statusFilter === "unpaid_any" || statusFilter === "UNPAID" || statusFilter === "PARTIALLY_PAID"
+                ? "bg-primary-foreground/20 text-primary-foreground"
+                : "bg-background/80 text-foreground"
+            )}
+          >
             {unpaidCount}
           </span>
         </button>
@@ -96,12 +119,19 @@ export function InvoiceFilterBar({
           className={cn(
             "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
             statusFilter === "PAID"
-              ? "bg-emerald-600 text-white shadow-xs"
-              : "text-muted-foreground hover:bg-secondary/60"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted/60 text-muted-foreground hover:bg-muted"
           )}
         >
           <span>Payées</span>
-          <span className="px-1.5 py-0.5 bg-emerald-600/15 text-emerald-700 dark:text-emerald-400 rounded-full tabular-nums text-[10px] font-bold">
+          <span
+            className={cn(
+              "px-1.5 py-0.5 rounded-full tabular-nums text-[10px] font-semibold",
+              statusFilter === "PAID"
+                ? "bg-primary-foreground/20 text-primary-foreground"
+                : "bg-background/80 text-foreground"
+            )}
+          >
             {paidCount}
           </span>
         </button>
@@ -112,12 +142,19 @@ export function InvoiceFilterBar({
           className={cn(
             "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
             statusFilter === "overdue"
-              ? "bg-rose-600 text-white shadow-xs"
-              : "text-muted-foreground hover:bg-secondary/60"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted/60 text-muted-foreground hover:bg-muted"
           )}
         >
           <span>En retard</span>
-          <span className="px-1.5 py-0.5 bg-rose-600/15 text-rose-700 dark:text-rose-400 rounded-full tabular-nums text-[10px] font-bold">
+          <span
+            className={cn(
+              "px-1.5 py-0.5 rounded-full tabular-nums text-[10px] font-semibold",
+              statusFilter === "overdue"
+                ? "bg-primary-foreground/20 text-primary-foreground"
+                : "bg-background/80 text-foreground"
+            )}
+          >
             {overdueCount}
           </span>
         </button>
@@ -128,12 +165,19 @@ export function InvoiceFilterBar({
           className={cn(
             "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
             statusFilter === "cancelled"
-              ? "bg-slate-700 text-white shadow-xs"
-              : "text-muted-foreground hover:bg-secondary/60"
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "bg-muted/60 text-muted-foreground hover:bg-muted"
           )}
         >
           <span>Annulées</span>
-          <span className="px-1.5 py-0.5 bg-slate-500/15 text-slate-700 dark:text-slate-300 rounded-full tabular-nums text-[10px] font-bold">
+          <span
+            className={cn(
+              "px-1.5 py-0.5 rounded-full tabular-nums text-[10px] font-semibold",
+              statusFilter === "cancelled"
+                ? "bg-primary-foreground/20 text-primary-foreground"
+                : "bg-background/80 text-foreground"
+            )}
+          >
             {cancelledCount}
           </span>
         </button>

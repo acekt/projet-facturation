@@ -67,6 +67,7 @@ export const clientUpdateSchema = z.object({
 
 export const invoiceItemSchema = z.object({
   id: z.string().max(255).optional(), // Optional: generated server-side for new invoices
+  serviceId: z.string().max(255).optional().nullable(),
   description: z.string()
     .min(1, "La description est requise")
     .max(1000, "La description ne peut pas dépasser 1000 caractères"),
@@ -77,6 +78,7 @@ export const invoiceItemSchema = z.object({
 
 export const quoteItemSchema = z.object({
   id: z.string().max(255).optional(), // Optionnel : présent lors de la modification de devis existant
+  serviceId: z.string().max(255).optional().nullable(),
   description: z.string()
     .min(1, "La description est requise")
     .max(1000, "La description ne peut pas dépasser 1000 caractères"),
@@ -121,6 +123,9 @@ export const invoiceSchema = z.object({
     .max(255)
     .optional()
     .nullable(),
+  applyCss: z.boolean().optional(),
+  applyTps: z.boolean().optional(),
+  applyTva: z.boolean().optional(),
 });
 
 export const quoteSchema = z.object({
@@ -151,6 +156,9 @@ export const quoteSchema = z.object({
     z.literal(""),
     z.null(),
   ]).optional().nullable(),
+  applyCss: z.boolean().optional(),
+  applyTps: z.boolean().optional(),
+  applyTva: z.boolean().optional(),
 });
 
 // ============================================================================
@@ -198,6 +206,47 @@ export const settingsSchema = z.object({
     .max(2 * 1024 * 1024, "Le logo est trop volumineux (max 2 Mo encodé)")
     .nullable()
     .optional(),
+  smtpHost: z.string({ invalid_type_error: "Format invalide" })
+    .max(255, "L'hôte SMTP ne peut pas dépasser 255 caractères")
+    .nullable()
+    .optional(),
+  smtpPort: z.number({ invalid_type_error: "Le port SMTP doit être un nombre" })
+    .int("Le port SMTP doit être un entier")
+    .min(1, "Port SMTP invalide")
+    .max(65535, "Port SMTP invalide")
+    .nullable()
+    .optional(),
+  smtpUser: z.string({ invalid_type_error: "Format invalide" })
+    .max(255, "L'identifiant SMTP ne peut pas dépasser 255 caractères")
+    .nullable()
+    .optional(),
+  smtpPass: z.string({ invalid_type_error: "Format invalide" })
+    .max(500, "Le mot de passe SMTP ne peut pas dépasser 500 caractères")
+    .nullable()
+    .optional(),
+  smtpSecure: z.union([z.boolean(), z.number().int()])
+    .nullable()
+    .optional(),
+});
+
+export const sendDocumentEmailSchema = z.object({
+  to: z.string().email("Veuillez saisir une adresse email destinataire valide"),
+  cc: z.union([z.literal(""), z.string().email("Adresse email en copie (CC) invalide")]).optional().nullable(),
+  subject: z.string().min(1, "L'objet de l'email est requis").max(255),
+  textBody: z.string().min(1, "Le message est requis"),
+  htmlBody: z.string().optional().nullable(),
+  pdfBase64: z.string().optional().nullable(),
+  pdfFilename: z.string().optional().nullable(),
+  documentNumber: z.string().min(1),
+  documentType: z.string().optional().default("facture"),
+});
+
+export const smtpTestSchema = z.object({
+  smtpHost: z.string().min(1, "Veuillez renseigner l'hôte SMTP (ex: smtp.gmail.com)"),
+  smtpPort: z.number().int().min(1).max(65535).default(587),
+  smtpUser: z.string().min(1, "Veuillez renseigner l'identifiant SMTP"),
+  smtpPass: z.string().min(1, "Veuillez renseigner le mot de passe SMTP"),
+  smtpSecure: z.union([z.boolean(), z.number().int()]).optional().default(false),
 });
 
 // ============================================================================
@@ -221,6 +270,7 @@ export const serviceSchema = z.object({
   // XAF RULE: unit price in the service catalogue must be a non-negative integer.
   unitPrice: z.number().int("Le prix doit être un entier en XAF (pas de décimales)").min(0, "Le prix ne peut pas être négatif"),
   trackStock: z.number().int().optional().default(0),
+  stockItemName: z.string().max(255).optional().nullable(),
   stockQuantity: z.number().int().optional().default(0),
   minStockAlert: z.number().int().optional().default(5),
   unit: z.string().optional().nullable().default("Unité"),
@@ -240,6 +290,11 @@ export const serviceUpdateSchema = z.object({
     .optional(),
   // XAF RULE: unit price in the service catalogue must be a non-negative integer.
   unitPrice: z.number().int("Le prix doit être un entier en XAF (pas de décimales)").min(0, "Le prix ne peut pas être négatif"),
+  trackStock: z.number().int().optional(),
+  stockItemName: z.string().max(255).optional().nullable(),
+  stockQuantity: z.number().int().optional(),
+  minStockAlert: z.number().int().optional(),
+  unit: z.string().optional().nullable(),
 });
 
 // ============================================================================
@@ -386,6 +441,7 @@ export const creditNoteItemSchema = z.object({
   quantity: z.number().min(0.01, "La quantité doit être supérieure à 0"),
   // XAF RULE: unit prices in credit notes must be non-negative integers.
   unitPrice: z.number().int("Le prix unitaire doit être un entier (XAF, pas de décimales)").min(0, "Le prix unitaire ne peut pas être négatif"),
+  serviceId: z.string().optional().nullable(),
 });
 
 export const creditNoteCreateSchema = z.object({
@@ -396,6 +452,9 @@ export const creditNoteCreateSchema = z.object({
     .min(1, "La raison est requise")
     .max(1000, "La raison ne peut pas dépasser 1000 caractères"),
   items: z.array(creditNoteItemSchema).min(1, "Au moins un article est requis"),
+  applyCss: z.boolean().optional(),
+  applyTps: z.boolean().optional(),
+  applyTva: z.boolean().optional(),
 });
 
 // ============================================================================
@@ -486,4 +545,29 @@ export const setupSchema = z.object({
   ...companySetupSchema.shape,
   ...adminSetupSchema.shape,
 });
+
+
+// --- Grand livre ---
+export const ledgerEntryCreateSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Format de date invalide (YYYY-MM-DD)"),
+  type: z.enum(["IN", "OUT"], { required_error: "Le type (IN/OUT) est requis" }),
+  category: z.string().min(1, "La catégorie est requise").max(255),
+  description: z.string().min(1, "La description est requise").max(1000),
+  amount: z.number().int("Le montant doit être un entier en XAF (pas de décimales)").min(0, "Le montant doit être supérieur ou égal à 0"),
+  paymentMethod: z.string().min(1, "La méthode de paiement est requise").max(255),
+  reference: z.string().max(255).optional().nullable(),
+  counterparty: z.string().max(255).optional().nullable(),
+  proofImage: z.string().max(5 * 1024 * 1024, "L'image justificative est trop volumineuse (max 5 Mo)").optional().nullable(),
+});
+
+export type LedgerEntryCreateRequest = z.infer<typeof ledgerEntryCreateSchema>;
+
+// --- Options déroulantes éditables ---
+export const customSelectOptionSchema = z.object({
+  groupKey: z.string().min(1).max(100),
+  value: z.string().min(1, "La valeur est requise").max(255),
+  label: z.string().min(1, "Le libellé est requis").max(255).optional(),
+});
+
+
 

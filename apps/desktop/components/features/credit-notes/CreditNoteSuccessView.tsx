@@ -35,7 +35,7 @@ export function CreditNoteSuccessView({
           Note d&apos;Avoir émise avec succès
         </h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Le remboursement a été enregistré et le solde de la facture a été mis à jour.
+          L&apos;avoir a été enregistré et le solde de la facture a été mis à jour.
         </p>
       </div>
 
@@ -53,7 +53,7 @@ export function CreditNoteSuccessView({
           <span className="font-mono font-semibold text-foreground">{invoiceNumber}</span>
         </div>
         <div className="flex justify-between items-center pt-1 border-t border-border/40">
-          <span className="text-muted-foreground font-medium">Montant remboursé / crédité</span>
+          <span className="text-muted-foreground font-medium">Montant de l&apos;Avoir (TTC)</span>
           <span className="font-bold text-orange-600 text-sm tabular-nums">
             {formatCurrency(amount)}
           </span>

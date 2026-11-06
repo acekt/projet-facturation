@@ -4,6 +4,8 @@ import { getNextNumber } from '@/lib/api/numbering';
 import { DbQuote, DbQuoteItem, DbSettings, QuoteConvertResponse, QuoteDuplicateResponse } from '@/lib/types/api';
 import { ROLES, QUOTE_STATUS, INVOICE_STATUS } from '@/lib/constants';
 import { buildTenantFilter, resolveActiveTenantId } from '@/lib/api/tenant';
+import { StockRepository } from '@/lib/repositories/StockRepository';
+import { resolveValidLocalUserId, resolveValidServiceId } from './InvoiceService';
 
 export class QuoteServiceError extends Error {
   constructor(public message: string, public status: number) {
@@ -19,19 +21,19 @@ const insertInvoiceStmt = db.prepare(`
 `);
 
 const insertItemStmt = db.prepare(`
-  INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total, tenant_id)
-  VALUES (?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO invoice_items (id, invoiceId, serviceId, description, quantity, unitPrice, total, tenant_id)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 const updateQuoteStatusStmt = db.prepare(`UPDATE quotes SET status = ? WHERE id = ?`);
 
 const insertAuditLogStmt = db.prepare(`
-  INSERT INTO audit_logs (id, userId, userName, action, entityType, entityId, details, tenant_id)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO audit_logs (id, userId, userName, action, entityType, entityId, details, createdAt, tenant_id)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 const selectQuoteItemsForDuplicateStmt = db.prepare(
-  'SELECT * FROM quote_items WHERE quoteId = ?'
+  "SELECT * FROM quote_items WHERE quoteId = ? AND (deletedAt IS NULL OR deletedAt = '')"
 );
 
 const insertDuplicateQuoteStmt = db.prepare(`
@@ -83,7 +85,7 @@ export const QuoteService = {
       throw new QuoteServiceError('Impossible de convertir : ce devis a expiré.', 400);
     }
 
-    const items = db.prepare('SELECT * FROM quote_items WHERE quoteId = ?').all(quoteId) as DbQuoteItem[];
+    const items = db.prepare("SELECT * FROM quote_items WHERE quoteId = ? AND (deletedAt IS NULL OR deletedAt = '')").all(quoteId) as DbQuoteItem[];
 
     const settings = db.prepare('SELECT invoicePrefix, companyCode FROM settings WHERE id = 1').get() as DbSettings | undefined;
     if (!settings) {
@@ -128,26 +130,43 @@ export const QuoteService = {
         INVOICE_STATUS.UNPAID,
         quote.notes,
         quote.subject ?? null,
-        userId,
+        resolveValidLocalUserId(db, userId) || userId,
         targetTenantId
       );
 
+      const resolvedUserId = resolveValidLocalUserId(db, userId) || userId;
+
       for (const item of items) {
+        const svcId = resolveValidServiceId(db, item.serviceId);
         insertItemStmt.run(
           crypto.randomUUID(),
           invoiceId,
+          svcId,
           item.description,
           item.quantity,
           Math.round(item.unitPrice),
           Math.round(item.total),
           targetTenantId
         );
+
+        if (svcId) {
+          try {
+            StockRepository.recordStockMovement({
+              serviceId: svcId,
+              type: 'INVOICE_DEDUCTION',
+              quantity: item.quantity,
+              referenceDoc: number,
+            }, resolvedUserId, targetTenantId);
+          } catch (e) {
+            // Ignore if service does not track stock
+          }
+        }
       }
 
       updateQuoteStatusStmt.run(QUOTE_STATUS.CONVERTI, quoteId);
 
       const logDetails = `Devis converti en facture: ${number}`;
-      insertAuditLogStmt.run(crypto.randomUUID(), userId, userName || userId, 'CREATE', 'invoice', invoiceId, logDetails, targetTenantId);
+      insertAuditLogStmt.run(crypto.randomUUID(), userId, userName || userId, 'CREATE', 'invoice', invoiceId, logDetails, new Date().toISOString(), targetTenantId);
 
       return {
         invoiceId,

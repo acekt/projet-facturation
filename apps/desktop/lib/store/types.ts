@@ -25,6 +25,7 @@ export type Settings = SettingsResponse;
 
 export interface DraftItem {
   id?: string;
+  serviceId?: string | null;
   description: string;
   quantity: number;
   unitPrice: number;

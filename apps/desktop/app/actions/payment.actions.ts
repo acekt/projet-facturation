@@ -10,6 +10,7 @@ import { updateInvoiceStatus } from '@/lib/api/invoice-logic';
 import type { PaymentCreateRequest, PaymentResponse, DbPayment } from '@/lib/types/api';
 import type { ActionResponse } from './client.actions';
 import { LedgerRepository } from '@/lib/repositories/LedgerRepository';
+import { PaymentRepository, ClientPaymentHistoryRow, InvoicePaymentHistoryRow } from '@/lib/repositories/PaymentRepository';
 
 export async function getPayments(): Promise<ActionResponse<PaymentResponse[]>> {
   try {
@@ -47,7 +48,7 @@ export async function getPayments(): Promise<ActionResponse<PaymentResponse[]>> 
   }
 }
 
-export async function createPayment(data: PaymentCreateRequest): Promise<ActionResponse<{ id: string, newStatus: string }>> {
+export async function createPayment(data: PaymentCreateRequest): Promise<ActionResponse<{ id: string, newStatus: string, reference?: string }>> {
   try {
     const session = await getSession();
     if (!session || !session.userId) return { success: false, error: 'Unauthorized' };
@@ -83,16 +84,22 @@ export async function createPayment(data: PaymentCreateRequest): Promise<ActionR
     const remaining = totalTTC - totalPaid;
 
     if (Math.round(amount) > remaining) {
-      return { success: false, error: `Le montant du paiement (${amount} XAF) excède le reste à charge de la facture (${remaining} XAF)` };
+      const formattedAmt = new Intl.NumberFormat('fr-FR').format(Math.round(amount));
+      const formattedRem = new Intl.NumberFormat('fr-FR').format(Math.round(remaining));
+      return { success: false, error: `Le montant du paiement (${formattedAmt} FCFA) excède le reste à charge de la facture (${formattedRem} FCFA)` };
     }
 
     const id = crypto.randomUUID();
+    const resolvedReference =
+      reference && reference.trim() !== ''
+        ? reference.trim()
+        : `REG-${(date || new Date().toISOString().slice(0, 10)).slice(0, 10).replace(/-/g, '')}-${String(Math.floor(1000 + Math.random() * 9000))}`;
 
     const insertPayment = db.transaction(() => {
       db.prepare(`
         INSERT INTO payments (id, invoiceId, amount, paymentMethod, date, reference, created_by, tenant_id)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `).run(id, invoiceId, Math.round(amount), paymentMethod, date, reference || null, session.userId, activeTenantId);
+      `).run(id, invoiceId, Math.round(amount), paymentMethod, date, resolvedReference, session.userId, activeTenantId);
 
       const newStatus = updateInvoiceStatus(invoiceId, activeTenantId);
 
@@ -105,15 +112,16 @@ export async function createPayment(data: PaymentCreateRequest): Promise<ActionR
         description: `Paiement reçu pour facture ${invoice.number || invoiceId}`,
         amount: Math.round(amount),
         paymentMethod,
-        reference: reference || null,
+        reference: resolvedReference,
         counterparty: invoice.clientName || 'Client inconnu',
         linkedInvoiceId: invoiceId,
         linkedPaymentId: id,
         created_by: session.userId,
       });
 
-      logAudit('CREATE', 'payment', id, `Paiement enregistré: ${Math.round(amount)} XAF sur facture ${invoice.number || invoiceId}`, session.userId, session.name || session.username || null, activeTenantId);
-      return { id, newStatus };
+      const formattedAmt = new Intl.NumberFormat('fr-FR').format(Math.round(amount));
+      logAudit('CREATE', 'payment', id, `Paiement enregistré: ${formattedAmt} FCFA sur facture ${invoice.number || invoiceId} (${resolvedReference})`, session.userId, session.name || session.username || null, activeTenantId);
+      return { id, newStatus, reference: resolvedReference };
     });
 
     const result = insertPayment();
@@ -155,8 +163,6 @@ export async function deletePayment(id: string): Promise<ActionResponse<{ succes
     return { success: false, error: 'Failed to delete payment' };
   }
 }
-
-import { PaymentRepository, ClientPaymentHistoryRow, InvoicePaymentHistoryRow } from '@/lib/repositories/PaymentRepository';
 
 export async function getClientPaymentHistory(clientId: string, clientName?: string): Promise<ActionResponse<ClientPaymentHistoryRow[]>> {
   try {

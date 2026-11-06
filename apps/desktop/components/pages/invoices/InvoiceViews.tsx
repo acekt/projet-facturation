@@ -6,14 +6,16 @@ import {
   FileText,
   MoreVertical,
   Download,
-  Printer,
   Trash2,
   CheckCircle2,
   Edit2,
   Eye,
-  RefreshCcw,
+  Info,
   Calendar,
   Send,
+  CreditCard,
+  RotateCcw,
+  Ban,
 } from "lucide-react";
 import { ShareDocumentModal } from "@/components/features/share/ShareDocumentModal";
 import { Card, CardContent } from "@workspace/ui/components/card";
@@ -22,6 +24,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import { StatusBadge } from "@workspace/ui/components/status-badge";
@@ -47,6 +50,7 @@ interface InvoiceViewsProps {
   user: User | null;
   searchQuery: string;
   isDownloading: string | null;
+  onViewDetails: (invoice: Invoice) => void;
   onPreview: (invoice: Invoice) => void;
   onDownloadPDF: (invoice: Invoice) => void;
   onEdit: (id: string) => void;
@@ -62,7 +66,7 @@ export function formatClientName(name: string) {
   if (name.length <= 6 && !name.includes(" ")) {
     return name.toUpperCase();
   }
-  return name.replace(/\b\w/g, (char) => char.toUpperCase());
+  return name.replace(/(?:^|[\s'-])\p{L}/gu, (char) => char.toUpperCase());
 }
 
 export function getPaymentStatus(invoice: Invoice, creditNotes?: CreditNote[]) {
@@ -86,16 +90,25 @@ export function getPaymentStatus(invoice: Invoice, creditNotes?: CreditNote[]) {
 }
 
 export function getPaymentBadge(invoice: Invoice, creditNotes?: CreditNote[]) {
+  const statusStr = String(invoice.status || "").toLowerCase();
+  const isCancelled =
+    invoice.status === INVOICE_STATUS.CANCELLED ||
+    statusStr === "cancelled" ||
+    statusStr === "annulee" ||
+    statusStr === "annulée";
+
   const ps = getPaymentStatus(invoice, creditNotes);
+
+  if (isCancelled || ps.settledByCreditNote) {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20">
+        <span className="w-1.5 h-1.5 rounded-full bg-rose-500" />
+        Annulée (Avoir)
+      </span>
+    );
+  }
+
   if (ps.status === "paid") {
-    if (ps.settledByCreditNote) {
-      return (
-        <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
-          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-          Soldé (Avoir)
-        </span>
-      );
-    }
     return <StatusBadge variant="invoice-paid" amount={ps.paid + ps.credited} />;
   }
   if (ps.status === "partial") {
@@ -104,7 +117,7 @@ export function getPaymentBadge(invoice: Invoice, creditNotes?: CreditNote[]) {
   return <StatusBadge variant="invoice-unpaid" remainingAmount={ps.remaining} />;
 }
 
-export function isInvoiceProtected(inv: Invoice, creditNotes?: CreditNote[]) {
+export function isInvoiceProtected(inv: Invoice, creditNotes?: CreditNote[]): boolean {
   const totalPaid = inv.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
   const totalCredited =
     creditNotes?.filter((cn) => cn.invoiceId === inv.id && !cn.deletedAt).reduce((sum, cn) => sum + cn.total, 0) || 0;
@@ -117,6 +130,7 @@ const Progress = ({ value, className }: { value: number; className?: string }) =
     <div className="h-full bg-primary transition-all" style={{ width: `${value}%` }} />
   </div>
 );
+
 export function InvoiceViews({
   invoices,
   creditNotes,
@@ -124,6 +138,7 @@ export function InvoiceViews({
   user,
   searchQuery,
   isDownloading,
+  onViewDetails,
   onPreview,
   onDownloadPDF,
   onEdit,
@@ -133,6 +148,7 @@ export function InvoiceViews({
   onDelete,
   onCreateInvoice,
 }: InvoiceViewsProps) {
+  const [sharingInvoice, setSharingInvoice] = React.useState<Invoice | null>(null);
   const isOperatorOrAdmin = user?.role === "user" || user?.role === "admin";
   const isAdmin = user?.role === "admin";
   const scrollContainerRef = React.useRef<HTMLDivElement>(null);
@@ -147,54 +163,85 @@ export function InvoiceViews({
   const renderActionsMenu = (invoice: Invoice) => {
     const isProtected = isInvoiceProtected(invoice, creditNotes);
     const isDraft = invoice.status === "draft" || (invoice.status as string) === "BROUILLON";
+    const canEditDraft = canModify(invoice) && isDraft;
+    const canPay = invoice.status !== "PAID" && invoice.status !== INVOICE_STATUS.CANCELLED && canModify(invoice);
+    const canCredit = canModify(invoice) && invoice.status !== INVOICE_STATUS.CANCELLED && Boolean(onEmitCreditNote);
+    const hasBusinessActions = canEditDraft || canPay || canCredit;
+
+    const canCancelInvoice = canModify(invoice) && invoice.status !== INVOICE_STATUS.CANCELLED && !isProtected;
+    const canDeleteInvoice = canModify(invoice) && !isProtected;
+    const hasRiskActions = canCancelInvoice || canDeleteInvoice;
 
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer">
             <MoreVertical className="w-4 h-4" />
+            <span className="sr-only">Actions de la facture</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-52 bg-card border-border">
-          <DropdownMenuItem className="gap-2" onClick={() => onPreview(invoice)}>
-            <Eye className="w-4 h-4" /> Aperçu
+        <DropdownMenuContent align="end" className="w-56 bg-card border-border shadow-lg p-1.5 rounded-xl">
+          {/* Groupe 1 : Consultation & Diffusion */}
+          <DropdownMenuItem className="gap-2.5 cursor-pointer font-medium" onClick={() => setTimeout(() => onViewDetails(invoice), 0)}>
+            <Info className="w-4 h-4 text-primary" /> Voir les détails
           </DropdownMenuItem>
-          <DropdownMenuItem className="gap-2" onClick={() => onPreview(invoice)}>
-            <Printer className="w-4 h-4" /> Imprimer
+          <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => setTimeout(() => onPreview(invoice), 0)}>
+            <Eye className="w-4 h-4 text-muted-foreground" /> Aperçu du document (A4)
           </DropdownMenuItem>
           <DropdownMenuItem
-            className="gap-2"
+            className="gap-2.5 cursor-pointer"
             onClick={() => onDownloadPDF(invoice)}
             disabled={isDownloading === invoice.id}
           >
-            <Download className="w-4 h-4" /> {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
+            <Download className="w-4 h-4 text-muted-foreground" />
+            {isDownloading === invoice.id ? "Génération..." : "Télécharger PDF"}
           </DropdownMenuItem>
-          {canModify(invoice) && isDraft && (
-            <DropdownMenuItem className="gap-2" onClick={() => onEdit(invoice.id)}>
-              <Edit2 className="w-4 h-4" /> Modifier
-            </DropdownMenuItem>
-          )}
-          {invoice.status !== "PAID" && invoice.status !== INVOICE_STATUS.CANCELLED && canModify(invoice) && (
-            <DropdownMenuItem className="gap-2 text-accent" onClick={() => onRecordPayment(invoice)}>
-              <CheckCircle2 className="w-4 h-4" /> Enregistrer un règlement
-            </DropdownMenuItem>
-          )}
-          {canModify(invoice) && invoice.status !== INVOICE_STATUS.CANCELLED && onEmitCreditNote && (
-            <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => onEmitCreditNote(invoice)}>
-              <RefreshCcw className="w-4 h-4" /> Émettre un avoir / remboursement
-            </DropdownMenuItem>
-          )}
-          {canModify(invoice) && invoice.status !== INVOICE_STATUS.CANCELLED && !isProtected && (
-            <DropdownMenuItem className="gap-2 text-orange-600" onClick={() => onCancel(invoice)}>
-              <RefreshCcw className="w-4 h-4" /> Annuler
-            </DropdownMenuItem>
-          )}
-          {canModify(invoice) && !isProtected && (
+          <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => setTimeout(() => setSharingInvoice(invoice), 0)}>
+            <Send className="w-4 h-4 text-primary" /> Partager (WhatsApp / Email)
+          </DropdownMenuItem>
+
+          {/* Groupe 2 : Gestion Métier & Règlements */}
+          {hasBusinessActions && (
             <>
-              <div className="h-px bg-border my-1" />
-              <DropdownMenuItem className="gap-2 text-destructive" onClick={() => onDelete(invoice.id)}>
-                <Trash2 className="w-4 h-4" /> Supprimer
-              </DropdownMenuItem>
+              <DropdownMenuSeparator className="my-1 bg-border/60" />
+              {canEditDraft && (
+                <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => onEdit(invoice.id)}>
+                  <Edit2 className="w-4 h-4 text-muted-foreground" /> Modifier la facture
+                </DropdownMenuItem>
+              )}
+              {canPay && (
+                <DropdownMenuItem className="gap-2.5 cursor-pointer font-medium" onClick={() => setTimeout(() => onRecordPayment(invoice), 0)}>
+                  <CreditCard className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Enregistrer un règlement
+                </DropdownMenuItem>
+              )}
+              {canCredit && onEmitCreditNote && (
+                <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => setTimeout(() => onEmitCreditNote(invoice), 0)}>
+                  <RotateCcw className="w-4 h-4 text-muted-foreground" /> Émettre un avoir
+                </DropdownMenuItem>
+              )}
+            </>
+          )}
+
+          {/* Groupe 3 : Actions Sensibles & Destructives */}
+          {hasRiskActions && (
+            <>
+              <DropdownMenuSeparator className="my-1 bg-border/60" />
+              {canCancelInvoice && (
+                <DropdownMenuItem
+                  className="gap-2.5 cursor-pointer text-amber-700 dark:text-amber-400 focus:text-amber-700 dark:focus:text-amber-300"
+                  onClick={() => setTimeout(() => onCancel(invoice), 0)}
+                >
+                  <Ban className="w-4 h-4 text-amber-600 dark:text-amber-400" /> Annuler la facture
+                </DropdownMenuItem>
+              )}
+              {canDeleteInvoice && (
+                <DropdownMenuItem
+                  className="gap-2.5 cursor-pointer text-destructive focus:text-destructive"
+                  onClick={() => setTimeout(() => onDelete(invoice.id), 0)}
+                >
+                  <Trash2 className="w-4 h-4 text-destructive" /> Supprimer
+                </DropdownMenuItem>
+              )}
             </>
           )}
         </DropdownMenuContent>
@@ -205,6 +252,7 @@ export function InvoiceViews({
   // ── 1. VUE TABLEAU ──────────────────────────────────────────────────────────
   if (!viewFormat || viewFormat === "table") {
     return (
+      <>
       <DataTable>
         <DataTableHead>
           <DataTableRow>
@@ -259,13 +307,23 @@ export function InvoiceViews({
           )}
         </DataTableBody>
       </DataTable>
+      {sharingInvoice && (
+        <ShareDocumentModal
+          open={!!sharingInvoice}
+          onOpenChange={(open) => !open && setSharingInvoice(null)}
+          document={sharingInvoice}
+          type="invoice"
+        />
+      )}
+      </>
     );
   }
 
   // ── 2. VUE HORIZONTALE ──────────────────────────────────────────────────────
   if (viewFormat === "horizontal") {
     return (
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 pr-1">
+      <>
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 pr-1 pb-6">
         <div className="space-y-3">
           {invoices.map((invoice) => (
             <Card key={invoice.id} className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm">
@@ -310,12 +368,22 @@ export function InvoiceViews({
           )}
         </div>
       </div>
+      {sharingInvoice && (
+        <ShareDocumentModal
+          open={!!sharingInvoice}
+          onOpenChange={(open) => !open && setSharingInvoice(null)}
+          document={sharingInvoice}
+          type="invoice"
+        />
+      )}
+      </>
     );
   }
 
   // ── 3. VUE BLOC / CARTES ───────────────────────────────────────────────────
   return (
-    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 pr-1">
+    <>
+    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 pr-1 pb-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {invoices.map((invoice, index) => (
           <motion.div
@@ -343,9 +411,9 @@ export function InvoiceViews({
                     <span className="tabular-nums">{formatDate(invoice.date)}</span>
                   </div>
                 </div>
-                <div className="bg-secondary/30 px-4 py-2 border-t border-border/50 flex items-center justify-between">
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">Total TTC</div>
-                  <div className="font-semibold text-foreground text-sm tabular-nums">{formatCurrency(invoice.total)}</div>
+                <div className="bg-secondary/30 px-4 py-2 border-t border-border/50 flex items-center justify-between gap-2">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold min-w-0 truncate">Total TTC</div>
+                  <div className="font-bold text-foreground text-sm tabular-nums shrink-0 whitespace-nowrap">{formatCurrency(invoice.total)}</div>
                 </div>
                 {invoice.payments && invoice.payments.length > 0 && (
                   <div className="px-4 pb-3 bg-secondary/30">
@@ -377,5 +445,14 @@ export function InvoiceViews({
         )}
       </div>
     </div>
+    {sharingInvoice && (
+      <ShareDocumentModal
+        open={!!sharingInvoice}
+        onOpenChange={(open) => !open && setSharingInvoice(null)}
+        document={sharingInvoice}
+        type="invoice"
+      />
+    )}
+    </>
   );
 }

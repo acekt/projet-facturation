@@ -6,10 +6,11 @@ import { Button } from "@workspace/ui/components/button"
 import { useStore, type Service } from "@/lib/store"
 import { useShallow } from "zustand/react/shallow"
 import { toast } from "sonner"
-import { escapeCsvCell } from "@/lib/utils"
+import { formatCurrency } from "@/lib/utils"
+import { DataExportModal } from "@/components/features/export/DataExportModal"
 import { Pagination } from "@workspace/ui/components/pagination-custom"
 import { createService, updateService as updateServiceAction, deleteService } from "@/app/actions/service.actions"
-import { PageHeader } from "@workspace/ui/components/page-header"
+import { PageHeader } from "@/components/features/common/PageHeader"
 import { SearchBar } from "@workspace/ui/components/search-bar"
 import { Alert, AlertDescription } from "@workspace/ui/components/alert"
 import { ServiceFormDialog, type ServiceFormData } from "./services/ServiceFormDialog"
@@ -18,12 +19,18 @@ import { ServiceDetailsDialog } from "./services/ServiceDetailsDialog"
 import { ServiceViews } from "./services/ServiceViews"
 import { CreationSuccessModal } from "@/components/features/common/CreationSuccessModal"
 import { useCommandFilter } from "@/lib/command-navigation"
+import { useDebouncedValue } from "@/lib/hooks/use-debounced-value"
 
 const INITIAL_SERVICE_FORM: ServiceFormData = {
   name: "",
   description: "",
   category: "Prestation de services",
   unitPrice: 0,
+  trackStock: 0,
+  stockItemName: "",
+  stockQuantity: 0,
+  minStockAlert: 5,
+  unit: "Unité",
 }
 
 export function ServicesPage() {
@@ -48,6 +55,7 @@ export function ServicesPage() {
   )
 
   const [searchQuery, setSearchQuery] = React.useState("")
+  const debouncedSearch = useDebouncedValue(searchQuery, 200)
   useCommandFilter("services", setSearchQuery)
   const [currentPage, setCurrentPage] = React.useState(1)
   const itemsPerPage = 9 // Grid 3x3
@@ -57,23 +65,35 @@ export function ServicesPage() {
   const [serviceToDeleteId, setServiceToDeleteId] = React.useState<string | null>(null)
   const [selectedService, setSelectedService] = React.useState<Service | null>(null)
   const [isDetailsDialogOpen, setIsDetailsDialogOpen] = React.useState(false)
+  const [isExportModalOpen, setIsExportModalOpen] = React.useState(false)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const submitLockRef = React.useRef(false)
   const [successModalData, setSuccessModalData] = React.useState<import("@/lib/store").Service | null>(null)
+  const [successModalOpen, setSuccessModalOpen] = React.useState(false)
   const [formData, setFormData] = React.useState<ServiceFormData>(INITIAL_SERVICE_FORM)
 
   const filteredServices = React.useMemo(() => {
+    const q = debouncedSearch.toLowerCase()
     return services.filter(
       (s) =>
-        s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (s.category ?? "").toLowerCase().includes(searchQuery.toLowerCase())
+        !(s as any).deletedAt &&
+        (s.name.toLowerCase().includes(q) ||
+        (s.category ?? "").toLowerCase().includes(q))
     )
-  }, [services, searchQuery])
+  }, [services, debouncedSearch])
 
-  const totalPages = Math.ceil(filteredServices.length / itemsPerPage)
+  const totalPages = Math.ceil(filteredServices.length / itemsPerPage) || 1
+  const safePage = Math.min(currentPage, Math.max(1, totalPages))
   const paginatedServices = filteredServices.slice(
-    (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    (safePage - 1) * itemsPerPage,
+    safePage * itemsPerPage
   )
+
+  React.useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(Math.max(1, totalPages))
+    }
+  }, [currentPage, totalPages])
 
   React.useEffect(() => {
     setCurrentPage(1)
@@ -92,6 +112,11 @@ export function ServicesPage() {
       description: service.description || "",
       category: service.category || "Prestation de services",
       unitPrice: service.unitPrice,
+      trackStock: Boolean(service.trackStock) ? 1 : 0,
+      stockItemName: service.stockItemName || "",
+      stockQuantity: service.stockQuantity ?? 0,
+      minStockAlert: service.minStockAlert ?? 5,
+      unit: service.unit || "Unité",
     })
     setIsDialogOpen(true)
   }
@@ -101,28 +126,9 @@ export function ServicesPage() {
     setIsDetailsDialogOpen(true)
   }
 
-  const handleExportCsv = () => {
-    const headers = ["Désignation", "Catégorie", "Prix unitaire (XAF)", "Description"]
-    const targetList = searchQuery.trim() ? filteredServices : services
-    const rows = targetList.map((s) => [
-      escapeCsvCell(s.name),
-      escapeCsvCell(s.category || ""),
-      escapeCsvCell(s.unitPrice),
-      escapeCsvCell(s.description || ""),
-    ])
-    const csvContent = [headers.map(escapeCsvCell).join(","), ...rows.map((r) => r.join(","))].join("\n")
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" })
-    const link = document.createElement("a")
-    link.href = URL.createObjectURL(blob)
-    link.setAttribute("download", `catalogue_services_${new Date().toISOString().split("T")[0]}.csv`)
-    document.body.appendChild(link)
-    link.click()
-    document.body.removeChild(link)
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (isSubmitting) return
+    if (isSubmitting || submitLockRef.current) return
 
     if (!formData.name.trim()) {
       toast.error("Le nom du service est requis.")
@@ -136,6 +142,7 @@ export function ServicesPage() {
     }
 
     const validatedData = { ...formData, unitPrice: price }
+    submitLockRef.current = true
 
     if (editingService) {
       const originalService = services.find((s) => s.id === editingService.id)
@@ -152,6 +159,7 @@ export function ServicesPage() {
         }
 
         updateService(editingService.id, response.data)
+        void useStore.getState().refreshStockData(true)
         setIsDialogOpen(false)
         setEditingService(null)
         toast.success("Service mis à jour")
@@ -161,6 +169,7 @@ export function ServicesPage() {
         toast.error(`Échec de la modification : ${msg}`)
       } finally {
         setIsSubmitting(false)
+        submitLockRef.current = false
       }
     } else {
       const tempId = crypto.randomUUID()
@@ -171,6 +180,7 @@ export function ServicesPage() {
         category: validatedData.category,
         unitPrice: validatedData.unitPrice,
         trackStock: validatedData.trackStock || 0,
+        stockItemName: validatedData.stockItemName?.trim() || null,
         stockQuantity: validatedData.stockQuantity || 0,
         minStockAlert: validatedData.minStockAlert || 5,
         unit: validatedData.unit || "Unité",
@@ -188,14 +198,17 @@ export function ServicesPage() {
         }
 
         addService(response.data as Service)
+        void useStore.getState().refreshStockData(true)
         setIsDialogOpen(false)
         setFormData(INITIAL_SERVICE_FORM)
-        toast.success("Service ajouté au catalogue")
+        setSuccessModalData(response.data as Service)
+        setSuccessModalOpen(true)
       } catch (error) {
         const msg = error instanceof Error ? error.message : "Erreur inconnue"
         toast.error(`Échec de l'ajout : ${msg}`)
       } finally {
         setIsSubmitting(false)
+        submitLockRef.current = false
       }
     }
   }
@@ -238,61 +251,70 @@ export function ServicesPage() {
           </div>
         </div>
       ) : (
-        <div className="flex-1 flex flex-col overflow-hidden space-y-6">
-          {user?.role !== "admin" && (
-            <Alert
-              variant="default"
-              className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50 mb-6"
-            >
-              <ShieldAlert className="h-4 w-4" />
-              <AlertDescription className="font-medium">
-                Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
-              </AlertDescription>
-            </Alert>
-          )}
+        <div className="flex flex-col h-full overflow-hidden">
+          <div className="shrink-0 pb-4 border-b border-border bg-background z-10 space-y-4">
+            {user?.role !== "admin" && (
+              <Alert
+                variant="default"
+                className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-900/50"
+              >
+                <ShieldAlert className="h-4 w-4" />
+                <AlertDescription className="font-medium">
+                  Vous êtes en mode lecture seule (Opérateur). Seul un Administrateur peut modifier ces paramètres.
+                </AlertDescription>
+              </Alert>
+            )}
 
-          <PageHeader
-            title="Catalogue de Services"
-            description="Gérez les prestations et tarifs standards de votre entreprise"
-            actions={
-              <>
-                <Button variant="outline" onClick={handleExportCsv} className="gap-2 hidden sm:flex">
-                  <DownloadCloud className="w-4 h-4" />
-                  Export CSV
-                </Button>
-                {user?.role === "admin" && (
-                  <Button variant="primary-shadow" className="gap-2" onClick={handleOpenCreate}>
-                    <Plus className="w-4 h-4" />
-                    Nouveau service
+            <PageHeader
+              title="Catalogue de Services"
+              description="Gérez les prestations et tarifs standards de votre entreprise"
+              actions={
+                <>
+                  <Button
+                    variant="outline"
+                    onClick={() => setIsExportModalOpen(true)}
+                    className="gap-2 hidden sm:flex cursor-pointer"
+                  >
+                    <DownloadCloud className="w-4 h-4" /> Export Excel
                   </Button>
-                )}
-              </>
-            }
-          />
+                  {user?.role === "admin" && (
+                    <Button variant="primary-shadow" className="gap-2 cursor-pointer" onClick={handleOpenCreate}>
+                      <Plus className="w-4 h-4" />
+                      Nouveau service
+                    </Button>
+                  )}
+                </>
+              }
+            />
 
-          <SearchBar
-            placeholder="Rechercher un service ou catégorie..."
-            value={searchQuery}
-            onChange={setSearchQuery}
-            viewFormatKey="services"
-          />
+            <SearchBar
+              placeholder="Rechercher un service ou catégorie..."
+              value={searchQuery}
+              onChange={setSearchQuery}
+              viewFormatKey="services"
+            />
+          </div>
 
-          <ServiceViews
-            services={paginatedServices}
-            viewFormat={viewFormat.services || "table"}
-            user={user}
-            searchQuery={searchQuery}
-            onViewDetails={handleOpenDetails}
-            onEdit={handleOpenEdit}
-            onDelete={(id) => setServiceToDeleteId(id)}
-            onOpenCreate={handleOpenCreate}
-          />
+          <div className="flex-1 overflow-y-auto min-h-0 pt-4 pr-1 space-y-4">
+            <ServiceViews
+              services={paginatedServices}
+              viewFormat={viewFormat.services || "table"}
+              user={user}
+              searchQuery={searchQuery}
+              onViewDetails={handleOpenDetails}
+              onEdit={handleOpenEdit}
+              onDelete={(id) => setServiceToDeleteId(id)}
+              onOpenCreate={handleOpenCreate}
+            />
+          </div>
 
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={setCurrentPage}
-          />
+          <div className="shrink-0 pt-3 border-t border-border bg-background">
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </div>
 
           <ServiceFormDialog
             isOpen={isDialogOpen}
@@ -317,6 +339,35 @@ export function ServicesPage() {
             service={selectedService}
             user={user}
             onEdit={handleOpenEdit}
+          />
+
+          <CreationSuccessModal
+            isOpen={successModalOpen}
+            onOpenChange={setSuccessModalOpen}
+            title="Service ajouté avec succès"
+            subtitle={`La prestation ${successModalData?.name || "ce service"} a été enregistrée au catalogue.`}
+            details={[
+              { label: "Désignation", value: successModalData?.name || "—" },
+              { label: "Catégorie", value: successModalData?.category || "—" },
+              { label: "Tarif Standard", value: formatCurrency(successModalData?.unitPrice || 0), isAmount: true },
+              {
+                label: "Suivi de stock",
+                value: successModalData?.trackStock
+                  ? `Actif (${successModalData.stockQuantity || 0} ${successModalData.unit || "unités"})`
+                  : "Désactivé",
+              },
+            ]}
+            onClose={() => {
+              setSuccessModalOpen(false)
+              setSuccessModalData(null)
+            }}
+          />
+
+          <DataExportModal
+            open={isExportModalOpen}
+            onOpenChange={setIsExportModalOpen}
+            defaultScope="services"
+            initialEntity="services"
           />
         </div>
       )}

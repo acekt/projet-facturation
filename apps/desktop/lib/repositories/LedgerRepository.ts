@@ -17,6 +17,8 @@ export interface LedgerEntry {
   counterparty?: string | null;
   linkedInvoiceId?: string | null;
   linkedPaymentId?: string | null;
+  proofImage?: string | null;
+  hasProofImage?: number | boolean;
   created_by?: string | null;
   createdAt: string;
   updatedAt: string;
@@ -46,7 +48,15 @@ export interface LedgerFilters {
 
 export const LedgerRepository = {
   findAll(filters: LedgerFilters): LedgerEntry[] {
-    let sql = 'SELECT * FROM ledger_entries WHERE tenant_id = ? AND deletedAt IS NULL';
+    let sql = `
+      SELECT
+        id, tenant_id, date, type, category, description, amount,
+        paymentMethod, reference, counterparty, linkedInvoiceId, linkedPaymentId,
+        CASE WHEN proofImage IS NOT NULL AND length(proofImage) > 0 THEN 1 ELSE 0 END AS hasProofImage,
+        created_by, createdAt, updatedAt, deletedAt
+      FROM ledger_entries
+      WHERE tenant_id = ? AND deletedAt IS NULL
+    `;
     const params: any[] = [filters.tenantId];
 
     if (filters.month) {
@@ -85,6 +95,16 @@ export const LedgerRepository = {
     return stmt.all(...params) as LedgerEntry[];
   },
 
+  getProofImage(id: string, tenantId?: string): string | null {
+    const sql = tenantId
+      ? 'SELECT proofImage FROM ledger_entries WHERE id = ? AND tenant_id = ? AND deletedAt IS NULL'
+      : 'SELECT proofImage FROM ledger_entries WHERE id = ? AND deletedAt IS NULL';
+    const row = (tenantId ? db.prepare(sql).get(id, tenantId) : db.prepare(sql).get(id)) as
+      | { proofImage?: string | null }
+      | undefined;
+    return row?.proofImage ?? null;
+  },
+
   getSummary(filters: LedgerFilters): LedgerSummary {
     let baseSql = 'FROM ledger_entries WHERE tenant_id = ? AND deletedAt IS NULL';
     const params: any[] = [filters.tenantId];
@@ -121,8 +141,8 @@ export const LedgerRepository = {
       byCategory[row.category] = row.total;
     }
 
-    // Group by payment method
-    const payStmt = db.prepare(`SELECT paymentMethod, COALESCE(SUM(amount), 0) as total ${baseSql} GROUP BY paymentMethod`);
+    // Group by payment method (solde net = Entrées - Sorties)
+    const payStmt = db.prepare(`SELECT paymentMethod, COALESCE(SUM(CASE WHEN type = 'IN' THEN amount ELSE -amount END), 0) as total ${baseSql} GROUP BY paymentMethod`);
     const payResult = payStmt.all(...params) as { paymentMethod: string; total: number }[];
     const byPaymentMethod: Record<string, number> = {};
     for (const row of payResult) {
@@ -146,9 +166,9 @@ export const LedgerRepository = {
 
     db.prepare(`
       INSERT INTO ledger_entries (
-        id, tenant_id, date, type, category, description, amount, paymentMethod, reference, counterparty, linkedInvoiceId, linkedPaymentId, created_by, createdAt, updatedAt
+        id, tenant_id, date, type, category, description, amount, paymentMethod, reference, counterparty, linkedInvoiceId, linkedPaymentId, proofImage, created_by, createdAt, updatedAt
       ) VALUES (
-        @id, @tenant_id, @date, @type, @category, @description, @amount, @paymentMethod, @reference, @counterparty, @linkedInvoiceId, @linkedPaymentId, @created_by, @createdAt, @updatedAt
+        @id, @tenant_id, @date, @type, @category, @description, @amount, @paymentMethod, @reference, @counterparty, @linkedInvoiceId, @linkedPaymentId, @proofImage, @created_by, @createdAt, @updatedAt
       )
     `).run({
       ...entry,
@@ -159,6 +179,7 @@ export const LedgerRepository = {
       counterparty: entry.counterparty || null,
       linkedInvoiceId: entry.linkedInvoiceId || null,
       linkedPaymentId: entry.linkedPaymentId || null,
+      proofImage: entry.proofImage || null,
       created_by: entry.created_by || null,
     });
 

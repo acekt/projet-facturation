@@ -53,10 +53,13 @@ export async function updateSettings(data: SettingsUpdateRequest): Promise<Actio
         SettingsRepository.upsertInitialSettings({
           ...validData,
           tenant_id: activeTenantId,
-        });
+        } as any);
       } else {
         const setClauses = fields.map((col) => `${col} = ?`).join(', ');
-        const values = [...Object.values(validData), activeTenantId];
+        const values = [
+          ...Object.values(validData).map((v) => (typeof v === 'boolean' ? (v ? 1 : 0) : v)),
+          activeTenantId,
+        ];
         const result = db.prepare(
           `UPDATE settings SET ${setClauses}, tenant_id = ? WHERE id = 1`
         ).run(...values);

@@ -183,10 +183,9 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-8">
-      
-      {/* En-tête du Dashboard */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Zone Haute Fixe : En-tête du Dashboard */}
+      <div className="shrink-0 pb-4 border-b border-border bg-background z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
         <div>
             <h1 className="text-2xl font-semibold text-foreground tracking-tighter">Tableau de Bord</h1>
             <p className="text-muted-foreground text-xs font-medium uppercase tracking-widest mt-1">Espace Opérateur</p>
@@ -198,13 +197,16 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
               variant={period === opt.value ? "secondary" : "ghost"}
               size="sm"
               onClick={() => setPeriod(opt.value)}
-              className="text-xs h-7 px-3 font-semibold rounded-md transition-all"
+              className="text-xs h-7 px-3 font-semibold rounded-md transition-all cursor-pointer"
             >
               {opt.label}
             </Button>
           ))}
         </div>
       </div>
+
+      {/* Zone Corps Défilable */}
+      <div className="flex-1 overflow-y-auto min-h-0 pt-4 pr-1 space-y-8">
 
       {/* Cartes KPI */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
@@ -371,6 +373,7 @@ export function DashboardUser({ onNavigate }: DashboardUserProps) {
           onClose={() => setPreviewOpen(false)}
         />
       )}
+    </div>
     </div>
   )
 }

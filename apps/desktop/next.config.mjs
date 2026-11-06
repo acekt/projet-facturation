@@ -38,7 +38,7 @@ const nextConfig = {
   },
   // Serveur Node.js autonome pour le packaging Electron
   output: 'standalone',
-  serverExternalPackages: ['better-sqlite3', '@react-pdf/renderer'],
+  serverExternalPackages: ['better-sqlite3', '@react-pdf/renderer', 'nodemailer'],
   compress: false,           // Electron gère la compression nativement
   productionBrowserSourceMaps: false,
   devIndicators: false,

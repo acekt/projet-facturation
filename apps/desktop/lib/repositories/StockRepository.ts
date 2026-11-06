@@ -52,7 +52,7 @@ export const StockRepository = {
        throw new Error('Tenant ID is required to record stock movement');
     }
 
-    const service = db.prepare('SELECT stockQuantity, trackStock FROM services WHERE id = ?').get(data.serviceId) as { stockQuantity: number, trackStock: number };
+    const service = db.prepare('SELECT stockQuantity, trackStock FROM services WHERE id = ? AND tenant_id = ?').get(data.serviceId, activeTenantId) as { stockQuantity: number, trackStock: number };
 
     if (!service) {
       throw new Error('Service not found');
@@ -74,7 +74,7 @@ export const StockRepository = {
     const id = crypto.randomUUID();
 
     db.transaction(() => {
-      db.prepare('UPDATE services SET stockQuantity = ? WHERE id = ?').run(newStock, data.serviceId);
+      db.prepare('UPDATE services SET stockQuantity = ? WHERE id = ? AND tenant_id = ?').run(newStock, data.serviceId, activeTenantId);
       db.prepare(`
         INSERT INTO stock_movements (id, tenant_id, serviceId, type, quantity, previousStock, newStock, referenceDoc, notes, created_by)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

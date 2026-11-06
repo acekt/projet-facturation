@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
 import { CreationSuccessModal } from "@/components/features/common/CreationSuccessModal";
 import { computeTotals, computeItemTotal } from "@/lib/math-logic";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { getQuoteById, createQuote, updateQuote, getQuotes } from "@/app/actions/quote.actions";
 import { QuoteEditorHeader } from "@/components/editor/QuoteEditorHeader";
 import { DocumentCommercialHeader } from "@/components/editor/DocumentCommercialHeader";
@@ -114,7 +115,13 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   }, [isNew, clearQuoteDraft]);
 
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [createdQuoteData, setCreatedQuoteData] = React.useState<any>(null);
+  const [showSuccessModal, setShowSuccessModal] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const submitLockRef = React.useRef(false);
+  const [applyCss, setApplyCss] = React.useState<boolean>(true);
+  const [applyTps, setApplyTps] = React.useState<boolean>(false);
+  const [applyTva, setApplyTva] = React.useState<boolean>(true);
   const [successModalData, setSuccessModalData] = React.useState<import("@/lib/store").Quote | null>(null);
   const [successModalOpen, setSuccessModalOpen] = React.useState(false);
   const [createdQuote, setCreatedQuote] = React.useState<Quote | null>(null);
@@ -151,6 +158,11 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         updateDraft("discount", data.discount);
         updateDraft("notes", data.notes || "");
         updateDraft("status", data.status);
+        if (data.subtotal > 0) {
+          setApplyCss((data.cssAmount ?? 0) > 0);
+          setApplyTps((data.tpsAmount ?? 0) > 0);
+          setApplyTva((data.tvaAmount ?? 0) > 0);
+        }
       } catch {
         if (isMounted) {
           toast.error("Impossible de charger le devis — vérifiez la connexion locale");
@@ -181,6 +193,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
               (s) => s.name.toLowerCase() === value.toLowerCase()
             );
             if (matchedService) {
+              updated.serviceId = matchedService.id;
               updated.unitPrice = matchedService.unitPrice;
               updated.total = computeItemTotal(Number(updated.quantity), updated.unitPrice);
             }
@@ -216,14 +229,17 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     items.map((item) => ({ quantity: Number(item.quantity) || 0, unitPrice: Number(item.unitPrice) || 0 })),
     discount,
     {
-      tvaRate: settings.tvaRate ?? 0,
-      tpsRate: settings.tpsRate ?? 9.5,
-      cssRate: settings.cssRate ?? 0,
+      tvaRate: settings.tvaRate || 18,
+      tpsRate: settings.tpsRate || 9.5,
+      cssRate: settings.cssRate || 1,
+      applyCss,
+      applyTps,
+      applyTva,
     }
   );
 
   const handleSave = async (targetStatus: Quote["status"] = "EN_ATTENTE") => {
-    if (isSubmitting) return;
+    if (isSubmitting || submitLockRef.current) return;
 
     if (!selectedClient) {
       toast.error("Veuillez sélectionner un client");
@@ -250,6 +266,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
       return;
     }
 
+    submitLockRef.current = true;
     setIsSubmitting(true);
     try {
       const payload: QuoteCreateRequest = {
@@ -258,6 +275,8 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         clientEmail: selectedClient.email || null,
         date: quoteDate,
         items: items.map((it) => ({
+          id: it.id,
+          serviceId: it.serviceId || null,
           description: it.description.trim(),
           quantity: Number(it.quantity) || 1,
           unitPrice: Math.max(0, Math.round(Number(it.unitPrice) || 0)),
@@ -266,6 +285,9 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         subject: subject?.trim() || undefined,
         validUntil: validUntil && validUntil.trim() !== "" ? validUntil.trim() : null,
         discount: Math.max(0, Math.round(Number(discount) || 0)),
+        applyCss,
+        applyTps,
+        applyTva,
       };
 
       const response = editingId
@@ -279,13 +301,19 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
         setQuotes(newQuotes.data);
       }
       clearQuoteDraft();
-      toast.success("Devis enregistré avec succès");
-      onBack();
+      if (!editingId) {
+        setCreatedQuoteData(response.data);
+        setShowSuccessModal(true);
+      } else {
+        toast.success("Devis mis à jour avec succès");
+        onBack();
+      }
     } catch (error) {
       console.error("[QuoteEditor] handleSave error:", error);
       toast.error("Erreur lors de l'enregistrement du devis");
     } finally {
       setIsSubmitting(false);
+      submitLockRef.current = false;
     }
   };
 
@@ -296,76 +324,91 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
   });
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6">
-      <QuoteEditorHeader
-        editingId={editingId}
-        status={status}
-        onBackSafe={handleBackSafe}
-      />
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full overflow-hidden">
+      {/* Zone Haute Fixe : En-tête */}
+      <div className="shrink-0 pb-4 border-b border-border bg-background z-10">
+        <QuoteEditorHeader
+          editingId={editingId}
+          status={status}
+          onBackSafe={handleBackSafe}
+        />
+      </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2 space-y-6">
-          <DocumentCommercialHeader
-            type="devis"
-            client={selectedClient}
-            onSelectClient={(c) => updateDraft("selectedClient", c)}
-            clients={clients}
-            docDate={quoteDate || ""}
-            onDocDateChange={(d) => updateDraft("quoteDate", d)}
-            secondaryDate={validUntil || ""}
-            onSecondaryDateChange={(d) => updateDraft("validUntil", d)}
-            secondaryDateLabel="Date de validité"
-            subject={subject || ""}
-            onSubjectChange={(s) => updateDraft("subject", s)}
-            disabled={status === "CONVERTI"}
-          />
+      {/* Zone Corps Défilable */}
+      <div className="flex-1 overflow-y-auto min-h-0 pt-4 pr-4 pb-8 space-y-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <DocumentCommercialHeader
+              type="devis"
+              client={selectedClient}
+              onSelectClient={(c) => updateDraft("selectedClient", c)}
+              clients={clients}
+              docDate={quoteDate || ""}
+              onDocDateChange={(d) => updateDraft("quoteDate", d)}
+              secondaryDate={validUntil || ""}
+              onSecondaryDateChange={(d) => updateDraft("validUntil", d)}
+              secondaryDateLabel="Date de validité"
+              subject={subject || ""}
+              onSubjectChange={(s) => updateDraft("subject", s)}
+              disabled={status === "CONVERTI"}
+            />
 
-          <EditorItemsTable
-            items={items}
-            services={services}
-            onUpdateItem={updateItem}
-            onAddItem={addItem}
-            onRemoveItem={removeItem}
-            isSubmitting={isSubmitting || status === "CONVERTI"}
-          />
+            <EditorItemsTable
+              items={items}
+              services={services}
+              onUpdateItem={updateItem}
+              onAddItem={addItem}
+              onRemoveItem={removeItem}
+              isSubmitting={isSubmitting || status === "CONVERTI"}
+            />
 
-          <QuoteNotesCard
-            notes={notes || ""}
-            onChange={(val) => updateDraft("notes", val)}
-            disabled={status === "CONVERTI" || isSubmitting}
-          />
-        </div>
+            <QuoteNotesCard
+              notes={notes || ""}
+              onChange={(val) => updateDraft("notes", val)}
+              disabled={status === "CONVERTI" || isSubmitting}
+            />
+          </div>
 
-        <div className="space-y-6">
-          <FiscalSummaryCard
-            subtotal={subtotal}
-            discount={discount}
-            onDiscountChange={(d) => updateDraft("discount", d)}
-            netHT={netHT}
-            cssAmount={cssAmount}
-            taxBase={taxBase}
-            tpsAmount={tpsAmount}
-            tvaAmount={tvaAmount}
-            total={total}
-            cssRate={settings.cssRate ?? 0}
-            tpsRate={settings.tpsRate ?? 9.5}
-            tvaRate={settings.tvaRate ?? 0}
-            isSubmitting={isSubmitting || status === "CONVERTI"}
-            canPreview={!!selectedClient}
-            onPreview={() => setPreviewOpen(true)}
-            onSave={() => handleSave("EN_ATTENTE")}
-            saveLabel={status === "CONVERTI" ? "Devis Converti (Lecture seule)" : "Enregistrer le Devis (Ctrl+S)"}
-            onSaveDraft={isNew ? async () => handleSaveDraft() : undefined}
-          />
+          <div className="space-y-6">
+            <FiscalSummaryCard
+              subtotal={subtotal}
+              discount={discount}
+              onDiscountChange={(d) => updateDraft("discount", d)}
+              netHT={netHT}
+              cssAmount={cssAmount}
+              taxBase={taxBase}
+              tpsAmount={tpsAmount}
+              tvaAmount={tvaAmount}
+              total={total}
+              cssRate={settings.cssRate || 1}
+              tpsRate={settings.tpsRate || 9.5}
+              tvaRate={settings.tvaRate || 18}
+              applyCss={applyCss}
+              onApplyCssChange={setApplyCss}
+              applyTps={applyTps}
+              onApplyTpsChange={setApplyTps}
+              applyTva={applyTva}
+              onApplyTvaChange={setApplyTva}
+              isSubmitting={isSubmitting || status === "CONVERTI"}
+              canPreview={!!selectedClient}
+              onPreview={() => setPreviewOpen(true)}
+              onSave={() => handleSave("EN_ATTENTE")}
+              saveLabel={status === "CONVERTI" ? "Devis Converti (Lecture seule)" : "Enregistrer le Devis (Ctrl+S)"}
+              onSaveDraft={isNew ? async () => handleSaveDraft() : undefined}
+            />
+          </div>
         </div>
       </div>
 
       {previewOpen && selectedClient && (
         <FullScreenDocumentViewer
           type="devis"
-          title="Brouillon - Devis"
-          onClose={() => setPreviewOpen(false)}
-          data={{
+          title={createdQuoteData ? `Devis ${createdQuoteData.number}` : "Brouillon - Devis"}
+          onClose={() => {
+            setPreviewOpen(false);
+            if (createdQuoteData) onBack();
+          }}
+          data={createdQuoteData ? (createdQuoteData as any) : {
             id: "draft",
             number: "BROUILLON",
             clientId: selectedClient.id,
@@ -386,6 +429,32 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
           } as unknown as Quote}
         />
       )}
+
+      <CreationSuccessModal
+        isOpen={showSuccessModal}
+        onOpenChange={(open) => {
+          setShowSuccessModal(open);
+          if (!open) onBack();
+        }}
+        title="Devis enregistré avec succès"
+        subtitle={`La proposition commerciale ${createdQuoteData?.number || ""} a été créée avec succès.`}
+        details={[
+          { label: "Numéro de devis", value: <span className="font-mono font-bold text-foreground">{createdQuoteData?.number || "—"}</span> },
+          { label: "Client destinataire", value: createdQuoteData?.clientName || selectedClient?.name || "—" },
+          { label: "Date d'émission", value: formatDate(createdQuoteData?.date || quoteDate) },
+          { label: "Validité de l'offre", value: formatDate(createdQuoteData?.validUntil || validUntil) },
+          { label: "Total Estimé TTC", value: formatCurrency(createdQuoteData?.total || total), isAmount: true },
+        ]}
+        onClose={() => {
+          setShowSuccessModal(false);
+          onBack();
+        }}
+        onPreview={() => {
+          setShowSuccessModal(false);
+          setPreviewOpen(true);
+        }}
+        previewLabel="Aperçu Devis"
+      />
     </motion.div>
   );
 }

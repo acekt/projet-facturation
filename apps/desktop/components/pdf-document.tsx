@@ -203,20 +203,24 @@ export const PDFDocument = ({
               <Text style={styles.totalLabel}>Net HT</Text>
               <Text style={styles.totalVal}>{formatCurrencyPDF(netHT)}</Text>
             </View>
-            <View style={styles.totalCol}>
-              <Text style={styles.totalLabel}>CSS {settings.cssRate ?? 1}%</Text>
-              <Text style={styles.totalVal}>{formatCurrencyPDF(document.cssAmount)}</Text>
-            </View>
+            {document.cssAmount > 0 && (
+              <View style={styles.totalCol}>
+                <Text style={styles.totalLabel}>CSS {settings.cssRate || 1}%</Text>
+                <Text style={styles.totalVal}>{formatCurrencyPDF(document.cssAmount)}</Text>
+              </View>
+            )}
             {tpsAmt > 0 && (
               <View style={styles.totalCol}>
-                <Text style={styles.totalLabel}>TPS {settings.tpsRate ?? 9.5}%</Text>
+                <Text style={styles.totalLabel}>TPS {settings.tpsRate || 9.5}%</Text>
                 <Text style={styles.totalVal}>{formatCurrencyPDF(tpsAmt)}</Text>
               </View>
             )}
-            <View style={styles.totalCol}>
-              <Text style={styles.totalLabel}>TVA {settings.tvaRate ?? 18}%</Text>
-              <Text style={styles.totalVal}>{formatCurrencyPDF(document.tvaAmount)}</Text>
-            </View>
+            {document.tvaAmount > 0 && (
+              <View style={styles.totalCol}>
+                <Text style={styles.totalLabel}>TVA {settings.tvaRate || 18}%</Text>
+                <Text style={styles.totalVal}>{formatCurrencyPDF(document.tvaAmount)}</Text>
+              </View>
+            )}
             <View style={styles.totalColFinal}>
               <Text style={styles.totalLabelFinal}>{netLabel}</Text>
               <Text style={styles.totalValFinal}>{formatCurrencyPDF(document.total)}</Text>

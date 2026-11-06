@@ -6,6 +6,8 @@ import { INVOICE_STATUS } from '@/lib/constants';
 import { computeTotals } from '@/lib/math-logic';
 import { buildTenantFilter, resolveActiveTenantId } from '@/lib/api/tenant';
 import { StockRepository } from '@/lib/repositories/StockRepository';
+import { updateInvoiceStatus } from '@/lib/api/invoice-logic';
+import { resolveValidLocalUserId, resolveValidServiceId } from './InvoiceService';
 
 export class CreditNoteServiceError extends Error {
   constructor(public message: string, public status: number) {
@@ -21,8 +23,8 @@ const insertCreditNoteStmt = db.prepare(`
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 const insertCreditNoteItemStmt = db.prepare(`
-  INSERT INTO credit_note_items (id, creditNoteId, description, quantity, unitPrice, total, tenant_id)
-  VALUES (?, ?, ?, ?, ?, ?, ?)
+  INSERT INTO credit_note_items (id, creditNoteId, serviceId, description, quantity, unitPrice, total, tenant_id)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 `);
 const updateInvoiceStatusStmt = db.prepare(`UPDATE invoices SET status = '${INVOICE_STATUS.CANCELLED}' WHERE id = ?`);
 
@@ -54,10 +56,14 @@ export const CreditNoteService = {
     const insertCreditNote = db.transaction(() => {
       const number = getNextNumber('credit_note');
 
+      const applyCss = data.applyCss !== undefined ? data.applyCss : Boolean(invoice.cssAmount && invoice.cssAmount > 0);
+      const applyTps = data.applyTps !== undefined ? data.applyTps : Boolean(invoice.tpsAmount && invoice.tpsAmount > 0);
+      const applyTva = data.applyTva !== undefined ? data.applyTva : (invoice.tvaAmount > 0);
+
       const rates = {
-        tvaRate: settings.tvaRate,
-        tpsRate: settings.tpsRate ?? null,
-        cssRate: settings.cssRate,
+        tvaRate: applyTva ? (settings.tvaRate || 18) : 0,
+        tpsRate: applyTps ? (settings.tpsRate || 9.5) : 0,
+        cssRate: applyCss ? (settings.cssRate || 1) : 0,
       };
       const computed = computeTotals(items, 0, rates);
 
@@ -87,14 +93,18 @@ export const CreditNoteService = {
         computed.cssAmount,
         computed.total,
         'open',
-        userId,
+        resolveValidLocalUserId(db, userId) || userId,
         targetTenantId
       );
 
+      const resolvedUserId = resolveValidLocalUserId(db, userId) || userId;
+
       for (const item of items) {
+        const svcId = resolveValidServiceId(db, (item as any).serviceId);
         insertCreditNoteItemStmt.run(
           crypto.randomUUID(),
           id,
+          svcId,
           item.description,
           item.quantity,
           Math.round(item.unitPrice),
@@ -102,14 +112,14 @@ export const CreditNoteService = {
           targetTenantId
         );
 
-        if ((item as any).id) {
+        if (svcId) {
           try {
              StockRepository.recordStockMovement({
-               serviceId: (item as any).id,
+               serviceId: svcId,
                type: 'CREDIT_NOTE_RESTOCK',
                quantity: item.quantity,
                referenceDoc: number,
-             }, userId, targetTenantId);
+             }, resolvedUserId, targetTenantId);
           } catch (e) {
              // Ignore if it's not a valid service or doesn't track stock
           }
@@ -117,7 +127,12 @@ export const CreditNoteService = {
       }
 
       if (totalAlreadyCredited + computed.total >= invoiceTotal) {
-        db.prepare(`UPDATE invoices SET status = '${INVOICE_STATUS.CANCELLED}' WHERE id = ?${tf.sql}`).run(invoice.id, ...tf.params);
+        if (targetTenantId) {
+          const tf = buildTenantFilter(targetTenantId);
+          db.prepare(`UPDATE invoices SET status = '${INVOICE_STATUS.CANCELLED}' WHERE id = ?${tf.sql}`).run(invoice.id, ...tf.params);
+        } else {
+          updateInvoiceStatusStmt.run(invoice.id);
+        }
       }
 
       return { id, number };

@@ -19,6 +19,9 @@ import {
   Briefcase,
   RefreshCcw,
   ScrollText,
+  BookOpen,
+  KeyRound,
+  Package,
 } from "lucide-react"
 import { useStore } from "@/lib/store"
 import { dispatchCommandNavigation } from "@/lib/command-navigation"
@@ -39,17 +42,20 @@ const quickActions = [
 ]
 
 const navItems = [
-  // Système
+  // Pilotage & Trésorerie
   { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ["admin", "user"] },
-  { id: "users", label: "Utilisateurs", icon: Users, roles: ["admin"] },
-  { id: "audit", label: "Journal Audit", icon: ScrollText, roles: ["admin"] },
+  { id: "ledger", label: "Livre des comptes", icon: BookOpen, roles: ["admin", "user"] },
+  // Ventes & Documents
+  { id: "invoices", label: "Factures", icon: FileText, roles: ["admin", "user"] },
+  { id: "quotes", label: "Devis", icon: FileText, roles: ["admin", "user"] },
+  { id: "credit-notes", label: "Avoirs", icon: RefreshCcw, roles: ["admin", "user"] },
   // Référentiel
   { id: "clients", label: "Clients", icon: Users, roles: ["admin", "user"] },
   { id: "services", label: "Services", icon: Briefcase, roles: ["admin", "user"] },
-  // Opérations
-  { id: "quotes", label: "Devis", icon: FileText, roles: ["admin", "user"] },
-  { id: "invoices", label: "Factures", icon: FileText, roles: ["admin", "user"] },
-  { id: "credit-notes", label: "Avoirs & Remboursements", icon: RefreshCcw, roles: ["admin", "user"] },
+  { id: "stock", label: "Gestion de stock", icon: Package, roles: ["admin", "user"] },
+  // Administration & Sécurité
+  { id: "users", label: "Utilisateurs", icon: KeyRound, roles: ["admin"] },
+  { id: "audit", label: "Journal Audit", icon: ScrollText, roles: ["admin"] },
   // Bottom
   { id: "settings", label: "Paramètres", icon: Settings, roles: ["admin", "user"] },
 ]

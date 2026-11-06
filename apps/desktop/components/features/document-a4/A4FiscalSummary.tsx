@@ -38,8 +38,15 @@ export function A4FiscalSummary({
   formatCurrency: fmt,
   notes,
 }: A4FiscalSummaryProps) {
+  const sanitizedNotes = notes
+    ? notes.replace(/date démission/gi, "date d'émission")
+    : notes;
+
   return (
-    <div className="grid grid-cols-2 mt-auto pt-6 gap-8">
+    <div
+      className="grid grid-cols-2 mt-auto pt-6 gap-8 print:break-inside-avoid"
+      style={{ breakInside: "avoid", pageBreakInside: "avoid" }}
+    >
       {/* ─ COLONNE GAUCHE : BANQUE & SIGNATURE ─ */}
       <div className="flex flex-col gap-4">
         {/* Encadré Bancaire */}
@@ -79,13 +86,13 @@ export function A4FiscalSummary({
 
         {/* Conditions & Modalités de règlement */}
         <div className="text-[8.5px] text-slate-500 flex flex-col gap-0.5">
-          {notes && notes.trim() !== "" ? (
+          {sanitizedNotes && sanitizedNotes.trim() !== "" ? (
             <div className="p-2 rounded bg-slate-50 border border-slate-200">
               <p className="font-semibold text-slate-700 uppercase text-[7.5px] tracking-wider mb-0.5">
                 {type === "avoir" ? "Modalités de remboursement" : "Conditions & Notes"}
               </p>
               <p className="text-[8px] text-slate-600 whitespace-pre-line leading-relaxed">
-                {notes.trim()}
+                {sanitizedNotes.trim()}
               </p>
             </div>
           ) : type === "avoir" ? (
@@ -157,32 +164,36 @@ export function A4FiscalSummary({
                 {fmt(netHT)}
               </span>
             </div>
-            <div className="flex justify-between py-1 border-b border-slate-100">
-              <span className="text-slate-500">
-                CSS ({s.cssRate ?? 1}%)
-              </span>
-              <span className="font-semibold text-slate-800 tabular-nums">
-                {fmt(cssAmount)}
-              </span>
-            </div>
+            {cssAmount > 0 && (
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-500">
+                  CSS ({s.cssRate || 1}%)
+                </span>
+                <span className="font-semibold text-slate-800 tabular-nums">
+                  {fmt(cssAmount)}
+                </span>
+              </div>
+            )}
             {tpsAmount > 0 && (
               <div className="flex justify-between py-1 border-b border-slate-100">
                 <span className="text-slate-500">
-                  TPS ({s.tpsRate ?? 9.5}%)
+                  TPS ({s.tpsRate || 9.5}%)
                 </span>
                 <span className="font-semibold text-slate-800 tabular-nums">
                   {fmt(tpsAmount)}
                 </span>
               </div>
             )}
-            <div className="flex justify-between py-1 border-b border-slate-100">
-              <span className="text-slate-500">
-                TVA ({s.tvaRate ?? 18}%)
-              </span>
-              <span className="font-semibold text-slate-800 tabular-nums">
-                {fmt(tvaAmount)}
-              </span>
-            </div>
+            {tvaAmount > 0 && (
+              <div className="flex justify-between py-1 border-b border-slate-100">
+                <span className="text-slate-500">
+                  TVA ({s.tvaRate || 18}%)
+                </span>
+                <span className="font-semibold text-slate-800 tabular-nums">
+                  {fmt(tvaAmount)}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* LOGIQUE CONDITIONNELLE (DEVIS vs AVOIR vs FACTURE) */}

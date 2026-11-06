@@ -88,6 +88,7 @@ export function DataSync() {
         })
 
         // Zéro délai artificiel : déverrouillage immédiat
+        void useStore.getState().refreshStockData(refreshTick > 0)
         setIsDataLoaded(true)
 
       } catch (error) {
@@ -98,6 +99,7 @@ export function DataSync() {
             { id: 'datasync-error', duration: 6000 }
           )
         }
+        void useStore.getState().refreshStockData(refreshTick > 0)
         setIsDataLoaded(true)
       }
     }

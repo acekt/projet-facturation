@@ -34,6 +34,21 @@ export interface IElectronBridge {
     htmlContent: string,
     defaultFilename: string
   ) => Promise<{ saved: boolean; filePath?: string; error?: string }>;
+  renderPdfBuffer?: (
+    htmlContent: string,
+    defaultFilename?: string
+  ) => Promise<{ success: boolean; pdfBase64: string; filePath?: string; error?: string }>;
+  saveAndRevealPdf?: (payload: {
+    pdfBase64?: string;
+    pdfFilename?: string;
+    textToCopy?: string;
+  }) => Promise<{ success: boolean; filePath?: string }>;
+  openWhatsAppInApp?: (payload: {
+    phone: string;
+    message: string;
+    pdfBase64?: string;
+    pdfFilename?: string;
+  }) => Promise<{ success: boolean; filePath?: string }>;
   getVersion: () => Promise<string>;
   getUserDataPath: () => Promise<string>;
   openExternal?: (url: string) => Promise<{ success: boolean } | void>;

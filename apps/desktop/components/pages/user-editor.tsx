@@ -29,6 +29,7 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
   const setUsers = useStore((s) => s.setUsers);
   const [isLoading, setIsLoading] = React.useState(!!editingId);
   const [isSubmitting, startSubmitTransition] = React.useTransition();
+  const submitLockRef = React.useRef(false);
   const [successModalData, setSuccessModalData] = React.useState<any>(null);
   const [showPassword, setShowPassword] = React.useState(false);
   const formRef = React.useRef<HTMLFormElement>(null);
@@ -130,10 +131,15 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    if (submitLockRef.current || isSubmitting) {
+      return;
+    }
+
     if (!validateForm()) {
       return;
     }
 
+    submitLockRef.current = true;
     startSubmitTransition(async () => {
       try {
         const payloadUpdate = {
@@ -176,6 +182,8 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
       } catch (err) {
         console.error("[UserEditor] handleSubmit error:", err);
         toast.error("Erreur réseau");
+      } finally {
+        submitLockRef.current = false;
       }
     });
   };
@@ -192,9 +200,10 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6"
+      className="flex flex-col h-full overflow-hidden"
     >
-      <div className="flex items-center gap-4">
+      {/* Zone Haute Fixe : En-tête */}
+      <div className="shrink-0 pb-4 border-b border-border bg-background z-10 flex items-center gap-4">
         <Button variant="ghost" size="sm" onClick={handleBackSafe} className="cursor-pointer">
           <ArrowLeft className="w-4 h-4 mr-2" />
           Retour
@@ -211,7 +220,9 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
         </div>
       </div>
 
-      <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+      {/* Zone Corps Défilable */}
+      <div className="flex-1 overflow-y-auto min-h-0 pt-4 pr-1">
+        <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
             {/* INFORMATIONS PERSONNELLES */}
@@ -373,6 +384,36 @@ export function UserEditor({ onBack, editingId }: UserEditorProps) {
           </div>
         </div>
       </form>
+    </div>
+
+      <CreationSuccessModal
+        isOpen={!!successModalData}
+        onOpenChange={(open) => {
+          if (!open) {
+            setSuccessModalData(null);
+            onBack();
+          }
+        }}
+        title="Utilisateur Créé avec Succès !"
+        subtitle="Le compte collaborateur a été initialisé dans l'annuaire local."
+        details={[
+          { label: "Nom complet", value: successModalData?.name || formData.name },
+          { label: "Identifiant / Email", value: successModalData?.email || formData.email },
+          { label: "Rôle attribué", value: (successModalData?.role || formData.role) === "admin" ? "Administrateur" : "Utilisateur Standard" },
+          { label: "Téléphone", value: successModalData?.phone || formData.phone || "—" },
+          {
+            label: "Premier accès",
+            value: formData.force_password_change
+              ? "Changement de mot de passe obligatoire"
+              : "Mot de passe standard",
+          },
+        ]}
+        onClose={() => {
+          setSuccessModalData(null);
+          onBack();
+        }}
+        closeLabel="Retour aux utilisateurs"
+      />
     </motion.div>
   );
 }

@@ -1,4 +1,4 @@
-import Database from 'better-sqlite3';
+﻿import Database from 'better-sqlite3';
 import path from 'path';
 import fs from 'fs';
 import os from 'os';
@@ -83,6 +83,7 @@ const globalForDb = globalThis as unknown as {
   statementCache: Map<string, Database.Statement>;
   isClosing: boolean;
   db_ready: boolean;
+  __exitHooksRegistered?: boolean;
 };
 
 const dbPath = resolveDatabasePath();
@@ -124,7 +125,8 @@ const closeDb = () => {
   }
 };
 
-if (!globalForDb.isClosing) {
+if (!globalForDb.__exitHooksRegistered) {
+  globalForDb.__exitHooksRegistered = true;
   process.on('exit', closeDb);
   process.on('beforeExit', closeDb);
   process.on('SIGINT', () => {

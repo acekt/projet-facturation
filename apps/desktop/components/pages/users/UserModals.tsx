@@ -101,9 +101,10 @@ export function UserModals({
           </DialogHeader>
           <div className="py-4">
             <Input
+              data-testid="delete-input"
               value={deleteConfirmName}
               onChange={(e) => setDeleteConfirmName(e.target.value)}
-              placeholder="Saisir le nom exact..."
+              placeholder={`Saisir "${selectedUser?.name || "Nom de l'utilisateur"}" pour confirmer...`}
               className="bg-secondary"
             />
           </div>

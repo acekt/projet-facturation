@@ -12,13 +12,8 @@ import { VisuallyHidden } from "@workspace/ui/components/visually-hidden";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@workspace/ui/components/select";
+import { Switch } from "@workspace/ui/components/switch";
+import { EditableSelect } from "@/components/features/common/EditableSelect";
 
 export const PREDEFINED_SERVICE_CATEGORIES = [
   "Prestation de services",
@@ -33,7 +28,17 @@ export const PREDEFINED_SERVICE_CATEGORIES = [
   "Autre prestation",
 ] as const;
 
-import { Switch } from "@workspace/ui/components/switch";
+export const PREDEFINED_STOCK_UNITS = [
+  "Unité",
+  "Pièce",
+  "Kg",
+  "Litre",
+  "Mètre",
+  "Carton",
+  "Boîte",
+  "Lot",
+  "Forfait",
+] as const;
 
 export interface ServiceFormData {
   name: string;
@@ -41,6 +46,7 @@ export interface ServiceFormData {
   category: string;
   unitPrice: number;
   trackStock?: number;
+  stockItemName?: string | null;
   stockQuantity?: number;
   minStockAlert?: number;
   unit?: string | null;
@@ -67,14 +73,16 @@ export function ServiceFormDialog({
 }: ServiceFormDialogProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="bg-card border-border" side="right">
+      <DialogContent className="bg-card border-border sm:max-w-[540px]" side="right">
         <DialogHeader>
           <DialogTitle className="text-foreground">
             {isEdit ? "Modifier le service" : "Nouveau Service"}
           </DialogTitle>
           <VisuallyHidden>
             <DialogDescription>
-              {isEdit ? "Formulaire de modification du service" : "Formulaire pour ajouter une prestation au catalogue"}
+              {isEdit
+                ? "Formulaire de modification du service"
+                : "Formulaire pour ajouter une prestation au catalogue"}
             </DialogDescription>
           </VisuallyHidden>
         </DialogHeader>
@@ -87,7 +95,7 @@ export function ServiceFormDialog({
               id="service-name"
               value={formData.name}
               onChange={(e) => onChange({ ...formData, name: e.target.value })}
-              placeholder="Ex: Audit de sécurité informatique"
+              placeholder="Ex: Maintenance préventive, Installation réseau, Ramette A4..."
               className="bg-secondary border-border"
               required
               disabled={isSubmitting}
@@ -98,26 +106,16 @@ export function ServiceFormDialog({
               <Label htmlFor="service-category" className="text-muted-foreground">
                 Catégorie <span className="text-destructive">*</span>
               </Label>
-              <Select
+              <EditableSelect
+                id="service-category"
+                groupKey="service_category"
                 value={formData.category || "Prestation de services"}
-                onValueChange={(val) => onChange({ ...formData, category: val })}
+                onChange={(val) => onChange({ ...formData, category: val })}
+                defaultOptions={[...PREDEFINED_SERVICE_CATEGORIES]}
+                placeholder="Choisir une catégorie"
+                addPlaceholder="Nouvelle catégorie..."
                 disabled={isSubmitting}
-              >
-                <SelectTrigger id="service-category" className="w-full bg-secondary border-border text-foreground">
-                  <SelectValue placeholder="Choisir une catégorie" />
-                </SelectTrigger>
-                <SelectContent className="bg-card border-border">
-                  {PREDEFINED_SERVICE_CATEGORIES.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                  {formData.category &&
-                    !PREDEFINED_SERVICE_CATEGORIES.includes(formData.category as (typeof PREDEFINED_SERVICE_CATEGORIES)[number]) && (
-                      <SelectItem value={formData.category}>{formData.category}</SelectItem>
-                    )}
-                </SelectContent>
-              </Select>
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="service-price" className="text-muted-foreground">
@@ -128,8 +126,14 @@ export function ServiceFormDialog({
                 type="number"
                 step="1"
                 min="0"
+                placeholder="Ex: 75000"
                 value={formData.unitPrice}
-                onChange={(e) => onChange({ ...formData, unitPrice: parseInt(e.target.value, 10) || 0 })}
+                onChange={(e) =>
+                  onChange({
+                    ...formData,
+                    unitPrice: parseInt(e.target.value, 10) || 0,
+                  })
+                }
                 className="bg-secondary border-border text-right"
                 required
                 disabled={isSubmitting}
@@ -138,71 +142,121 @@ export function ServiceFormDialog({
           </div>
           <div className="space-y-2">
             <Label htmlFor="service-description" className="text-muted-foreground">
-              Description <span className="text-xs text-muted-foreground/60">(optionnel)</span>
+              Description{" "}
+              <span className="text-xs text-muted-foreground/60">(optionnel)</span>
             </Label>
             <Input
               id="service-description"
               value={formData.description}
-              onChange={(e) => onChange({ ...formData, description: e.target.value })}
-              placeholder="Détails du service..."
+              onChange={(e) =>
+                onChange({ ...formData, description: e.target.value })
+              }
+              placeholder="Ex: Diagnostic complet sur site, pièces détachées et main d'œuvre..."
               className="bg-secondary border-border"
               disabled={isSubmitting}
             />
           </div>
 
           <div className="pt-4 border-t border-border mt-4">
-             <div className="flex items-center justify-between mb-4">
-               <div>
-                  <Label htmlFor="track-stock" className="text-foreground font-medium">Activer le suivi de stock</Label>
-                  <p className="text-xs text-muted-foreground">Suivre les entrées et sorties pour cet article</p>
-               </div>
-               <Switch
-                  id="track-stock"
-                  checked={formData.trackStock === 1}
-                  onCheckedChange={(checked) => onChange({ ...formData, trackStock: checked ? 1 : 0 })}
-                  disabled={isSubmitting || (isEdit && formData.trackStock === 1)}
-               />
-             </div>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <Label htmlFor="track-stock" className="text-foreground font-medium">
+                  Activer le suivi de stock
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Suivre les entrées et sorties physiques pour cet article
+                </p>
+              </div>
+              <Switch
+                id="track-stock"
+                checked={Boolean(formData.trackStock)}
+                onCheckedChange={(checked) =>
+                  onChange({ ...formData, trackStock: checked ? 1 : 0 })
+                }
+                disabled={isSubmitting || (isEdit && Boolean(formData.trackStock))}
+              />
+            </div>
 
-             {formData.trackStock === 1 && (
-                <div className="grid grid-cols-3 gap-4 bg-muted/50 p-4 rounded-lg">
-                   <div className="space-y-2">
-                      <Label htmlFor="stock-initial" className="text-muted-foreground">Stock initial</Label>
-                      <Input
-                        id="stock-initial"
-                        type="number"
-                        min="0"
-                        value={formData.stockQuantity || 0}
-                        onChange={(e) => onChange({ ...formData, stockQuantity: parseInt(e.target.value, 10) || 0 })}
-                        disabled={isSubmitting || isEdit}
-                        className="bg-secondary"
-                      />
-                   </div>
-                   <div className="space-y-2">
-                      <Label htmlFor="stock-alert" className="text-muted-foreground">Seuil d'alerte</Label>
-                      <Input
-                        id="stock-alert"
-                        type="number"
-                        min="0"
-                        value={formData.minStockAlert || 5}
-                        onChange={(e) => onChange({ ...formData, minStockAlert: parseInt(e.target.value, 10) || 0 })}
-                        disabled={isSubmitting}
-                        className="bg-secondary"
-                      />
-                   </div>
-                   <div className="space-y-2">
-                      <Label htmlFor="stock-unit" className="text-muted-foreground">Unité</Label>
-                      <Input
-                        id="stock-unit"
-                        value={formData.unit || "Unité"}
-                        onChange={(e) => onChange({ ...formData, unit: e.target.value })}
-                        disabled={isSubmitting}
-                        className="bg-secondary"
-                        placeholder="ex: kg, L, Unité"
-                      />
-                   </div>
+            {Boolean(formData.trackStock) && (
+              <div className="space-y-4 bg-muted/50 p-4 rounded-lg border border-border/60">
+                <div className="space-y-1.5">
+                  <Label htmlFor="stock-item-name" className="text-muted-foreground">
+                    Désignation de l&apos;article en stock (Nom physique)
+                  </Label>
+                  <Input
+                    id="stock-item-name"
+                    value={formData.stockItemName ?? ""}
+                    onChange={(e) =>
+                      onChange({ ...formData, stockItemName: e.target.value })
+                    }
+                    disabled={isSubmitting}
+                    className="bg-secondary border-border"
+                    placeholder="Entrez le nom de l'article en stock (ex: Extincteur ABC 1 KG)"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Permet d&apos;afficher le nom de l&apos;équipement physique dans la Gestion des Stocks (indépendamment de l&apos;intitulé commercial facturé).
+                  </p>
                 </div>
-             )}
+
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="stock-initial" className="text-muted-foreground">
+                      Stock initial
+                    </Label>
+                    <Input
+                      id="stock-initial"
+                      type="number"
+                      min="0"
+                      placeholder="Ex: 50"
+                      value={formData.stockQuantity ?? 0}
+                      onChange={(e) =>
+                        onChange({
+                          ...formData,
+                          stockQuantity: parseInt(e.target.value, 10) || 0,
+                        })
+                      }
+                      disabled={isSubmitting || isEdit}
+                      className="bg-secondary"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="stock-alert" className="text-muted-foreground">
+                      Seuil d&apos;alerte
+                    </Label>
+                    <Input
+                      id="stock-alert"
+                      type="number"
+                      min="0"
+                      placeholder="Ex: 5"
+                      value={formData.minStockAlert ?? 5}
+                      onChange={(e) =>
+                        onChange({
+                          ...formData,
+                          minStockAlert: parseInt(e.target.value, 10) || 0,
+                        })
+                      }
+                      disabled={isSubmitting}
+                      className="bg-secondary"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="stock-unit" className="text-muted-foreground">
+                      Unité
+                    </Label>
+                    <EditableSelect
+                      id="stock-unit"
+                      groupKey="stock_unit"
+                      value={formData.unit || "Unité"}
+                      onChange={(val) => onChange({ ...formData, unit: val })}
+                      defaultOptions={[...PREDEFINED_STOCK_UNITS]}
+                      placeholder="Unité"
+                      addPlaceholder="Nouvelle unité..."
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <Button

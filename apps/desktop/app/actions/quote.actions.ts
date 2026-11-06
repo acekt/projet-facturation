@@ -12,6 +12,7 @@ import crypto from 'crypto';
 import { getNextNumber } from '@/lib/api/numbering';
 import { validateQuoteStatusTransition } from '@/lib/api/quote-logic';
 import { QuoteService, QuoteServiceError } from '@/lib/services/QuoteService';
+import { resolveValidLocalUserId, resolveValidServiceId } from '@/lib/services/InvoiceService';
 import { assertLicenseAllowsCreation, LicenseRestrictedError } from '@/lib/api/license';
 import { getErrorMessage } from '@/lib/utils/action-error';
 import type { QuoteCreateRequest, QuoteResponse, QuoteItem, DbClient, DbQuoteItem } from '@/lib/types/api';
@@ -108,8 +109,13 @@ export async function createQuote(data: QuoteCreateRequest): Promise<ActionRespo
       return { success: false, error: 'Client introuvable ou supprimé. Impossible de créer un devis pour ce client.' };
     }
 
-    const rates = getTaxRates();
-    const computed = computeTotals(validData.items, validData.discount, rates);
+    const baseRates = getTaxRates();
+    const rates = {
+      cssRate: validData.applyCss === false ? 0 : (validData.applyCss === true ? (baseRates.cssRate || 1) : baseRates.cssRate),
+      tpsRate: validData.applyTps === false ? 0 : (validData.applyTps === true ? (baseRates.tpsRate || 9.5) : baseRates.tpsRate),
+      tvaRate: validData.applyTva === false ? 0 : (validData.applyTva === true ? (baseRates.tvaRate || 18) : baseRates.tvaRate),
+    };
+    const computed = computeTotals(validData.items as any, validData.discount, rates);
     const id = crypto.randomUUID();
 
     const insertQuoteTx = db.transaction((quoteItems: any[]) => {
@@ -127,12 +133,25 @@ export async function createQuote(data: QuoteCreateRequest): Promise<ActionRespo
       `).run(
         id, number, validData.clientId, validData.clientName, cleanClientEmail, validData.date,
         computed.subtotal, computed.discount, computed.taxBase, computed.tvaAmount, computed.tpsAmount, computed.cssAmount,
-        computed.total, validData.notes ?? null, validData.subject ?? null, cleanValidUntil, 'EN_ATTENTE', session.userId, activeTenantId
+        computed.total, validData.notes ?? null, validData.subject ?? null, cleanValidUntil, 'EN_ATTENTE', resolveValidLocalUserId(db, session.userId) || session.userId, activeTenantId
       );
 
-      const insertItemStmt = db.prepare(`INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+      const insertItemStmt = db.prepare(`
+        INSERT INTO quote_items (id, quoteId, serviceId, description, quantity, unitPrice, total, tenant_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
       for (const item of quoteItems) {
-        insertItemStmt.run(crypto.randomUUID(), id, item.description, item.quantity, Math.round(item.unitPrice), Math.round(item.quantity * item.unitPrice), activeTenantId);
+        const svcId = resolveValidServiceId(db, item.serviceId);
+        insertItemStmt.run(
+          crypto.randomUUID(),
+          id,
+          svcId,
+          item.description,
+          item.quantity,
+          Math.round(item.unitPrice),
+          Math.round(item.quantity * item.unitPrice),
+          activeTenantId
+        );
       }
 
       logAudit('CREATE', 'quote', id, `Nouveau devis créé: ${number}`, session.userId, session.name || session.username || null, activeTenantId);
@@ -170,8 +189,13 @@ export async function updateQuote(id: string, data: QuoteCreateRequest): Promise
     }
 
     const validData = validation.data;
-    const rates = getTaxRates();
-    const computed = computeTotals(validData.items, validData.discount, rates);
+    const baseRates = getTaxRates();
+    const rates = {
+      cssRate: validData.applyCss === false ? 0 : (validData.applyCss === true ? (baseRates.cssRate || 1) : baseRates.cssRate),
+      tpsRate: validData.applyTps === false ? 0 : (validData.applyTps === true ? (baseRates.tpsRate || 9.5) : baseRates.tpsRate),
+      tvaRate: validData.applyTva === false ? 0 : (validData.applyTva === true ? (baseRates.tvaRate || 18) : baseRates.tvaRate),
+    };
+    const computed = computeTotals(validData.items as any, validData.discount, rates);
 
     const updateQuoteTx = db.transaction((quoteItems: any[]) => {
       const cleanClientEmail = validData.clientEmail && validData.clientEmail.trim() !== '' ? validData.clientEmail.trim() : null;
@@ -200,22 +224,23 @@ export async function updateQuote(id: string, data: QuoteCreateRequest): Promise
 
       const updateItemStmt = db.prepare(`
         UPDATE quote_items
-        SET description = ?, quantity = ?, unitPrice = ?, total = ?
+        SET serviceId = ?, description = ?, quantity = ?, unitPrice = ?, total = ?
         WHERE id = ? AND quoteId = ?
       `);
       const insertItemStmt = db.prepare(`
-        INSERT INTO quote_items (id, quoteId, description, quantity, unitPrice, total, tenant_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO quote_items (id, quoteId, serviceId, description, quantity, unitPrice, total, tenant_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
       for (const item of quoteItems) {
         const itemId = item.id && existingIds.has(item.id) ? item.id : null;
+        const svcId = item.serviceId || null;
         if (itemId) {
-          updateItemStmt.run(item.description, item.quantity, Math.round(item.unitPrice), Math.round(item.quantity * item.unitPrice), itemId, id);
+          updateItemStmt.run(svcId, item.description, item.quantity, Math.round(item.unitPrice), Math.round(item.quantity * item.unitPrice), itemId, id);
           updatedIds.add(itemId);
         } else {
           const newId = item.id || crypto.randomUUID();
-          insertItemStmt.run(newId, id, item.description, item.quantity, Math.round(item.unitPrice), Math.round(item.quantity * item.unitPrice), activeTenantId);
+          insertItemStmt.run(newId, id, svcId, item.description, item.quantity, Math.round(item.unitPrice), Math.round(item.quantity * item.unitPrice), activeTenantId);
           updatedIds.add(newId);
         }
       }

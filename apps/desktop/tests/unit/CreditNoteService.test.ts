@@ -66,7 +66,7 @@ describe('CreditNoteService Unit Tests', () => {
     testDb.prepare(`INSERT OR IGNORE INTO clients (id, name, email, created_by, tenant_id) VALUES (?, 'Client Cumul', 'cumul@test.com', ?, '00000000-0000-4000-a000-000000000001')`).run(clientId, adminUserId);
 
     const rates = { tvaRate: 18, tpsRate: 9.5, cssRate: 1 };
-    const computedInv = computeTotals([{ description: 'Service', quantity: 1, unitPrice: 10000 }], 0, rates);
+    const computedInv = computeTotals([{ quantity: 1, unitPrice: 10000 }], 0, rates);
 
     testDb.prepare(`
       INSERT INTO invoices (id, number, clientId, clientName, clientEmail, date, subtotal, discount, taxBase, tvaAmount, tpsAmount, cssAmount, total, status, created_by, tenant_id)
@@ -104,9 +104,9 @@ describe('CreditNoteService Unit Tests', () => {
     testDb.prepare(`INSERT OR IGNORE INTO clients (id, name, email, created_by, tenant_id) VALUES (?, 'Client Cumul 2', 'cumul2@test.com', ?, '00000000-0000-4000-a000-000000000001')`).run(clientId, adminUserId);
 
     const rates = { tvaRate: 18, tpsRate: 9.5, cssRate: 1 };
-    const cn1Comp = computeTotals([{ description: 'Ligne 1', quantity: 1, unitPrice: 3000 }], 0, rates);
-    const cn2Comp = computeTotals([{ description: 'Ligne 2', quantity: 1, unitPrice: 3000 }], 0, rates);
-    const cn3Comp = computeTotals([{ description: 'Ligne 3', quantity: 1, unitPrice: 4000 }], 0, rates);
+    const cn1Comp = computeTotals([{ quantity: 1, unitPrice: 3000 }], 0, rates);
+    const cn2Comp = computeTotals([{ quantity: 1, unitPrice: 3000 }], 0, rates);
+    const cn3Comp = computeTotals([{ quantity: 1, unitPrice: 4000 }], 0, rates);
     const totalTtc = cn1Comp.total + cn2Comp.total + cn3Comp.total;
 
     testDb.prepare(`

@@ -53,9 +53,13 @@ describe('Phase 1 — Plan Correctif Desktop (ADR-0044)', () => {
     db.pragma('foreign_keys = ON');
 
     const report = runMigrations(db);
-    expect(report.finalVersion).toBe(6);
+    expect(report.finalVersion).toBe(10);
     expect(ALL_MIGRATIONS.some((m) => m.version === 5 && m.name === '0005_account_ledger')).toBe(true);
     expect(ALL_MIGRATIONS.some((m) => m.version === 6 && m.name === '0006_item_service_link')).toBe(true);
+    expect(ALL_MIGRATIONS.some((m) => m.version === 7 && m.name === '0007_selective_taxes_and_cleanup')).toBe(true);
+    expect(ALL_MIGRATIONS.some((m) => m.version === 8 && m.name === '0008_smtp_settings')).toBe(true);
+    expect(ALL_MIGRATIONS.some((m) => m.version === 9 && m.name === '0009_ux_stock_audit_ledger_excellence')).toBe(true);
+    expect(ALL_MIGRATIONS.some((m) => m.version === 10 && m.name === '0010_high_load_indexes')).toBe(true);
 
     const syncMetaExists = db
       .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='sync_meta'")

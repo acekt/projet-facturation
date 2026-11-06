@@ -46,12 +46,26 @@ function buildHash(doc: SupportedDocument, type: string): string {
 export function DocumentA4({ data, type }: DocumentA4Props) {
   const s = useStore((x) => x.settings);
   const invoices = useStore((x) => x.invoices);
+  const clients = useStore((x) => x.clients);
 
   const relatedInvoiceNumber = React.useMemo(() => {
     if (type !== "avoir" || !("invoiceId" in data)) return undefined;
     const inv = invoices.find((i) => i.id === (data as CreditNoteResponse).invoiceId);
     return inv?.number || (data as CreditNoteResponse).invoiceId;
   }, [type, data, invoices]);
+
+  const matchedClient = React.useMemo(() => {
+    if (!clients || clients.length === 0) return null;
+    const docClientId = data.clientId;
+    const docClientName = (data.clientName || "").trim().toLowerCase();
+    return (
+      clients.find(
+        (c) =>
+          (docClientId && c.id === docClientId) ||
+          (docClientName && (c.name || "").trim().toLowerCase() === docClientName)
+      ) || null
+    );
+  }, [clients, data.clientId, data.clientName]);
 
   const payments =
     "payments" in data ? ((data as InvoiceResponse).payments ?? []) : [];
@@ -73,16 +87,22 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
     "validUntil" in data ? (data as QuoteResponse).validUntil : undefined;
   const reason =
     "reason" in data ? (data as CreditNoteResponse).reason : undefined;
-  const clientEmail =
+  const rawClientEmail =
     "clientEmail" in data
       ? (data as InvoiceResponse | QuoteResponse).clientEmail
       : undefined;
+  const clientEmail = rawClientEmail || matchedClient?.email || undefined;
+  const clientPhone = matchedClient?.phone || undefined;
+  const clientAddress = matchedClient?.address || undefined;
+  const clientNif = matchedClient?.nif || undefined;
+  const clientRccm = matchedClient?.rccm || undefined;
+
   const tpsAmt = data.tpsAmount ?? 0;
   const netHT = data.taxBase - data.cssAmount;
   const hash = buildHash(data, type);
 
-  // Minimum visible rows in the table body
-  const MIN_ROWS = 8;
+  // Minimum visible rows in the table body (only pad when document has fewer than 6 rows)
+  const MIN_ROWS = 6;
   const padRows = Math.max(0, MIN_ROWS - data.items.length);
 
   return (
@@ -112,24 +132,43 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
           color: #ffffff !important;
         }
 
-        @page { size: A4 portrait; margin: 0mm; }
+        @page { size: A4 portrait; margin: 10mm 0mm; }
 
         @media print {
-          html, body { background: white !important; margin: 0 !important; padding: 0 !important; }
+          html, body {
+            background: white !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
           body * { visibility: hidden; }
           .doc-a4, .doc-a4 * { visibility: visible; }
           .doc-a4 {
-            position: absolute !important; left: 0; top: 0;
-            width: 210mm !important; height: 297mm !important;
-            padding: 12mm !important; margin: 0 !important;
+            position: relative !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 210mm !important;
+            min-height: 277mm !important;
+            height: auto !important;
+            padding: 8mm 12mm !important;
+            margin: 0 auto !important;
             box-shadow: none !important;
+            overflow: visible !important;
+          }
+          .doc-a4 thead {
+            display: table-header-group !important;
+          }
+          .doc-a4 tr {
+            break-inside: avoid !important;
+            page-break-inside: avoid !important;
           }
           .no-print, nav, aside, button, header,
           .sidebar, .topbar, [data-sidebar] { display: none !important; }
         }
       `}</style>
 
-      {/* ── A4 SHEET ─────────────────────────────────────────────────────────── */}
+      {/* ── A4 SHEET (MULTI-PAGE READY) ──────────────────────────────────────── */}
       <div
         id="printable-a4-document"
         className={[
@@ -161,29 +200,49 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
           relatedInvoiceNumber={relatedInvoiceNumber}
         />
 
-        {/* 2 · DESTINATAIRE & OBJET */}
+        {/* 2 · DESTINATAIRE COMPLET & OBJET */}
         <div className="flex justify-end mb-4">
-          <div className="bg-slate-50 rounded px-4 py-3">
-            <p className="text-[9px] uppercase tracking-widest text-slate-400 mb-1">
+          <div className="bg-slate-50 border border-slate-200/70 rounded-md px-4 py-3 min-w-[230px] max-w-[310px]">
+            <p className="text-[8.5px] font-bold uppercase tracking-widest text-slate-400 mb-1">
               Destinataire
             </p>
-            <p className="text-[11px] font-extrabold text-brand-primary leading-tight">
+            <p className="text-[11.5px] font-extrabold text-brand-primary leading-tight">
               {data.clientName}
             </p>
-            {clientEmail && (
-              <p className="text-[8.5px] text-slate-500 mt-0.5">
-                {clientEmail}
+            {clientAddress && (
+              <p className="text-[8.5px] text-slate-600 mt-1 leading-snug">
+                {clientAddress}
+              </p>
+            )}
+            {(clientPhone || clientEmail) && (
+              <p className="text-[8.5px] text-slate-500 mt-0.5 leading-snug">
+                {[clientPhone ? `Tél : ${clientPhone}` : null, clientEmail]
+                  .filter(Boolean)
+                  .join(" • ")}
+              </p>
+            )}
+            {(clientNif || clientRccm) && (
+              <p className="text-[8px] font-semibold text-slate-600 mt-1 pt-1 border-t border-slate-200/80 leading-snug">
+                {[
+                  clientNif ? `NIF : ${clientNif}` : null,
+                  clientRccm ? `RCCM : ${clientRccm}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(" • ")}
               </p>
             )}
           </div>
         </div>
 
-        {((type === "avoir" && (reason || subject)) || (type !== "avoir" && Boolean(subject && subject.trim() !== ""))) && (
+        {((type === "avoir" && (reason || subject)) ||
+          (type !== "avoir" && Boolean(subject && subject.trim() !== ""))) && (
           <div className="mb-4">
             <p className="text-[11px] text-slate-800">
-              <span className="font-bold">{type === "avoir" ? "Motif de l'avoir :" : "Objet :"}</span>{" "}
+              <span className="font-bold">
+                {type === "avoir" ? "Motif de l'avoir :" : "Objet :"}
+              </span>{" "}
               <span className="font-semibold">
-                {type === "avoir" ? (reason || subject) : subject}
+                {type === "avoir" ? reason || subject : subject}
               </span>
             </p>
           </div>
@@ -222,18 +281,22 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
                 <tr
                   key={item.id}
                   className="border-b border-gray-100 print:break-inside-avoid"
-                  style={{ backgroundColor: "#fff" }}
+                  style={{
+                    backgroundColor: "#fff",
+                    breakInside: "avoid",
+                    pageBreakInside: "avoid",
+                  }}
                 >
-                  <td className="py-3 px-3 align-top font-medium text-slate-800 break-words whitespace-normal text-[11px] leading-relaxed">
+                  <td className="py-2.5 px-3 align-top font-medium text-slate-800 break-words whitespace-normal text-[11px] leading-relaxed">
                     {item.description}
                   </td>
-                  <td className="py-3 px-3 text-center tabular-nums text-slate-600 align-top text-[11px] leading-relaxed">
+                  <td className="py-2.5 px-3 text-center tabular-nums text-slate-600 align-top text-[11px] leading-relaxed">
                     {item.quantity}
                   </td>
-                  <td className="py-3 px-3 text-right tabular-nums text-slate-600 align-top text-[11px] leading-relaxed">
+                  <td className="py-2.5 px-3 text-right tabular-nums text-slate-600 align-top text-[11px] leading-relaxed">
                     {fmt(item.unitPrice)}
                   </td>
-                  <td className="py-3 px-3 text-right tabular-nums font-bold text-slate-800 align-top text-[11px] leading-relaxed">
+                  <td className="py-2.5 px-3 text-right tabular-nums font-bold text-slate-800 align-top text-[11px] leading-relaxed">
                     {fmt(item.total)}
                   </td>
                 </tr>
@@ -245,14 +308,14 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
                   style={{ backgroundColor: "#fff" }}
                 >
                   <td
-                    className="py-3 px-3 text-transparent select-none break-words text-[11px]"
+                    className="py-2.5 px-3 text-transparent select-none break-words text-[11px]"
                     aria-hidden="true"
                   >
                     .
                   </td>
-                  <td className="py-3 px-3" />
-                  <td className="py-3 px-3" />
-                  <td className="py-3 px-3" />
+                  <td className="py-2.5 px-3" />
+                  <td className="py-2.5 px-3" />
+                  <td className="py-2.5 px-3" />
                 </tr>
               ))}
             </tbody>

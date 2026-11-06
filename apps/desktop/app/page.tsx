@@ -1,22 +1,21 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import { redirect } from 'next/navigation'
+import { connection } from 'next/server'
 import { getSession } from '@/lib/api/auth'
 import db from '@/lib/db'
 import { ProtectedAppShell } from '@/components/pages/protected-app-shell'
+import type { UserResponse } from '@/lib/types/api'
 
 export const instant = false;
 
-import type { UserResponse } from '@/lib/types/api'
-
 /**
- * Server Component Protecteur — Racine de l'application (/)
- * ==========================================================
+ * Contenu authentifié — logique asynchrone dynamique (requête entrante requise).
  * Vérifie l'intégrité de la session (HMAC) et la présence effective
  * de l'utilisateur dans la base SQLite avant tout rendu HTML.
- * En cas de session absente ou invalide, émet immédiatement une
- * redirection HTTP stricte (307) vers /login sans monter de composant client.
+ * En cas de session absente ou invalide, émet une redirection vers /login.
  */
-export default async function Page() {
+async function AuthenticatedAppContent() {
+  await connection()
   const session = await getSession()
   if (!session || !session.userId) {
     redirect('/login')
@@ -47,4 +46,16 @@ export default async function Page() {
   }
 
   return <ProtectedAppShell initialUser={initialUser} />
+}
+
+/**
+ * Server Component Protecteur — Racine de l'application (/)
+ * La partie dynamique est isolée dans <Suspense> pour ne pas bloquer le prérendu.
+ */
+export default function Page() {
+  return (
+    <Suspense fallback={null}>
+      <AuthenticatedAppContent />
+    </Suspense>
+  )
 }

@@ -151,7 +151,7 @@ export async function loginUser(data: z.infer<typeof loginSchema>): Promise<Acti
       return { success: false, error: "Données de connexion invalides" };
     }
 
-    const { username, password }: LoginRequest = validation.data;
+    const { username, password } = validation.data as LoginRequest;
     const cleanUsername = username.toLowerCase().trim();
 
     // 1. Protection Brute-Force & DoS

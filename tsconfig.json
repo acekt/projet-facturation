@@ -1,0 +1,31 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "strict": false,
+    "noEmit": true,
+    "paths": {
+      "@/*": ["./apps/desktop/*"],
+      "@workspace/ui/*": ["./packages/ui/src/*"],
+      "@workspace/database": ["./packages/database/src/index.ts"],
+      "@workspace/database/*": ["./packages/database/src/*"]
+    },
+    "types": ["vitest/globals", "node"]
+  },
+  "include": [
+    "apps/desktop/**/*",
+    "packages/**/*"
+  ],
+  "exclude": [
+    "node_modules",
+    "dist",
+    ".next",
+    "apps/desktop/scripts",
+    "apps/desktop/tests/integration",
+    "apps/desktop/tests/e2e",
+    "apps/desktop/tests/performance"
+  ]
+}

@@ -12,7 +12,7 @@
     "start:electron": "node .next/standalone/server.js",
     "electron": "electron .",
     "electron:prod": "npm run build:electron && electron .",
-    "test": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" vitest run",
+    "test": "vitest run",
     "typecheck": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" tsc --noEmit",
     "test:e2e:report": "playwright test --reporter=html",
     "seed": "npx tsx scripts/seed_multiyear.ts",

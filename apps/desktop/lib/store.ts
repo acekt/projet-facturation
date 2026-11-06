@@ -26,12 +26,17 @@ import {
   SettingsSlice,
   createSettingsSlice,
 } from "./store/slices/settingsSlice";
+import {
+  OperationsCacheSlice,
+  createOperationsCacheSlice,
+} from "./store/slices/operationsCacheSlice";
 
 export type AppState = AuthSlice &
   ClientsSlice &
   QuotesSlice &
   InvoicesSlice &
-  SettingsSlice;
+  SettingsSlice &
+  OperationsCacheSlice;
 
 /**
  * Store global Zustand modulaire découpé en tranches (Lot J / P5 / J5).
@@ -45,6 +50,7 @@ export const useStore = create<AppState>()(
       ...createQuotesSlice(...a),
       ...createInvoicesSlice(...a),
       ...createSettingsSlice(...a),
+      ...createOperationsCacheSlice(...a),
     }),
     {
       name: "app-storage",

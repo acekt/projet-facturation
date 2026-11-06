@@ -9,6 +9,15 @@ export interface ITaxRates {
   readonly tvaRate: number;
   readonly tpsRate: number | null;
   readonly cssRate: number;
+  readonly applyCss?: boolean;
+  readonly applyTps?: boolean;
+  readonly applyTva?: boolean;
+}
+
+export interface ITaxSelectionOptions {
+  readonly applyCss?: boolean;
+  readonly applyTps?: boolean;
+  readonly applyTva?: boolean;
 }
 
 export const DEFAULT_GABON_TAX_RATES: ITaxRates = {
@@ -81,19 +90,28 @@ export function computeItemTotal(quantity: number, unitPrice: number): number {
 export function computeTotals(
   items: IInvoiceItemInput[],
   discountInput: number,
-  rates: ITaxRates
+  rates: ITaxRates,
+  options?: ITaxSelectionOptions
 ): IComputedTotals {
   const subtotal = items.reduce(
     (acc, item) => acc + Math.round(item.quantity * item.unitPrice),
     0
   );
 
+  const applyCss = options?.applyCss ?? rates.applyCss ?? true;
+  const applyTps = options?.applyTps ?? rates.applyTps ?? true;
+  const applyTva = options?.applyTva ?? rates.applyTva ?? true;
+
+  const effectiveCssRate = applyCss ? (rates.cssRate ?? 0) : 0;
+  const effectiveTpsRate = applyTps ? (rates.tpsRate ?? 0) : 0;
+  const effectiveTvaRate = applyTva ? (rates.tvaRate ?? 0) : 0;
+
   const discount = Math.round(Math.max(0, Number(discountInput) || 0));
   const effectiveHT = Math.max(0, subtotal - discount);
-  const cssAmount = Math.round(effectiveHT * (rates.cssRate / 100));
+  const cssAmount = Math.round(effectiveHT * (effectiveCssRate / 100));
   const taxBase = effectiveHT + cssAmount;
-  const tpsAmount = Math.round(taxBase * ((rates.tpsRate ?? 0) / 100));
-  const tvaAmount = Math.round(taxBase * (rates.tvaRate / 100));
+  const tpsAmount = Math.round(taxBase * (effectiveTpsRate / 100));
+  const tvaAmount = Math.round(taxBase * (effectiveTvaRate / 100));
   const total = taxBase + tpsAmount + tvaAmount;
 
   return {
@@ -106,6 +124,15 @@ export function computeTotals(
     tvaAmount,
     total,
   };
+}
+
+export function calculateGabonTaxes(
+  items: IInvoiceItemInput[],
+  discountInput: number,
+  rates: ITaxRates = { cssRate: 1, tpsRate: 9.5, tvaRate: 18 },
+  options: ITaxSelectionOptions = { applyCss: true, applyTps: false, applyTva: true }
+): IComputedTotals {
+  return computeTotals(items, discountInput, rates, options);
 }
 
 /**

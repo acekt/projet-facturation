@@ -9,6 +9,19 @@ import crypto from 'crypto';
 import type { ServiceCreateRequest, ServiceUpdateRequest, DbService } from '@/lib/types/api';
 import type { ActionResponse } from './client.actions';
 
+function derivePhysicalStockName(serviceName: string, explicitStockName?: string | null): string | null {
+  if (explicitStockName && explicitStockName.trim() !== '') {
+    return explicitStockName.trim();
+  }
+  if (!serviceName) return null;
+  const cleaned = serviceName
+    .trim()
+    .replace(/^(achat\s+et\s+installation\s+d['’]|achat\s+et\s+installation\s+de\s+|achat\s+d['’]|achat\s+de\s+|achat\s+|fourniture\s+et\s+pose\s+d['’]|fourniture\s+et\s+pose\s+de\s+|fourniture\s+d['’]|fourniture\s+de\s+|vente\s+d['’]|vente\s+de\s+)/i, '')
+    .trim();
+  if (!cleaned) return serviceName.trim();
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
 export async function getServices(): Promise<ActionResponse<DbService[]>> {
   try {
     const session = await getSession();
@@ -54,7 +67,12 @@ export async function createService(data: ServiceCreateRequest): Promise<ActionR
     }
 
     const valData = validation.data as any;
-    const { name, description, category, unitPrice, trackStock, stockQuantity, minStockAlert, unit } = valData;
+    const { name, description, category, unitPrice, trackStock, stockItemName, stockQuantity, minStockAlert, unit } = valData;
+    const resolvedStockItemName = trackStock
+      ? derivePhysicalStockName(name, stockItemName)
+      : stockItemName
+      ? stockItemName.trim()
+      : null;
     const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
     const tf = buildTenantFilter(activeTenantId);
 
@@ -65,8 +83,8 @@ export async function createService(data: ServiceCreateRequest): Promise<ActionR
 
     const id = crypto.randomUUID();
 
-    db.prepare('INSERT INTO services (id, name, description, category, unitPrice, created_by, tenant_id, trackStock, stockQuantity, minStockAlert, unit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(id, name.trim(), description, category, Math.round(unitPrice), session.userId, activeTenantId, trackStock, stockQuantity, minStockAlert, unit);
+    db.prepare('INSERT INTO services (id, name, description, category, unitPrice, created_by, tenant_id, trackStock, stockItemName, stockQuantity, minStockAlert, unit) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(id, name.trim(), description, category, Math.round(unitPrice), session.userId, activeTenantId, trackStock, resolvedStockItemName, stockQuantity, minStockAlert, unit);
 
     logAudit('CREATE', 'service', id, `Nouveau service créé: ${name.trim()}`, session.userId, session.name || session.username || null, activeTenantId);
 
@@ -95,15 +113,20 @@ export async function updateService(id: string, data: ServiceUpdateRequest): Pro
     }
 
     const valData = validation.data as any;
-    const { name, description, category, unitPrice, trackStock, stockQuantity, minStockAlert, unit } = valData;
+    const { name, description, category, unitPrice, trackStock, stockItemName, stockQuantity, minStockAlert, unit } = valData;
+    const resolvedStockItemName = trackStock
+      ? derivePhysicalStockName(name, stockItemName)
+      : stockItemName
+      ? stockItemName.trim()
+      : existingService.stockItemName ?? null;
 
     if (name && name.trim() !== '') {
       const duplicate = db.prepare(`SELECT id FROM services WHERE lower(name) = lower(?) AND id != ? AND deletedAt IS NULL${tf.sql}`).get(name.trim(), id, ...tf.params);
       if (duplicate) return { success: false, error: 'Un service avec ce nom existe déjà' };
     }
 
-    db.prepare('UPDATE services SET name = ?, description = ?, category = ?, unitPrice = ?, trackStock = ?, stockQuantity = ?, minStockAlert = ?, unit = ? WHERE id = ?')
-      .run(name.trim(), description, category, Math.round(unitPrice), trackStock ?? 0, stockQuantity ?? 0, minStockAlert ?? 5, unit ?? 'Unité', id);
+    db.prepare('UPDATE services SET name = ?, description = ?, category = ?, unitPrice = ?, trackStock = ?, stockItemName = ?, stockQuantity = ?, minStockAlert = ?, unit = ? WHERE id = ?')
+      .run(name.trim(), description, category, Math.round(unitPrice), trackStock ?? 0, resolvedStockItemName, stockQuantity ?? 0, minStockAlert ?? 5, unit ?? 'Unité', id);
 
     logAudit('UPDATE', 'service', id, `Service mis à jour: ${name.trim()}`, session.userId, session.name || session.username || null, activeTenantId);
 

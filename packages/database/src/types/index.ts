@@ -88,6 +88,7 @@ export interface IService {
   created_by?: string;
   tenant_id?: string | null;
   trackStock: number;
+  stockItemName?: string | null;
   stockQuantity: number;
   minStockAlert: number;
   unit: string | null;
@@ -258,6 +259,11 @@ export interface ISettings {
   companyCode: string;
   mentionsLegales?: string | null;
   logo?: string | null;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUser?: string | null;
+  smtpPass?: string | null;
+  smtpSecure?: number | boolean | null;
   tenant_id?: string | null;
 }
 
@@ -271,6 +277,54 @@ export interface IAuditLog {
   details?: string | null;
   createdAt: string;
   tenant_id?: string | null;
+}
+
+export interface CashflowPoint {
+  date: string;
+  label: string;
+  income: number;
+  expense: number;
+  revenue?: number;
+  forecast?: number;
+}
+
+export interface LedgerSummaryMetrics {
+  totalIn: number;
+  totalOut: number;
+  netTreasury: number;
+  averageMonthlyExpenses: number;
+}
+
+export interface ForecastMetrics {
+  expectedInflows30d: number;
+  weightedQuotesPipeline: number;
+  totalPendingQuotesAmount: number;
+  projectedNetCash30d: number;
+  collectionRate: number;
+  quoteConversionRate: number;
+}
+
+export interface StockWatchItem {
+  id: string;
+  name: string;
+  physicalTitle: string;
+  stockQuantity: number;
+  minStockAlert: number;
+  unitPrice: number;
+}
+
+export interface StockDashboardMetrics {
+  trackedCount: number;
+  lowStockCount: number;
+  outOfStockCount: number;
+  totalStockValue: number;
+  lowStockItems: StockWatchItem[];
+}
+
+export interface QuotesPipelineMetrics {
+  count: number;
+  ttc: number;
+  ht: number;
 }
 
 export interface IDashboardMetrics {
@@ -308,6 +362,11 @@ export interface IDashboardMetrics {
     client: string;
     time: string;
   }>;
+  ledgerSummary?: LedgerSummaryMetrics;
+  cashflowSeries?: CashflowPoint[];
+  forecastMetrics?: ForecastMetrics;
+  stockMetrics?: StockDashboardMetrics;
+  quotesPipelineAmount?: QuotesPipelineMetrics;
 }
 
 export interface IPlan {

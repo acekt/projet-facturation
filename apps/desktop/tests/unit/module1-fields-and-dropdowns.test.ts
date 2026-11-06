@@ -207,8 +207,8 @@ describe('Module 1 — Validation des Champs Obligatoires/Optionnels & Listes D�
         status: 'active',
       });
       expect(res1.success).toBe(true);
-      expect(res1.data.email).toBeNull();
-      expect(res1.data.status).toBe('active');
+      expect(res1.data!.email).toBeNull();
+      expect(res1.data!.status).toBe('active');
 
       // 2e client sans email (artisan local) — ne doit PAS lever d erreur de doublon
       const res2 = await createClient({
@@ -218,13 +218,13 @@ describe('Module 1 — Validation des Champs Obligatoires/Optionnels & Listes D�
         status: 'inactive',
       });
       expect(res2.success).toBe(true);
-      expect(res2.data.email).toBeNull();
-      expect(res2.data.status).toBe('inactive');
+      expect(res2.data!.email).toBeNull();
+      expect(res2.data!.status).toBe('inactive');
 
       // Vérification en base de données
       const list = await getClients();
-      expect(list.data.length).toBe(2);
-      expect(list.data.find(c => c.name === 'Client Comptoir 2')?.status).toBe('inactive');
+      expect(list.data!.length).toBe(2);
+      expect(list.data!.find(c => c.name === 'Client Comptoir 2')?.status).toBe('inactive');
     });
 
     it('permet de modifier un client pour changer son statut de liste déroulante', async () => {
@@ -242,7 +242,7 @@ describe('Module 1 — Validation des Champs Obligatoires/Optionnels & Listes D�
         status: 'active',
       });
       expect(createRes.success).toBe(true);
-      const clientId = createRes.data.id;
+      const clientId = createRes.data!.id;
 
       // Basculer le statut en "inactive"
       const updateRes = await updateClient(clientId, {
@@ -251,7 +251,7 @@ describe('Module 1 — Validation des Champs Obligatoires/Optionnels & Listes D�
         status: 'inactive',
       });
       expect(updateRes.success).toBe(true);
-      expect(updateRes.data.status).toBe('inactive');
+      expect(updateRes.data!.status).toBe('inactive');
     });
   });
 });

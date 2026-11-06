@@ -23,6 +23,11 @@ export interface DbSettings {
   swiftCode?: string;
   iban?: string;
   sessionTimeout?: number;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUser?: string | null;
+  smtpPass?: string | null;
+  smtpSecure?: number | boolean | null;
   tenant_id?: string;
 }
 

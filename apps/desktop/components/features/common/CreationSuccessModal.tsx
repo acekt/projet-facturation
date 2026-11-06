@@ -21,6 +21,8 @@ export interface CreationSuccessModalProps {
   onClose: () => void
   onPreview?: () => void
   previewLabel?: string
+  closeLabel?: string
+  icon?: React.ReactNode
 }
 
 export function CreationSuccessModal({
@@ -32,7 +34,21 @@ export function CreationSuccessModal({
   onClose,
   onPreview,
   previewLabel = "Aperçu PDF",
+  closeLabel = "Fermer",
+  icon,
 }: CreationSuccessModalProps) {
+  const validDetails = React.useMemo(
+    () =>
+      details.filter(
+        (d) =>
+          d.value !== undefined &&
+          d.value !== null &&
+          String(d.value).trim() !== "" &&
+          d.value !== "—"
+      ),
+    [details]
+  )
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="bg-card border-border sm:max-w-md p-6">
@@ -44,8 +60,8 @@ export function CreationSuccessModal({
         </DialogHeader>
 
         <div className="py-2 space-y-5 text-center">
-          <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 rounded-full flex items-center justify-center mx-auto">
-            <CheckCircle2 className="w-6 h-6" />
+          <div className="w-12 h-12 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto">
+            {icon || <CheckCircle2 className="w-6 h-6" />}
           </div>
 
           <div>
@@ -58,13 +74,13 @@ export function CreationSuccessModal({
           </div>
 
           <div className="bg-secondary/40 border border-border rounded-xl p-4 text-left space-y-2.5 text-xs">
-            {details.map((detail, idx) => (
+            {validDetails.map((detail, idx) => (
               <div
                 key={idx}
-                className={`flex justify-between items-center ${idx === 0 ? "pb-2 border-b border-border/60" : ""} ${idx === details.length - 1 && details.length > 2 ? "pt-1 border-t border-border/40" : ""}`}
+                className={`flex justify-between items-center ${idx === 0 ? "pb-2 border-b border-border/60" : ""} ${idx === validDetails.length - 1 && validDetails.length > 2 ? "pt-1 border-t border-border/40" : ""}`}
               >
                 <span className="text-muted-foreground">{detail.label}</span>
-                <span className={`font-medium text-foreground ${detail.isAmount ? "font-bold text-sm tabular-nums" : ""}`}>
+                <span className={`font-medium text-foreground ${detail.isAmount ? "font-bold text-sm tabular-nums text-foreground" : ""}`}>
                   {detail.value}
                 </span>
               </div>
@@ -72,11 +88,11 @@ export function CreationSuccessModal({
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
-            <Button variant="outline" onClick={onClose}>
-              Fermer
+            <Button variant="outline" onClick={onClose} className="cursor-pointer">
+              {closeLabel}
             </Button>
             {onPreview && (
-              <Button onClick={onPreview} className="gap-2 bg-primary text-primary-foreground">
+              <Button onClick={onPreview} className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer">
                 <FileText className="w-4 h-4" />
                 {previewLabel}
                 <ArrowRight className="w-3.5 h-3.5" />

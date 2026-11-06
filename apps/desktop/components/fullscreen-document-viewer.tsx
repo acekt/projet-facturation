@@ -24,9 +24,8 @@
 
 import * as React from "react"
 import { getErrorMessage } from "@/lib/utils/action-error"
-import { X, Printer, Download, FileText, Loader2, ZoomIn, ZoomOut, Maximize } from "lucide-react"
-import { ShareDocumentModal } from "@/components/features/share/ShareDocumentModal";
-import { Send } from "lucide-react";
+import { X, Printer, Download, FileText, Loader2, ZoomIn, ZoomOut, Send } from "lucide-react"
+import { ShareDocumentModal } from "@/components/features/share/ShareDocumentModal"
 import { Button } from "@workspace/ui/components/button"
 import { DocumentA4 } from "@/components/document-a4"
 import { printElement, buildPrintHtml } from "@/lib/electron-print"
@@ -58,12 +57,11 @@ export function FullScreenDocumentViewer({
   defaultFilename,
   ...docProps
 }: FullScreenDocumentViewerProps) {
-  const [scale, setScale]       = React.useState(0.8)
+  const [scale, setScale]             = React.useState(0.8)
   const [zoomLevel, setZoomLevel]     = React.useState(1)
   const [isPrinting, setIsPrinting]   = React.useState(false)
   const [isExporting, setIsExporting] = React.useState(false)
-
-  const [shareModalOpen, setShareModalOpen] = React.useState(false);
+  const [shareModalOpen, setShareModalOpen] = React.useState(false)
 
   const viewerRef = React.useRef<HTMLDivElement>(null)
 
@@ -113,10 +111,6 @@ export function FullScreenDocumentViewer({
   const handleExportPDF = async () => {
     if (isExporting) return // Protection double-clic
 
-    // ── 1. Cible #printable-a4-document : le div racine de <DocumentA4 />
-    //       (id ajouté en étape 1, taille native 210×297mm, pas de scale)
-    //       On le cherche DANS le clone caché #fsdv-print-container pour
-    //       éviter de capturer le div visuel (qui peut avoir un scale appliqué).
     const container = document.getElementById('fsdv-print-container')
     const element   = container?.querySelector<HTMLElement>('#printable-a4-document')
                       ?? document.getElementById('printable-a4-document')
@@ -126,7 +120,6 @@ export function FullScreenDocumentViewer({
       return
     }
 
-    // ── 2. Fallback navigateur (sans Electron) ────────────────────────────
     if (!window.electron?.exportPDF) {
       toast.info("Export PDF natif non disponible — ouverture de l'impression navigateur.")
       window.print()
@@ -137,14 +130,9 @@ export function FullScreenDocumentViewer({
     const toastId = toast.loading('Génération du PDF en cours...')
 
     try {
-      // ── 3. Capture du HTML + debug ─────────────────────────────────────
       const contentHtml = element.outerHTML
-      console.log('[PDF Export] HTML capturé — longueur:', contentHtml.length, 'chars | ID:', element.id)
-
-      // ── 4. Construit le document HTML complet (sans script window.print)
       const htmlDoc = buildPrintHtml(contentHtml, /* includePrintScript */ false)
 
-      // ── 5. Nom de fichier (sanitisation pour Windows) ─────────────────
       const docNumber = (docProps.data as any)?.number ?? 'document'
       const typePrefix = docProps.type === 'facture' ? 'FACTURE'
                         : docProps.type === 'devis'   ? 'DEVIS'
@@ -152,7 +140,6 @@ export function FullScreenDocumentViewer({
       const filename = defaultFilename
         ?? `${typePrefix}_${docNumber.replace(/\//g, '-').replace(/\s+/g, '_')}.pdf`
 
-      // ── 5. Appel IPC → main.js → BrowserWindow cachée → printToPDF ──────
       try {
         const result = await window.electron.exportPDF(htmlDoc, filename)
 
@@ -165,12 +152,11 @@ export function FullScreenDocumentViewer({
             duration: 4000,
           })
         } else {
-          // L'utilisateur a annulé la boîte de dialogue → pas d'erreur
           toast.dismiss(toastId)
         }
       } catch (err: unknown) {
-        console.error('[FullScreenViewer] IPC exportPDF error:', err);
-        toast.error(`Échec critique de l'export: ${getErrorMessage(err, 'Erreur inconnue')}`, { id: toastId });
+        console.error('[FullScreenViewer] IPC exportPDF error:', err)
+        toast.error(`Échec critique de l'export: ${getErrorMessage(err, 'Erreur inconnue')}`, { id: toastId })
       }
 
     } catch (err) {
@@ -189,7 +175,6 @@ export function FullScreenDocumentViewer({
     ?? `${docProps.type === 'facture' ? 'Facture' : docProps.type === 'devis' ? 'Devis' : 'Avoir'} — ${(docProps.data as any).number ?? ''}`
 
   return (
-    // ── Overlay plein écran (passe au-dessus de la sidebar et du topbar) ──
     <div className="fixed inset-0 z-[100] w-screen h-screen bg-gray-200 flex flex-col">
 
       {/* ── TOPBAR ─────────────────────────────────────────────────────── */}
@@ -245,6 +230,18 @@ export function FullScreenDocumentViewer({
         {/* Droite : Actions */}
         <div className="flex items-center gap-2">
 
+          {/* Bouton Partager */}
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={isPrinting || isExporting}
+            onClick={() => setShareModalOpen(true)}
+            className="gap-2 border-slate-200 text-slate-700 hover:bg-gray-50"
+          >
+            <Send className="w-4 h-4 text-primary" />
+            <span className="hidden sm:inline">Partager</span>
+          </Button>
+
           {/* Bouton Imprimer */}
           <Button
             variant="outline"
@@ -262,7 +259,7 @@ export function FullScreenDocumentViewer({
             </span>
           </Button>
 
-          {/* Bouton Télécharger PDF ← cœur de l'étape 3 */}
+          {/* Bouton Télécharger PDF */}
           <Button
             size="sm"
             disabled={isExporting || isPrinting}
@@ -290,23 +287,22 @@ export function FullScreenDocumentViewer({
         <div
           style={{
             width: `${A4_W * scale * zoomLevel}px`,
-            height: `${A4_H * scale * zoomLevel}px`,
+            minHeight: `${A4_H * scale * zoomLevel}px`,
+            height: 'auto',
             flexShrink: 0,
-            position: 'relative'
+            position: 'relative',
+            paddingBottom: '48px',
           }}
         >
-          {/* Feuille A4 scalée — affichage visuel */}
+          {/* Feuille A4 scalée — affichage visuel (multi-pages fluides) */}
           <div
             style={{
               transform: `scale(${scale * zoomLevel})`,
               transformOrigin: 'top left',
               width: `${A4_W}px`,
               minWidth: `${A4_W}px`,
-              height: `${A4_H}px`,
               minHeight: `${A4_H}px`,
-              position: 'absolute',
-              top: 0,
-              left: 0,
+              height: 'auto',
             }}
           >
             <DocumentA4 {...docProps} />
@@ -328,7 +324,13 @@ export function FullScreenDocumentViewer({
           open={shareModalOpen}
           onOpenChange={setShareModalOpen}
           document={docProps.data as any}
-          type={(docProps as any).type}
+          type={
+            docProps.type === 'facture'
+              ? 'invoice'
+              : docProps.type === 'devis'
+              ? 'quote'
+              : 'credit_note'
+          }
         />
       )}
 

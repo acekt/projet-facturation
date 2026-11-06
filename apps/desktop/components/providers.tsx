@@ -6,6 +6,7 @@ import { ErrorBoundary } from "react-error-boundary"
 import { AlertTriangle } from "lucide-react"
 import { Button } from "@workspace/ui/components/button"
 import { Toaster } from "sonner"
+import { CloudSyncRunner } from "@/components/cloud-sync-runner"
 
 function FallbackError({ error, resetErrorBoundary }: { error: any; resetErrorBoundary: (...args: any[]) => void }) {
   return (
@@ -33,6 +34,40 @@ export function Providers({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Safety net anti-blocage Radix UI (gel de document.body.style.pointerEvents = 'none')
+  React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    // Interception des rejets non gérés de type Event (ex: échec de chargement d'image ou média)
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      const reason = event.reason;
+      if (
+        reason instanceof Event ||
+        (reason && typeof reason === "object" && ("target" in reason || "type" in reason))
+      ) {
+        event.preventDefault();
+        console.warn("[Global Safety] Intercepted unhandled DOM Event rejection:", reason?.type || reason);
+      }
+    };
+    window.addEventListener("unhandledrejection", handleRejection);
+
+    if (!window.MutationObserver) return () => window.removeEventListener("unhandledrejection", handleRejection);
+    const cleanup = () => {
+      const anyActiveOverlay = document.querySelector(
+        '[data-state="open"][role="dialog"], [data-state="open"][role="alertdialog"], [data-radix-portal] [data-state="open"]'
+      );
+      if (!anyActiveOverlay && document.body.style.pointerEvents === "none") {
+        document.body.style.pointerEvents = "";
+      }
+    };
+    const observer = new MutationObserver(cleanup);
+    observer.observe(document.body, { attributes: true, attributeFilter: ["style"] });
+    return () => {
+      window.removeEventListener("unhandledrejection", handleRejection);
+      observer.disconnect();
+    };
+  }, []);
+
   return (
     <ThemeProvider
       attribute="class"
@@ -41,6 +76,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       disableTransitionOnChange={false}
     >
       <ErrorBoundary FallbackComponent={FallbackError}>
+        <CloudSyncRunner />
         {children}
       </ErrorBoundary>
       <Toaster position="top-right" richColors />

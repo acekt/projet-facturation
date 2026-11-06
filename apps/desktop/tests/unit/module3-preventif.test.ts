@@ -122,6 +122,7 @@ describe('Module 3 Préventif — Performance, Indexation, Multi-Tenant & Audit 
         clientId: clientAlpha.id,
         clientName: clientAlpha.name,
         date: '2026-10-27',
+        discount: 0,
         items: [{ description: 'Prestation Confidentielle Alpha', quantity: 1, unitPrice: 750000 }],
       });
       expect(invoiceAlphaRes.success).toBe(true);
@@ -169,6 +170,7 @@ describe('Module 3 Préventif — Performance, Indexation, Multi-Tenant & Audit 
         clientId: client.id,
         clientName: client.name,
         date: '2026-10-27',
+        discount: 0,
         items: [{ description: 'Contrat Audit Trimestriel', quantity: 1, unitPrice: 300000 }],
       });
       expect(invoiceRes.success).toBe(true);

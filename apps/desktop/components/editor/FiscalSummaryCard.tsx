@@ -5,6 +5,7 @@ import { Send, Eye, Save } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@workspace/ui/components/card";
 import { Button } from "@workspace/ui/components/button";
 import { Input } from "@workspace/ui/components/input";
+import { Checkbox } from "@workspace/ui/components/checkbox";
 import { formatCurrency } from "@/lib/utils";
 
 interface FiscalSummaryCardProps {
@@ -20,6 +21,12 @@ interface FiscalSummaryCardProps {
   cssRate?: number;
   tpsRate?: number;
   tvaRate?: number;
+  applyCss?: boolean;
+  onApplyCssChange?: (checked: boolean) => void;
+  applyTps?: boolean;
+  onApplyTpsChange?: (checked: boolean) => void;
+  applyTva?: boolean;
+  onApplyTvaChange?: (checked: boolean) => void;
   isSubmitting: boolean;
   canPreview: boolean;
   onPreview: () => void;
@@ -39,9 +46,15 @@ export function FiscalSummaryCard({
   tpsAmount,
   tvaAmount,
   total,
-  cssRate = 0,
+  cssRate = 1,
   tpsRate = 9.5,
-  tvaRate = 0,
+  tvaRate = 18,
+  applyCss = true,
+  onApplyCssChange,
+  applyTps = false,
+  onApplyTpsChange,
+  applyTva = true,
+  onApplyTvaChange,
   isSubmitting,
   canPreview,
   onPreview,
@@ -50,6 +63,10 @@ export function FiscalSummaryCard({
   onSaveDraft,
   saveDraftLabel = "Enregistrer Brouillon",
 }: FiscalSummaryCardProps) {
+  const effectiveCssRate = cssRate || 1;
+  const effectiveTpsRate = tpsRate || 9.5;
+  const effectiveTvaRate = tvaRate || 18;
+
   return (
     <Card className="bg-card border-border sticky top-24">
       <CardHeader className="pb-4">
@@ -86,32 +103,62 @@ export function FiscalSummaryCard({
             </div>
           </div>
 
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">CSS ({cssRate}%)</span>
-            <span className="text-foreground text-right tabular-nums">
-              {formatCurrency(cssAmount)}
-            </span>
-          </div>
+          <div className="pt-1 space-y-2">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Taxes applicables
+            </p>
 
-          <div className="pt-1 border-t border-dashed border-border/30">
-            <div className="flex justify-between text-xs font-medium">
-              <span className="text-muted-foreground">Base TVA</span>
-              <span className="text-right tabular-nums">{formatCurrency(taxBase)}</span>
+            <div className={`flex justify-between items-center text-xs ${!applyCss ? "opacity-60" : ""}`}>
+              <label className="flex items-center gap-2 cursor-pointer select-none text-muted-foreground hover:text-foreground transition-colors">
+                <Checkbox
+                  checked={applyCss}
+                  onCheckedChange={(v) => onApplyCssChange?.(Boolean(v))}
+                  disabled={isSubmitting || !onApplyCssChange}
+                  className="h-3.5 w-3.5"
+                />
+                <span>CSS ({effectiveCssRate}%)</span>
+              </label>
+              <span className="text-foreground text-right tabular-nums">
+                {applyCss ? formatCurrency(cssAmount) : "0 FCFA"}
+              </span>
             </div>
-          </div>
 
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">TPS ({tpsRate}%)</span>
-            <span className="text-foreground text-right tabular-nums">
-              {formatCurrency(tpsAmount)}
-            </span>
-          </div>
+            <div className="pt-1 border-t border-dashed border-border/30">
+              <div className="flex justify-between text-xs font-medium">
+                <span className="text-muted-foreground">Base TVA</span>
+                <span className="text-right tabular-nums">{formatCurrency(taxBase)}</span>
+              </div>
+            </div>
 
-          <div className="flex justify-between text-xs">
-            <span className="text-muted-foreground">TVA ({tvaRate}%)</span>
-            <span className="text-foreground text-right tabular-nums">
-              {formatCurrency(tvaAmount)}
-            </span>
+            <div className={`flex justify-between items-center text-xs ${!applyTps ? "opacity-60" : ""}`}>
+              <label className="flex items-center gap-2 cursor-pointer select-none text-muted-foreground hover:text-foreground transition-colors">
+                <Checkbox
+                  checked={applyTps}
+                  onCheckedChange={(v) => onApplyTpsChange?.(Boolean(v))}
+                  disabled={isSubmitting || !onApplyTpsChange}
+                  className="h-3.5 w-3.5"
+                />
+                <span>TPS ({effectiveTpsRate}%)</span>
+              </label>
+              <span className="text-foreground text-right tabular-nums">
+                {applyTps ? formatCurrency(tpsAmount) : "0 FCFA"}
+              </span>
+            </div>
+
+            <div className={`flex justify-between items-center text-xs ${!applyTva ? "opacity-60" : ""}`}>
+              <label className="flex items-center gap-2 cursor-pointer select-none text-muted-foreground hover:text-foreground transition-colors">
+                <Checkbox
+                  checked={applyTva}
+                  onCheckedChange={(v) => onApplyTvaChange?.(Boolean(v))}
+                  disabled={isSubmitting || !onApplyTvaChange}
+                  className="h-3.5 w-3.5"
+                />
+                <span>TVA ({effectiveTvaRate}%)</span>
+              </label>
+              <span className="text-foreground text-right tabular-nums">
+                {!applyTva ? "0 FCFA (Exonéré)" : formatCurrency(tvaAmount)}
+              </span>
+            </div>
           </div>
         </div>
 

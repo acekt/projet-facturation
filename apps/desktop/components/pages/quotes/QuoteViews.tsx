@@ -6,12 +6,13 @@ import {
   FileText,
   MoreVertical,
   Download,
-  Printer,
+  Info,
   Trash2,
   CheckCircle2,
   Eye,
   Edit2,
   Calendar,
+  Send,
 } from "lucide-react";
 import { ShareDocumentModal } from "@/components/features/share/ShareDocumentModal";
 import { Card, CardContent } from "@workspace/ui/components/card";
@@ -20,6 +21,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@workspace/ui/components/dropdown-menu";
 import {
@@ -46,6 +48,7 @@ interface QuoteViewsProps {
   user: User | null;
   searchQuery: string;
   isDownloading: string | null;
+  onViewDetails: (quote: Quote) => void;
   onPreview: (quote: Quote) => void;
   onDownloadPDF: (quote: Quote) => void;
   onEdit: (quoteId: string) => void;
@@ -56,11 +59,13 @@ interface QuoteViewsProps {
 
 interface QuoteActionDropdownProps {
   quote: Quote;
+  onViewDetails: (quote: Quote) => void;
   onPreview: (quote: Quote) => void;
   onDownloadPDF: (quote: Quote) => void;
   onEdit: (quoteId: string) => void;
   onConvertToInvoice: (quoteId: string) => void;
   onDelete: (quoteId: string) => void;
+  onShare?: (quote: Quote) => void;
   isDownloading: string | null;
   canModify: boolean;
   canDelete: boolean;
@@ -68,60 +73,77 @@ interface QuoteActionDropdownProps {
 
 function QuoteActionDropdown({
   quote,
+  onViewDetails,
   onPreview,
   onDownloadPDF,
   onEdit,
   onConvertToInvoice,
   onDelete,
+  onShare,
   isDownloading,
   canModify,
   canDelete,
 }: QuoteActionDropdownProps) {
+  const isConverted = quote.status === "CONVERTI";
+  const isExpired = quote.status === "EXPIRED" || quote.status === "EXPIRE";
+  const hasBusinessActions = !isConverted && canModify;
+  const canDeleteQuote = !isConverted && canDelete;
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
-          <MoreVertical className="w-5 h-5" />
+        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground cursor-pointer">
+          <MoreVertical className="w-4 h-4" />
+          <span className="sr-only">Actions du devis</span>
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-48 bg-card border-border">
-        <DropdownMenuItem className="gap-2" onClick={() => onPreview(quote)}>
-          <Eye className="w-4 h-4" /> Aperçu
+      <DropdownMenuContent align="end" className="w-56 bg-card border-border shadow-lg p-1.5 rounded-xl">
+        {/* Groupe 1 : Consultation & Diffusion */}
+        <DropdownMenuItem className="gap-2.5 cursor-pointer font-medium" onClick={() => setTimeout(() => onViewDetails(quote), 0)}>
+          <Info className="w-4 h-4 text-primary" /> Voir les détails
         </DropdownMenuItem>
-        <DropdownMenuItem className="gap-2" onClick={() => onPreview(quote)}>
-          <Printer className="w-4 h-4" /> Imprimer
+        <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => setTimeout(() => onPreview(quote), 0)}>
+          <Eye className="w-4 h-4 text-muted-foreground" /> Aperçu du document (A4)
         </DropdownMenuItem>
         <DropdownMenuItem
-          className="gap-2"
+          className="gap-2.5 cursor-pointer"
           onClick={() => onDownloadPDF(quote)}
           disabled={isDownloading === quote.id}
         >
-          <Download className="w-4 h-4" />
+          <Download className="w-4 h-4 text-muted-foreground" />
           {isDownloading === quote.id ? "Génération..." : "Télécharger PDF"}
         </DropdownMenuItem>
-        {quote.status !== "CONVERTI" && canModify && (
+        <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => setTimeout(() => onShare?.(quote), 0)}>
+          <Send className="w-4 h-4 text-primary" /> Partager (WhatsApp / Email)
+        </DropdownMenuItem>
+
+        {/* Groupe 2 : Gestion Métier */}
+        {hasBusinessActions && (
           <>
-            <DropdownMenuItem className="gap-2" onClick={() => onEdit(quote.id)}>
-              <Edit2 className="w-4 h-4" /> Modifier le devis
+            <DropdownMenuSeparator className="my-1 bg-border/60" />
+            <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => onEdit(quote.id)}>
+              <Edit2 className="w-4 h-4 text-muted-foreground" /> Modifier le devis
             </DropdownMenuItem>
-            {quote.status !== "EXPIRED" && quote.status !== "EXPIRE" && (
+            {!isExpired && (
               <DropdownMenuItem
-                className="gap-2 text-primary font-medium"
+                className="gap-2.5 cursor-pointer font-medium"
                 onClick={() => onConvertToInvoice(quote.id)}
               >
-                <CheckCircle2 className="w-4 h-4" /> Convertir en facture
+                <CheckCircle2 className="w-4 h-4 text-primary" /> Convertir en facture
               </DropdownMenuItem>
             )}
           </>
         )}
-        {quote.status !== "CONVERTI" && canDelete && (
+
+        {/* Groupe 3 : Suppression */}
+        {canDeleteQuote && (
           <>
-            <div className="h-px bg-border my-1" />
+            <DropdownMenuSeparator className="my-1 bg-border/60" />
             <DropdownMenuItem
-              className="gap-2 text-destructive focus:text-destructive"
-              onClick={() => onDelete(quote.id)}
+              className="gap-2.5 cursor-pointer text-destructive focus:text-destructive"
+              onClick={() => setTimeout(() => onDelete(quote.id), 0)}
             >
-              <Trash2 className="w-4 h-4" /> Supprimer
+              <Trash2 className="w-4 h-4 text-destructive" /> Supprimer
             </DropdownMenuItem>
           </>
         )}
@@ -136,6 +158,7 @@ export function QuoteViews({
   user,
   searchQuery,
   isDownloading,
+  onViewDetails,
   onPreview,
   onDownloadPDF,
   onEdit,
@@ -143,6 +166,7 @@ export function QuoteViews({
   onDelete,
   onCreateQuote,
 }: QuoteViewsProps) {
+  const [sharingQuote, setSharingQuote] = React.useState<Quote | null>(null);
   const isAdmin = user?.role === "admin";
   const isOperatorOrAdmin = isAdmin || user?.role === "user";
 
@@ -167,6 +191,7 @@ export function QuoteViews({
   // ── 1. VUE TABLE ──────────────────────────────────────────────────────────
   if (viewFormat === "table") {
     return (
+      <>
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 pr-1">
         <DataTable>
           <DataTableHead>
@@ -203,11 +228,13 @@ export function QuoteViews({
                 <ActionsCell>
                   <QuoteActionDropdown
                     quote={quote}
+                    onViewDetails={onViewDetails}
                     onPreview={onPreview}
                     onDownloadPDF={onDownloadPDF}
                     onEdit={onEdit}
                     onConvertToInvoice={onConvertToInvoice}
                     onDelete={onDelete}
+                    onShare={setSharingQuote}
                     isDownloading={isDownloading}
                     canModify={canModify(quote)}
                     canDelete={canDelete(quote)}
@@ -235,12 +262,22 @@ export function QuoteViews({
           </DataTableBody>
         </DataTable>
       </div>
+      {sharingQuote && (
+        <ShareDocumentModal
+          open={!!sharingQuote}
+          onOpenChange={(open) => !open && setSharingQuote(null)}
+          document={sharingQuote}
+          type="quote"
+        />
+      )}
+      </>
     );
   }
 
   // ── 2. VUE HORIZONTALE ─────────────────────────────────────────────────────
   if (viewFormat === "horizontal") {
     return (
+      <>
       <div ref={scrollContainerRef} className="flex-1 overflow-y-auto min-h-0 pr-1">
         <div className="space-y-2">
           {quotes.map((quote, index) => (
@@ -273,11 +310,13 @@ export function QuoteViews({
                     </div>
                     <QuoteActionDropdown
                       quote={quote}
+                      onViewDetails={onViewDetails}
                       onPreview={onPreview}
                       onDownloadPDF={onDownloadPDF}
                       onEdit={onEdit}
                       onConvertToInvoice={onConvertToInvoice}
                       onDelete={onDelete}
+                      onShare={setSharingQuote}
                       isDownloading={isDownloading}
                       canModify={canModify(quote)}
                       canDelete={canDelete(quote)}
@@ -302,11 +341,21 @@ export function QuoteViews({
           )}
         </div>
       </div>
+      {sharingQuote && (
+        <ShareDocumentModal
+          open={!!sharingQuote}
+          onOpenChange={(open) => !open && setSharingQuote(null)}
+          document={sharingQuote}
+          type="quote"
+        />
+      )}
+      </>
     );
   }
 
   // ── 3. VUE BLOC / CARTES ───────────────────────────────────────────────────
   return (
+    <>
     <div className="flex-1 overflow-y-auto min-h-0 pr-1">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {quotes.map((quote, index) => (
@@ -327,11 +376,13 @@ export function QuoteViews({
                       <StatusBadge variant={getQuoteStatusVariant(quote.status as any)} />
                       <QuoteActionDropdown
                         quote={quote}
+                        onViewDetails={onViewDetails}
                         onPreview={onPreview}
                         onDownloadPDF={onDownloadPDF}
                         onEdit={onEdit}
                         onConvertToInvoice={onConvertToInvoice}
                         onDelete={onDelete}
+                        onShare={setSharingQuote}
                         isDownloading={isDownloading}
                         canModify={canModify(quote)}
                         canDelete={canDelete(quote)}
@@ -370,5 +421,14 @@ export function QuoteViews({
         )}
       </div>
     </div>
+    {sharingQuote && (
+      <ShareDocumentModal
+        open={!!sharingQuote}
+        onOpenChange={(open) => !open && setSharingQuote(null)}
+        document={sharingQuote}
+        type="quote"
+      />
+    )}
+    </>
   );
 }

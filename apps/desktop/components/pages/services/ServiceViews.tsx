@@ -153,20 +153,22 @@ export function ServiceViews({
           {services.map((service) => (
             <Card key={service.id} className="bg-card border-border hover:border-primary/30 transition-all group shadow-sm">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center text-primary shrink-0">
                       <Briefcase className="w-5 h-5" />
                     </div>
-                    <div>
-                      <h3 className="font-bold text-sm">{service.name}</h3>
+                    <div className="min-w-0">
+                      <h3 className="font-bold text-sm truncate">{service.name}</h3>
                       <div className="flex items-center gap-2 mt-1">
                         <StatusBadge variant="neutral" label={service.category || "Non classé"} />
-                        <span className="text-xs text-muted-foreground">{formatCurrency(service.unitPrice)}</span>
+                        <span className="text-xs text-foreground font-bold shrink-0 whitespace-nowrap tabular-nums">
+                          {formatCurrency(service.unitPrice)}
+                        </span>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 shrink-0">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
@@ -221,7 +223,7 @@ export function ServiceViews({
 
   // ── 3. VUE BLOC / CARTES ───────────────────────────────────────────────────
   return (
-    <div className="flex-1 overflow-y-auto min-h-0 pr-1">
+    <div className="flex-1 overflow-y-auto min-h-0 pr-1 pb-6">
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {services.map((service, index) => (
           <motion.div
@@ -280,13 +282,13 @@ export function ServiceViews({
                     {service.description || "Aucune description fournie."}
                   </p>
                 </div>
-                <div className="bg-secondary/30 px-4 py-2 border-t border-border/50 flex items-center justify-between">
-                  <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold">
+                <div className="bg-secondary/30 px-4 py-2 border-t border-border/50 flex items-center justify-between gap-2">
+                  <div className="text-[9px] text-muted-foreground uppercase tracking-widest font-semibold min-w-0 truncate">
                     Tarif Standard
                   </div>
-                  <div className="font-semibold text-foreground text-sm tabular-nums">
+                  <span className="font-bold text-foreground text-sm tabular-nums shrink-0 whitespace-nowrap">
                     {formatCurrency(service.unitPrice)}
-                  </div>
+                  </span>
                 </div>
               </CardContent>
             </Card>

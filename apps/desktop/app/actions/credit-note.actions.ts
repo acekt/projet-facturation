@@ -119,7 +119,7 @@ export async function createCreditNote(data: CreditNoteCreateRequest): Promise<A
     }
 
     try {
-      const result = CreditNoteService.createCreditNote(validData, session.userId, activeTenantId);
+      const result = CreditNoteService.createCreditNote(validData as CreditNoteCreateRequest, session.userId, activeTenantId);
       logAudit('CREATE', 'credit_note', result.id, `Nouvel avoir créé: ${result.number}`, session.userId, session.name || session.username || null, activeTenantId);
       return { success: true, data: result as CreditNoteResponse };
     } catch (error: unknown) {

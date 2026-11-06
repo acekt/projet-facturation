@@ -64,22 +64,39 @@ export function escapeCsvCell(val: string | number | null | undefined): string {
 }
 
 /**
- * Génère et télécharge un fichier CSV RFC 4180 sécurisé en libérant systématiquement l'URL Blob.
+ * Construit la chaîne CSV complète avec un unique BOM UTF-8 (\uFEFF) et séparateur point-virgule (;).
+ */
+export function buildSafeCsvContent(
+  headers: string[],
+  rows: Array<Array<string | number | null | undefined>>,
+  options?: { delimiter?: ';' | ',' }
+): string {
+  const delimiter = options?.delimiter ?? ';';
+  const csvBody = [headers, ...rows]
+    .map((row) => row.map((cell) => escapeCsvCell(cell)).join(delimiter))
+    .join('\r\n');
+  return '\uFEFF' + csvBody;
+}
+
+/**
+ * Génère et télécharge un fichier CSV compatible Excel FR / OHADA (UTF-8 avec BOM + séparateur point-virgule `;`)
+ * en libérant systématiquement l'URL Blob.
  */
 export function downloadSafeCsv(
   filename: string,
   headers: string[],
-  rows: Array<Array<string | number | null | undefined>>
+  rows: Array<Array<string | number | null | undefined>>,
+  options?: { delimiter?: ';' | ',' }
 ): void {
-  const csvContent = [headers, ...rows]
-    .map((row) => row.map((cell) => escapeCsvCell(cell)).join(','))
-    .join('\n');
-  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const fullCsv = buildSafeCsvContent(headers, rows, options);
+  const encoder = new TextEncoder();
+  const utf8Bytes = encoder.encode(fullCsv);
+  const blob = new Blob([utf8Bytes], { type: 'text/csv;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   try {
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', filename);
+    link.setAttribute('download', filename.endsWith('.csv') ? filename : `${filename}.csv`);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

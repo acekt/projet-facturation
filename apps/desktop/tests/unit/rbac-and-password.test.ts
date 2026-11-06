@@ -75,10 +75,10 @@ describe('Phase 3 — RBAC Matrix Harmonization & Mandatory Password Change', ()
 
       expect(adminNavIds).toEqual([
         'dashboard',
+        'ledger',
         'invoices',
         'quotes',
         'credit-notes',
-        'ledger',
         'clients',
         'services',
         'stock',
@@ -89,10 +89,10 @@ describe('Phase 3 — RBAC Matrix Harmonization & Mandatory Password Change', ()
 
       expect(userNavIds).toEqual([
         'dashboard',
+        'ledger',
         'invoices',
         'quotes',
         'credit-notes',
-        'ledger',
         'clients',
         'services',
         'stock',

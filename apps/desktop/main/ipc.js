@@ -28,7 +28,26 @@ function validateSender(frame) {
  * @param {Function} options.logToFile
  */
 function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile, onAppReady }) {
-  const { app, ipcMain, BrowserWindow, dialog, shell } = require('electron');
+  const { app, ipcMain, BrowserWindow, dialog, shell, clipboard } = require('electron');
+
+  async function ensureSharedDocsDir() {
+    let baseDir = userDataPath;
+    try {
+      baseDir = app.getPath('documents');
+    } catch {
+      baseDir = userDataPath;
+    }
+    const sharedDir = path.join(baseDir, 'Facturier', 'Partages');
+    await fs.promises.mkdir(sharedDir, { recursive: true });
+    return sharedDir;
+  }
+
+  function sanitizePdfFilename(filename = 'document.pdf') {
+    const clean = String(filename || 'document.pdf')
+      .replace(/[<>:"/\\|?*\x00-\x1F]/g, '_')
+      .trim();
+    return clean.toLowerCase().endsWith('.pdf') ? clean : `${clean}.pdf`;
+  }
 
   // ── Notification de disponibilité complète de l'UI React (transition splash fluide)
   ipcMain.handle('app:report-ready', (event) => {
@@ -298,6 +317,170 @@ function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile, onAppR
       }
     }
   });
+
+  // ── Génération PDF A4 en mémoire (Base64 + sauvegarde locale automatique sans boîte de dialogue bloquante)
+  ipcMain.handle('app:render-pdf-buffer', async (event, htmlContent, defaultFilename = 'document.pdf') => {
+    if (!validateSender(event?.senderFrame)) {
+      throw new Error('[IPC:app:render-pdf-buffer] Expéditeur non autorisé.');
+    }
+    const tempPath = path.join(
+      userDataPath,
+      `pdf_buffer_temp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}.html`
+    );
+    let pdfWin = null;
+
+    try {
+      await fs.promises.writeFile(tempPath, htmlContent, 'utf8');
+
+      pdfWin = new BrowserWindow({
+        show: false,
+        width: 794,
+        height: 1123,
+        webPreferences: {
+          nodeIntegration: false,
+          contextIsolation: true,
+          sandbox: true,
+        },
+      });
+
+      const loadPromise = pdfWin.loadFile(tempPath);
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout lors du chargement HTML pour le PDF.')), 15000);
+      });
+
+      await Promise.race([loadPromise, timeoutPromise]);
+
+      const printPromise = pdfWin.webContents.printToPDF({
+        printBackground: true,
+        pageSize: 'A4',
+        marginsType: 1,
+        landscape: false,
+      });
+      const printTimeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Timeout lors de la génération du buffer PDF.')), 15000);
+      });
+
+      const pdfBuffer = await Promise.race([printPromise, printTimeoutPromise]);
+      const sharedDir = await ensureSharedDocsDir();
+      const safeName = sanitizePdfFilename(defaultFilename);
+      const savedFilePath = path.join(sharedDir, safeName);
+      await fs.promises.writeFile(savedFilePath, pdfBuffer);
+
+      if (typeof logToFile === 'function') {
+        logToFile('INFO', `[PDF:Buffer] PDF généré en mémoire (${pdfBuffer.length} octets) et sauvegardé : ${savedFilePath}`);
+      }
+
+      return {
+        success: true,
+        pdfBase64: Buffer.from(pdfBuffer).toString('base64'),
+        filePath: savedFilePath,
+      };
+    } catch (err) {
+      if (typeof logToFile === 'function') {
+        logToFile('ERROR', `[PDF:Buffer] Erreur lors de la génération : ${err.message}`);
+      }
+      throw err;
+    } finally {
+      if (pdfWin && !pdfWin.isDestroyed()) {
+        pdfWin.destroy();
+        pdfWin = null;
+      }
+      try {
+        if (fs.existsSync(tempPath)) await fs.promises.unlink(tempPath);
+      } catch (cleanErr) {
+        if (typeof logToFile === 'function') {
+          logToFile('WARN', `[PDF:Buffer] Impossible de nettoyer le temp : ${cleanErr.message}`);
+        }
+      }
+    }
+  });
+
+  // ── Sauvegarde rapide d'un PDF Base64 + copie presse-papiers + révélation dans l'explorateur OS
+  ipcMain.handle('app:save-and-reveal-pdf', async (event, payload = {}) => {
+    if (!validateSender(event?.senderFrame)) {
+      throw new Error('[IPC:app:save-and-reveal-pdf] Expéditeur non autorisé.');
+    }
+    const { pdfBase64, pdfFilename = 'document.pdf', textToCopy } = payload || {};
+    if (typeof textToCopy === 'string' && textToCopy.trim().length > 0) {
+      clipboard.writeText(textToCopy);
+    }
+    let savedFilePath;
+    if (typeof pdfBase64 === 'string' && pdfBase64.length > 0) {
+      const sharedDir = await ensureSharedDocsDir();
+      const safeName = sanitizePdfFilename(pdfFilename);
+      savedFilePath = path.join(sharedDir, safeName);
+      await fs.promises.writeFile(savedFilePath, Buffer.from(pdfBase64, 'base64'));
+      shell.showItemInFolder(savedFilePath);
+    }
+    return {
+      success: true,
+      filePath: savedFilePath,
+    };
+  });
+
+  // ── Fenêtre WhatsApp Web intégrée dans Electron (partition persistante + presse-papiers + PDF prêt à glisser-déposer)
+  ipcMain.handle('app:open-whatsapp-in-app', async (event, payload = {}) => {
+    if (!validateSender(event?.senderFrame)) {
+      throw new Error('[IPC:app:open-whatsapp-in-app] Expéditeur non autorisé.');
+    }
+
+    const { phone, message = '', pdfBase64, pdfFilename = 'document.pdf' } = payload || {};
+    const cleanPhone = String(phone || '').replace(/[^\d]/g, '');
+    if (!cleanPhone || cleanPhone.length < 8) {
+      throw new Error('Veuillez saisir un numéro de téléphone WhatsApp valide.');
+    }
+
+    if (typeof message === 'string' && message.trim().length > 0) {
+      clipboard.writeText(message);
+    }
+
+    let savedFilePath;
+    if (typeof pdfBase64 === 'string' && pdfBase64.length > 0) {
+      const sharedDir = await ensureSharedDocsDir();
+      const safeName = sanitizePdfFilename(pdfFilename);
+      savedFilePath = path.join(sharedDir, safeName);
+      await fs.promises.writeFile(savedFilePath, Buffer.from(pdfBase64, 'base64'));
+    }
+
+    const mainWindow = typeof getMainWindow === 'function' ? getMainWindow() : null;
+    const waWin = new BrowserWindow({
+      width: 1100,
+      height: 780,
+      parent: mainWindow && !mainWindow.isDestroyed() ? mainWindow : undefined,
+      title: 'Facturier — Messagerie WhatsApp Intégrée',
+      autoHideMenuBar: true,
+      webPreferences: {
+        partition: 'persist:facturier-whatsapp',
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: true,
+      },
+    });
+
+    const modernChromeUA =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36';
+    waWin.webContents.setUserAgent(modernChromeUA);
+
+    const waUrl = `https://web.whatsapp.com/send?phone=${cleanPhone}&text=${encodeURIComponent(message || '')}`;
+    waWin.loadURL(waUrl, { userAgent: modernChromeUA }).catch((err) => {
+      if (typeof logToFile === 'function') {
+        logToFile('WARN', `[WhatsApp:InApp] Avertissement chargement URL : ${err.message}`);
+      }
+    });
+
+    if (savedFilePath) {
+      shell.showItemInFolder(savedFilePath);
+    }
+
+    if (typeof logToFile === 'function') {
+      logToFile('INFO', `[WhatsApp:InApp] Fenêtre interne ouverte pour +${cleanPhone} (PDF: ${savedFilePath || 'aucun'})`);
+    }
+
+    return {
+      success: true,
+      filePath: savedFilePath,
+    };
+  });
 }
 
 /**
@@ -309,7 +492,9 @@ function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile, onAppR
 async function cleanupTempFiles(userDataPath, logToFile) {
   try {
     const files = await fs.promises.readdir(userDataPath);
-    const tempFiles = files.filter(f => f.startsWith('print_temp_') || f.startsWith('pdf_temp_'));
+    const tempFiles = files.filter(
+      (f) => f.startsWith('print_temp_') || f.startsWith('pdf_temp_') || f.startsWith('pdf_buffer_temp_')
+    );
 
     if (tempFiles.length > 0) {
       logToFile('INFO', `[Cleanup] ${tempFiles.length} fichiers temporaires résiduels trouvés.`);

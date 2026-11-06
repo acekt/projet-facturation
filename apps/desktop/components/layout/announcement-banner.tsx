@@ -33,11 +33,20 @@ const LEVEL_STYLES: Record<string, { bg: string; text: string; border: string; i
   },
 };
 
+let globalAnnouncementsFetched = false;
+let globalLastAnnouncementsAt = 0;
+
 export function AnnouncementBanner() {
   const [announcements, setAnnouncements] = React.useState<HubAnnouncement[]>([]);
   const [dismissedIds, setDismissedIds] = React.useState<Set<string>>(new Set());
 
-  const refreshAnnouncements = React.useCallback(async () => {
+  const refreshAnnouncements = React.useCallback(async (force = false) => {
+    const now = Date.now();
+    if (!force && globalAnnouncementsFetched && now - globalLastAnnouncementsAt < 60_000) {
+      return;
+    }
+    globalAnnouncementsFetched = true;
+    globalLastAnnouncementsAt = now;
     try {
       const res = await getDesktopAnnouncementsAction();
       if (res.success && Array.isArray(res.data)) {
@@ -50,7 +59,7 @@ export function AnnouncementBanner() {
 
   React.useEffect(() => {
     refreshAnnouncements();
-    const onRefresh = () => refreshAnnouncements();
+    const onRefresh = () => refreshAnnouncements(true);
     window.addEventListener("facturier:data-refresh", onRefresh);
     return () => window.removeEventListener("facturier:data-refresh", onRefresh);
   }, [refreshAnnouncements]);

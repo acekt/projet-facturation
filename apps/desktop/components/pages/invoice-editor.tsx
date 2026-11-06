@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { FullScreenDocumentViewer } from "@/components/fullscreen-document-viewer";
 import { CreationSuccessModal } from "@/components/features/common/CreationSuccessModal";
 import { computeTotals, computeItemTotal } from "@/lib/math-logic";
+import { formatCurrency, formatDate } from "@/lib/utils";
 import { getInvoiceById, createInvoice, getInvoices } from "@/app/actions/invoice.actions";
 import { DocumentCommercialHeader } from "@/components/editor/DocumentCommercialHeader";
 import { EditorItemsTable } from "@/components/editor/EditorItemsTable";
@@ -118,7 +119,13 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   }, [isNew, clearInvoiceDraft]);
 
   const [previewOpen, setPreviewOpen] = React.useState(false);
+  const [createdInvoiceData, setCreatedInvoiceData] = React.useState<any>(null);
+  const [showSuccessModal, setShowSuccessModal] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const submitLockRef = React.useRef(false);
+  const [applyCss, setApplyCss] = React.useState<boolean>(true);
+  const [applyTps, setApplyTps] = React.useState<boolean>(false);
+  const [applyTva, setApplyTva] = React.useState<boolean>(true);
   const [successModalData, setSuccessModalData] = React.useState<Invoice | null>(null);
   const [successModalOpen, setSuccessModalOpen] = React.useState(false);
   const [createdInvoice, setCreatedInvoice] = React.useState<Invoice | null>(null);
@@ -151,6 +158,11 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         setSubject(data.subject || "");
         setDiscount(data.discount);
         setNotes(data.notes || "");
+        if (data.subtotal > 0) {
+          setApplyCss((data.cssAmount ?? 0) > 0);
+          setApplyTps((data.tpsAmount ?? 0) > 0);
+          setApplyTva((data.tvaAmount ?? 0) > 0);
+        }
       } catch {
         toast.error("Impossible de charger la facture — vérifiez la connexion au serveur");
         onBack();
@@ -177,6 +189,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
               (s) => s.name.toLowerCase() === value.toLowerCase()
             );
             if (matchedService) {
+              updated.serviceId = matchedService.id;
               updated.unitPrice = matchedService.unitPrice;
               updated.total = computeItemTotal(Number(updated.quantity), updated.unitPrice);
             }
@@ -212,14 +225,17 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
     items.map((item) => ({ quantity: Number(item.quantity) || 0, unitPrice: Number(item.unitPrice) || 0 })),
     discount,
     {
-      tvaRate: settings.tvaRate ?? 0,
-      tpsRate: settings.tpsRate ?? 9.5,
-      cssRate: settings.cssRate ?? 0,
+      tvaRate: settings.tvaRate || 18,
+      tpsRate: settings.tpsRate || 9.5,
+      cssRate: settings.cssRate || 1,
+      applyCss,
+      applyTps,
+      applyTva,
     }
   );
 
   const handleSave = async (status: Invoice["status"] = "UNPAID") => {
-    if (isSubmitting) return;
+    if (isSubmitting || submitLockRef.current) return;
 
     if (!selectedClient) {
       toast.error("Veuillez sélectionner un client");
@@ -231,6 +247,7 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       return;
     }
 
+    submitLockRef.current = true;
     setIsSubmitting(true);
     try {
       if (editingId) {
@@ -243,11 +260,17 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
         clientEmail: selectedClient.email && selectedClient.email.trim() !== "" ? selectedClient.email.trim() : null,
         date: invoiceDate,
         dueDate: dueDate && dueDate.trim() !== "" ? dueDate.trim() : undefined,
-        items,
+        items: items.map((it) => ({
+          ...it,
+          serviceId: it.serviceId || null,
+        })),
         notes,
         subject: subject || undefined,
         discount,
         status,
+        applyCss,
+        applyTps,
+        applyTva,
       };
 
       const response = await createInvoice(payload as any);
@@ -257,15 +280,18 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       if (newInvoices.success && newInvoices.data) {
         setInvoices(newInvoices.data);
       }
+      void useStore.getState().refreshStockData(true);
+      useStore.getState().invalidateLedgerCache();
       clearInvoiceDraft();
-      toast.success("Facture enregistrée avec succès");
-      onBack();
+      setCreatedInvoiceData(response.data);
+      setShowSuccessModal(true);
     } catch (error) {
       console.error("[InvoiceEditor] handleSave error:", error);
       const msg = error instanceof Error ? error.message : "Erreur lors de l'enregistrement de la facture";
       toast.error(msg);
     } finally {
       setIsSubmitting(false);
+      submitLockRef.current = false;
     }
   };
 
@@ -275,8 +301,9 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
   });
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex-1 overflow-y-auto min-h-0 pr-1 space-y-6">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full overflow-hidden">
+      {/* Zone Haute Fixe : En-tête */}
+      <div className="shrink-0 pb-4 border-b border-border bg-background z-10 flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="sm" onClick={handleBackSafe} className="cursor-pointer">
             <ArrowLeft className="w-4 h-4 mr-2" />
@@ -288,6 +315,9 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
           </div>
         </div>
       </div>
+
+      {/* Zone Corps Défilable */}
+      <div className="flex-1 overflow-y-auto min-h-0 pt-4 pr-4 pb-8 space-y-6">
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
@@ -342,9 +372,15 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
             tpsAmount={tpsAmount}
             tvaAmount={tvaAmount}
             total={total}
-            cssRate={settings.cssRate ?? 0}
-            tpsRate={settings.tpsRate ?? 9.5}
-            tvaRate={settings.tvaRate ?? 0}
+            cssRate={settings.cssRate || 1}
+            tpsRate={settings.tpsRate || 9.5}
+            tvaRate={settings.tvaRate || 18}
+            applyCss={applyCss}
+            onApplyCssChange={setApplyCss}
+            applyTps={applyTps}
+            onApplyTpsChange={setApplyTps}
+            applyTva={applyTva}
+            onApplyTvaChange={setApplyTva}
             isSubmitting={isSubmitting}
             canPreview={!!selectedClient}
             onPreview={() => setPreviewOpen(true)}
@@ -354,13 +390,17 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
           />
         </div>
       </div>
+      </div>
 
       {previewOpen && selectedClient && (
         <FullScreenDocumentViewer
           type="facture"
-          title="Brouillon - Facture"
-          onClose={() => setPreviewOpen(false)}
-          data={{
+          title={createdInvoiceData ? `Facture ${createdInvoiceData.number}` : "Brouillon - Facture"}
+          onClose={() => {
+            setPreviewOpen(false);
+            if (createdInvoiceData) onBack();
+          }}
+          data={createdInvoiceData ? (createdInvoiceData as any) : {
             id: "draft",
             number: "BROUILLON",
             clientId: selectedClient.id,
@@ -383,6 +423,32 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
           } as unknown as Invoice}
         />
       )}
+
+      <CreationSuccessModal
+        isOpen={showSuccessModal}
+        onOpenChange={(open) => {
+          setShowSuccessModal(open);
+          if (!open) onBack();
+        }}
+        title="Facture enregistrée avec succès"
+        subtitle={`La facture officielle ${createdInvoiceData?.number || ""} a été enregistrée avec succès.`}
+        details={[
+          { label: "Numéro de facture", value: <span className="font-mono font-bold text-foreground">{createdInvoiceData?.number || "—"}</span> },
+          { label: "Client destinataire", value: createdInvoiceData?.clientName || selectedClient?.name || "—" },
+          { label: "Date d'émission", value: formatDate(createdInvoiceData?.date || invoiceDate) },
+          { label: "Date d'échéance", value: formatDate(createdInvoiceData?.dueDate || dueDate) },
+          { label: "Montant Total TTC", value: formatCurrency(createdInvoiceData?.total || total), isAmount: true },
+        ]}
+        onClose={() => {
+          setShowSuccessModal(false);
+          onBack();
+        }}
+        onPreview={() => {
+          setShowSuccessModal(false);
+          setPreviewOpen(true);
+        }}
+        previewLabel="Aperçu Facture"
+      />
     </motion.div>
   );
 }

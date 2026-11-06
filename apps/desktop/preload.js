@@ -38,6 +38,32 @@ contextBridge.exposeInMainWorld('electron', {
     ipcRenderer.invoke('export-pdf', htmlContent, defaultFilename),
 
   /**
+   * Génère un PDF A4 en mémoire (Base64) et enregistre une copie locale dans Documents/Facturier/Partages.
+   * @param {string} htmlContent - Le code HTML complet (avec styles inline).
+   * @param {string} defaultFilename - Nom du fichier PDF.
+   * @returns {Promise<{ success: boolean, pdfBase64: string, filePath?: string }>}
+   */
+  renderPdfBuffer: (htmlContent, defaultFilename) =>
+    ipcRenderer.invoke('app:render-pdf-buffer', htmlContent, defaultFilename),
+
+  /**
+   * Sauvegarde un PDF Base64, copie le texte dans le presse-papiers et révèle le fichier dans l'explorateur.
+   * @param {{ pdfBase64?: string, pdfFilename?: string, textToCopy?: string }} payload
+   * @returns {Promise<{ success: boolean, filePath?: string }>}
+   */
+  saveAndRevealPdf: (payload) =>
+    ipcRenderer.invoke('app:save-and-reveal-pdf', payload),
+
+  /**
+   * Ouvre la messagerie WhatsApp Web directement dans une fenêtre Electron interne dédiée
+   * avec session persistante, copie le message et révèle le PDF généré pour glisser-déposer.
+   * @param {{ phone: string, message: string, pdfBase64?: string, pdfFilename?: string }} payload
+   * @returns {Promise<{ success: boolean, filePath?: string }>}
+   */
+  openWhatsAppInApp: (payload) =>
+    ipcRenderer.invoke('app:open-whatsapp-in-app', payload),
+
+  /**
    * Récupère la version de l'application (depuis package.json via main).
    * @returns {Promise<string>} — ex: "4.0.0"
    */

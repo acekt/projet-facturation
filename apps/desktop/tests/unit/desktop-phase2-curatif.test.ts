@@ -41,21 +41,24 @@ describe('Phase 2 — Plan Curatif Desktop (ADR-0045)', () => {
   });
 
   describe('Lot Curatif C — Design Psychology & Navigation (Loi de Miller & Formatage)', () => {
-    it('C1.1 navItems est partitionné selon la Loi de Miller en 3 groupes cognitifs', () => {
+    it('C1.1 navItems est partitionné selon la Loi de Miller en blocs cognitifs ERP', () => {
+      const pilotageGroup = navItems.filter((i) => i.group === 'pilotage');
       const salesGroup = navItems.filter((i) => i.group === 'sales');
       const repositoryGroup = navItems.filter((i) => i.group === 'repository');
-      const governanceGroup = navItems.filter((i) => i.group === 'governance');
+      const adminGroup = navItems.filter((i) => i.group === 'admin');
       const bottomGroup = navItems.filter((i) => i.group === 'bottom');
 
-      expect(salesGroup.map((i) => i.id)).toEqual(['dashboard', 'invoices', 'quotes', 'credit-notes', 'ledger']);
+      expect(pilotageGroup.map((i) => i.id)).toEqual(['dashboard', 'ledger']);
+      expect(salesGroup.map((i) => i.id)).toEqual(['invoices', 'quotes', 'credit-notes']);
       expect(repositoryGroup.map((i) => i.id)).toEqual(['clients', 'services', 'stock']);
-      expect(governanceGroup.map((i) => i.id)).toEqual(['users', 'audit']);
+      expect(adminGroup.map((i) => i.id)).toEqual(['users', 'audit']);
       expect(bottomGroup.map((i) => i.id)).toEqual(['settings']);
 
       // Vérifie que chaque groupe a moins de 7 éléments (Loi de Miller 7±2)
+      expect(pilotageGroup.length).toBeLessThanOrEqual(7);
       expect(salesGroup.length).toBeLessThanOrEqual(7);
       expect(repositoryGroup.length).toBeLessThanOrEqual(7);
-      expect(governanceGroup.length).toBeLessThanOrEqual(7);
+      expect(adminGroup.length).toBeLessThanOrEqual(7);
     });
 
     it('C1.2 formatExcelDate convertit proprement les dates ISO et YYYY-MM-DD en DD/MM/YYYY', () => {
@@ -72,4 +75,3 @@ describe('Phase 2 — Plan Curatif Desktop (ADR-0045)', () => {
     });
   });
 });
-

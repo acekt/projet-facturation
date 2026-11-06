@@ -35,22 +35,26 @@
       "@workspace/database/*": [
         "../../packages/database/src/*"
       ]
-    }
+    },
+    "types": ["vitest/globals", "node"]
   },
   "include": [
     "next-env.d.ts",
     "types/**/*.d.ts",
     "**/*.ts",
     "**/*.tsx",
+    "tests/**/*.ts",
+    "tests/**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
     ".next/dev/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",
-    "tests",
+    "tests/integration",
+    "tests/e2e",
+    "tests/performance",
     "scripts",
-    "playwright.config.ts",
-    "vitest.config.ts"
+    "playwright.config.ts"
   ]
 }

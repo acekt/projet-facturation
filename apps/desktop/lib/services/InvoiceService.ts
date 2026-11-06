@@ -14,6 +14,23 @@ export class InvoiceServiceError extends Error {
   }
 }
 
+export function resolveValidLocalUserId(dbInstance: any, userId?: string | null): string | null {
+  if (!userId) return null;
+  const exists = dbInstance.prepare('SELECT id FROM users WHERE id = ?').get(userId);
+  if (exists) return userId;
+  const fallbackAdmin = dbInstance.prepare("SELECT id FROM users WHERE role = 'admin' LIMIT 1").get() as { id: string } | undefined;
+  return fallbackAdmin?.id ?? null;
+}
+
+export function resolveValidServiceId(dbInstance: any, rawServiceId?: string | null): string | null {
+  if (!rawServiceId || typeof rawServiceId !== 'string' || rawServiceId.trim() === '') {
+    return null;
+  }
+  const cleanId = rawServiceId.trim();
+  const exists = dbInstance.prepare('SELECT id FROM services WHERE id = ?').get(cleanId);
+  return exists ? cleanId : null;
+}
+
 export const InvoiceService = {
   createInvoice(data: any, userId: string, role: string, tenantId?: string | null) {
     const activeTenantId = resolveActiveTenantId(userId, tenantId);
@@ -51,7 +68,12 @@ export const InvoiceService = {
       quoteSubject = quote.subject ?? null;
     }
 
-    const rates = getTaxRates();
+    const baseRates = getTaxRates();
+    const rates = {
+      cssRate: data.applyCss === false ? 0 : (data.applyCss === true ? (baseRates.cssRate || 1) : baseRates.cssRate),
+      tpsRate: data.applyTps === false ? 0 : (data.applyTps === true ? (baseRates.tpsRate || 9.5) : baseRates.tpsRate),
+      tvaRate: data.applyTva === false ? 0 : (data.applyTva === true ? (baseRates.tvaRate || 18) : baseRates.tvaRate),
+    };
     const computed = computeTotals(data.items, data.discount, rates);
 
     const id = crypto.randomUUID();
@@ -87,22 +109,28 @@ export const InvoiceService = {
         computed.tpsAmount,
         computed.cssAmount,
         computed.total,
-        INVOICE_STATUS.UNPAID,
+        data.status === 'DRAFT' || data.status === 'BROUILLON' || data.status === 'draft' ? 'draft' : INVOICE_STATUS.UNPAID,
         data.notes ?? null,
         data.subject ?? quoteSubject,
-        userId,
+        resolveValidLocalUserId(db, userId) || userId,
         activeTenantId
       );
 
       const insertItem = db.prepare(`
-        INSERT INTO invoice_items (id, invoiceId, description, quantity, unitPrice, total, tenant_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO invoice_items (id, invoiceId, serviceId, description, quantity, unitPrice, total, tenant_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `);
 
+      const isDraft = data.status === 'DRAFT' || data.status === 'BROUILLON' || data.status === 'draft';
+      const resolvedUserId = resolveValidLocalUserId(db, userId) || userId;
+
       for (const item of data.items) {
+        const rawSvcId = item.serviceId || null;
+        const svcId = resolveValidServiceId(db, rawSvcId);
         insertItem.run(
           crypto.randomUUID(),
           id,
+          svcId,
           item.description,
           item.quantity,
           Math.round(item.unitPrice),
@@ -110,14 +138,14 @@ export const InvoiceService = {
           activeTenantId
         );
 
-        if (item.id) { // Assuming item.id contains the serviceId if it's a catalog item
+        if (svcId && !isDraft) {
           try {
              StockRepository.recordStockMovement({
-               serviceId: item.id,
+               serviceId: svcId,
                type: 'INVOICE_DEDUCTION',
                quantity: item.quantity,
                referenceDoc: number,
-             }, userId, activeTenantId);
+             }, resolvedUserId, activeTenantId);
           } catch (e) {
              // Ignore if it's not a valid service or doesn't track stock
           }

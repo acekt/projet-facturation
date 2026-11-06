@@ -5,8 +5,9 @@ import { MetricsRepository } from '@/lib/repositories/MetricsRepository';
 import { getSession } from '@/lib/api/auth';
 import { resolveActiveTenantId } from '@/lib/api/tenant';
 import { dashboardMetricsQuerySchema } from '@/lib/validations';
-import type { DashboardMetricsResponse, DashboardQueryParams } from '@/lib/types/api';
+import type { DashboardMetricsResponse, DashboardQueryParams, CashflowPoint } from '@/lib/types/api';
 import type { ActionResponse } from './client.actions';
+import { formatAuditShortDateTimeFr, formatAuditDetails, cleanDocumentNumbersInText } from '@/lib/utils/auditFormatter';
 
 export async function getDashboardMetrics(range: string = 'month'): Promise<ActionResponse<DashboardMetricsResponse>> {
   try {
@@ -54,11 +55,31 @@ export async function getDashboardMetrics(range: string = 'month'): Promise<Acti
     const overdueRevenue = MetricsRepository.getOverdueRevenue(session.userId, session.role, activeTenantId);
 
     const counts = MetricsRepository.getInvoiceCounts(session.userId, session.role, validatedRange, activeTenantId);
-    const pendingQuotesCount = MetricsRepository.getPendingQuotesCount(session.userId, session.role, activeTenantId);
+    const quotesPipeline = MetricsRepository.getQuotesPipelineDetails(session.userId, session.role, activeTenantId);
     const topClients = MetricsRepository.getTopClients(session.userId, session.role, activeTenantId);
     const userPerformance = MetricsRepository.getUserPerformance(session.role, activeTenantId);
 
+    // 1. Indicateurs Livre des Comptes (ledgerSummary)
+    const ledgerSummary = MetricsRepository.getLedgerSummary(session.userId, session.role, pDateFilter, activeTenantId);
+
+    // 2. Prévisions Financières & Ratios (forecastMetrics)
+    const forecastMetrics = MetricsRepository.getForecastMetrics(
+      session.userId,
+      session.role,
+      ledgerSummary.netTreasury,
+      ledgerSummary.averageMonthlyExpenses,
+      totalRevenue,
+      pendingRevenue,
+      activeTenantId
+    );
+
+    // 3. Indicateurs Gestion de Stock (stockMetrics)
+    const stockMetrics = MetricsRepository.getStockMetrics(session.userId, session.role, activeTenantId);
+
+    // 4. Séries Temporelles Comparatives (revenueData & cashflowSeries)
     let revenueData: Array<{ date: string; revenue: number; label: string; value: number }> = [];
+    let cashflowSeries: Array<CashflowPoint> = [];
+
     if (validatedRange === 'month') {
       const startDate = new Date();
       startDate.setDate(startDate.getDate() - 29);
@@ -67,45 +88,111 @@ export async function getDashboardMetrics(range: string = 'month'): Promise<Acti
       const paymentsGrouped = MetricsRepository.getDailyRevenueGrouped(session.userId, session.role, startDateStr, activeTenantId);
       const paymentsMap = new Map(paymentsGrouped.map(p => [p.date, p.total]));
 
+      const ledgerGrouped = MetricsRepository.getDailyLedgerGrouped(startDateStr, activeTenantId);
+      const ledgerInMap = new Map(ledgerGrouped.map(l => [l.date, l.income]));
+      const ledgerOutMap = new Map(ledgerGrouped.map(l => [l.date, l.expense]));
+
+      const invoicedGrouped = MetricsRepository.getDailyInvoicedGrouped(startDateStr, activeTenantId);
+      const invoicedMap = new Map(invoicedGrouped.map(inv => [inv.date, inv.total]));
+
       for (let i = 29; i >= 0; i--) {
         const date = new Date();
         date.setDate(date.getDate() - i);
         const dateStr = date.toISOString().split('T')[0];
-        const revenue = paymentsMap.get(dateStr) || 0;
+
+        const pRev = paymentsMap.get(dateStr) || 0;
+        const lIn = ledgerInMap.get(dateStr) || 0;
+        const income = Math.max(lIn, pRev);
+        const expense = ledgerOutMap.get(dateStr) || 0;
+        const billedRev = invoicedMap.get(dateStr) || 0;
         const label = date.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' });
-        revenueData.push({ date: dateStr, revenue, label, value: revenue });
+
+        revenueData.push({ date: dateStr, revenue: income, label, value: income });
+        cashflowSeries.push({
+          date: dateStr,
+          label,
+          income,
+          expense,
+          revenue: billedRev,
+        });
       }
     } else if (validatedRange === 'quarter') {
       const paymentsGrouped = MetricsRepository.getMonthlyRevenueGrouped(session.userId, session.role, activeTenantId);
       const paymentsMap = new Map(paymentsGrouped.map(p => [p.monthStr, p.total]));
+
+      const ledgerGrouped = MetricsRepository.getMonthlyLedgerGrouped(activeTenantId);
+      const ledgerInMap = new Map(ledgerGrouped.map(l => [l.monthStr, l.income]));
+      const ledgerOutMap = new Map(ledgerGrouped.map(l => [l.monthStr, l.expense]));
+
+      const invoicedGrouped = MetricsRepository.getMonthlyInvoicedGrouped(activeTenantId);
+      const invoicedMap = new Map(invoicedGrouped.map(inv => [inv.monthStr, inv.total]));
+
       const now = new Date();
       const currentMonthIndex = now.getMonth();
       const quarterStartMonth = Math.floor(currentMonthIndex / 3) * 3;
       const allMonths = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
-      revenueData = [0, 1, 2].map((offset) => {
+
+      [0, 1, 2].forEach((offset) => {
         const mIndex = quarterStartMonth + offset;
         const monthStr = String(mIndex + 1).padStart(2, '0');
-        const revenue = paymentsMap.get(monthStr) || 0;
-        return {
-          date: `${mIndex + 1}/${now.getFullYear()}`,
-          revenue,
-          label: allMonths[mIndex],
-          value: revenue,
-        };
+        const pRev = paymentsMap.get(monthStr) || 0;
+        const lIn = ledgerInMap.get(monthStr) || 0;
+        const income = Math.max(lIn, pRev);
+        const expense = ledgerOutMap.get(monthStr) || 0;
+        const billedRev = invoicedMap.get(monthStr) || 0;
+        const label = allMonths[mIndex];
+        const dateKey = `${mIndex + 1}/${now.getFullYear()}`;
+
+        revenueData.push({
+          date: dateKey,
+          revenue: income,
+          label,
+          value: income,
+        });
+
+        cashflowSeries.push({
+          date: dateKey,
+          label,
+          income,
+          expense,
+          revenue: billedRev,
+        });
       });
     } else {
       const paymentsGrouped = MetricsRepository.getMonthlyRevenueGrouped(session.userId, session.role, activeTenantId);
       const paymentsMap = new Map(paymentsGrouped.map(p => [p.monthStr, p.total]));
+
+      const ledgerGrouped = MetricsRepository.getMonthlyLedgerGrouped(activeTenantId);
+      const ledgerInMap = new Map(ledgerGrouped.map(l => [l.monthStr, l.income]));
+      const ledgerOutMap = new Map(ledgerGrouped.map(l => [l.monthStr, l.expense]));
+
+      const invoicedGrouped = MetricsRepository.getMonthlyInvoicedGrouped(activeTenantId);
+      const invoicedMap = new Map(invoicedGrouped.map(inv => [inv.monthStr, inv.total]));
+
       const months = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
-      revenueData = months.map((m, i) => {
+      months.forEach((m, i) => {
         const monthStr = String(i + 1).padStart(2, '0');
-        const revenue = paymentsMap.get(monthStr) || 0;
-        return {
-          date: `${i + 1}/${new Date().getFullYear()}`,
-          revenue,
+        const pRev = paymentsMap.get(monthStr) || 0;
+        const lIn = ledgerInMap.get(monthStr) || 0;
+        const income = Math.max(lIn, pRev);
+        const expense = ledgerOutMap.get(monthStr) || 0;
+        const billedRev = invoicedMap.get(monthStr) || 0;
+        const dateKey = `${i + 1}/${new Date().getFullYear()}`;
+
+        revenueData.push({
+          date: dateKey,
+          revenue: income,
           label: m,
-          value: revenue
-        };
+          value: income,
+        });
+
+        cashflowSeries.push({
+          date: dateKey,
+          label: m,
+          income,
+          expense,
+          revenue: billedRev,
+        });
       });
     }
 
@@ -124,24 +211,21 @@ export async function getDashboardMetrics(range: string = 'month'): Promise<Acti
 
     const recentLogs = MetricsRepository.getRecentActivity(session.userId, session.role, activeTenantId);
     const activityTimeline = recentLogs.map(log => {
-      const dateVal = new Date(log.createdAt);
-      const timeStr = dateVal.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) + ' ' +
-        dateVal.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' });
+      const timeStr = formatAuditShortDateTimeFr(log.createdAt);
       let humanAction = log.action;
       if (log.details) {
         try {
           const parsed = JSON.parse(log.details);
           if (parsed.action === 'FIRST_RUN_SETUP') {
             humanAction = `Initialisation de l'espace (${parsed.companyName || 'Structure'})`;
-          } else if (parsed.name) {
-            humanAction = `${log.action} : ${parsed.name}`;
-          } else if (parsed.description) {
-            humanAction = parsed.description;
+          } else {
+            humanAction = formatAuditDetails(log.details).humanText;
           }
         } catch {
-          humanAction = log.details;
+          humanAction = formatAuditDetails(log.details).humanText;
         }
       }
+      humanAction = cleanDocumentNumbersInText(humanAction);
       return { id: log.id, action: humanAction, client: log.userName || 'Système', time: timeStr };
     });
 
@@ -151,12 +235,17 @@ export async function getDashboardMetrics(range: string = 'month'): Promise<Acti
       pendingRevenue,
       overdueRevenue,
       ...counts,
-      pendingQuotesCount,
+      pendingQuotesCount: quotesPipeline.count,
       topClients,
       userPerformance,
       revenueData,
       paymentMethodData,
       activityTimeline,
+      ledgerSummary,
+      cashflowSeries,
+      forecastMetrics,
+      stockMetrics,
+      quotesPipelineAmount: quotesPipeline,
     };
 
     return { success: true, data: response };

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { RefreshCw, Sparkles } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,8 +20,27 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@workspace/ui/components/select";
+import { DatePicker } from "@workspace/ui/components/date-picker";
+import { EditableSelect } from "@/components/features/common/EditableSelect";
 import { formatCurrency } from "@/lib/utils";
 import type { Invoice } from "@/lib/store";
+
+export function generateAutoPaymentReference(dateStr?: string): string {
+  const cleanDate = (dateStr || new Date().toISOString().slice(0, 10))
+    .slice(0, 10)
+    .replace(/-/g, "");
+  const rand = String(Math.floor(1000 + Math.random() * 9000));
+  return `REG-${cleanDate}-${rand}`;
+}
+
+export const DEFAULT_PAYMENT_METHODS = [
+  "Espèces",
+  "Airtel Money",
+  "Moov Money",
+  "Virement Bancaire",
+  "Chèque",
+  "Carte Bancaire",
+] as const;
 
 interface PaymentDialogProps {
   isOpen: boolean;
@@ -41,12 +61,12 @@ interface PaymentDialogProps {
   isSubmitting?: boolean;
 }
 
-// custom progress
 const Progress = ({ value, className }: { value: number; className?: string }) => (
   <div className={`w-full bg-secondary overflow-hidden rounded-full ${className}`}>
     <div className="h-full bg-primary transition-all" style={{ width: `${value}%` }} />
   </div>
 );
+
 export function PaymentDialog({
   isOpen,
   onOpenChange,
@@ -66,8 +86,27 @@ export function PaymentDialog({
   isSubmitting,
 }: PaymentDialogProps) {
   const totalPaid = invoice?.payments?.reduce((sum, p) => sum + p.amount, 0) || 0;
-  const progress = invoice?.total ? Math.min(100, Math.round(((totalPaid + totalCredited) / invoice.total) * 100)) : 0;
+  const progress = invoice?.total
+    ? Math.min(100, Math.round(((totalPaid + totalCredited) / invoice.total) * 100))
+    : 0;
   const remaining = Math.max(0, (invoice?.total || 0) - totalPaid - totalCredited);
+  const submitLockRef = React.useRef(false);
+
+  const handleConfirm = async () => {
+    if (submitLockRef.current || isSubmitting) return;
+    submitLockRef.current = true;
+    try {
+      await onConfirm();
+    } finally {
+      submitLockRef.current = false;
+    }
+  };
+
+  React.useEffect(() => {
+    if (isOpen && (!paymentReference || !paymentReference.trim())) {
+      onPaymentReferenceChange(generateAutoPaymentReference(paymentDate));
+    }
+  }, [isOpen, paymentDate, paymentReference, onPaymentReferenceChange]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -90,10 +129,14 @@ export function PaymentDialog({
               <Progress value={progress} className="h-2" />
               {invoice.payments && invoice.payments.length > 0 && (
                 <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
-                  <span className="text-[10px] uppercase font-bold text-muted-foreground">Historique des acomptes</span>
+                  <span className="text-[10px] uppercase font-bold text-muted-foreground">
+                    Historique des acomptes
+                  </span>
                   {invoice.payments.map((p, i) => (
                     <div key={i} className="flex justify-between text-xs">
-                      <span>{p.date} ({p.paymentMethod})</span>
+                      <span>
+                        {p.date} ({p.paymentMethod})
+                      </span>
                       <span className="font-semibold">{formatCurrency(p.amount)}</span>
                     </div>
                   ))}
@@ -122,31 +165,51 @@ export function PaymentDialog({
             >
               Date du paiement <span className="text-destructive">*</span>
             </Label>
-            <Input
-              id="payment-date"
-              type="date"
+            <DatePicker
               value={paymentDate}
-              onChange={(e) => onPaymentDateChange(e.target.value)}
-              className="bg-secondary border-border h-11"
+              onChange={(iso) => onPaymentDateChange(iso)}
+              placeholder="JJ/MM/AAAA"
               disabled={isSubmitting}
+              className="bg-secondary border-border h-11"
             />
           </div>
           <div className="space-y-2">
-            <Label
-              htmlFor="payment-reference"
-              className="text-muted-foreground text-xs uppercase font-bold tracking-wider"
-            >
-              Référence du paiement
-            </Label>
-            <Input
-              id="payment-reference"
-              type="text"
-              placeholder="Numéro de chèque, ID transaction..."
-              value={paymentReference}
-              onChange={(e) => onPaymentReferenceChange(e.target.value)}
-              className="bg-secondary border-border h-11"
-              disabled={isSubmitting}
-            />
+            <div className="flex items-center justify-between">
+              <Label
+                htmlFor="payment-reference"
+                className="text-muted-foreground text-xs uppercase font-bold tracking-wider"
+              >
+                Référence du paiement
+              </Label>
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                <Sparkles className="w-2.5 h-2.5" />
+                Générée automatiquement
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <Input
+                id="payment-reference"
+                type="text"
+                placeholder="Ex: REG-20261105-4821 ou N° Chèque..."
+                value={paymentReference}
+                onChange={(e) => onPaymentReferenceChange(e.target.value)}
+                className="bg-secondary border-border h-11 font-mono text-sm"
+                disabled={isSubmitting}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                title="Générer une nouvelle référence automatique"
+                disabled={isSubmitting}
+                onClick={() =>
+                  onPaymentReferenceChange(generateAutoPaymentReference(paymentDate))
+                }
+                className="h-11 w-11 shrink-0 border-border"
+              >
+                <RefreshCw className="w-4 h-4 text-muted-foreground" />
+              </Button>
+            </div>
           </div>
           <div className="space-y-2">
             <Label
@@ -180,23 +243,19 @@ export function PaymentDialog({
             <Label className="text-muted-foreground text-xs uppercase font-bold tracking-wider">
               Mode de règlement <span className="text-destructive">*</span>
             </Label>
-            <Select value={paymentMethod} onValueChange={onPaymentMethodChange} disabled={isSubmitting}>
-              <SelectTrigger className="bg-secondary border-border text-foreground h-11">
-                <SelectValue placeholder="Sélectionner..." />
-              </SelectTrigger>
-              <SelectContent className="bg-card border-border">
-                <SelectItem value="Espèces">Espèces</SelectItem>
-                <SelectItem value="Airtel Money">Airtel Money</SelectItem>
-                <SelectItem value="Moov Money">Moov Money</SelectItem>
-                <SelectItem value="Virement Bancaire">Virement Bancaire</SelectItem>
-                <SelectItem value="Chèque">Chèque</SelectItem>
-              </SelectContent>
-            </Select>
+            <EditableSelect
+              groupKey="payment_method"
+              value={paymentMethod || "Espèces"}
+              onChange={onPaymentMethodChange}
+              defaultOptions={[...DEFAULT_PAYMENT_METHODS]}
+              placeholder="Sélectionner un mode de règlement"
+              addPlaceholder="Nouveau mode de règlement..."
+              disabled={isSubmitting}
+            />
           </div>
           <Button
-            variant="success"
-            onClick={onConfirm}
-            className="w-full font-bold h-11"
+            onClick={handleConfirm}
+            className="w-full font-bold h-11 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm cursor-pointer"
             disabled={isSubmitting}
           >
             {isSubmitting ? "Enregistrement..." : "Valider l'encaissement"}

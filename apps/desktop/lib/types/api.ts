@@ -18,6 +18,12 @@ import type {
   ISettings,
   IAuditLog,
   IDashboardMetrics,
+  CashflowPoint,
+  LedgerSummaryMetrics,
+  ForecastMetrics,
+  StockWatchItem,
+  StockDashboardMetrics,
+  QuotesPipelineMetrics,
   ITenant,
   IProfile,
   QuoteStatus,
@@ -40,6 +46,12 @@ export type {
   ISettings,
   IAuditLog,
   IDashboardMetrics,
+  CashflowPoint,
+  LedgerSummaryMetrics,
+  ForecastMetrics,
+  StockWatchItem,
+  StockDashboardMetrics,
+  QuotesPipelineMetrics,
   ITenant,
   IProfile,
   QuoteStatus,
@@ -169,6 +181,11 @@ export interface DbSettings {
   companyCode: string;
   mentionsLegales?: string;
   logo?: string;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUser?: string | null;
+  smtpPass?: string | null;
+  smtpSecure?: number | boolean | null;
 }
 
 export interface DbSequence {
@@ -228,7 +245,12 @@ export interface InvoiceCreateRequest {
   discount: number;
   notes?: string | null;
   subject?: string | null;
+  applyCss?: boolean;
+  applyTps?: boolean;
+  applyTva?: boolean;
   items: Array<{
+    id?: string;
+    serviceId?: string | null;
     description: string;
     quantity: number;
     unitPrice: number;
@@ -265,6 +287,7 @@ export interface DbInvoice {
 export interface DbInvoiceItem {
   id: string;
   invoiceId: string;
+  serviceId?: string | null;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -281,10 +304,14 @@ export type CreditNoteItem = ICreditNoteItem;
 export interface CreditNoteCreateRequest {
   invoiceId: string;
   reason: string;
+  applyCss?: boolean;
+  applyTps?: boolean;
+  applyTva?: boolean;
   items: Array<{
     description: string;
     quantity: number;
     unitPrice: number;
+    serviceId?: string | null;
   }>;
 }
 
@@ -346,7 +373,12 @@ export interface QuoteCreateRequest {
   notes?: string | null;
   subject?: string | null;
   validUntil?: string | null;
+  applyCss?: boolean;
+  applyTps?: boolean;
+  applyTva?: boolean;
   items: Array<{
+    id?: string;
+    serviceId?: string | null;
     description: string;
     quantity: number;
     unitPrice: number;
@@ -382,6 +414,7 @@ export interface DbQuote {
 export interface DbQuoteItem {
   id: string;
   quoteId: string;
+  serviceId?: string | null;
   description: string;
   quantity: number;
   unitPrice: number;
@@ -468,6 +501,7 @@ export interface ServiceCreateRequest {
   category?: string;
   unitPrice: number;
   trackStock?: number;
+  stockItemName?: string | null;
   stockQuantity?: number;
   minStockAlert?: number;
   unit?: string | null;
@@ -479,6 +513,7 @@ export interface ServiceUpdateRequest {
   category?: string;
   unitPrice: number;
   trackStock?: number;
+  stockItemName?: string | null;
   stockQuantity?: number;
   minStockAlert?: number;
   unit?: string | null;
@@ -492,6 +527,11 @@ export interface DbService {
   description?: string;
   category?: string;
   unitPrice: number;
+  trackStock?: number;
+  stockItemName?: string | null;
+  stockQuantity?: number;
+  minStockAlert?: number;
+  unit?: string | null;
   deletedAt?: string;
   createdAt?: string;
   created_by?: string;
@@ -524,6 +564,11 @@ export interface SettingsUpdateRequest {
   companyCode?: string;
   mentionsLegales?: string | null;
   logo?: string | null;
+  smtpHost?: string | null;
+  smtpPort?: number | null;
+  smtpUser?: string | null;
+  smtpPass?: string | null;
+  smtpSecure?: number | boolean | null;
 }
 
 export type SettingsResponse = ISettings;

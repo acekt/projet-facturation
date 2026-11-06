@@ -98,16 +98,24 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
     return () => document.removeEventListener("keydown", down)
   }, [isMandatoryPasswordChange])
 
-  const handlePageChange = React.useCallback(
-    (page: string) => {
+  const navigateTo = React.useCallback(
+    (page: string, options?: { editingId?: string | null }) => {
       if (effectiveUser?.role !== "admin" && ADMIN_ONLY_PAGES.has(page)) {
         return
       }
       React.startTransition(() => {
+        setEditingId(options?.editingId ?? null)
         setCurrentPage(page)
       })
     },
     [effectiveUser?.role]
+  )
+
+  const handlePageChange = React.useCallback(
+    (page: string) => {
+      navigateTo(page, { editingId: null })
+    },
+    [navigateTo]
   )
 
   const renderPage = React.useCallback(() => {
@@ -120,72 +128,66 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
       case "dashboard":
         return <Dashboard onNavigate={handlePageChange} user={effectiveUser} />
       case "users":
-        return <UsersPage 
-          onCreateUser={() => {
-            setEditingId(null);
-            setCurrentPage("new-user");
-          }}
-          onEditUser={(id: string) => {
-            setEditingId(id);
-            setCurrentPage("edit-user");
-          }}
-        />
+        return (
+          <UsersPage 
+            onCreateUser={() => navigateTo("new-user", { editingId: null })}
+            onEditUser={(id: string) => navigateTo("edit-user", { editingId: id })}
+          />
+        )
       case "new-user":
-        return <UserEditor
-          onBack={() => {
-            setEditingId(null);
-            setCurrentPage("users");
-          }}
-          editingId={null}
-        />
+        return (
+          <UserEditor
+            key={`user-editor-new-${editingId || "new"}`}
+            onBack={() => navigateTo("users", { editingId: null })}
+            editingId={null}
+          />
+        )
       case "edit-user":
-        return <UserEditor
-          onBack={() => {
-            setEditingId(null);
-            setCurrentPage("users");
-          }}
-          editingId={editingId}
-        />
+        return (
+          <UserEditor
+            key={`user-editor-edit-${editingId || "edit"}`}
+            onBack={() => navigateTo("users", { editingId: null })}
+            editingId={editingId}
+          />
+        )
       case "quotes":
-        return <QuotesPage onCreateQuote={(id) => {
-          setEditingId(id || null);
-          setCurrentPage("new-quote");
-        }} />
+        return (
+          <QuotesPage
+            onCreateQuote={(id) => navigateTo(id ? "edit-quote" : "new-quote", { editingId: id || null })}
+          />
+        )
       case "new-quote":
-        return <QuoteEditor
-          onBack={() => {
-            setEditingId(null);
-            setCurrentPage("quotes");
-          }}
-          editingId={editingId}
-        />
+      case "edit-quote":
+        return (
+          <QuoteEditor
+            key={`quote-editor-${currentPage}-${editingId || "new"}`}
+            onBack={() => navigateTo("quotes", { editingId: null })}
+            editingId={editingId}
+          />
+        )
       case "invoices":
-        return <InvoicesPage 
-          onCreateInvoice={() => {
-            setEditingId(null);
-            handlePageChange("new-invoice");
-          }} 
-          onEditInvoice={(id) => {
-            setEditingId(id);
-            handlePageChange("edit-invoice");
-          }} 
-        />
+        return (
+          <InvoicesPage 
+            onCreateInvoice={() => navigateTo("new-invoice", { editingId: null })} 
+            onEditInvoice={(id) => navigateTo("edit-invoice", { editingId: id })} 
+          />
+        )
       case "new-invoice":
-        return <InvoiceEditor
-          onBack={() => {
-            setEditingId(null);
-            handlePageChange("invoices");
-          }}
-          editingId={null}
-        />
+        return (
+          <InvoiceEditor
+            key={`invoice-editor-new-${editingId || "new"}`}
+            onBack={() => navigateTo("invoices", { editingId: null })}
+            editingId={null}
+          />
+        )
       case "edit-invoice":
-        return <InvoiceEditor
-          onBack={() => {
-            setEditingId(null);
-            handlePageChange("invoices");
-          }}
-          editingId={editingId}
-        />
+        return (
+          <InvoiceEditor
+            key={`invoice-editor-edit-${editingId || "edit"}`}
+            onBack={() => navigateTo("invoices", { editingId: null })}
+            editingId={editingId}
+          />
+        )
       case "clients":
         return <ClientsPage />
       case "services":
@@ -203,7 +205,7 @@ export function ProtectedAppShell({ initialUser }: ProtectedAppShellProps) {
       default:
         return <Dashboard onNavigate={handlePageChange} user={effectiveUser} />
     }
-  }, [currentPage, handlePageChange, editingId, effectiveUser])
+  }, [currentPage, handlePageChange, navigateTo, editingId, effectiveUser])
 
   return (
     <div className="h-screen bg-background overflow-hidden flex flex-col">

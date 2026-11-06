@@ -4,8 +4,8 @@ import { resolveActiveTenantId } from '@/lib/api/tenant';
 
 const getUserStmt = db.prepare('SELECT name, username, tenant_id FROM users WHERE id = ?');
 const insertAuditStmt = db.prepare(`
-    INSERT INTO audit_logs (id, userId, userName, action, entityType, entityId, details, tenant_id)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO audit_logs (id, userId, userName, action, entityType, entityId, details, createdAt, tenant_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 export function logAudit(
@@ -43,6 +43,7 @@ export function logAudit(
             entityType,
             entityId,
             details,
+            new Date().toISOString(),
             resolvedTenantId
         );
     } catch (e) {

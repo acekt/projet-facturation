@@ -56,6 +56,7 @@ describe('Module 3 Curatif — Cohérence Métier, Avoirs & Multi-Tenancy', () =
         clientId: clientA.id,
         clientName: clientA.name,
         date: '2026-10-27',
+        discount: 0,
         items: [{ description: 'Prestation Sécurisée Tenant A', quantity: 2, unitPrice: 200000 }],
       })).data!;
 
@@ -120,6 +121,7 @@ describe('Module 3 Curatif — Cohérence Métier, Avoirs & Multi-Tenancy', () =
         clientId: client.id,
         clientName: client.name,
         date: '2026-10-27',
+        discount: 0,
         items: [
           { description: 'Étude géologique', quantity: 1, unitPrice: 1000000 },
         ],

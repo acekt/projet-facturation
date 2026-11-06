@@ -4,7 +4,7 @@ import { getSession } from '@/lib/api/auth';
 import { resolveActiveTenantId } from '@/lib/api/tenant';
 import { LedgerRepository, LedgerEntry, LedgerFilters, LedgerSummary } from '@/lib/repositories/LedgerRepository';
 import type { ActionResponse } from './client.actions';
-import { ledgerEntryCreateSchema, type LedgerEntryCreateRequest } from '@/lib/validations/ledger';
+import { ledgerEntryCreateSchema, type LedgerEntryCreateRequest } from '@/lib/validations';
 import { logAudit } from '@/lib/api/audit';
 
 export type { LedgerEntryCreateRequest };
@@ -26,6 +26,22 @@ export async function getLedgerEntriesAction(filters: Omit<LedgerFilters, 'tenan
   } catch (error) {
     console.error('[Action getLedgerEntriesAction] Error:', error);
     return { success: false, error: 'Failed to fetch ledger entries' };
+  }
+}
+
+export async function getLedgerProofImageAction(id: string): Promise<ActionResponse<string | null>> {
+  try {
+    const session = await getSession();
+    if (!session || !session.userId) return { success: false, error: 'Unauthorized' };
+
+    const activeTenantId = resolveActiveTenantId(session.userId, session.tenantId);
+    if (!activeTenantId) return { success: false, error: 'Tenant introuvable' };
+
+    const proofImage = LedgerRepository.getProofImage(id, activeTenantId);
+    return { success: true, data: proofImage };
+  } catch (error) {
+    console.error('[Action getLedgerProofImageAction] Error:', error);
+    return { success: false, error: 'Failed to fetch proof image' };
   }
 }
 
@@ -66,12 +82,17 @@ export async function createLedgerEntryAction(data: LedgerEntryCreateRequest): P
     if (!activeTenantId) return { success: false, error: 'Tenant introuvable' };
 
     const entry = LedgerRepository.create({
-      ...validation.data,
+      ...(validation.data as any),
       tenant_id: activeTenantId,
       created_by: session.userId,
     });
 
-    logAudit('CREATE', 'ledger_entry', entry.id, `Création écriture ${entry.type} de ${entry.amount} XAF`, session.userId, session.name || session.username || null, activeTenantId);
+    const formattedAmount = `${Math.round(entry.amount).toLocaleString('fr-FR')} FCFA`;
+    const auditDetail = entry.type === 'OUT'
+      ? `Dépense enregistrée : ${formattedAmount} (${entry.category})`
+      : `Recette enregistrée : ${formattedAmount} (${entry.category})`;
+
+    logAudit('CREATE', 'ledger_entry', entry.id, auditDetail, session.userId, session.name || session.username || null, activeTenantId);
 
     return { success: true, data: entry };
   } catch (error) {
@@ -100,6 +121,6 @@ export async function deleteLedgerEntryAction(id: string): Promise<ActionRespons
     return { success: true, data: true };
   } catch (error) {
     console.error('[Action deleteLedgerEntryAction] Error:', error);
-    return { success: false, error: 'Failed to delete ledger entry' };
+    return { success: false, error: error instanceof Error ? error.message : 'Failed to delete ledger entry' };
   }
 }

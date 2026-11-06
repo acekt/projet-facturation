@@ -18,8 +18,10 @@ import {
   ScrollText,
   KeyRound,
   BookOpen,
+  Package,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { isInvoicePendingPayment, isPendingQuote } from "@/lib/utils/counters"
 import { useStore, type User } from "@/lib/store"
 import { useShallow } from "zustand/react/shallow"
 import { Button } from "@workspace/ui/components/button"
@@ -42,38 +44,44 @@ import {
 
 export { TopBar, type TopBarProps } from "./topbar"
 
+export type NavGroup = 'pilotage' | 'sales' | 'repository' | 'admin' | 'bottom'
+
 export interface NavItemConfig {
   id: string
   label: string
   icon: React.ComponentType<{ className?: string }>
   roles: string[]
-  group: 'sales' | 'repository' | 'governance' | 'bottom'
+  group: NavGroup
 }
 
 /**
  * Organisation de la navigation latérale selon la Loi de Miller (7±2 chunks) :
- * 1. Pilotage & Ventes (Flux commercial quotidien)
- * 2. Référentiel (Fiches maîtres et catalogue)
- * 3. Gouvernance (Sécurité, audit, administration)
+ * 1. PILOTAGE & TRÉSORERIE (Vision globale et flux financiers quotidiens)
+ * 2. VENTES & DOCUMENTS (Cycle commercial et documents clients)
+ * 3. RÉFÉRENTIEL (Données de base, fiches maîtres, catalogues et stocks)
+ * 4. ADMINISTRATION & SÉCURITÉ (Gestion des accès et piste d'audit)
+ * 5. PIED DE PAGE (Paramètres système et déconnexion sécurisée)
  */
 export const navItems: NavItemConfig[] = [
-  // 1. Pilotage & Ventes
-  { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ['admin', 'user'], group: 'sales' },
+  // 1. Pilotage & Trésorerie
+  { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard, roles: ['admin', 'user'], group: 'pilotage' },
+  { id: "ledger", label: "Livre des comptes", icon: BookOpen, roles: ['admin', 'user'], group: 'pilotage' },
+
+  // 2. Ventes & Documents
   { id: "invoices", label: "Factures", icon: FileText, roles: ['admin', 'user'], group: 'sales' },
   { id: "quotes", label: "Devis", icon: FileText, roles: ['admin', 'user'], group: 'sales' },
-  { id: "credit-notes", label: "Avoirs & Remboursements", icon: RefreshCcw, roles: ['admin', 'user'], group: 'sales' },
-  { id: "ledger", label: "Livre des comptes", icon: BookOpen, roles: ['admin', 'user'], group: 'sales' },
+  { id: "credit-notes", label: "Avoirs", icon: RefreshCcw, roles: ['admin', 'user'], group: 'sales' },
 
-  // 2. Référentiel
+  // 3. Référentiel
   { id: "clients", label: "Clients", icon: Users, roles: ['admin', 'user'], group: 'repository' },
   { id: "services", label: "Services", icon: Briefcase, roles: ['admin', 'user'], group: 'repository' },
-  { id: "stock", label: "Gestion de stock", icon: Briefcase, roles: ['admin', 'user'], group: 'repository' },
+  { id: "stock", label: "Gestion de stock", icon: Package, roles: ['admin', 'user'], group: 'repository' },
 
-  // 3. Gouvernance & Sécurité
-  { id: "users", label: "Utilisateurs", icon: KeyRound, roles: ['admin'], group: 'governance' },
-  { id: "audit", label: "Journal d'audit", icon: ScrollText, roles: ['admin'], group: 'governance' },
+  // 4. Administration & Sécurité
+  { id: "users", label: "Utilisateurs", icon: KeyRound, roles: ['admin'], group: 'admin' },
+  { id: "audit", label: "Journal d'audit", icon: ScrollText, roles: ['admin'], group: 'admin' },
 
-  // Bas de Sidebar
+  // 5. Pied de page
   { id: "settings", label: "Paramètres", icon: Settings, roles: ['admin', 'user'], group: 'bottom' },
 ]
 
@@ -86,37 +94,29 @@ interface SidebarProps {
 }
 
 export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: propUser }: SidebarProps) {
-  const { user: storeUser, setUser, invoices, quotes, creditNotes } = useStore(
+  const { user: storeUser, setUser, invoices, quotes, creditNotes, lowStockAlerts, refreshStockData } = useStore(
     useShallow((state) => ({
       user: state.user,
       setUser: state.setUser,
       invoices: state.invoices,
       quotes: state.quotes,
       creditNotes: state.creditNotes,
+      lowStockAlerts: state.lowStockAlerts,
+      refreshStockData: state.refreshStockData,
     }))
   )
   const user = propUser || storeUser
   const [showLogoutDialog, setShowLogoutDialog] = React.useState(false)
   const [isLoggingOut, setIsLoggingOut] = React.useState(false)
 
-  // Badges contextuels réactifs
-  const activeCreditNotesCount = React.useMemo(
-    () => (creditNotes || []).filter((cn) => !cn.deletedAt && cn.status !== 'cancelled').length,
-    [creditNotes]
-  )
+  // Badges contextuels réactifs unifiés
   const unpaidCount = React.useMemo(
-    () => invoices.filter((i) => !i.deletedAt && (i.status === 'UNPAID' || i.status === 'PARTIALLY_PAID' || i.status === 'overdue')).length,
-    [invoices]
+    () => invoices.filter((i) => isInvoicePendingPayment(i, creditNotes)).length,
+    [invoices, creditNotes]
   )
   const pendingQuotesCount = React.useMemo(() => {
-    const today = new Date().toISOString().split('T')[0];
-    return quotes.filter((q) => {
-      if (q.deletedAt) return false;
-      const status = (q.status || "").toUpperCase();
-      if (['CONVERTI', 'REFUSE', 'EXPIRE', 'EXPIRED', 'REJECTED', 'DRAFT', 'BROUILLON', 'INVOICED', 'ARCHIVED', 'CANCELLED'].includes(status)) return false;
-      if (q.validUntil && q.validUntil < today) return false;
-      return true;
-    }).length;
+    // Badges Devis : exclut les devis expirés (EXPIRED), convertis et refusés via isPendingQuote
+    return quotes.filter((q) => isPendingQuote(q)).length;
   }, [quotes])
 
   const handleConfirmLogout = async () => {
@@ -137,32 +137,21 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
   }
 
   const filteredItems = navItems.filter((item) => item.roles.includes(user?.role || 'user'))
+  const pilotageItems = filteredItems.filter((i) => i.group === 'pilotage')
   const salesItems = filteredItems.filter((i) => i.group === 'sales')
   const repositoryItems = filteredItems.filter((i) => i.group === 'repository')
-  const governanceItems = filteredItems.filter((i) => i.group === 'governance')
+  const adminItems = filteredItems.filter((i) => i.group === 'admin')
   const bottomItems = filteredItems.filter((i) => i.group === 'bottom')
 
-  const [lowStockCount, setLowStockCount] = React.useState(0);
+  const lowStockCount = lowStockAlerts.length;
 
   React.useEffect(() => {
-    const fetchLowStock = async () => {
-      try {
-         const { getLowStockAlerts } = await import("@/app/actions/stock.actions");
-         const res = await getLowStockAlerts();
-         if (res.success && res.data) {
-            setLowStockCount(res.data.length);
-         }
-      } catch (e) {
-         // silently ignore
-      }
-    };
-    fetchLowStock();
-  }, [currentPage]);
+    void refreshStockData(false);
+  }, [refreshStockData]);
 
   const getItemBadge = (id: string): number | null => {
     if (id === 'invoices' && unpaidCount > 0) return unpaidCount
     if (id === 'quotes' && pendingQuotesCount > 0) return pendingQuotesCount
-    if (id === 'credit-notes' && activeCreditNotesCount > 0) return activeCreditNotesCount
     if (id === 'stock' && lowStockCount > 0) return lowStockCount
     return null
   }
@@ -176,7 +165,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
           <motion.button
             onClick={() => onPageChange(item.id)}
             className={cn(
-              "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all relative group",
+              "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all relative group cursor-pointer",
               currentPage === item.id
                 ? "bg-primary/10 text-primary font-semibold"
                 : "text-muted-foreground hover:text-foreground hover:bg-secondary",
@@ -243,13 +232,13 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
         transition={{ duration: 0.3, ease: [0.4, 0, 0.2, 1] }}
         className="fixed left-0 top-0 h-screen bg-card border-r border-border flex flex-col z-50 shadow-sm"
       >
-        {/* Actions Rapides Métier (Loi de Fitts) */}
+        {/* 1. Actions Rapides Métier (Loi de Fitts) */}
         <div className="p-3 space-y-2">
           <Tooltip>
             <TooltipTrigger asChild>
               <Button
                 className={cn(
-                  "w-full bg-primary hover:bg-primary-hover text-white transition-all shadow-sm",
+                  "w-full bg-primary hover:bg-primary-hover text-white transition-all shadow-sm cursor-pointer",
                   collapsed ? "justify-center px-2" : "justify-start gap-2"
                 )}
                 onClick={() => onPageChange("new-quote")}
@@ -265,7 +254,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
               <Button
                 variant="outline"
                 className={cn(
-                  "w-full border-primary/20 hover:bg-primary/10 text-primary transition-all shadow-sm",
+                  "w-full border-primary/20 hover:bg-primary/10 text-primary transition-all shadow-sm cursor-pointer",
                   collapsed ? "justify-center px-2" : "justify-start gap-2"
                 )}
                 onClick={() => onPageChange("new-invoice")}
@@ -278,19 +267,33 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
           </Tooltip>
         </div>
 
-        {/* Navigation groupée en 3 blocs cognitifs (Loi de Miller) */}
+        {/* 2. Navigation groupée en 4 blocs cognitifs (Loi de Miller) */}
         <div className="flex-1 overflow-y-auto px-3 py-2 space-y-5">
-          {/* Groupe 1 : Pilotage & Ventes */}
-          <div className="space-y-1">
-            {!collapsed && (
-              <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                Pilotage & Ventes
-              </p>
-            )}
-            {salesItems.map(renderItem)}
-          </div>
+          {/* Groupe 1 : Pilotage & Trésorerie */}
+          {pilotageItems.length > 0 && (
+            <div className="space-y-1">
+              {!collapsed && (
+                <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  Pilotage & Trésorerie
+                </p>
+              )}
+              {pilotageItems.map(renderItem)}
+            </div>
+          )}
 
-          {/* Groupe 2 : Référentiel */}
+          {/* Groupe 2 : Ventes & Documents */}
+          {salesItems.length > 0 && (
+            <div className="space-y-1">
+              {!collapsed && (
+                <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                  Ventes & Documents
+                </p>
+              )}
+              {salesItems.map(renderItem)}
+            </div>
+          )}
+
+          {/* Groupe 3 : Référentiel */}
           {repositoryItems.length > 0 && (
             <div className="space-y-1">
               {!collapsed && (
@@ -302,20 +305,20 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
             </div>
           )}
 
-          {/* Groupe 3 : Gouvernance & Sécurité */}
-          {governanceItems.length > 0 && (
+          {/* Groupe 4 : Administration & Sécurité */}
+          {adminItems.length > 0 && (
             <div className="space-y-1">
               {!collapsed && (
                 <p className="px-3 text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1">
-                  Gouvernance
+                  Administration & Sécurité
                 </p>
               )}
-              {governanceItems.map(renderItem)}
+              {adminItems.map(renderItem)}
             </div>
           )}
         </div>
 
-        {/* Bas de Sidebar */}
+        {/* 6. Pied de page (Footer) */}
         <div className="p-3 border-t border-border space-y-1">
           {bottomItems.map(renderItem)}
           <Tooltip>
@@ -323,20 +326,20 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
               <motion.button
                 onClick={() => setShowLogoutDialog(true)}
                 className={cn(
-                  "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all text-destructive hover:bg-destructive/10",
+                  "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all text-destructive hover:bg-destructive/10 cursor-pointer",
                   collapsed && "justify-center px-2"
                 )}
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <LogOut className="w-5 h-5 shrink-0" />
+                <LogOut className="w-5 h-5 shrink-0 text-destructive" />
                 <AnimatePresence>
                   {!collapsed && (
                     <motion.span
                       initial={{ opacity: 0, x: -6 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -6 }}
-                      className="relative z-10"
+                      className="relative z-10 text-destructive font-medium"
                     >
                       Déconnexion
                     </motion.span>
@@ -374,7 +377,7 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
                 handleConfirmLogout()
               }}
               disabled={isLoggingOut}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 cursor-pointer"
             >
               {isLoggingOut ? "Déconnexion..." : "Se déconnecter"}
             </AlertDialogAction>
@@ -384,4 +387,3 @@ export function Sidebar({ currentPage, onPageChange, collapsed, onToggle, user: 
     </TooltipProvider>
   )
 }
-
