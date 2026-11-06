@@ -249,8 +249,8 @@ export function LedgerPage() {
   }, [entries, safePage])
 
   React.useEffect(() => {
-    if (currentPage > totalPages) {
-      setCurrentPage(Math.max(1, totalPages))
+    if (currentPage > totalPages && totalPages > 0) {
+      setCurrentPage(Math.max(1, totalPages));
     }
   }, [currentPage, totalPages])
 

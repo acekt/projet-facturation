@@ -148,8 +148,14 @@ export function DataExportModal({
   const [stockItems, setStockItems] = React.useState<any[]>(() => cachedStockCatalog);
   const [auditLogs, setAuditLogs] = React.useState<any[]>([]);
 
+  const fetchedDataRef = React.useRef(false);
   React.useEffect(() => {
-    if (open) {
+    if (!open) {
+      fetchedDataRef.current = false;
+      return;
+    }
+    if (open && !fetchedDataRef.current) {
+      fetchedDataRef.current = true;
       setScope(normalizeScope(initialEntity || defaultScope || "invoices"));
       setStatusFilter("all");
       if (cachedStockCatalog && cachedStockCatalog.length > 0) {

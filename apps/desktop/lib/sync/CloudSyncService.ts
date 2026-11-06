@@ -339,6 +339,8 @@ async function pushTable(sb: SupabaseClient, cfg: SyncTableConfig, tenantId: str
     credit_note_items: new Set(['deletedAt', 'deleted_at', 'serviceId', 'service_id']),
     invoice_items: new Set(['deletedAt', 'deleted_at', 'serviceId', 'service_id']),
     quote_items: new Set(['deletedAt', 'deleted_at', 'serviceId', 'service_id']),
+    services: new Set(['trackStock', 'stockQuantity', 'minStockAlert', 'stockItemName', 'unit', 'applyCss', 'applyTps', 'applyTva', 'proofImage', 'track_stock', 'stock_quantity', 'min_stock_alert', 'stock_item_name', 'apply_css', 'apply_tps', 'apply_tva', 'proof_image']),
+    ledger_entries: new Set(['proofImage', 'proof_image', 'hasProofImage', 'has_proof_image']),
   };
 
   const dataCols = cols.filter((c) => {
