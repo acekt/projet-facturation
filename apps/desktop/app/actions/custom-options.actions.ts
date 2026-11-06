@@ -4,7 +4,7 @@ import { getSession } from "@/lib/api/auth";
 import { resolveActiveTenantId } from "@/lib/api/tenant";
 import db from "@/lib/db";
 import { customSelectOptionSchema } from "@/lib/validations";
-import type { ActionResponse } from "./client.actions";
+import type { ActionResponse } from "@/lib/types/api";
 import crypto from "crypto";
 
 export interface CustomSelectOptionItem {

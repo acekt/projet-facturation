@@ -10,7 +10,7 @@ import { EnrollmentService, type IEnrollmentInput } from '@/lib/services/Enrollm
 import { provisionCloudAccount } from '@/lib/sync/CloudSyncService';
 import type { SessionResponse } from '@/lib/types/api';
 import { z } from 'zod';
-import type { ActionResponse } from './client.actions';
+import type { ActionResponse } from '@/lib/types/api';
 import { getErrorMessage } from '@/lib/utils/action-error';
 
 const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60; // 7 jours

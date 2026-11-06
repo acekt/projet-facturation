@@ -2,7 +2,7 @@
 
 import { getSession } from '@/lib/api/auth';
 import { syncWithCloud, type SyncReport } from '@/lib/sync/CloudSyncService';
-import type { ActionResponse } from './client.actions';
+import type { ActionResponse } from '@/lib/types/api';
 import { getErrorMessage } from '@/lib/utils/action-error';
 
 /**

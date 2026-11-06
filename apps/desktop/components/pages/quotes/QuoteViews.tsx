@@ -107,7 +107,7 @@ function QuoteActionDropdown({
         </DropdownMenuItem>
         <DropdownMenuItem
           className="gap-2.5 cursor-pointer"
-          onClick={() => onDownloadPDF(quote)}
+          onClick={() => setTimeout(() => { onDownloadPDF(quote) }, 0)}
           disabled={isDownloading === quote.id}
         >
           <Download className="w-4 h-4 text-muted-foreground" />
@@ -121,13 +121,13 @@ function QuoteActionDropdown({
         {hasBusinessActions && (
           <>
             <DropdownMenuSeparator className="my-1 bg-border/60" />
-            <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => onEdit(quote.id)}>
+            <DropdownMenuItem className="gap-2.5 cursor-pointer" onClick={() => setTimeout(() => { onEdit(quote.id) }, 0)}>
               <Edit2 className="w-4 h-4 text-muted-foreground" /> Modifier le devis
             </DropdownMenuItem>
             {!isExpired && (
               <DropdownMenuItem
                 className="gap-2.5 cursor-pointer font-medium"
-                onClick={() => onConvertToInvoice(quote.id)}
+                onClick={() => setTimeout(() => { onConvertToInvoice(quote.id) }, 0)}
               >
                 <CheckCircle2 className="w-4 h-4 text-primary" /> Convertir en facture
               </DropdownMenuItem>

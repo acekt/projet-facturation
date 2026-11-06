@@ -84,6 +84,10 @@ function registerAllIpcHandlers({ userDataPath, getMainWindow, logToFile, onAppR
     if (typeof url !== 'string') {
       throw new Error('[IPC:app:open-external] URL invalide.');
     }
+    // filter externally
+    if (!url.startsWith('https://') && !url.startsWith('mailto:') && !url.startsWith('whatsapp:')) {
+       throw new Error('[IPC:app:open-external] Protocole non autorisé.');
+    }
 
     const isAllowed = /^https:\/\/(wa\.me|api\.whatsapp\.com)\//.test(url) || /^mailto:/.test(url);
     if (!isAllowed) {

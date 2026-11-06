@@ -3,11 +3,10 @@
 import { getSession } from '@/lib/api/auth';
 import { resolveActiveTenantId } from '@/lib/api/tenant';
 import { LedgerRepository, LedgerEntry, LedgerFilters, LedgerSummary } from '@/lib/repositories/LedgerRepository';
-import type { ActionResponse } from './client.actions';
+import type { ActionResponse } from '@/lib/types/api';
 import { ledgerEntryCreateSchema, type LedgerEntryCreateRequest } from '@/lib/validations';
 import { logAudit } from '@/lib/api/audit';
 
-export type { LedgerEntryCreateRequest };
 
 export async function getLedgerEntriesAction(filters: Omit<LedgerFilters, 'tenantId'>): Promise<ActionResponse<LedgerEntry[]>> {
   try {

@@ -11,7 +11,7 @@ import { encryptSecret } from '@/lib/crypto/secretStore';
 import { userCreateSchema, userUpdateSchema } from '@/lib/validations';
 import type { UserResponse } from '@/lib/types/api';
 import { z } from 'zod';
-import type { ActionResponse } from './client.actions';
+import type { ActionResponse } from '@/lib/types/api';
 import { getErrorMessage } from '@/lib/utils/action-error';
 
 const SALT_ROUNDS = 10;

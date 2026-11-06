@@ -317,6 +317,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
     }
   };
 
+
   // Raccourci ergonomique Ctrl+S / Cmd+S
   useKeyboardShortcuts({
     onSave: () => handleSave("EN_ATTENTE"),
@@ -369,7 +370,7 @@ export function QuoteEditor({ onBack, editingId }: QuoteEditorProps) {
             />
           </div>
 
-          <div className="space-y-6">
+          <div className="space-y-6 sticky top-6">
             <FiscalSummaryCard
               subtotal={subtotal}
               discount={discount}

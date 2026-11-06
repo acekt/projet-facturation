@@ -112,14 +112,14 @@ export function ClientViews({
                   <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg">
                     <DropdownMenuItem
                       className="gap-2 cursor-pointer font-medium"
-                      onClick={() => onViewDetails(client)}
+                      onClick={() => setTimeout(() => { onViewDetails(client) }, 0)}
                     >
                       <Eye className="w-4 h-4 text-primary" /> Voir les détails
                     </DropdownMenuItem>
                     {canEdit && (
                       <>
                         <DropdownMenuSeparator className="bg-border/60" />
-                        <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => onEdit(client)}>
+                        <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setTimeout(() => { onEdit(client) }, 0)}>
                           <Edit2 className="w-4 h-4" /> Modifier
                         </DropdownMenuItem>
                       </>
@@ -127,7 +127,7 @@ export function ClientViews({
                     {canDelete && (
                       <DropdownMenuItem
                         className="gap-2 text-destructive focus:text-destructive cursor-pointer"
-                        onClick={() => onDelete(client.id)}
+                        onClick={() => setTimeout(() => { onDelete(client.id) }, 0)}
                       >
                         <Trash2 className="w-4 h-4" /> Supprimer
                       </DropdownMenuItem>
@@ -205,14 +205,14 @@ export function ClientViews({
                       <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg">
                         <DropdownMenuItem
                           className="gap-2 cursor-pointer font-medium"
-                          onClick={() => onViewDetails(client)}
+                          onClick={() => setTimeout(() => { onViewDetails(client) }, 0)}
                         >
                           <Eye className="w-4 h-4 text-primary" /> Voir les détails
                         </DropdownMenuItem>
                         {canEdit && (
                           <>
                             <DropdownMenuSeparator className="bg-border/60" />
-                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => onEdit(client)}>
+                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setTimeout(() => { onEdit(client) }, 0)}>
                               <Edit2 className="w-4 h-4" /> Modifier
                             </DropdownMenuItem>
                           </>
@@ -220,7 +220,7 @@ export function ClientViews({
                         {canDelete && (
                           <DropdownMenuItem
                             className="gap-2 text-destructive focus:text-destructive cursor-pointer"
-                            onClick={() => onDelete(client.id)}
+                            onClick={() => setTimeout(() => { onDelete(client.id) }, 0)}
                           >
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>
@@ -294,14 +294,14 @@ export function ClientViews({
                       <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg">
                         <DropdownMenuItem
                           className="gap-2 cursor-pointer font-medium"
-                          onClick={() => onViewDetails(client)}
+                          onClick={() => setTimeout(() => { onViewDetails(client) }, 0)}
                         >
                           <Eye className="w-4 h-4 text-primary" /> Voir les détails
                         </DropdownMenuItem>
                         {canEdit && (
                           <>
                             <DropdownMenuSeparator className="bg-border/60" />
-                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => onEdit(client)}>
+                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setTimeout(() => { onEdit(client) }, 0)}>
                               <Edit2 className="w-4 h-4" /> Modifier
                             </DropdownMenuItem>
                           </>
@@ -309,7 +309,7 @@ export function ClientViews({
                         {canDelete && (
                           <DropdownMenuItem
                             className="gap-2 text-destructive focus:text-destructive cursor-pointer"
-                            onClick={() => onDelete(client.id)}
+                            onClick={() => setTimeout(() => { onDelete(client.id) }, 0)}
                           >
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>

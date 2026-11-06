@@ -101,19 +101,19 @@ export function ServiceViews({
                     <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg">
                       <DropdownMenuItem
                         className="gap-2 cursor-pointer font-medium"
-                        onClick={() => onViewDetails(service)}
+                        onClick={() => setTimeout(() => { onViewDetails(service) }, 0)}
                       >
                         <Eye className="w-4 h-4 text-primary" /> Voir les détails
                       </DropdownMenuItem>
                       {isAdmin && (
                         <>
                           <DropdownMenuSeparator className="bg-border/60" />
-                          <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => onEdit(service)}>
+                          <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setTimeout(() => { onEdit(service) }, 0)}>
                             <Edit2 className="w-4 h-4" /> Modifier
                           </DropdownMenuItem>
                           <DropdownMenuItem
                             className="gap-2 text-destructive focus:text-destructive cursor-pointer"
-                            onClick={() => onDelete(service.id)}
+                            onClick={() => setTimeout(() => { onDelete(service.id) }, 0)}
                           >
                             <Trash2 className="w-4 h-4" /> Supprimer
                           </DropdownMenuItem>
@@ -178,19 +178,19 @@ export function ServiceViews({
                       <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg">
                         <DropdownMenuItem
                           className="gap-2 cursor-pointer font-medium"
-                          onClick={() => onViewDetails(service)}
+                          onClick={() => setTimeout(() => { onViewDetails(service) }, 0)}
                         >
                           <Eye className="w-4 h-4 text-primary" /> Voir les détails
                         </DropdownMenuItem>
                         {isAdmin && (
                           <>
                             <DropdownMenuSeparator className="bg-border/60" />
-                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => onEdit(service)}>
+                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setTimeout(() => { onEdit(service) }, 0)}>
                               <Edit2 className="w-4 h-4" /> Modifier
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="gap-2 text-destructive focus:text-destructive cursor-pointer"
-                              onClick={() => onDelete(service.id)}
+                              onClick={() => setTimeout(() => { onDelete(service.id) }, 0)}
                             >
                               <Trash2 className="w-4 h-4" /> Supprimer
                             </DropdownMenuItem>
@@ -248,19 +248,19 @@ export function ServiceViews({
                       <DropdownMenuContent align="end" className="w-48 bg-card border-border shadow-lg">
                         <DropdownMenuItem
                           className="gap-2 cursor-pointer font-medium"
-                          onClick={() => onViewDetails(service)}
+                          onClick={() => setTimeout(() => { onViewDetails(service) }, 0)}
                         >
                           <Eye className="w-4 h-4 text-primary" /> Voir les détails
                         </DropdownMenuItem>
                         {isAdmin && (
                           <>
                             <DropdownMenuSeparator className="bg-border/60" />
-                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => onEdit(service)}>
+                            <DropdownMenuItem className="gap-2 cursor-pointer" onClick={() => setTimeout(() => { onEdit(service) }, 0)}>
                               <Edit2 className="w-4 h-4" /> Modifier
                             </DropdownMenuItem>
                             <DropdownMenuItem
                               className="gap-2 text-destructive focus:text-destructive cursor-pointer"
-                              onClick={() => onDelete(service.id)}
+                              onClick={() => setTimeout(() => { onDelete(service.id) }, 0)}
                             >
                               <Trash2 className="w-4 h-4" /> Supprimer
                             </DropdownMenuItem>
