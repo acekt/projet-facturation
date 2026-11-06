@@ -6,7 +6,7 @@
   "private": true,
   "main": "main.js",
   "scripts": {
-    "dev": "npm run rebuild:node && cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" next dev --webpack",
+    "dev": "node -e \"const fs=require('fs'); if (!fs.existsSync('node_modules/better-sqlite3/build/Release/better_sqlite3.node')) process.exit(1);\" || npm run rebuild:node && cross-env NODE_OPTIONS=\"--max-old-space-size=2560\" next dev --webpack",
     "dev:electron": "electron .",
     "build": "next build --webpack",
     "start": "next start",
@@ -14,7 +14,7 @@
     "electron": "electron .",
     "electron:prod": "npm run build:electron && electron .",
     "test": "vitest run",
-    "typecheck": "cross-env NODE_OPTIONS=\"--max-old-space-size=4096\" tsc --noEmit",
+    "typecheck": "cross-env NODE_OPTIONS=\"--max-old-space-size=2560\" tsc --noEmit",
     "test:e2e:report": "playwright test --reporter=html",
     "seed": "npx tsx scripts/seed_multiyear.ts",
     "rebuild:node": "npm rebuild better-sqlite3",

@@ -45,6 +45,7 @@ const nextConfig = {
   experimental: {
     optimizeCss: false,
     agentUpgrade: 'security',
+    optimizePackageImports: ['lucide-react', 'recharts', 'framer-motion', '@radix-ui/react-icons'],
   },
   cacheComponents: true,
   partialPrefetching: true,
