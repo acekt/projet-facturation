@@ -74,7 +74,7 @@ export async function getQuoteById(id: string): Promise<ActionResponse<QuoteResp
   }
 }
 
-export async function createQuote(data: QuoteCreateRequest): Promise<ActionResponse<{ id: string, number: string }>> {
+export async function createQuote(data: QuoteCreateRequest): Promise<ActionResponse<{ id: string, number: string, items?: any[] }>> {
   try {
     const session = await getSession();
     if (!session || !session.userId) return { success: false, error: 'Unauthorized' };
@@ -155,7 +155,7 @@ export async function createQuote(data: QuoteCreateRequest): Promise<ActionRespo
       }
 
       logAudit('CREATE', 'quote', id, `Nouveau devis créé: ${number}`, session.userId, session.name || session.username || null, activeTenantId);
-      return { id, number };
+      return { id, number, items: validData.items };
     });
 
     const result = insertQuoteTx(validData.items);
@@ -166,7 +166,7 @@ export async function createQuote(data: QuoteCreateRequest): Promise<ActionRespo
   }
 }
 
-export async function updateQuote(id: string, data: QuoteCreateRequest): Promise<ActionResponse<{ id: string }>> {
+export async function updateQuote(id: string, data: QuoteCreateRequest): Promise<ActionResponse<{ id: string, items?: any[] }>> {
   try {
     const session = await getSession();
     if (!session || !session.userId) return { success: false, error: 'Unauthorized' };
@@ -266,7 +266,7 @@ export async function updateQuote(id: string, data: QuoteCreateRequest): Promise
       }
 
       logAudit('UPDATE', 'quote', id, `Devis modifié: ${existingQuote.number || id}`, session.userId, session.name || session.username || null, activeTenantId);
-      return { id };
+      return { id, items: validData.items };
     });
 
     const result = updateQuoteTx(validData.items);

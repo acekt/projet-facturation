@@ -242,9 +242,30 @@ export function InvoiceEditor({ onBack, editingId }: InvoiceEditorProps) {
       return;
     }
 
+    if (selectedClient.status === 'inactive' || selectedClient.status === 'Inactif' || (selectedClient as any).isActive === false) {
+      toast.error("Ce client est actuellement inactif. Veuillez le réactiver dans la fiche Clients avant d'émettre un document.");
+      return;
+    }
+
     if (items.some((item) => !item.description || item.quantity <= 0 || item.unitPrice < 0)) {
       toast.error("Veuillez remplir correctement tous les articles");
       return;
+    }
+
+    const isDraft = status === "draft" || (status as string) === "BROUILLON" || (status as string) === "DRAFT";
+    if (!isDraft) {
+      for (const item of items) {
+        if (item.serviceId) {
+          const service = services.find(s => s.id === item.serviceId);
+          if (service && Boolean(service.trackStock) === true) {
+            const currentStock = Number(service.stockQuantity ?? 0);
+            if (Number(item.quantity) > currentStock) {
+              toast.error(`Stock insuffisant pour ${service.name} (Disponible: ${currentStock}). Validation impossible.`);
+              return;
+            }
+          }
+        }
+      }
     }
 
     submitLockRef.current = true;

@@ -7,9 +7,56 @@ import { CheckIcon, ChevronRightIcon, CircleIcon } from 'lucide-react'
 import { cn } from '@workspace/ui/lib/utils'
 
 function DropdownMenu({
+  open: controlledOpen,
+  onOpenChange: controlledOnOpenChange,
   ...props
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Root>) {
-  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" {...props} />
+  const menuId = React.useId();
+  const [internalOpen, setInternalOpen] = React.useState(false);
+  const isControlled = controlledOpen !== undefined;
+  const open = isControlled ? controlledOpen : internalOpen;
+
+  const handleOpenChange = React.useCallback((nextOpen: boolean) => {
+    if (!isControlled) {
+      setInternalOpen(nextOpen);
+    }
+    controlledOnOpenChange?.(nextOpen);
+
+    if (nextOpen) {
+      const event = new CustomEvent("dropdown-menu-open", { detail: { id: menuId } });
+      window.dispatchEvent(event);
+    }
+  }, [isControlled, controlledOnOpenChange, menuId]);
+
+  React.useEffect(() => {
+    const handleGlobalOpen = (e: Event) => {
+      const customEvent = e as CustomEvent<{ id: string }>;
+      if (customEvent.detail?.id !== menuId && open) {
+        handleOpenChange(false);
+      }
+    };
+
+    window.addEventListener("dropdown-menu-open", handleGlobalOpen);
+
+    const handleMousedown = () => {
+      // Small timeout allows standard Radix handling to occur first if necessary
+      setTimeout(() => {
+        const anyOpen = document.querySelector('[data-state="open"][data-slot="dropdown-menu-content"]');
+        if (!anyOpen && open) {
+          // Additional fallback in case it didn't close properly, but Radix should handle this normally
+        }
+      }, 0);
+    }
+
+    window.addEventListener("mousedown", handleMousedown);
+
+    return () => {
+      window.removeEventListener("dropdown-menu-open", handleGlobalOpen);
+      window.removeEventListener("mousedown", handleMousedown);
+    };
+  }, [menuId, open, handleOpenChange]);
+
+  return <DropdownMenuPrimitive.Root data-slot="dropdown-menu" open={open} onOpenChange={handleOpenChange} {...props} />
 }
 
 function DropdownMenuPortal({

@@ -306,31 +306,6 @@ export function CreditNotesPage() {
             </span>
           </button>
 
-          <button
-            type="button"
-            onClick={() => {
-              setStatusFilter("cancelled")
-              setCurrentPage(1)
-            }}
-            className={cn(
-              "px-3 py-1.5 text-xs font-semibold rounded-lg transition-all cursor-pointer flex items-center gap-1.5",
-              statusFilter === "cancelled"
-                ? "bg-primary text-primary-foreground shadow-sm"
-                : "bg-muted/60 text-muted-foreground hover:bg-muted"
-            )}
-          >
-            <span>Annulés</span>
-            <span
-              className={cn(
-                "px-1.5 py-0.5 rounded-full tabular-nums text-[10px] font-semibold",
-                statusFilter === "cancelled"
-                  ? "bg-primary-foreground/20 text-primary-foreground"
-                  : "bg-background/80 text-foreground"
-              )}
-            >
-              {counts.cancelled}
-            </span>
-          </button>
         </div>
       </div>
 

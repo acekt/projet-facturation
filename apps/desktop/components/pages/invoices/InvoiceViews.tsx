@@ -162,14 +162,17 @@ export function InvoiceViews({
 
   const renderActionsMenu = (invoice: Invoice) => {
     const isProtected = isInvoiceProtected(invoice, creditNotes);
-    const isDraft = invoice.status === "draft" || (invoice.status as string) === "BROUILLON";
-    const canEditDraft = canModify(invoice) && isDraft;
-    const canPay = invoice.status !== "PAID" && invoice.status !== INVOICE_STATUS.CANCELLED && canModify(invoice);
-    const canCredit = canModify(invoice) && invoice.status !== INVOICE_STATUS.CANCELLED && Boolean(onEmitCreditNote);
+    const isDraft = invoice.status === "draft" || (invoice.status as string) === "BROUILLON" || (invoice.status as string) === "DRAFT";
+    const isCancelled = invoice.status === INVOICE_STATUS.CANCELLED || (invoice.status as string) === "ANNULEE" || (invoice.status as string) === "cancelled";
+
+    const canEditDraft = canModify(invoice) && isDraft && !isCancelled;
+    const canPay = invoice.status !== "PAID" && !isCancelled && !isDraft && canModify(invoice);
+    const canCredit = canModify(invoice) && !isCancelled && !isDraft && Boolean(onEmitCreditNote);
     const hasBusinessActions = canEditDraft || canPay || canCredit;
 
-    const canCancelInvoice = canModify(invoice) && invoice.status !== INVOICE_STATUS.CANCELLED && !isProtected;
-    const canDeleteInvoice = canModify(invoice) && !isProtected;
+    const totalPaid = Array.isArray(invoice.payments) ? invoice.payments.reduce((sum, p) => sum + (p.amount || 0), 0) : 0;
+    const canCancelInvoice = canModify(invoice) && !isCancelled && !isDraft && totalPaid === 0 && !isProtected;
+    const canDeleteInvoice = canModify(invoice) && isDraft;
     const hasRiskActions = canCancelInvoice || canDeleteInvoice;
 
     return (

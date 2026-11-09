@@ -38,10 +38,14 @@ export const InvoiceService = {
 
     // Validate client
     const client = db
-      .prepare(`SELECT id FROM clients WHERE id = ? AND deletedAt IS NULL${tf.sql}`)
+      .prepare(`SELECT id, status FROM clients WHERE id = ? AND deletedAt IS NULL${tf.sql}`)
       .get(data.clientId, ...tf.params) as DbClient | undefined;
     if (!client) {
       throw new InvoiceServiceError('Client introuvable ou supprimé. Impossible de créer une facture pour ce client.', 400);
+    }
+
+    if (client.status === 'inactive' || client.status === 'Inactif' || (client as any).isActive === false) {
+      throw new InvoiceServiceError("Ce client est actuellement inactif. Veuillez le réactiver dans la fiche Clients avant d'émettre un document.", 400);
     }
 
     let quoteSubject: string | null = null;
@@ -156,7 +160,7 @@ export const InvoiceService = {
         db.prepare(`UPDATE quotes SET status = '${QUOTE_STATUS.CONVERTI}' WHERE id = ?`).run(data.quoteId);
       }
 
-      return { id, number };
+      return { id, number, items: data.items };
     });
 
     return insertInvoice();
