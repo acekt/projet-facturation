@@ -101,9 +101,12 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
   const netHT = data.taxBase - data.cssAmount;
   const hash = buildHash(data, type);
 
+  const safeItems = Array.isArray(data?.items) ? data.items : [];
+  const safePayments = Array.isArray((data as InvoiceResponse)?.payments) ? (data as InvoiceResponse).payments : [];
+
   // Minimum visible rows in the table body (only pad when document has fewer than 6 rows)
   const MIN_ROWS = 6;
-  const padRows = Math.max(0, MIN_ROWS - data.items.length);
+  const padRows = Math.max(0, MIN_ROWS - safeItems.length);
 
   return (
     <>
@@ -277,7 +280,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
               </tr>
             </thead>
             <tbody className="table-row-group">
-              {data.items.map((item) => (
+              {safeItems.map((item) => (
                 <tr
                   key={item.id}
                   className="border-b border-gray-100 print:break-inside-avoid"
@@ -335,7 +338,7 @@ export function DocumentA4({ data, type }: DocumentA4Props) {
           total={data.total}
           totalPaid={totalPaid}
           remaining={remaining}
-          payments={"payments" in data ? (data.payments ?? []) : []}
+          payments={safePayments}
           formatCurrency={fmt}
           notes={notes || s.mentionsLegales}
         />

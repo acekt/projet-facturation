@@ -102,6 +102,9 @@ export function InvoicesPage({ onCreateInvoice, onEditInvoice }: InvoicesPagePro
         const isPastDue = invoice.dueDate ? new Date(invoice.dueDate).getTime() < Date.now() : false
         return matchesSearch && (invoice.status === "overdue" || (isPastDue && invoice.status !== "PAID" && (invoice.status as string) !== "cancelled" && (invoice.status as string) !== "CANCELLED"))
       }
+      if (statusFilter === "cancelled") {
+        return matchesSearch && ((invoice.status as string)?.toUpperCase() === "CANCELLED" || (invoice.status as string)?.toUpperCase() === "ANNULEE")
+      }
       return matchesSearch && invoice.status === statusFilter
     })
   }, [invoices, debouncedSearch, statusFilter, creditNotes])
